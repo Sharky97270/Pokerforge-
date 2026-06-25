@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" fill="none">
+  <defs>
+    <!-- Chrome métal gradient horizontal -->
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8F4FF"/>
+      <stop offset="30%" stop-color="#FFFFFF"/>
+      <stop offset="60%" stop-color="#9FB7D6"/>
+      <stop offset="100%" stop-color="#D0E4F8"/>
+    </linearGradient>
+    <!-- Bleu métal monogramme -->
+    <linearGradient id="blueMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00A8FF"/>
+      <stop offset="40%" stop-color="#0070E0"/>
+      <stop offset="70%" stop-color="#003B9A"/>
+      <stop offset="100%" stop-color="#001F60"/>
+    </linearGradient>
+    <!-- Bleu clair reflet -->
+    <linearGradient id="blueShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#60C8FF"/>
+      <stop offset="50%" stop-color="#00A8FF"/>
+      <stop offset="100%" stop-color="#0055CC"/>
+    </linearGradient>
+    <!-- Glow filtre -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="glowStrong" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <!-- Chip gradient -->
+    <linearGradient id="chipGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A6FD4"/>
+      <stop offset="50%" stop-color="#003B9A"/>
+      <stop offset="100%" stop-color="#001F60"/>
+    </linearGradient>
+    <linearGradient id="chipRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#60C8FF"/>
+      <stop offset="100%" stop-color="#0070E0"/>
+    </linearGradient>
+    <!-- Shark body gradient -->
+    <linearGradient id="sharkGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9FB7D6"/>
+      <stop offset="50%" stop-color="#6090C0"/>
+      <stop offset="100%" stop-color="#003B9A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ══════════════════════════════════════════
+       BLOC GAUCHE — Monogramme PF + Requin
+  ══════════════════════════════════════════ -->
+
+  <!-- Fond sombre du monogramme -->
+  <rect x="4" y="4" width="108" height="112" rx="10" fill="#020B1E" stroke="#00A8FF" stroke-width="1.2" opacity="0.9"/>
+  <!-- Reflet diagonal intérieur -->
+  <rect x="4" y="4" width="108" height="112" rx="10" fill="url(#blueShine)" opacity="0.04"/>
+
+  <!-- ── Lettre P (italic bold) ── -->
+  <g filter="url(#glow)">
+    <path d="M22 85 L22 25 L52 25 Q68 25 72 35 Q76 45 70 55 Q64 65 50 66 L36 66 L36 85 Z
+             M36 38 L36 53 L49 53 Q57 53 59 48 Q61 43 57 39 Q54 36 48 36 Z"
+      fill="url(#blueMetal)" stroke="#00A8FF" stroke-width="0.5" stroke-linejoin="round"/>
+    <!-- Shine sur le P -->
+    <path d="M22 25 L52 25 Q62 25 68 31" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- ── Lettre F (italic bold) ── -->
+  <g filter="url(#glow)">
+    <path d="M59 85 L59 25 L93 25 L93 38 L73 38 L73 49 L90 49 L90 61 L73 61 L73 85 Z"
+      fill="url(#blueMetal)" stroke="#00A8FF" stroke-width="0.5" stroke-linejoin="round"/>
+    <!-- Shine sur le F -->
+    <path d="M59 25 L93 25 L93 36" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- ── Requin intégré dans la zone F ── -->
+  <!-- Corps principal du requin (semi-transparent, superposé) -->
+  <g opacity="0.82" filter="url(#glow)">
+    <!-- Corps -->
+    <ellipse cx="82" cy="70" rx="16" ry="7" fill="url(#sharkGrad)" transform="rotate(-15,82,70)"/>
+    <!-- Museau -->
+    <path d="M95 65 Q103 68 104 71 Q103 73 95 72 Z" fill="#9FB7D6"/>
+    <!-- Nageoire dorsale -->
+    <path d="M82 63 L79 52 L88 62 Z" fill="url(#sharkGrad)" stroke="#60C8FF" stroke-width="0.4"/>
+    <!-- Nageoire caudale -->
+    <path d="M66 68 L60 62 L63 70 L60 77 L66 72 Z" fill="#6090C0"/>
+    <!-- Gueule avec dents -->
+    <path d="M97 71 Q103 71 104 73 L97 74 Z" fill="#020B1E"/>
+    <path d="M98 71.5 L99 73.5 M100 71 L101 73.5 M102 71 L102.5 73" stroke="white" stroke-width="0.7" stroke-linecap="round"/>
+    <!-- Œil -->
+    <circle cx="93" cy="67.5" r="1.5" fill="#020B1E"/>
+    <circle cx="93.4" cy="67.1" r="0.5" fill="white"/>
+  </g>
+
+  <!-- Ligne de reflet bas du bloc -->
+  <line x1="14" y1="108" x2="102" y2="108" stroke="#00A8FF" stroke-width="0.6" opacity="0.4"/>
+
+  <!-- ══════════════════════════════════════════
+       BLOC DROIT — Texte POKERFORGE + subtitle
+  ══════════════════════════════════════════ -->
+
+  <!-- ── POKERFORGE avec jetons ── -->
+  <!-- P -->
+  <text x="124" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">P</text>
+  <!-- O remplacé par jeton poker -->
+  <!-- Jeton 1 (premier O dans POKER) -->
+  <g transform="translate(162,32)">
+    <circle cx="0" cy="18" r="18" fill="url(#chipGrad)" stroke="url(#chipRim)" stroke-width="2.5"/>
+    <!-- Bande extérieure chips -->
+    <circle cx="0" cy="18" r="14.5" fill="none" stroke="#1A6FD4" stroke-width="1.2" stroke-dasharray="4.5,2.2"/>
+    <!-- Intérieur -->
+    <circle cx="0" cy="18" r="11" fill="#001F60" stroke="#003B9A" stroke-width="0.8"/>
+    <!-- Symbole pique ♠ -->
+    <text x="0" y="24" font-size="14" fill="#00A8FF" text-anchor="middle" font-family="serif" filter="url(#glow)">♠</text>
+  </g>
+  <!-- K -->
+  <text x="186" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">K</text>
+  <!-- E -->
+  <text x="218" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">E</text>
+  <!-- R -->
+  <text x="248" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">R</text>
+  <!-- F -->
+  <text x="279" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">F</text>
+  <!-- O remplacé par jeton poker -->
+  <!-- Jeton 2 (premier O dans FORGE) -->
+  <g transform="translate(312,32)">
+    <circle cx="0" cy="18" r="18" fill="url(#chipGrad)" stroke="url(#chipRim)" stroke-width="2.5"/>
+    <circle cx="0" cy="18" r="14.5" fill="none" stroke="#1A6FD4" stroke-width="1.2" stroke-dasharray="4.5,2.2"/>
+    <circle cx="0" cy="18" r="11" fill="#001F60" stroke="#003B9A" stroke-width="0.8"/>
+    <text x="0" y="24" font-size="14" fill="#00A8FF" text-anchor="middle" font-family="serif" filter="url(#glow)">♠</text>
+  </g>
+  <!-- R -->
+  <text x="336" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">R</text>
+  <!-- G -->
+  <text x="368" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">G</text>
+  <!-- E -->
+  <text x="401" y="68" font-family="'Arial Black',Impact,sans-serif" font-size="44" font-weight="900"
+    font-style="italic" fill="url(#chrome)" letter-spacing="-1" filter="url(#glow)">E</text>
+
+  <!-- Ligne sous POKERFORGE -->
+  <line x1="122" y1="76" x2="432" y2="76" stroke="url(#chipRim)" stroke-width="0.7" opacity="0.5"/>
+
+  <!-- ── ELITE TRAINING ── -->
+  <!-- Dash gauche -->
+  <line x1="122" y1="91" x2="158" y2="91" stroke="#00A8FF" stroke-width="1.2" opacity="0.7"/>
+  <text x="170" y="96" font-family="'Arial',sans-serif" font-size="14" font-weight="700"
+    fill="#00A8FF" letter-spacing="5" text-anchor="start">ELITE TRAINING</text>
+  <!-- Dash droit -->
+  <line x1="388" y1="91" x2="432" y2="91" stroke="#00A8FF" stroke-width="1.2" opacity="0.7"/>
+
+  <!-- Glow néon ligne du bas -->
+  <line x1="122" y1="104" x2="432" y2="104" stroke="#00A8FF" stroke-width="1.5" opacity="0.25"/>
+  <line x1="122" y1="104" x2="432" y2="104" stroke="#60C8FF" stroke-width="0.5" opacity="0.5"/>
+</svg>

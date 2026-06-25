@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+Thumbs.db
+
+# Logiciel tiers (binaires, 400+ Mo) — pas une dépendance du projet
+Holdem Manager 3/
+
+# Réglages locaux & mémoire personnelle de l'assistant
+.claude/

@@ -1,0 +1,599 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PokerForge — Prisma Schema
+// Database : PostgreSQL (Supabase)
+// ORM      : Prisma
+// Auth     : Supabase Auth (auth.users — géré hors Prisma)
+//
+// Convention :
+//   - Tous les IDs sont des UUID (gen_random_uuid() côté DB)
+//   - Timestamps : Timestamptz (fuseau horaire inclus)
+//   - camelCase Prisma → snake_case PostgreSQL via @@map / @map
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // url        = PgBouncer pooled (pour les requêtes)
+  // directUrl  = connexion directe (pour les migrations Prisma)
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ENUMS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  ELITE
+}
+
+enum TrainingMode {
+  GTO      // Mode GTO pur
+  EXPLOIT  // Exploitation de profils
+  ICM      // ICM / Push-Fold
+  QUIZ     // Quiz rapide
+  COACH    // Session guidée par le Coach IA
+}
+
+enum Street {
+  PREFLOP
+  FLOP
+  TURN
+  RIVER
+}
+
+enum Position {
+  UTG
+  UTG1
+  LJ
+  HJ
+  CO
+  BTN
+  SB
+  BB
+}
+
+enum PokerAction {
+  FOLD
+  CHECK
+  CALL
+  BET
+  RAISE
+  ALL_IN
+}
+
+enum LeakSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ContentType {
+  ARTICLE
+  VIDEO
+  CHEAT_SHEET
+  LEXICON
+  COURSE
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum XpSource {
+  SESSION_COMPLETE
+  PERFECT_SESSION    // 100% précision
+  STREAK_3
+  STREAK_7
+  STREAK_30
+  ACHIEVEMENT_UNLOCK
+  FIRST_SESSION
+  DAILY_CHALLENGE
+  COACH_REPORT
+  MANUAL_GRANT
+}
+
+enum SessionGrade {
+  S
+  A
+  B
+  C
+  D
+  F
+}
+
+enum PokerRoom {
+  POKERSTARS
+  WINAMAX
+  PARTYPOKER
+  GGPOKER
+  ACR
+  EIGHT88
+  OTHER
+}
+
+enum SolverStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PROFILS UTILISATEURS
+// Lié 1:1 à auth.users de Supabase (même UUID).
+// La FK vers auth.users(id) est posée dans la migration SQL manuelle
+// car auth.users est dans le schéma "auth", invisible à Prisma.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Profile {
+  id           String           @id @db.Uuid
+  pseudo       String           @unique @db.VarChar(32)
+  avatarUrl    String?          @map("avatar_url") @db.Text
+  level        Int              @default(1)
+  xp           Int              @default(0)
+  subscription SubscriptionTier @default(FREE)
+  country      String?          @db.VarChar(2)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  lastLogin    DateTime?        @map("last_login") @db.Timestamptz
+  // Préférences utilisateur : timer, thème, notifications, etc.
+  settings     Json             @default("{}")
+
+  sessions         TrainingSession[]
+  stats            UserStats?
+  leaks            UserLeak[]
+  xpEvents         XpEvent[]
+  coachReports     CoachReport[]
+  answers          UserAnswer[]
+  achievements     UserAchievement[]
+  handHistories    HandHistory[]
+  customVillains   VillainProfile[]  @relation("VillainCreatedBy")
+
+  @@map("profiles")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SESSIONS D'ENTRAÎNEMENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model TrainingSession {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  mode        TrainingMode
+  startedAt   DateTime     @default(now()) @map("started_at") @db.Timestamptz
+  endedAt     DateTime?    @map("ended_at") @db.Timestamptz
+  durationSec Int?         @map("duration_sec")
+  spotsCount  Int          @default(0) @map("spots_count")
+  accuracyPct Float?       @map("accuracy_pct") @db.DoublePrecision
+  evGained    Float?       @map("ev_gained") @db.DoublePrecision
+  grade       SessionGrade?
+  xpEarned    Int          @default(0) @map("xp_earned")
+  // Données contextuelles : stack depth cible, villain type, options de session
+  meta        Json         @default("{}")
+
+  user        Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spots       TrainingSpot[]
+  coachReport CoachReport?
+
+  @@index([userId])
+  @@index([userId, startedAt(sort: Desc)])
+  @@index([mode])
+  @@map("training_sessions")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BIBLIOTHÈQUE DE SPOTS (templates)
+// Les spots réels joués en session en héritent.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model SpotTemplate {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category        Street
+  title           String     @db.VarChar(120)
+  description     String?    @db.Text
+  heroPosition    Position   @map("hero_position")
+  villainPosition Position?  @map("villain_position")
+  stackBb         Float      @map("stack_bb") @db.DoublePrecision
+  spr             Float?     @db.DoublePrecision
+  // Séquence d'actions avant le point de décision : [{ actor, action, amount }]
+  actionSequence  Json       @map("action_sequence")
+  // Cartes du board (ex: ["As","Kh","7d"]) — vide si préflop
+  boardCards      String[]   @map("board_cards") @db.VarChar(3)
+  // Fréquences GTO : { "FOLD": 0.1, "CALL": 0.5, "RAISE": 0.4 }
+  gtoFrequencies  Json       @map("gto_frequencies")
+  // EV par action en BB (optionnel) : { "FOLD": -0.5, "CALL": 0.2, "RAISE": 0.8 }
+  evByAction      Json?      @map("ev_by_action")
+  difficulty      Difficulty @default(INTERMEDIATE)
+  tags            String[]
+  isActive        Boolean    @default(true) @map("is_active")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  instances       TrainingSpot[]
+
+  @@index([category])
+  @@index([difficulty])
+  @@index([heroPosition])
+  @@index([isActive])
+  @@map("spot_templates")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SPOTS JOUÉS (instances par session)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model TrainingSpot {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId       String          @map("session_id") @db.Uuid
+  templateId      String?         @map("template_id") @db.Uuid
+  villainProfileId String?        @map("villain_profile_id") @db.Uuid
+  ordinal         Int             // position dans la session (1, 2, 3...)
+  category        Street
+  heroPosition    Position        @map("hero_position")
+  villainPosition Position?       @map("villain_position")
+  stackBb         Float           @map("stack_bb") @db.DoublePrecision
+  spr             Float?          @db.DoublePrecision
+  boardCards      String[]        @map("board_cards") @db.VarChar(3)
+  // Snapshot de la solution GTO au moment du jeu (indépendant du template)
+  gtoSolution     Json            @map("gto_solution")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  session         TrainingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  template        SpotTemplate?    @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  villainProfile  VillainProfile?  @relation(fields: [villainProfileId], references: [id], onDelete: SetNull)
+  answer          UserAnswer?
+
+  @@index([sessionId])
+  @@index([templateId])
+  @@map("training_spots")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RÉPONSES UTILISATEUR
+// 1:1 avec TrainingSpot
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model UserAnswer {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  spotId        String      @unique @map("spot_id") @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  userAction    PokerAction @map("user_action")
+  correctAction PokerAction @map("correct_action")
+  isCorrect     Boolean     @map("is_correct")
+  evLost        Float       @default(0) @map("ev_lost") @db.DoublePrecision
+  gtoFrequency  Float?      @map("gto_frequency") @db.DoublePrecision
+  timeTakenMs   Int?        @map("time_taken_ms")
+  answeredAt    DateTime    @default(now()) @map("answered_at") @db.Timestamptz
+
+  spot          TrainingSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  user          Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, answeredAt(sort: Desc)])
+  @@index([userId, isCorrect])
+  @@map("user_answers")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PROFILS VILAIN (IA)
+// isSystem=true  → profils intégrés (Nit, Fish, TAG…)
+// isSystem=false → profils custom créés par un utilisateur
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model VillainProfile {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String   @db.VarChar(64)
+  description       String?  @db.Text
+  // Statistiques (0-100 sauf aggression qui peut dépasser 100)
+  vpip              Float    @db.DoublePrecision
+  pfr               Float    @db.DoublePrecision
+  threeBetPct       Float    @map("three_bet_pct") @db.DoublePrecision
+  aggression        Float    @db.DoublePrecision
+  foldToCbet        Float    @map("fold_to_cbet") @db.DoublePrecision
+  bluffFrequency    Float    @map("bluff_frequency") @db.DoublePrecision
+  callDownFrequency Float    @map("call_down_frequency") @db.DoublePrecision
+  isSystem          Boolean  @default(false) @map("is_system")
+  createdBy         String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  creator           Profile?       @relation("VillainCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  spots             TrainingSpot[]
+
+  @@index([isSystem])
+  @@map("villain_profiles")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATISTIQUES UTILISATEUR (agrégées)
+// Table matérialisée mise à jour après chaque session.
+// 1:1 avec Profile.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model UserStats {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String    @unique @map("user_id") @db.Uuid
+  totalSpots         Int       @default(0) @map("total_spots")
+  correctSpots       Int       @default(0) @map("correct_spots")
+  accuracyGlobal     Float     @default(0) @map("accuracy_global") @db.DoublePrecision
+  accuracyPreflop    Float     @default(0) @map("accuracy_preflop") @db.DoublePrecision
+  accuracyFlop       Float     @default(0) @map("accuracy_flop") @db.DoublePrecision
+  accuracyTurn       Float     @default(0) @map("accuracy_turn") @db.DoublePrecision
+  accuracyRiver      Float     @default(0) @map("accuracy_river") @db.DoublePrecision
+  evCumulative       Float     @default(0) @map("ev_cumulative") @db.DoublePrecision
+  avgDecisionTimeMs  Int       @default(0) @map("avg_decision_time_ms")
+  sessionsCount      Int       @default(0) @map("sessions_count")
+  totalPlayTimeMin   Int       @default(0) @map("total_play_time_min")
+  currentStreak      Int       @default(0) @map("current_streak")
+  bestStreak         Int       @default(0) @map("best_streak")
+  lastSessionAt      DateTime? @map("last_session_at") @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user               Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LEAKS DÉTECTÉS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model UserLeak {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String       @map("user_id") @db.Uuid
+  // Identifiant machine : "over_fold_bb_vs_btn_steal", "limp_utg", etc.
+  leakType        String       @map("leak_type") @db.VarChar(64)
+  label           String       @db.VarChar(120)
+  severity        LeakSeverity
+  frequencyPct    Float        @map("frequency_pct") @db.DoublePrecision
+  // IDs des SpotTemplates où ce leak est observé
+  spotsConcerned  String[]     @map("spots_concerned") @db.Uuid
+  evImpact        Float        @default(0) @map("ev_impact") @db.DoublePrecision
+  firstDetectedAt DateTime     @default(now()) @map("first_detected_at") @db.Timestamptz
+  lastDetectedAt  DateTime     @default(now()) @map("last_detected_at") @db.Timestamptz
+  isResolved      Boolean      @default(false) @map("is_resolved")
+  resolvedAt      DateTime?    @map("resolved_at") @db.Timestamptz
+
+  user            Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, severity])
+  @@index([userId, isResolved])
+  @@map("user_leaks")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HISTORIQUE XP
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model XpEvent {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  xpAmount    Int       @map("xp_amount")
+  source      XpSource
+  referenceId String?   @map("reference_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user        Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("xp_events")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RAPPORTS COACH IA
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model CoachReport {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  sessionId        String?   @unique @map("session_id") @db.Uuid
+  summary          String    @db.Text
+  // [{ title, text, priority }]
+  recommendations  Json
+  // [{ axis, priority, description, spotIds[] }]
+  workAxes         Json      @map("work_axes")
+  // { accuracy: +2.3, ev: +0.8, streak: 0 }
+  progressionDelta Json      @map("progression_delta")
+  // IDs des UserLeaks ciblés dans ce rapport
+  leakIds          String[]  @map("leak_ids") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user             Profile          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session          TrainingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("coach_reports")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// BIBLIOTHÈQUE (articles, vidéos, fiches, lexique)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model LibraryContent {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type         ContentType
+  title        String      @db.VarChar(200)
+  slug         String      @unique @db.VarChar(200)
+  content      String      @db.Text
+  excerpt      String?     @db.VarChar(300)
+  thumbnailUrl String?     @map("thumbnail_url") @db.Text
+  tags         String[]
+  difficulty   Difficulty  @default(BEGINNER)
+  readTimeMins Int?        @map("read_time_mins")
+  isPublished  Boolean     @default(false) @map("is_published")
+  publishedAt  DateTime?   @map("published_at") @db.Timestamptz
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([type, isPublished])
+  @@index([tags])
+  @@map("library_content")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RANGES GTO (grilles 13×13)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Range {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  position   Position
+  // OPEN | CALL_OPEN | 3BET | CALL_3BET | 4BET | CALL_4BET | PUSH | CALL_PUSH
+  action     String   @db.VarChar(32)
+  stackDepth Int      @map("stack_depth")   // profondeur en BB : 100, 50, 25, 20, 15, 10
+  format     String   @db.VarChar(8)        // "6max" | "9max" | "HU"
+  // { "AA": { freq: 1.0, ev: 4.2 }, "AKs": { freq: 0.8, ev: 1.3 }, ... }
+  gridData   Json     @map("grid_data")
+  source     String?  @db.VarChar(64)       // "GTO_WIZARD" | "UPSWING" | "MANUAL"
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([position, action, stackDepth, format])
+  @@index([position, action])
+  @@map("ranges")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HISTORIQUE DE MAINS (import depuis clients poker)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model HandHistory {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  room       PokerRoom
+  handIdRoom String?   @map("hand_id_room") @db.VarChar(64)
+  rawText    String    @map("raw_text") @db.Text
+  parsedData Json?     @map("parsed_data")
+  stakes     String?   @db.VarChar(20)      // "$0.50/$1"
+  heroAlias  String?   @map("hero_alias") @db.VarChar(32)
+  resultBb   Float?    @map("result_bb") @db.DoublePrecision
+  playedAt   DateTime? @map("played_at") @db.Timestamptz
+  importedAt DateTime  @default(now()) @map("imported_at") @db.Timestamptz
+  isAnalyzed Boolean   @default(false) @map("is_analyzed")
+  // Résultat de l'analyse Anthropic Coach
+  aiAnalysis Json?     @map("ai_analysis")
+
+  user       Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, playedAt(sort: Desc)])
+  @@index([userId, room])
+  @@map("hand_histories")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SYSTÈME D'ACHIEVEMENTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model Achievement {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key         String   @unique @db.VarChar(64)
+  title       String   @db.VarChar(120)
+  description String   @db.Text
+  icon        String?  @db.VarChar(8)
+  // { type: "sessions_count" | "accuracy_streak" | "ev_total", threshold: N }
+  condition   Json
+  xpReward    Int      @default(0) @map("xp_reward")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  achievementId String      @map("achievement_id") @db.Uuid
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at") @db.Timestamptz
+  progress      Float       @default(1.0) @db.DoublePrecision
+
+  user          Profile     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ═══════════════════════════════════════════════════════════════════════════════
+//  FUTUR SOLVER — Tables préparées, non utilisées pour l'instant
+// ═══════════════════════════════════════════════════════════════════════════════
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+model SolverTree {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String       @db.VarChar(120)
+  // { stackDepth, positions[], betSizes[], iterations, rake }
+  config      Json
+  status      SolverStatus @default(PENDING)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  completedAt DateTime?    @map("completed_at") @db.Timestamptz
+
+  nodes       SolverNode[]
+
+  @@index([status])
+  @@map("solver_trees")
+}
+
+model SolverNode {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  treeId      String     @map("tree_id") @db.Uuid
+  parentId    String?    @map("parent_id") @db.Uuid
+  street      Street
+  boardCards  String[]   @map("board_cards") @db.VarChar(3)
+  pot         Float      @db.DoublePrecision
+  stackIp     Float      @map("stack_ip") @db.DoublePrecision
+  stackOop    Float      @map("stack_oop") @db.DoublePrecision
+  // Actions disponibles à ce nœud : [{ action, amount }]
+  actionsJson Json       @map("actions_json")
+
+  tree        SolverTree   @relation(fields: [treeId], references: [id], onDelete: Cascade)
+  parent      SolverNode?  @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children    SolverNode[] @relation("NodeChildren")
+  ranges      SolverRange[]
+  actions     SolverAction[]
+
+  @@index([treeId])
+  @@index([parentId])
+  @@map("solver_nodes")
+}
+
+model SolverRange {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nodeId    String     @map("node_id") @db.Uuid
+  position  String     @db.VarChar(4)   // "IP" | "OOP"
+  // { "AsKs": { freq: 0.8, equity: 0.62, ev: 1.4 }, ... }
+  rangeJson Json       @map("range_json")
+
+  node      SolverNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId])
+  @@map("solver_ranges")
+}
+
+model SolverAction {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nodeId     String      @map("node_id") @db.Uuid
+  actionType PokerAction @map("action_type")
+  amount     Float?      @db.DoublePrecision
+  ev         Float?      @db.DoublePrecision
+  equity     Float?      @db.DoublePrecision
+  frequency  Float?      @db.DoublePrecision
+
+  node       SolverNode  @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId])
+  @@map("solver_actions")
+}

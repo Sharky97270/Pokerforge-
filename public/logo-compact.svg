@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" fill="none">
+  <defs>
+    <linearGradient id="cBlueMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00A8FF"/>
+      <stop offset="40%" stop-color="#0070E0"/>
+      <stop offset="100%" stop-color="#001F60"/>
+    </linearGradient>
+    <linearGradient id="cShark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9FB7D6"/>
+      <stop offset="100%" stop-color="#003B9A"/>
+    </linearGradient>
+    <filter id="cGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Fond -->
+  <rect x="1" y="1" width="50" height="50" rx="8" fill="#020B1E" stroke="#00A8FF" stroke-width="1.2"/>
+  <rect x="1" y="1" width="50" height="50" rx="8" fill="#00A8FF" opacity="0.04"/>
+
+  <!-- PF bold metallic -->
+  <g filter="url(#cGlow)">
+    <!-- P -->
+    <path d="M7 43 L7 9 L24 9 Q32 9 34.5 14.5 Q37 20 33 26 Q29 32 22 33 L16 33 L16 43 Z
+             M16 17 L16 25 L21.5 25 Q26 25 27 22 Q28 19 26 17 Q24.5 15.5 21 15.5 Z"
+      fill="url(#cBlueMetal)" stroke="#00A8FF" stroke-width="0.4"/>
+    <!-- F -->
+    <path d="M38 43 L38 9 L49 9 L49 18 L46 18 L46 24 L48.5 24 L48.5 33 L46 33 L46 43 Z"
+      fill="url(#cBlueMetal)" stroke="#00A8FF" stroke-width="0.4"/>
+  </g>
+
+  <!-- Requin (zone basse droite) -->
+  <g opacity="0.85" filter="url(#cGlow)">
+    <ellipse cx="40" cy="39" rx="9" ry="4" fill="url(#cShark)" transform="rotate(-10,40,39)"/>
+    <path d="M47 36 Q52 38.5 52 40.5 Q51 42 47 42 Z" fill="#9FB7D6"/>
+    <path d="M40 35 L38 29 L44 34 Z" fill="url(#cShark)" stroke="#60C8FF" stroke-width="0.3"/>
+    <path d="M31 38.5 L27 34 L29.5 39 L27 44 L31 40 Z" fill="#6090C0"/>
+    <circle cx="45" cy="37" r="1" fill="#020B1E"/>
+    <circle cx="45.3" cy="36.7" r="0.35" fill="white"/>
+  </g>
+
+  <!-- Reflet haut -->
+  <path d="M9 3.5 Q26 1.5 43 3.5" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+  <!-- Reflet bas -->
+  <line x1="8" y1="50" x2="44" y2="50" stroke="#00A8FF" stroke-width="0.5" opacity="0.35"/>
+</svg>

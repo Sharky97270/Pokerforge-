@@ -1,0 +1,14 @@
+# Déploiement Render en 1 clic (Infrastructure as Code)
+# → Render lit ce fichier, build l'image Docker, expose le service en HTTPS.
+# Render fournit la variable PORT automatiquement (le serveur la lit en fallback).
+services:
+  - type: web
+    name: pokerforge-solver-pro
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SOLVER_API_KEY
+        sync: false   # ⚠ à définir manuellement dans le dashboard Render (secret)

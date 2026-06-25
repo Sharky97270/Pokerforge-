@@ -1,0 +1,13 @@
+{
+  "name": "pokerforge-solver-pro",
+  "version": "1.0.0",
+  "description": "Solver Pro PokerForge — équité réelle + décision EV. Service HTTP zéro-dépendance, branché à l'edge function solver-analyze via SOLVER_API_URL / SOLVER_API_KEY.",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": { "node": ">=16" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "license": "MIT"
+}
