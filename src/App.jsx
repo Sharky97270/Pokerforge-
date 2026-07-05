@@ -1,4 +1,6 @@
 import { CSS, CSS_TABLE } from "./styles.js";
+import { CARD_DECKS, getSuitStyle, getActiveDeck, setActiveDeckKey } from "./components/table/deck.js";
+import { Card, CardBack, HeroHoleCards, VillainBackCards, CardFlip } from "./components/table/Cards.jsx";
 import { SPOTS, POKER_EVENTS, LEXIQUE, PROS, MENTAL_CONTENT } from "./data/content.js";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { getSyncId, setSyncId, pfCloudPull, pfCloudPushAll, getCloudStatus, pfFetchNews } from "./cloud.js";
@@ -85,46 +87,6 @@ const T = {
 /* ═══════════════════════════════════════════════════════
    PAQUETS DE CARTES — 5 styles sélectionnables
 ════════════════════════════════════════════════════════ */
-const CARD_DECKS={
-  modern:{
-    id:"modern",name:"Moderne Mat",desc:"4 couleurs · Mat · Minimaliste",
-    "♠":{color:"#2E6BFF",bg:"linear-gradient(160deg,#071530,#04101e)",glow:"rgba(46,107,255,.45)",border:"rgba(46,107,255,.35)"},
-    "♥":{color:"#E74C3C",bg:"linear-gradient(160deg,#2a0808,#1a0404)",glow:"rgba(231,76,60,.45)",border:"rgba(231,76,60,.3)"},
-    "♦":{color:"#F3BC12",bg:"linear-gradient(160deg,#2a1900,#1c1000)",glow:"rgba(243,188,18,.45)",border:"rgba(243,188,18,.3)"},
-    "♣":{color:"#27AE60",bg:"linear-gradient(160deg,#002a12,#001a0c)",glow:"rgba(39,174,96,.45)",border:"rgba(39,174,96,.3)"},
-  },
-  luxury:{
-    id:"luxury",name:"Luxe Métallique",desc:"4 couleurs · Haut de gamme · Premium",
-    "♠":{color:"#4A90E2",bg:"linear-gradient(160deg,#0a1830,#06101e)",glow:"rgba(74,144,226,.45)",border:"rgba(74,144,226,.3)"},
-    "♥":{color:"#E53935",bg:"linear-gradient(160deg,#2a0608,#1c0404)",glow:"rgba(229,57,53,.5)",border:"rgba(229,57,53,.35)"},
-    "♦":{color:"#FBC02D",bg:"linear-gradient(160deg,#2a1800,#1a1000)",glow:"rgba(251,192,45,.5)",border:"rgba(251,192,45,.35)"},
-    "♣":{color:"#43A047",bg:"linear-gradient(160deg,#002a14,#001810)",glow:"rgba(67,160,71,.45)",border:"rgba(67,160,71,.3)"},
-  },
-  neon:{
-    id:"neon",name:"Néon Cyberpunk",desc:"4 couleurs · Glow intense · Cyberpunk",
-    "♠":{color:"#00B0FF",bg:"linear-gradient(160deg,#001428,#000c18)",glow:"rgba(0,176,255,.7)",border:"rgba(0,176,255,.5)"},
-    "♥":{color:"#FF4D4D",bg:"linear-gradient(160deg,#280000,#160000)",glow:"rgba(255,77,77,.7)",border:"rgba(255,77,77,.5)"},
-    "♦":{color:"#B84DFF",bg:"linear-gradient(160deg,#18002a,#0c0016)",glow:"rgba(184,77,255,.7)",border:"rgba(184,77,255,.5)"},
-    "♣":{color:"#00E676",bg:"linear-gradient(160deg,#002a14,#001810)",glow:"rgba(0,230,118,.7)",border:"rgba(0,230,118,.5)"},
-  },
-  classic:{
-    id:"classic",name:"Classique Premium",desc:"4 couleurs · Professionnel · Sobre",
-    "♠":{color:"#90AEFF",bg:"linear-gradient(160deg,#08122a,#04091a)",glow:"rgba(144,174,255,.35)",border:"rgba(144,174,255,.22)"},
-    "♥":{color:"#D32F2F",bg:"linear-gradient(160deg,#260606,#160404)",glow:"rgba(211,47,47,.4)",border:"rgba(211,47,47,.25)"},
-    "♦":{color:"#F57C00",bg:"linear-gradient(160deg,#261200,#180c00)",glow:"rgba(245,124,0,.4)",border:"rgba(245,124,0,.25)"},
-    "♣":{color:"#388E3C",bg:"linear-gradient(160deg,#002214,#001610)",glow:"rgba(56,142,60,.4)",border:"rgba(56,142,60,.25)"},
-  },
-  standard:{
-    id:"standard",name:"Standard Casino",desc:"2 couleurs · Traditionnel · Casino",
-    "♠":{color:"#E8EDF8",bg:"linear-gradient(160deg,#0c1228,#080c1c)",glow:"rgba(232,237,248,.2)",border:"rgba(232,237,248,.15)"},
-    "♥":{color:"#CC2222",bg:"linear-gradient(160deg,#280606,#180404)",glow:"rgba(204,34,34,.4)",border:"rgba(204,34,34,.25)"},
-    "♦":{color:"#CC2222",bg:"linear-gradient(160deg,#280606,#180404)",glow:"rgba(204,34,34,.4)",border:"rgba(204,34,34,.25)"},
-    "♣":{color:"#E8EDF8",bg:"linear-gradient(160deg,#0c1228,#080c1c)",glow:"rgba(232,237,248,.2)",border:"rgba(232,237,248,.15)"},
-  },
-};
-
-/* Deck actif — module-level, mis à jour par App avant render */
-let ACTIVE_DECK_KEY="modern";
 
 /* ── CHIP THEMES — 3 thèmes de jetons visuels ── */
 const CHIP_THEMES={
@@ -283,7 +245,6 @@ function PlayerFace({isHero=false,isVillain=false,size=44,profile="Reg"}){
     </svg>
   );
 }
-function getSuitStyle(s){ return(CARD_DECKS[ACTIVE_DECK_KEY]||CARD_DECKS.modern)[s]||{color:"#ccc",bg:"linear-gradient(145deg,#0d1525,#071B44)",glow:"transparent",border:"rgba(255,255,255,.1)"}; }
 
 /* Compatibilité legacy — alias */
 const SUIT_STYLE={
@@ -560,57 +521,6 @@ function resolveTrainerBlindPoint(layout,pos){
   return {x:clampTrainingPoint(pt.x),y:clampTrainingPoint(pt.y)};
 }
 
-/* ═══════════════════════════════════════
-   CARD COMPONENTS
-═══════════════════════════════════════ */
-function Card({r,s,size="md",delay=0,revealed=false}){
-  const st=getSuitStyle(s);
-  return(
-    <div className={`card card-${size} deal`}
-      style={{
-        background:st.bg,border:`1px solid ${st.border}`,
-        boxShadow:`0 3px 12px rgba(0,0,0,.55),0 0 14px ${st.glow}`,
-        animationDelay:`${delay}s`,
-        animation:revealed?`cardFlipReveal .4s ease-in-out ${delay}s both`:`deal .25s cubic-bezier(.22,.68,.36,1) ${delay}s both`,
-      }}>
-      <div className="card-corner">
-        <span className="card-corner-r" style={{color:st.color}}>{r}</span>
-        <span className="card-corner-s" style={{color:st.color}}>{s}</span>
-      </div>
-      <div className="card-center" style={{color:st.color}}>{s}</div>
-    </div>
-  );
-}
-
-/* Dos de carte — utilise couleur du deck actif */
-function CardBack({size="md",animated=false}){
-  const deck=CARD_DECKS[ACTIVE_DECK_KEY]||CARD_DECKS.modern;
-  const accentCol=deck["♠"].color;
-  return(
-    <div className={`card card-${size} card-back pf-card-back${animated?" card-back-anim":""}`}
-      style={{"--pf-card-accent":accentCol,borderColor:"rgba(0,191,255,.45)"}}>
-      <span className="pf-card-back-art" aria-hidden="true"/>
-    </div>
-  );
-}
-
-/* Carte face cachée → révélation avec animation flip */
-function HeroHoleCards({cards=[],size="md",gap=6,compact=false,style}){
-  if(!cards||!cards.length)return null;
-  return(
-    <div className={`pf-hole-cards hero-card-wrap${compact?" compact":""}`} style={{gap, ...style}}>
-      {cards.map((c,i)=><Card key={i} r={c.r} s={c.s} size={size} delay={i*.05}/>)}
-    </div>
-  );
-}
-function VillainBackCards({size="md",animated=false,gap=2,compact=false,muted=false,folded=false,style}){
-  return(
-    <div className={`pf-hole-cards pf-villain-backs${compact?" compact":""}${muted?" muted":""}${folded?" folded":""}`} style={{gap, ...style}}>
-      <CardBack size={size} animated={animated}/>
-      <CardBack size={size} animated={animated}/>
-    </div>
-  );
-}
 function PlayerAvatarPremium({isHero=false,isVillain=false,profile="Reg",size=44,active=false,compact=false}){
   const meta=trainerAvatarMeta(profile,isHero);
   const profileKey=trainerAvatarKey(profile,isHero);
@@ -753,14 +663,6 @@ function PlayerSeatZone({zone,className="",style,children}){
   return <div className={`pf-player-seat-zone ${className}`} data-zone={zone} style={style}>{children}</div>;
 }
 
-function CardFlip({r,s,size="md",faceDown=true,delay=0}){
-  const[flipped,setFlipped]=useState(!faceDown);
-  useEffect(()=>{
-    if(!faceDown){const t=setTimeout(()=>setFlipped(true),delay*1000+100);return()=>clearTimeout(t);}
-    else setFlipped(false);
-  },[faceDown,delay]);
-  return flipped?<Card r={r} s={s} size={size} delay={delay}/>:<CardBack size={size}/>;
-}
 
 /* ═══════════════════════════════════════
    VILLAIN AI
@@ -10569,7 +10471,7 @@ function pfParseSession(text){
 
 /* ── MiniCard : carte premium compacte (deck actif) pour la liste ── */
 function MiniCard({r,s}){
-  const st=(CARD_DECKS[ACTIVE_DECK_KEY]||CARD_DECKS.modern)[s]||{color:"#ccc",bg:"linear-gradient(145deg,#0d1525,#071B44)",border:"rgba(255,255,255,.12)"};
+  const st=getActiveDeck()[s]||{color:"#ccc",bg:"linear-gradient(145deg,#0d1525,#071B44)",border:"rgba(255,255,255,.12)"};
   return(
     <span style={{display:"inline-flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
       width:18,height:24,borderRadius:3,background:st.bg,border:`1px solid ${st.border}`,
@@ -19906,7 +19808,7 @@ function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme,onOpe
   }
   function applyDeck(id){
     setDeckType(id);
-    ACTIVE_DECK_KEY=id;
+    setActiveDeckKey(id);
     localStorage.setItem("pf_deck",id);
     setSaved(true);
     setTimeout(()=>setSaved(false),1800);
@@ -20679,7 +20581,7 @@ export default function App(){
   const adminNeedsPwd=!!(isAdmin&&authProfile&&authProfile.is_admin_password_initialized===false);
   function refreshProfile(){ if(authUser)authFetchProfile(authUser.id).then(p=>{if(p)setAuthProfile(p);}); }
   // Synchronise le module-level avant tout render
-  ACTIVE_DECK_KEY=deckType;
+  setActiveDeckKey(deckType);
   ACTIVE_CHIP_THEME=chipTheme;
   // Applique les préférences accessibilité (gros texte / contraste) au démarrage
   useEffect(()=>{applyA11yPrefs();},[]);
@@ -20957,7 +20859,7 @@ export default function App(){
           {tab==="pratique"  && <PracticedHands/>}
           {tab==="replayer"  && <ReplayerTab unit={unit} onGoTrainer={(seed)=>{setTrainerSeed(seed||null);setTab("trainer");}} onGoCoach={(raw)=>{setCoachSeed(raw);setTab("coach");}} initialText={replayerSeed} onInitialApplied={()=>setReplayerSeed(null)} initialTab={replayerTabSeed} onInitialTabApplied={()=>setReplayerTabSeed("replay")}/>}
           {tab==="coach"     && <CoachAITab unit={unit} onGoTrainer={(seed)=>{setTrainerSeed(seed||null);setTab("trainer");}} onGoReplayer={(raw)=>{setReplayerSeed(raw);setTab("replayer");}} seed={coachSeed} onSeedApplied={()=>setCoachSeed(null)} jumpTo={coachJump} onJumped={()=>setCoachJump(null)}/>}
-          {tab==="settings"  && <SettingsPanel deckType={deckType} setDeckType={(id)=>{setDeckType(id);ACTIVE_DECK_KEY=id;}} chipTheme={chipTheme} setChipTheme={(id)=>{setChipTheme(id);ACTIVE_CHIP_THEME=id;localStorage.setItem("pf_chip_theme",id);}} onOpenLegal={setLegalOpen}/>}
+          {tab==="settings"  && <SettingsPanel deckType={deckType} setDeckType={(id)=>{setDeckType(id);setActiveDeckKey(id);}} chipTheme={chipTheme} setChipTheme={(id)=>{setChipTheme(id);ACTIVE_CHIP_THEME=id;localStorage.setItem("pf_chip_theme",id);}} onOpenLegal={setLegalOpen}/>}
           {tab==="admin"     && (
             !isAdmin
               ? <AdminForbidden onBack={()=>setTab("dash")}/>
