@@ -5,7 +5,7 @@ export const TRAINER_VISUAL_CONFIG = {
     preflop: { xMin: 42, xMax: 58, yMin: 42, yMax: 58 },
   },
   tableGeometry: {
-    1: { top: 10, left: 6, right: 6, bottom: 12, railInset: 7, innerInset: 16 },
+    1: { top: 10, left: 2.4, right: 2.4, bottom: 12, railInset: 7, innerInset: 16 },
     2: { top: 10.8, left: 7.2, right: 7.2, bottom: 12, railInset: 5, innerInset: 12 },
     3: { top: 11, left: 7.4, right: 7.4, bottom: 11.5, railInset: 5, innerInset: 11 },
     4: { top: 11.4, left: 7.6, right: 7.6, bottom: 11.5, railInset: 4, innerInset: 10 },
@@ -23,8 +23,8 @@ export const TRAINER_VISUAL_CONFIG = {
     mobile: 0.82,
   },
   avatarSize: {
-    hero1T: 66,
-    villain1T: 58,
+    hero1T: 70,
+    villain1T: 64,
     multiMin: 24,
   },
   chipSize: {

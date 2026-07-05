@@ -45,7 +45,7 @@ export async function usernameAvailable(name) {
 }
 
 /* Inscription email + pseudo + mot de passe */
-export async function signUp({ email, username, password }) {
+export async function signUp({ email, username, password, legalVersion = null, legalAcceptedAt = null }) {
   email = String(email || "").trim();
   username = String(username || "").trim();
   if (!isEmail(email)) return { ok: false, error: "Format d'email invalide." };
@@ -56,7 +56,14 @@ export async function signUp({ email, username, password }) {
   try {
     const { data, error } = await authClient.auth.signUp({
       email, password,
-      options: { data: { username }, emailRedirectTo: redirectUrl() },
+      options: {
+        data: {
+          username,
+          legal_version: legalVersion,
+          legal_accepted_at: legalAcceptedAt,
+        },
+        emailRedirectTo: redirectUrl(),
+      },
     });
     if (error) return { ok: false, error: frError(error) };
     // session non nulle = connexion immédiate ; sinon confirmation email requise

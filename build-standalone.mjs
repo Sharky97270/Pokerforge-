@@ -18,6 +18,15 @@ const PUBLIC_ASSETS = {
   "/logo-compact.svg": "image/svg+xml",
   "/logo-full.svg": "image/svg+xml",
   "/logo-pokerforge-kl.png": "image/png",
+  "/assets/trainer/07_pot_chips_x3.png": "image/png",
+  "/assets/trainer/08_hero_seat_cards_avatar_banner_x3.png": "image/png",
+  "/assets/trainer/09_utg_seat_x3.png": "image/png",
+  "/assets/trainer/10_co_seat_x3.png": "image/png",
+  "/assets/trainer/11_btn_seat_x3.png": "image/png",
+  "/assets/trainer/12_bb_seat_x3.png": "image/png",
+  "/assets/trainer/13_sb_seat_x3.png": "image/png",
+  "/assets/trainer/19_bb_chip_x3.png": "image/png",
+  "/assets/trainer/20_sb_chip_x3.png": "image/png",
 };
 
 function toDataUrl(file, mime) {

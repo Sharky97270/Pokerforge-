@@ -8,6 +8,8 @@ import { signUp as authSignUp, signIn as authSignIn, signInOAuth, signOut as aut
 import { apiSolverAnalyze, apiRangesCompare, apiSaveSpot, apiListSpots, apiDeleteSpot } from "./solverApi.js";
 import { coachChat } from "./coachLLM.js";
 import { trainerRoundCloseDecision } from "./trainerRoundEngine.js";
+import LegalCenter from "./LegalCenter.jsx";
+import { LEGAL_VERSION } from "./legalContent.js";
 import {
   normalizeTrainerActionEvent,
   trainerActionDisplayVerb,
@@ -162,6 +164,25 @@ function trainerAvatarMeta(profile,isHero=false){
 }
 function trainerSeatAvatarProfile(pos){
   return {UTG:"Nit",HJ:"TAG",CO:"TAG",BTN:"Reg",SB:"Fish",BB:"Nit"}[pos]||"Reg";
+}
+
+const TRAINER_ART={
+  hero:{src:"/assets/trainer/08_hero_seat_cards_avatar_banner_x3.png",scale:"166%",y:"56%"},
+  tag:{src:"/assets/trainer/10_co_seat_x3.png",scale:"134%",y:"54%"},
+  lag:{src:"/assets/trainer/11_btn_seat_x3.png",scale:"145%",y:"56%"},
+  nit:{src:"/assets/trainer/12_bb_seat_x3.png",scale:"142%",y:"53%"},
+  fish:{src:"/assets/trainer/13_sb_seat_x3.png",scale:"142%",y:"55%"},
+  reg:{src:"/assets/trainer/11_btn_seat_x3.png",scale:"145%",y:"56%"},
+  unknown:{src:"/assets/trainer/09_utg_seat_x3.png",scale:"155%",y:"53%"},
+};
+
+function TrainerAvatarArt({profile,isHero=false}){
+  const art=TRAINER_ART[trainerAvatarKey(profile,isHero)]||TRAINER_ART.unknown;
+  return(
+    <span className="pf-avatar-art" style={{"--pf-art-scale":art.scale,"--pf-art-y":art.y}} aria-hidden="true">
+      <img src={art.src} alt="" draggable="false"/>
+    </span>
+  );
 }
 
 /* Avatar premium par profil vilain. Purement visuel, aucune logique metier. */
@@ -446,14 +467,14 @@ function trainerFeltStyle(numTables,{phase,errorFlash}={}){
     left:pctCss(g.left),
     right:pctCss(g.right),
     bottom:pctCss(g.bottom),
-    background:"radial-gradient(ellipse at 50% 24%,rgba(74,178,102,.76) 0%,rgba(24,94,51,.95) 35%,rgba(8,48,26,.99) 67%,#03140B 100%)",
-    border:`1px solid rgba(255,214,121,${borderAlpha})`,
+    background:"radial-gradient(ellipse at 50% 18%,rgba(20,107,65,.94) 0%,rgba(8,70,43,.99) 38%,rgba(4,43,26,.998) 70%,#01140b 100%)",
+    border:`2px solid rgba(255,208,90,${borderAlpha})`,
     borderRadius:"50%",
     boxShadow,
     animation:phase==="hero"&&!isCompact?"tableHeroGlow 2.5s ease-in-out infinite":undefined,
     transition:"box-shadow .3s",
     overflow:"hidden",
-    filter:`drop-shadow(0 0 ${isCompact?26:38}px rgba(0,191,255,.12))`,
+    filter:`drop-shadow(0 0 ${isCompact?26:40}px rgba(0,191,255,.14)) drop-shadow(0 ${isCompact?13:22}px ${isCompact?22:34}px rgba(0,0,0,.72))`,
   };
 }
 function feltRailStyle(numTables,kind="outer"){
@@ -462,8 +483,9 @@ function feltRailStyle(numTables,kind="outer"){
     position:"absolute",
     inset:kind==="outer"?g.railInset:g.innerInset,
     borderRadius:"50%",
-    border:kind==="outer"?"2px solid rgba(255,255,255,.045)":"1px solid rgba(255,255,255,.035)",
-    background:kind==="outer"?undefined:"radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.03) 0%,transparent 52%)",
+    border:kind==="outer"?"2px solid rgba(231,236,243,.12)":"1px solid rgba(255,208,90,.14)",
+    background:kind==="outer"?"linear-gradient(180deg,rgba(231,236,243,.035),rgba(0,0,0,.06))":"radial-gradient(ellipse at 50% 0%,rgba(231,236,243,.045) 0%,transparent 52%)",
+    boxShadow:kind==="outer"?"0 0 0 1px rgba(0,0,0,.62),inset 0 0 0 1px rgba(255,208,90,.08)":"inset 0 0 18px rgba(0,0,0,.24)",
     pointerEvents:"none",
   };
 }
@@ -567,12 +589,7 @@ function CardBack({size="md",animated=false}){
   return(
     <div className={`card card-${size} card-back pf-card-back${animated?" card-back-anim":""}`}
       style={{"--pf-card-accent":accentCol,borderColor:"rgba(0,191,255,.45)"}}>
-      <div style={{position:"absolute",inset:2,borderRadius:4,
-        background:`repeating-linear-gradient(45deg,${accentCol}14 0px,${accentCol}14 1px,transparent 1px,transparent 7px)`,
-      }}/>
-      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
-        fontSize:"inherit",color:`${accentCol}55`,fontWeight:900,
-      }}>♠</div>
+      <span className="pf-card-back-art" aria-hidden="true"/>
     </div>
   );
 }
@@ -597,12 +614,12 @@ function VillainBackCards({size="md",animated=false,gap=2,compact=false,muted=fa
 function PlayerAvatarPremium({isHero=false,isVillain=false,profile="Reg",size=44,active=false,compact=false}){
   const meta=trainerAvatarMeta(profile,isHero);
   const profileKey=trainerAvatarKey(profile,isHero);
-  const faceProfile=isVillain&&!isHero?"Reg":profile;
   return(
     <div className={`pf-avatar-premium${isHero?" hero":isVillain?" villain":""}${active?" active":""}${compact?" compact":""}`}
       data-profile={profileKey}
       style={{"--avatar-size":`${size}px`,"--avatar-accent":meta.accent,"--avatar-glow":`${meta.accent}66`}}>
-      <PlayerFace isHero={isHero} isVillain={isVillain} profile={faceProfile} size={Math.max(22,size-6)}/>
+      <PlayerFace isHero={isHero} isVillain={isVillain} profile={profile} size={Math.max(22,size-6)}/>
+      <TrainerAvatarArt isHero={isHero} profile={profile}/>
     </div>
   );
 }
@@ -688,11 +705,12 @@ function OpenBadge(props){return <ActionBetBadge {...props} type="OPEN"/>;}
 function AllInBadge(props){return <ActionBetBadge {...props} type="ALLIN" kind="danger"/>;}
 function CheckBadge(props){return <ActionBetBadge {...props} type="CHECK" kind="blind"/>;}
 function BlindBadge({amount=1,label="BB",compact=false,style}){
-  const chipCount=amount>=1?3:2;
-  const StackComp=compact?ChipStackSmall:ChipStackMedium;
+  const chipAsset=label==="SB"
+    ?"/assets/trainer/20_sb_chip_x3.png"
+    :"/assets/trainer/19_bb_chip_x3.png";
   return(
     <div className={`pf-blind-stack${compact?" compact":""}`} style={style}>
-      <StackComp count={chipCount} kind="blind" amount={amount}/>
+      <span className="pf-blind-art" aria-hidden="true"><img src={chipAsset} alt="" draggable="false"/></span>
       <strong>{amount}bb</strong>
       <em>{label}</em>
     </div>
@@ -700,11 +718,9 @@ function BlindBadge({amount=1,label="BB",compact=false,style}){
 }
 function BlindChipStack(props){return <BlindBadge {...props}/>;}
 function TrainingPotStack({value=0,compact=false}){
-  const chipCount=Math.min(7,Math.max(3,Math.ceil((Number(value)||1)/4)));
-  const StackComp=compact?ChipStackSmall:ChipStackLarge;
   return(
     <div className={`pf-pot-chip-stack${compact?" compact":""}`}>
-      <StackComp count={chipCount} kind="pot" amount={value}/>
+      <img src="/assets/trainer/07_pot_chips_x3.png" alt="" draggable="false"/>
     </div>
   );
 }
@@ -4692,7 +4708,7 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
               lastAct.id==="ALLIN"?"action-allin":"action-bet":"";
             const vp=isV?(VILLAIN_PROFILES[spot.vtype]||{vpip:22,pfr:18}):SEAT_DEFAULT_STATS[pos]||{vpip:22,pfr:18};
             const displayStack=isH?parseFloat(spot.stack)||100:60;
-            const avSz=isH?66:58;
+            const avSz=isH?70:64;
             const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
             const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
             const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
@@ -4750,16 +4766,6 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
                     <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{marginBottom:heroCardMarginForSeat1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
                   )}
 
-                  {/* HERO badge */}
-                  {isH&&isActive&&(
-                    <div style={{
-                      marginBottom:3,padding:"2px 10px",borderRadius:20,
-                      background:"rgba(255,194,71,.18)",border:"1px solid rgba(255,194,71,.5)",
-                      fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
-                      color:T.gold,letterSpacing:".08em",
-                      boxShadow:"0 0 10px rgba(255,194,71,.3)",
-                    }}>HERO</div>
-                  )}
                   {isV&&isActive&&(
                     <div style={{
                       marginBottom:3,padding:"2px 10px",borderRadius:20,
@@ -7192,6 +7198,36 @@ function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="blue",seed=null,o
                   </div>
                 );
               })}
+              {ntables===1&&curSpot&&(
+                <div className="pf-trainer-command-dock" aria-label="Commandes de la table">
+                  <div className="pf-trainer-command-status">
+                    <span className="pf-trainer-command-kicker">TABLE 1T</span>
+                    <strong>{curSpot.hpos||"Hero"} <i>vs</i> {curSpot.vpos||"Vilain"}</strong>
+                    <span>{idx+1}/{smode===999?queue.length:Math.min(smode,queue.length)} spots</span>
+                  </div>
+                  <div className="pf-trainer-street-track" aria-label={`Street actuelle : ${curSpot.street||"Preflop"}`}>
+                    {["Preflop","Flop","Turn","River"].map(street=>{
+                      const current=(curSpot.street||"Preflop")===street;
+                      return <span key={street} className={current?"active":""}>{street}</span>;
+                    })}
+                  </div>
+                  <div className="pf-trainer-command-actions">
+                    <button type="button" className={`pf-trainer-command-btn${showSol?" active":""}`} onClick={()=>setShowSol(s=>!s)} aria-pressed={showSol}>
+                      Solution
+                    </button>
+                    <button type="button" className={`pf-trainer-command-btn${collapsed?" active":""}`} onClick={toggleSidebar} aria-pressed={collapsed}>
+                      Focus
+                    </button>
+                    <button type="button" className="pf-trainer-command-btn danger" onClick={stopSession}>
+                      Arrêter
+                    </button>
+                    <button type="button" className="pf-trainer-next-btn" onClick={handleNext} disabled={!allSettled}>
+                      {allSettled?(idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length)?"Voir les résultats":"Main suivante"):"Décision en cours"}
+                    </button>
+                  </div>
+                  <div className="pf-trainer-command-progress" aria-hidden="true"><span style={{width:`${Math.max(3,prog)}%`}}/></div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -11920,7 +11956,6 @@ function PracticedHands(){
 
   return(
     <div className="ph-wrap">
-      <style>{CSS_TABLE}</style>
       {replayHand&&<HandReplayModal hand={replayHand} onClose={()=>setReplayHand(null)}/>}
 
       {/* Bannière données démo */}
@@ -19845,7 +19880,7 @@ function CloudSyncPanel(){
 const btnPrim={padding:"8px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:10.5,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",background:"linear-gradient(90deg,#1F8BFF,#3D6BFF)",color:"#fff"};
 const btnGhost={padding:"8px 14px",borderRadius:8,cursor:"pointer",fontSize:10.5,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",background:"rgba(255,255,255,.04)",border:"1px solid #1A3A80",color:"#C9D4E8"};
 
-function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme}){
+function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme,onOpenLegal}){
   const[saved,setSaved]=useState(false);
   // ── Accessibilité & mobile ──
   const[a11y,setA11y]=useState(()=>{
@@ -19994,6 +20029,25 @@ function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme}){
         </div>
       </div>
 
+      {/* Documents juridiques */}
+      <div className="settings-section">
+        <div className="settings-section-title">Documents juridiques</div>
+        <div style={{fontSize:10.5,color:"#9FB0CC",fontFamily:"'Inter',sans-serif",marginBottom:14,lineHeight:1.6}}>
+          Consultez les conditions d'utilisation, la politique de confidentialite et les informations legales de PokerForge.
+        </div>
+        <div className="pf-settings-legal-actions">
+          {[
+            ["mentions","Mentions legales"],
+            ["cgu","CGU"],
+            ["privacy","Confidentialite"],
+            ["cookies","Cookies"],
+            ["cgv","CGV"],
+          ].map(([id,label])=>(
+            <button key={id} type="button" className="pf-settings-legal-btn" onClick={()=>onOpenLegal?.(id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
       {/* Options futures */}
       <div className="settings-section" style={{opacity:.6}}>
         <div className="settings-section-title">🔜 Prochainement</div>
@@ -20010,6 +20064,7 @@ function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme}){
 const TABS=[
   {id:"dash",l:"Dashboard"},
   {id:"trainer",l:"Entraineur GTO"},
+  {id:"solver",l:"SharkSolver"},
   {id:"library",l:"📚 Bibliothèque"},
   {id:"pratique",l:"Mains jouees"},
   {id:"replayer",l:"Replayer & IA"},
@@ -20217,6 +20272,12 @@ function NavIcon({id,size=22,color="currentColor"}){
       </svg>
     ),
     // Settings — engrenage moderne
+    legal:(
+      <svg {...s}>
+        <path d="M6 3h9l3 3v15H6z"/>
+        <path d="M15 3v4h4M9 11h6M9 15h6"/>
+      </svg>
+    ),
     settings:(
       <svg {...s}>
         <circle cx="12" cy="12" r="3"/>
@@ -20231,6 +20292,7 @@ function NavIcon({id,size=22,color="currentColor"}){
 const LNAV=[
   {id:"dash",     lbl:"Dashboard",  col:"#4A90FF"},
   {id:"trainer",  lbl:"Entraîneur", col:"#FF4D4D"},
+  {id:"solver",   lbl:"SharkSolver",col:"#34D8FF"},
   {id:"library",  lbl:"Biblio",     col:"#2ECC71"},
   {id:"pratique", lbl:"Mains",      col:"#9B5CFF"},
   {id:"replayer", lbl:"Replayer",   col:"#FFC247"},
@@ -20265,7 +20327,7 @@ function AuthField({label,children,error}){
     </label>
   );
 }
-function AuthModal({onClose,onAuthed}){
+function AuthModal({onClose,onAuthed,onOpenLegal}){
   const[mode,setMode]=useState("login");      // login | register | forgot
   const[busy,setBusy]=useState(false);
   const[err,setErr]=useState(null);
@@ -20299,12 +20361,21 @@ function AuthModal({onClose,onAuthed}){
     if(rpwd!==cpwd){setErr("Les mots de passe ne correspondent pas.");return;}
     if(!cgu){setErr("Accepte les CGU et la politique de confidentialité.");return;}
     setBusy(true);
-    const r=await authSignUp({email,username,password:rpwd});setBusy(false);
+    const legalAcceptedAt=new Date().toISOString();
+    try{localStorage.setItem("pf_legal_acceptance",JSON.stringify({version:LEGAL_VERSION,acceptedAt:legalAcceptedAt,documents:["cgu","privacy"]}));}catch{}
+    const r=await authSignUp({email,username,password:rpwd,legalVersion:LEGAL_VERSION,legalAcceptedAt});setBusy(false);
     if(!r.ok){setErr(r.error);return;}
     if(r.needConfirm){setInfo("Compte créé ! Confirme ton email pour te connecter.");setMode("login");return;}
     onAuthed&&onAuthed(username);
   }
-  async function doOAuth(provider){setErr(null);setBusy(true);const r=await signInOAuth(provider);setBusy(false);if(!r.ok)setErr(r.error);}
+  async function doOAuth(provider){
+    setErr(null);
+    if(mode==="register"&&!cgu){setErr("Accepte les CGU et la politique de confidentialite.");return;}
+    if(mode==="register"){
+      try{localStorage.setItem("pf_legal_acceptance",JSON.stringify({version:LEGAL_VERSION,acceptedAt:new Date().toISOString(),documents:["cgu","privacy"],method:provider}));}catch{}
+    }
+    setBusy(true);const r=await signInOAuth(provider);setBusy(false);if(!r.ok)setErr(r.error);
+  }
   async function doForgot(e){e&&e.preventDefault();setErr(null);setBusy(true);const r=await authResetPassword(ident||email);setBusy(false);
     if(!r.ok){setErr(r.error);return;}setInfo("Email de réinitialisation envoyé (si le compte existe).");setMode("login");}
 
@@ -20348,7 +20419,7 @@ function AuthModal({onClose,onAuthed}){
             <AuthField label="Confirmer le mot de passe" error={cpwd&&rpwd!==cpwd?"Ne correspond pas.":null}><input style={{...inp,borderColor:cpwd&&rpwd!==cpwd?"rgba(255,69,96,.5)":"#1A3A80"}} type="password" value={cpwd} onChange={e=>setCpwd(e.target.value)} placeholder="••••••••" autoComplete="new-password"/></AuthField>
             <label style={{display:"flex",alignItems:"flex-start",gap:8,margin:"2px 0 12px",cursor:"pointer"}}>
               <input type="checkbox" checked={cgu} onChange={e=>setCgu(e.target.checked)} style={{marginTop:2}}/>
-              <span style={{fontSize:9.5,color:T.text3,fontFamily:T.stats,lineHeight:1.5}}>J'accepte les <span className="pf-auth-link">CGU</span> et la <span className="pf-auth-link">politique de confidentialité</span>.</span>
+              <span style={{fontSize:9.5,color:T.text3,fontFamily:T.stats,lineHeight:1.5}}>J'accepte les <button type="button" className="pf-auth-legal-button" onClick={e=>{e.preventDefault();e.stopPropagation();onOpenLegal?.("cgu");}}>CGU</button> et la <button type="button" className="pf-auth-legal-button" onClick={e=>{e.preventDefault();e.stopPropagation();onOpenLegal?.("privacy");}}>politique de confidentialite</button>.</span>
             </label>
             <button type="submit" className="pf-auth-primary" disabled={busy}>{busy?"Création…":"Créer mon compte"}</button>
           </form>
@@ -20566,6 +20637,7 @@ export default function App(){
   const[authUser,setAuthUser]=useState(null);
   const[authProfile,setAuthProfile]=useState(null);
   const[authOpen,setAuthOpen]=useState(false);        // modale connexion/inscription
+  const[legalOpen,setLegalOpen]=useState(null);       // document juridique affiche
   const[userMenuOpen,setUserMenuOpen]=useState(false);
   const[authToast,setAuthToast]=useState(null);
   const[statsVersion,setStatsVersion]=useState(0); // force le recalcul du header après merge de progression
@@ -20592,7 +20664,7 @@ export default function App(){
     return()=>{mounted=false;unsub&&unsub();};
   },[]);
   useEffect(()=>{
-    if(tab==="ranges"||tab==="solver"){
+    if(tab==="ranges"){
       setReplayerTabSeed("ranges");
       setTab("replayer");
     }
@@ -20611,6 +20683,7 @@ export default function App(){
   // Applique les préférences accessibilité (gros texte / contraste) au démarrage
   useEffect(()=>{applyA11yPrefs();},[]);
   const isTrainer=tab==="trainer";
+  const isFullHeightTool=isTrainer||tab==="solver";
   // Stats dynamiques pour le header (relues à chaque changement de tab)
   const hdrStats=useMemo(()=>loadStats(),[tab,statsVersion]);
   function handlePrepareEvent(ev){
@@ -20623,6 +20696,7 @@ export default function App(){
   return(
     <>
       <style>{CSS}</style>
+      <style>{CSS_TABLE}</style>
       <div className="app">
 
         {/* ── TOP HEADER ── */}
@@ -20703,7 +20777,8 @@ export default function App(){
         </header>
 
         {/* ── Modale d'authentification ── */}
-        {authOpen&&<AuthModal onClose={()=>setAuthOpen(false)} onAuthed={(name)=>{setAuthOpen(false);welcomeToast(name);}}/>}
+        {authOpen&&<AuthModal onClose={()=>setAuthOpen(false)} onAuthed={(name)=>{setAuthOpen(false);welcomeToast(name);}} onOpenLegal={setLegalOpen}/>}
+        {legalOpen&&<LegalCenter initialDoc={legalOpen} onClose={()=>setLegalOpen(null)}/>}
         {/* ── Menu utilisateur connecté ── */}
         {userMenuOpen&&authUser&&(
           <UserMenu user={authUser} profile={authProfile} hdrStats={hdrStats}
@@ -20718,7 +20793,7 @@ export default function App(){
 
           {/* ── LEFT NAV PREMIUM — SVG icons + per-section color ── */}
           <nav className="leftnav">
-            {LNAV.filter(({id})=>["dash","trainer","library","pratique","replayer"].includes(id)).map(({id,lbl,col})=>{
+            {LNAV.filter(({id})=>["dash","trainer","solver","library","pratique","replayer"].includes(id)).map(({id,lbl,col})=>{
               const isActive=tab===id;
               const isHov=hovNav===id;
               const icCol=isActive?col:isHov?col:"#6B85B8";
@@ -20853,6 +20928,18 @@ export default function App(){
                   </div>
                 );
               })()}
+              <div className="lnav-item" onClick={()=>setLegalOpen("mentions")}
+                onMouseEnter={()=>setHovNav("legal")} onMouseLeave={()=>setHovNav(null)}
+                title="Centre juridique"
+                style={{
+                  background:hovNav==="legal"?"linear-gradient(160deg,rgba(52,216,255,.10),transparent)":"transparent",
+                  border:hovNav==="legal"?"1px solid rgba(52,216,255,.28)":"1px solid transparent",
+                  boxShadow:hovNav==="legal"?"0 0 7px rgba(0,191,255,.18)":"none",
+                  transform:hovNav==="legal"?"translateY(-2px)":"none",transition:"all .22s ease",
+                }}>
+                <NavIcon id="legal" size={21} color={hovNav==="legal"?"#34D8FF":"#6B85B8"}/>
+                <span style={{fontFamily:"'Inter',sans-serif",fontSize:8.5,fontWeight:600,color:hovNav==="legal"?"#34D8FF":"#5A728E",marginTop:1}}>Legal</span>
+              </div>
             </div>
           </nav>
 
@@ -20860,15 +20947,16 @@ export default function App(){
           <div className="body" style={{
             flex:1,overflow:"hidden",
             flexDirection:isTrainer?"row":"column",
-            overflowY:isTrainer?"hidden":"auto",
+            overflowY:isFullHeightTool?"hidden":"auto",
           }}>
-          {tab==="trainer"   && <TrainerTab unit={unit} onGoSolver={(params)=>{setSolverScenario(buildScenarioFromTrainerParams(params));setReplayerTabSeed("solver");setTab("replayer");}} chipTheme={chipTheme} seed={trainerSeed} onSeedApplied={()=>setTrainerSeed(null)}/>}
+          {tab==="trainer"   && <TrainerTab unit={unit} onGoSolver={(params)=>{setSolverScenario(buildScenarioFromTrainerParams(params));setTab("solver");}} chipTheme={chipTheme} seed={trainerSeed} onSeedApplied={()=>setTrainerSeed(null)}/>}
+          {tab==="solver"    && <SharkSolverTab initialScenario={solverScenario} onInitialApplied={()=>setSolverScenario(null)} onGoTrainer={(seed)=>{setTrainerSeed(seed?{...seed,hpos:seed.hpos||seed.heroPos,vpos:seed.vpos||seed.vsPos}:null);setTab("trainer");}} onGoReplayer={()=>{setReplayerTabSeed("solver");setTab("replayer");}}/>}
           {tab==="dash"      && <DashboardTab onGoTrainer={()=>setTab("trainer")} onGoReplayer={()=>setTab("replayer")} onPrepareEvent={handlePrepareEvent} onGoSolver={()=>{setReplayerTabSeed("ranges");setTab("replayer");}} onGoCoach={()=>setTab("coach")} onGoHands={()=>setTab("pratique")}/>}
           {tab==="library"   && <LibraryTab/>}
           {tab==="pratique"  && <PracticedHands/>}
           {tab==="replayer"  && <ReplayerTab unit={unit} onGoTrainer={(seed)=>{setTrainerSeed(seed||null);setTab("trainer");}} onGoCoach={(raw)=>{setCoachSeed(raw);setTab("coach");}} initialText={replayerSeed} onInitialApplied={()=>setReplayerSeed(null)} initialTab={replayerTabSeed} onInitialTabApplied={()=>setReplayerTabSeed("replay")}/>}
           {tab==="coach"     && <CoachAITab unit={unit} onGoTrainer={(seed)=>{setTrainerSeed(seed||null);setTab("trainer");}} onGoReplayer={(raw)=>{setReplayerSeed(raw);setTab("replayer");}} seed={coachSeed} onSeedApplied={()=>setCoachSeed(null)} jumpTo={coachJump} onJumped={()=>setCoachJump(null)}/>}
-          {tab==="settings"  && <SettingsPanel deckType={deckType} setDeckType={(id)=>{setDeckType(id);ACTIVE_DECK_KEY=id;}} chipTheme={chipTheme} setChipTheme={(id)=>{setChipTheme(id);ACTIVE_CHIP_THEME=id;localStorage.setItem("pf_chip_theme",id);}}/>}
+          {tab==="settings"  && <SettingsPanel deckType={deckType} setDeckType={(id)=>{setDeckType(id);ACTIVE_DECK_KEY=id;}} chipTheme={chipTheme} setChipTheme={(id)=>{setChipTheme(id);ACTIVE_CHIP_THEME=id;localStorage.setItem("pf_chip_theme",id);}} onOpenLegal={setLegalOpen}/>}
           {tab==="admin"     && (
             !isAdmin
               ? <AdminForbidden onBack={()=>setTab("dash")}/>
@@ -20887,7 +20975,6 @@ export default function App(){
                   {ico:"🏆",title:"Leaderboard",desc:"Classement précision GTO par niveau et format. Les stats locales sont prêtes, il manque l'agrégation cloud.",status:"ready",eta:"v7.5"},
                   {ico:"🎓",title:"Coaching IA",desc:"Sessions guidées par l'IA sur tes leaks détectés. L'analyse de leaks existe déjà, il faut le wrapper coaching.",status:"ready",eta:"v7.5"},
                   {ico:"📡",title:"Partage de ranges",desc:"Export/import de ranges personnalisées entre joueurs. Le RangeGrid est implémenté, manque le format d'échange.",status:"ready",eta:"v7.5"},
-                  {ico:"🔴",title:"Tables live & tracking",desc:"Tracking de vos sessions de jeu en temps réel. Nécessite une extension navigateur ou API de room.",status:"future",eta:"v9"},
                 ].map((f,i)=>(
                   <div key={i} style={{
                     padding:"14px 18px",borderRadius:12,marginBottom:10,
