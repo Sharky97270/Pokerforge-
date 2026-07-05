@@ -20041,6 +20041,7 @@ function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme,onOpe
             ["cgu","CGU"],
             ["privacy","Confidentialite"],
             ["cookies","Cookies"],
+            ["responsible","Jeu responsable"],
             ["cgv","CGV"],
           ].map(([id,label])=>(
             <button key={id} type="button" className="pf-settings-legal-btn" onClick={()=>onOpenLegal?.(id)}>{label}</button>

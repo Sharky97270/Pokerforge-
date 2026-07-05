@@ -232,6 +232,61 @@ export const LEGAL_DOCUMENTS = [
     ],
   },
   {
+    id: "responsible",
+    shortTitle: "Jeu responsable",
+    title: "Jeu responsable et protection des mineurs",
+    summary: "Avertissements, reperes et ressources d'aide pour une pratique maitrisee du poker.",
+    sections: [
+      {
+        title: "1. Nature du service",
+        paragraphs: [
+          `${LEGAL_CONFIG.brand} est un outil pedagogique d'entrainement et d'analyse. Il ne propose aucun jeu d'argent : aucune mise, aucun depot, aucun gain. Aucune fonctionnalite ne permet de jouer de l'argent reel.`,
+          "L'application prepare toutefois a la pratique du poker, qui est un jeu d'argent lorsqu'il est joue en ligne ou en live. Les avertissements ci-dessous s'appliquent a cette pratique.",
+        ],
+      },
+      {
+        title: "2. Interdiction aux mineurs",
+        paragraphs: [
+          "Les jeux d'argent sont interdits aux mineurs. PokerForge n'est pas destine aux personnes n'ayant pas l'age legal pour jouer dans leur pays de residence (18 ans en France).",
+          "Aucune fonctionnalite du service ne doit etre utilisee pour initier un mineur aux jeux d'argent.",
+        ],
+      },
+      {
+        title: "3. Le jeu comporte des risques",
+        paragraphs: [
+          "Jouer comporte des risques : endettement, dependance, isolement. Aucune methode, aucun entrainement et aucun outil d'analyse ne garantit de gagner. La variance peut entrainer des pertes durables meme avec un jeu techniquement correct.",
+          "Ne jouez jamais d'argent dont vous avez besoin. Fixez des limites de temps et de budget avant de jouer et respectez-les.",
+        ],
+      },
+      {
+        title: "4. Signes d'alerte",
+        bullets: [
+          "Jouer pour se refaire apres des pertes ou augmenter les mises pour ressentir la meme excitation.",
+          "Mentir a ses proches sur le temps ou l'argent consacres au jeu.",
+          "Emprunter ou vendre des biens pour financer le jeu.",
+          "Negliger travail, etudes, famille ou sommeil a cause du jeu.",
+          "Ressentir irritabilite ou anxiete en essayant de reduire ou d'arreter.",
+        ],
+      },
+      {
+        title: "5. Ressources d'aide",
+        paragraphs: ["Si vous ou un proche etes en difficulte avec le jeu, des dispositifs gratuits et confidentiels existent en France :"],
+        bullets: [
+          "Joueurs Info Service : 09 74 75 13 13 (appel non surtaxe, 7j/7 de 8h a 2h) et www.joueurs-info-service.fr.",
+          "Evalujeu (ANJ) : www.evalujeu.fr pour evaluer sa pratique de jeu.",
+          "Interdiction volontaire de jeux : demande aupres de l'Autorite Nationale des Jeux (www.anj.fr), valable sur les sites agrees et dans les casinos.",
+          "Les operateurs agrees proposent des outils de moderation : limites de depot, auto-exclusion temporaire ou definitive.",
+        ],
+      },
+      {
+        title: "6. Engagement de PokerForge",
+        paragraphs: [
+          "PokerForge integre une dimension de jeu responsable dans son contenu, notamment via le module Mental Game (gestion du tilt, bankroll, hygiene de jeu). Le service n'envoie aucune incitation a jouer de l'argent reel et n'affiche aucune publicite pour des operateurs de jeux.",
+        ],
+      },
+    ],
+  },
+  {
     id: "cgv",
     shortTitle: "CGV",
     title: "Conditions generales de vente",
