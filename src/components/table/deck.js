@@ -44,3 +44,9 @@ export function getActiveDeckKey(){return activeDeckKey;}
 export function setActiveDeckKey(id){activeDeckKey=id;}
 export function getActiveDeck(){return CARD_DECKS[activeDeckKey]||CARD_DECKS.modern;}
 export function getSuitStyle(s){ return getActiveDeck()[s]||{color:"#ccc",bg:"linear-gradient(145deg,#0d1525,#071B44)",glow:"transparent",border:"rgba(255,255,255,.1)"}; }
+
+/* Compatibilite legacy — alias fige sur le deck moderne */
+export const SUIT_STYLE={
+  "♠":CARD_DECKS.modern["♠"],"♥":CARD_DECKS.modern["♥"],
+  "♦":CARD_DECKS.modern["♦"],"♣":CARD_DECKS.modern["♣"],
+};
