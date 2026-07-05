@@ -968,7 +968,7 @@ const DIFF_PRO=[
   {id:"Toutes",dv:0},{id:"Facile",dv:1},{id:"Standard",dv:2},{id:"Avancé",dv:3},{id:"Expert",dv:4},{id:"Pro",dv:5},
 ];
 /* Multitabling autorisé */
-const TABLE_COUNTS=[1,2,3,4,6,8];
+const TABLE_COUNTS=[1,2,3,4];
 /* Prime de risque ICM par niveau + contribution de phase → ajuste réellement les ranges */
 const ICM_RP={"Désactivée":0,"Faible":0.12,"Moyenne":0.28,"Forte":0.48,"Extrême":0.70};
 const PHASE_RP={"Bubble":0.22,"ITM":0.10,"Demi-finale":0.12,"Table Finale":0.18,"Top 3":0.22,"Late Game":0.06,"Heads-Up":0.04};
@@ -6110,7 +6110,7 @@ function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="blue",seed=null,o
     const byQueueId=Object.fromEntries(q.map(s=>[s.id,s]));
     const res=(resume.results||[]).map(r=>({spot:byQueueId[r.id]||byId[r.id],correct:r.correct,ua:r.ua,qi:r.qi})).filter(r=>r.spot);
     if(resume.f)setF(resume.f);
-    setSmode(resume.smode||20);setNtables(resume.ntables||1);
+    setSmode(resume.smode||20);setNtables(Math.min(4,resume.ntables||1));
     setTrainerMode(resume.trainerMode||"gto");setPlatform(resume.platform||"pokerstars");
     if(resume.trainMode)setTrainMode(resume.trainMode);if(resume.streetStart)setStreetStart(resume.streetStart);
     setShowSol(!!resume.showSol);
@@ -6417,7 +6417,6 @@ function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="blue",seed=null,o
             <div className="sblbl">Multitabling</div>
             <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(fullSolo&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} style={{opacity:lock&&ntables!==n?.4:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
             {fullSolo&&<div style={{marginTop:5,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 {trainMode==="full"?"Full Hand":"Session"} se joue en 1 table.</div>}
-            {ntables>=6&&<div style={{marginTop:5,fontSize:8,color:T.amber,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>⚡ {ntables} tables — réservé aux grands écrans pour rester lisible.</div>}
           </div>
           <div className="sbsep"/>
           {started&&!done&&<div className="sb">

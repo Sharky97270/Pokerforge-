@@ -93,12 +93,11 @@ export function OpenBadge(props){return <ActionBetBadge {...props} type="OPEN"/>
 export function AllInBadge(props){return <ActionBetBadge {...props} type="ALLIN" kind="danger"/>;}
 export function CheckBadge(props){return <ActionBetBadge {...props} type="CHECK" kind="blind"/>;}
 export function BlindBadge({amount=1,label="BB",compact=false,style}){
-  const chipAsset=label==="SB"
-    ?"/assets/trainer/20_sb_chip_x3.png"
-    :"/assets/trainer/19_bb_chip_x3.png";
+  const chipCount=amount>=1?3:2;
+  const StackComp=compact?ChipStackSmall:ChipStackMedium;
   return(
     <div className={`pf-blind-stack${compact?" compact":""}`} style={style}>
-      <span className="pf-blind-art" aria-hidden="true"><img src={chipAsset} alt="" draggable="false"/></span>
+      <StackComp count={chipCount} kind="blind" amount={amount}/>
       <strong>{amount}bb</strong>
       <em>{label}</em>
     </div>
