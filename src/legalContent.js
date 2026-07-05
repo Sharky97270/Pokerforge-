@@ -269,5 +269,5 @@ export const LEGAL_DOCUMENTS = [
 ];
 
 export function getLegalDocument(id) {
-  return LEGAL_DOCUMENTS.find((document) => document.id === id) || LEGAL_DOCUMENTS[0];
+  return LEGAL_DOCUMENTS.find((doc) => doc.id === id) || LEGAL_DOCUMENTS[0];
 }

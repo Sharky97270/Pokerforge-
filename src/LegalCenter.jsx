@@ -4,6 +4,10 @@ import { LEGAL_DOCUMENTS, LEGAL_VERSION, getLegalDocument } from "./legalContent
 export default function LegalCenter({ initialDoc = "mentions", onClose }) {
   const [activeId, setActiveId] = useState(initialDoc);
   const activeDocument = useMemo(() => getLegalDocument(activeId), [activeId]);
+  const updatedLabel = useMemo(() => {
+    const [y, m, d] = String(LEGAL_VERSION).split("-");
+    return d && m && y ? `${d}/${m}/${y}` : LEGAL_VERSION;
+  }, []);
 
   useEffect(() => setActiveId(initialDoc || "mentions"), [initialDoc]);
 
@@ -36,14 +40,14 @@ export default function LegalCenter({ initialDoc = "mentions", onClose }) {
 
         <div className="pf-legal-layout">
           <nav className="pf-legal-tabs" aria-label="Documents juridiques">
-            {LEGAL_DOCUMENTS.map((document) => (
+            {LEGAL_DOCUMENTS.map((doc) => (
               <button
-                key={document.id}
+                key={doc.id}
                 type="button"
-                className={`pf-legal-tab${activeId === document.id ? " active" : ""}`}
-                onClick={() => setActiveId(document.id)}
+                className={`pf-legal-tab${activeId === doc.id ? " active" : ""}`}
+                onClick={() => setActiveId(doc.id)}
               >
-                <span>{document.shortTitle}</span>
+                <span>{doc.shortTitle}</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
               </button>
             ))}
@@ -56,7 +60,7 @@ export default function LegalCenter({ initialDoc = "mentions", onClose }) {
                 <h3>{activeDocument.title}</h3>
                 <p>{activeDocument.summary}</p>
               </div>
-              <span className="pf-legal-updated">Mis a jour le 28/06/2026</span>
+              <span className="pf-legal-updated">Mis a jour le {updatedLabel}</span>
             </div>
 
             {activeDocument.status && (
