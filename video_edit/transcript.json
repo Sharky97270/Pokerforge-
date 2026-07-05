@@ -1,0 +1,824 @@
+{
+	"systeminfo": "AVX = 1 | AVX2 = 1 | AVX512 = 0 | FMA = 1 | NEON = 0 | ARM_FMA = 0 | F16C = 1 | FP16_VA = 0 | WASM_SIMD = 0 | BLAS = 0 | SSE3 = 1 | VSX = 0 | COREML = 0 | OPENVINO = 0 | ",
+	"model": {
+		"type": "small",
+		"multilingual": true,
+		"vocab": 51865,
+		"audio": {
+			"ctx": 1500,
+			"state": 768,
+			"head": 12,
+			"layer": 12
+		},
+		"text": {
+			"ctx": 448,
+			"state": 768,
+			"head": 12,
+			"layer": 12
+		},
+		"mels": 80,
+		"ftype": 1
+	},
+	"params": {
+		"model": "video_edit\\ggml-small.bin",
+		"language": "fr",
+		"translate": false
+	},
+	"result": {
+		"language": "fr"
+	},
+	"transcription": [
+		{
+			"timestamps": {
+				"from": "00:00:00,000",
+				"to": "00:00:06,000"
+			},
+			"offsets": {
+				"from": 0,
+				"to": 6000
+			},
+			"text": " Bonjour, je suis Ismaël Marguerite, j'ai 40 ans, j'habite les Gevains."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:06,000",
+				"to": "00:00:16,000"
+			},
+			"offsets": {
+				"from": 6000,
+				"to": 16000
+			},
+			"text": " Ça fait environ 15 ans que je suis un joueur de poker amateur, fan de poker, je baine dans le milieu de petits moments."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:16,000",
+				"to": "00:00:28,000"
+			},
+			"offsets": {
+				"from": 16000,
+				"to": 28000
+			},
+			"text": " Dans la vie, je suis employé dans les aeronautiques et actuellement, je suis en train de travailler sur un petit projet personnel qui s'appelle PokerForge."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:28,000",
+				"to": "00:00:40,000"
+			},
+			"offsets": {
+				"from": 28000,
+				"to": 40000
+			},
+			"text": " C'est une plateforme de formation que je suis en train de développer tout seul, un médecin de lia codex pour le contenu."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:40,000",
+				"to": "00:00:51,000"
+			},
+			"offsets": {
+				"from": 40000,
+				"to": 51000
+			},
+			"text": " Et aujourd'hui, je vais expliquer un petit peu ce que le projet est pokerForge à la demande de pokerstar."
+		},
+		{
+			"timestamps": {
+				"from": "00:00:51,000",
+				"to": "00:01:09,000"
+			},
+			"offsets": {
+				"from": 51000,
+				"to": 69000
+			},
+			"text": " PokerForge, comme je l'ai dit, c'est une plateforme de formation au poker qui est en cours de développement, dont l'objectif est de réunir au sein d'une seule interface les principaux outils dont un joueur a besoin pour progresser."
+		},
+		{
+			"timestamps": {
+				"from": "00:01:09,000",
+				"to": "00:01:28,000"
+			},
+			"offsets": {
+				"from": 69000,
+				"to": 88000
+			},
+			"text": " Aujourd'hui, les joueurs utilisent souvent plusieurs logiciels distincts comme un solveur pour étudier la théorie, un logiciel de calcul ICM, un outil de création de range, un replayer pour revoir les mains, des vidéos ou des coachings pour comprendre leurs erreurs."
+		},
+		{
+			"timestamps": {
+				"from": "00:01:28,000",
+				"to": "00:01:38,000"
+			},
+			"offsets": {
+				"from": 88000,
+				"to": 98000
+			},
+			"text": " La fragmentation de tout ça avant le travail plus complexe, plus coûteux en termes financiers et au niveau du temps, est peu accessible."
+		},
+		{
+			"timestamps": {
+				"from": "00:01:38,000",
+				"to": "00:01:44,000"
+			},
+			"offsets": {
+				"from": 98000,
+				"to": 104000
+			},
+			"text": " Donc, notamment pour les joueurs amateurs et ceux qui aimeraient découvrir le poker."
+		},
+		{
+			"timestamps": {
+				"from": "00:01:44,000",
+				"to": "00:01:55,000"
+			},
+			"offsets": {
+				"from": 104000,
+				"to": 115000
+			},
+			"text": " L'objectif, c'est de proposer une plateforme unifiée qui permet de centraliser ses différents aspects de l'apprentissage dans une expérience cohérente, intuitive et moderne."
+		},
+		{
+			"timestamps": {
+				"from": "00:01:55,000",
+				"to": "00:02:10,000"
+			},
+			"offsets": {
+				"from": 115000,
+				"to": 130000
+			},
+			"text": " Le projet s'inspire des pratiques des outils déjà présents sur le marché, tout en cherchant à porter une approche différente, centralisée sur l'accompagnement du joueur et la simplicité d'utilisation."
+		},
+		{
+			"timestamps": {
+				"from": "00:02:10,000",
+				"to": "00:02:23,000"
+			},
+			"offsets": {
+				"from": 130000,
+				"to": 143000
+			},
+			"text": " Pourquoi j'ai créé le poker en forge ? C'est qu'après plusieurs années de pratique du poker, j'ai constaté que grand nombre de personnes souhaitaient progresser mais ils rencontrent toujours les mêmes difficultés."
+		},
+		{
+			"timestamps": {
+				"from": "00:02:23,000",
+				"to": "00:02:34,000"
+			},
+			"offsets": {
+				"from": 143000,
+				"to": 154000
+			},
+			"text": " La majorité des joueurs connaissent leurs résultats mais ne comprennent pas réellement pourquoi ils gagnent ou ils perdent."
+		},
+		{
+			"timestamps": {
+				"from": "00:02:34,000",
+				"to": "00:02:42,000"
+			},
+			"offsets": {
+				"from": 154000,
+				"to": 162000
+			},
+			"text": " Ils accumulent souvent les erreurs techniques sans souvent les identifier aussi."
+		},
+		{
+			"timestamps": {
+				"from": "00:02:42,000",
+				"to": "00:02:49,000"
+			},
+			"offsets": {
+				"from": 162000,
+				"to": 169000
+			},
+			"text": " Beaucoup n'ont jamais réalisé un véritable audit sur leur jeu non plus."
+		},
+		{
+			"timestamps": {
+				"from": "00:02:49,000",
+				"to": "00:02:55,000"
+			},
+			"offsets": {
+				"from": 169000,
+				"to": 175000
+			},
+			"text": " Par ailleurs, certains joueurs même hésitent à demander un avis extérieur."
+		},
+		{
+			"timestamps": {
+				"from": "00:02:55,000",
+				"to": "00:03:15,000"
+			},
+			"offsets": {
+				"from": 175000,
+				"to": 195000
+			},
+			"text": " Pour les raisons qui peuvent être nombreuses, la période d'être jugé, le manque de confiance en soi, la timidité, la difficulté d'accepter la critique, l'absence de coaching"
+		},
+		{
+			"timestamps": {
+				"from": "00:03:15,000",
+				"to": "00:03:20,000"
+			},
+			"offsets": {
+				"from": 195000,
+				"to": 200000
+			},
+			"text": " ou tout simplement l'impossibilité financière de ce pays des coachings."
+		},
+		{
+			"timestamps": {
+				"from": "00:03:20,000",
+				"to": "00:03:26,000"
+			},
+			"offsets": {
+				"from": 200000,
+				"to": 206000
+			},
+			"text": " Donc tous ces frais, selon moi, empêchent souvent une progression durable."
+		},
+		{
+			"timestamps": {
+				"from": "00:03:26,000",
+				"to": "00:03:41,000"
+			},
+			"offsets": {
+				"from": 206000,
+				"to": 221000
+			},
+			"text": " Le poker forge a été créé pour lever ses barrières et proposer un environnement d'analyse pédagogique et disponible hors des tables."
+		},
+		{
+			"timestamps": {
+				"from": "00:03:41,000",
+				"to": "00:03:51,000"
+			},
+			"offsets": {
+				"from": 221000,
+				"to": 231000
+			},
+			"text": " Le rôle du coach, il y a l'idée principale de cette innovation."
+		},
+		{
+			"timestamps": {
+				"from": "00:03:51,000",
+				"to": "00:04:06,000"
+			},
+			"offsets": {
+				"from": 231000,
+				"to": 246000
+			},
+			"text": " De cette innovation, c'est d'accompagner le nouveau joueur dans son apprentissage."
+		},
+		{
+			"timestamps": {
+				"from": "00:04:06,000",
+				"to": "00:04:11,000"
+			},
+			"offsets": {
+				"from": 246000,
+				"to": 251000
+			},
+			"text": " Les joueurs ne savent pas par où commencer, quel point travailler."
+		},
+		{
+			"timestamps": {
+				"from": "00:04:11,000",
+				"to": "00:04:23,000"
+			},
+			"offsets": {
+				"from": 251000,
+				"to": 263000
+			},
+			"text": " Le coach y a, il sera là pour livrer une analyse sur les historiques de maire, détecter les erreurs récurrentes, identifier les lits techniques, mettre en évidence les situations les plus coûteuses,"
+		},
+		{
+			"timestamps": {
+				"from": "00:04:23,000",
+				"to": "00:04:28,000"
+			},
+			"offsets": {
+				"from": 263000,
+				"to": 268000
+			},
+			"text": " générer un programme de travail personnalisé et adapté au joueur."
+		},
+		{
+			"timestamps": {
+				"from": "00:04:28,000",
+				"to": "00:04:40,000"
+			},
+			"offsets": {
+				"from": 268000,
+				"to": 280000
+			},
+			"text": " Ainsi, chaque joueur pourra bénéficier de l'accompagnement individualisé sans avoir besoin de recourir systématiquement un coaching privé qui peut être beaucoup plus coûteux."
+		},
+		{
+			"timestamps": {
+				"from": "00:04:40,000",
+				"to": "00:04:51,000"
+			},
+			"offsets": {
+				"from": 280000,
+				"to": 291000
+			},
+			"text": " Ma vision à long terme, j'ambitionnerais peut-être que poker forge devienne une plateforme complète de formation qui va vous prêter un train en interactif,"
+		},
+		{
+			"timestamps": {
+				"from": "00:04:51,000",
+				"to": "00:05:04,000"
+			},
+			"offsets": {
+				"from": 291000,
+				"to": 304000
+			},
+			"text": " un replay un peu avancé, un module de range modulable, solver, des outils ICM, un espace d'analyse de maire comme un forum, je ne sais pas si je l'ai déjà dit,"
+		},
+		{
+			"timestamps": {
+				"from": "00:05:04,000",
+				"to": "00:05:17,000"
+			},
+			"offsets": {
+				"from": 304000,
+				"to": 317000
+			},
+			"text": " un coaching y a qui donnerait un cap clair, un suivi des statistiques de la progression et un contenu pénagogique avec des exercices personnalisés."
+		},
+		{
+			"timestamps": {
+				"from": "00:05:17,000",
+				"to": "00:05:29,000"
+			},
+			"offsets": {
+				"from": 317000,
+				"to": 329000
+			},
+			"text": " L'objectif n'est pas de remplacer l'étude personnelle mais de rendre plus accessible, plus structurée et plus efficace pour tous les profils de joueur."
+		},
+		{
+			"timestamps": {
+				"from": "00:05:29,000",
+				"to": "00:05:43,000"
+			},
+			"offsets": {
+				"from": 329000,
+				"to": 343000
+			},
+			"text": " PokéForge aussi est conçu comme un outil d'apprentissage et de développement, des compétences destinées à aider les joueurs à mieux comprendre leurs propres jeux et aussi à progresser au fil du temps."
+		},
+		{
+			"timestamps": {
+				"from": "00:05:43,000",
+				"to": "00:05:54,000"
+			},
+			"offsets": {
+				"from": 343000,
+				"to": 354000
+			},
+			"text": " Maintenant, je vais passer à la démonstration. Je me rend sur le site PokéForge."
+		},
+		{
+			"timestamps": {
+				"from": "00:05:54,000",
+				"to": "00:06:12,000"
+			},
+			"offsets": {
+				"from": 354000,
+				"to": 372000
+			},
+			"text": " Le dashboard est présent comme ceci. Ici, nous avons une petite phrase expirante. Je devrais avoir un bordeaux qui défile avec deux ou trois images et des phrases motivantes pour le mental."
+		},
+		{
+			"timestamps": {
+				"from": "00:06:12,000",
+				"to": "00:06:31,000"
+			},
+			"offsets": {
+				"from": 372000,
+				"to": 391000
+			},
+			"text": " Ici, nous avons un canotrier des prochaines événements qui sont en cours actuellement. Actuellement, nous avons les WSOP, les GG series, les GGS Poker Stars et les événements."
+		},
+		{
+			"timestamps": {
+				"from": "00:06:31,000",
+				"to": "00:06:47,000"
+			},
+			"offsets": {
+				"from": 391000,
+				"to": 407000
+			},
+			"text": " Il y a plusieurs anglais sur la gauche qui nous ont développés dans cette vidéo. Je vais me connecter parallèlement à Poker Stars."
+		},
+		{
+			"timestamps": {
+				"from": "00:06:58,000",
+				"to": "00:07:25,000"
+			},
+			"offsets": {
+				"from": 418000,
+				"to": 445000
+			},
+			"text": " Je ne peux toujours pas mescrire. On voit directement la rume. Il n'y a aucun addon qui vient se greffer à l'ouverture de Poker Stars."
+		},
+		{
+			"timestamps": {
+				"from": "00:07:26,000",
+				"to": "00:07:52,000"
+			},
+			"offsets": {
+				"from": 446000,
+				"to": 472000
+			},
+			"text": " Ici, nous ne passons pas aux trainers. On a tous les modes de training avec le nombre de tables. On veut jouer exploit, GTA, spot, street, merger, sessions, mix, tout cela."
+		},
+		{
+			"timestamps": {
+				"from": "00:07:52,000",
+				"to": "00:08:05,000"
+			},
+			"offsets": {
+				"from": 472000,
+				"to": 485000
+			},
+			"text": " On a aussi un mode adaptatif pour détecter les léliques, révisions d'erreurs en fonction de ce que l'utilisateur va rechercher à développer comme compétences."
+		},
+		{
+			"timestamps": {
+				"from": "00:08:05,000",
+				"to": "00:08:19,000"
+			},
+			"offsets": {
+				"from": 485000,
+				"to": 499000
+			},
+			"text": " On a aussi le nombre de joueurs, les stacks effectifs, le type de spot qu'on veut travailler. Tous ces drills sont ajoutés."
+		},
+		{
+			"timestamps": {
+				"from": "00:08:19,000",
+				"to": "00:08:34,000"
+			},
+			"offsets": {
+				"from": 499000,
+				"to": 514000
+			},
+			"text": " On va se présenter comme ceci en mode \"une table\" avec un spot où l'utilisateur doit répondre à une question qui lui est posée."
+		},
+		{
+			"timestamps": {
+				"from": "00:08:34,000",
+				"to": "00:09:02,000"
+			},
+			"offsets": {
+				"from": 514000,
+				"to": 542000
+			},
+			"text": " On va voir si on colle l'open UTG ou le 3-bet. Je ne crée pas autant pour le 3-bet. La réponse est validée. On peut voir la solution avec le stack effectif."
+		},
+		{
+			"timestamps": {
+				"from": "00:09:02,000",
+				"to": "00:09:13,000"
+			},
+			"offsets": {
+				"from": 542000,
+				"to": 553000
+			},
+			"text": " On va se présenter comme le trainer."
+		},
+		{
+			"timestamps": {
+				"from": "00:09:13,000",
+				"to": "00:09:32,000"
+			},
+			"offsets": {
+				"from": 553000,
+				"to": 572000
+			},
+			"text": " On passe au \"shark solver\" qui est développé mais qui n'a pas encore été utilisé. Il se présente comme un solver classique avec les positions de héros, les ranges, les mains."
+		},
+		{
+			"timestamps": {
+				"from": "00:09:32,000",
+				"to": "00:09:44,000"
+			},
+			"offsets": {
+				"from": 572000,
+				"to": 584000
+			},
+			"text": " On peut choisir d'attribuer une main à héros, ou de lui attribuer une range. On peut faire pareil pour viny, choisir des positions, les stacks."
+		},
+		{
+			"timestamps": {
+				"from": "00:09:44,000",
+				"to": "00:10:04,000"
+			},
+			"offsets": {
+				"from": 584000,
+				"to": 604000
+			},
+			"text": " On peut travailler plusieurs blocks de stacks. La position, l'action quand elle se passe. Ici on peut créer le \"board\". Je peux mettre 100."
+		},
+		{
+			"timestamps": {
+				"from": "00:10:04,000",
+				"to": "00:10:20,000"
+			},
+			"offsets": {
+				"from": 604000,
+				"to": 620000
+			},
+			"text": " On peut montrer des \"boards\", voir les stats. Le solver CRF, c'est \"Lia\", je peux faire ça."
+		},
+		{
+			"timestamps": {
+				"from": "00:10:20,000",
+				"to": "00:10:30,000"
+			},
+			"offsets": {
+				"from": 620000,
+				"to": 630000
+			},
+			"text": " Je découvre en même temps que vous parce que c'est une section que je n'ai pas encore utilisé. C'est très abstrait pour le moment."
+		},
+		{
+			"timestamps": {
+				"from": "00:10:30,000",
+				"to": "00:10:49,000"
+			},
+			"offsets": {
+				"from": 630000,
+				"to": 649000
+			},
+			"text": " Sur la présentation du trainer, je n'ai pas montré mais les \"table\" ne sont pas bien calibrées. C'est un travail. La bibliothèque où je vais pouvoir répertoler les spots et travailler."
+		},
+		{
+			"timestamps": {
+				"from": "00:10:49,000",
+				"to": "00:11:02,000"
+			},
+			"offsets": {
+				"from": 649000,
+				"to": 662000
+			},
+			"text": " C'est l'historique des mains qui sont déjà rentrées dans le trainer pour pouvoir voir les \"lines\" si les bonnes décisions ont été prises."
+		},
+		{
+			"timestamps": {
+				"from": "00:11:02,000",
+				"to": "00:11:17,000"
+			},
+			"offsets": {
+				"from": 662000,
+				"to": 677000
+			},
+			"text": " Un replayer, c'est toujours pour le travailleur des tables, donc toujours rien qui connecte à l'application pour donner une édication réel-conc."
+		},
+		{
+			"timestamps": {
+				"from": "00:11:17,000",
+				"to": "00:11:31,000"
+			},
+			"offsets": {
+				"from": 677000,
+				"to": 691000
+			},
+			"text": " Le replayer, on va apporter une main. Je vais aller dans le bureau et ici apporter une main."
+		},
+		{
+			"timestamps": {
+				"from": "00:11:31,000",
+				"to": "00:11:50,000"
+			},
+			"offsets": {
+				"from": 691000,
+				"to": 710000
+			},
+			"text": " On a 30 pages sur 349 mains. Le replayer est très abstrait, les positions ne sont pas très bien calibrées parce que c'est toujours en développement."
+		},
+		{
+			"timestamps": {
+				"from": "00:11:50,000",
+				"to": "00:12:09,000"
+			},
+			"offsets": {
+				"from": 710000,
+				"to": 729000
+			},
+			"text": " Je peux jouer une main. Je peux analyser avec l'IA, donc la CléAPI, on voit toujours que rien de l'ancière et de valide pour le moment."
+		},
+		{
+			"timestamps": {
+				"from": "00:12:09,000",
+				"to": "00:12:31,000"
+			},
+			"offsets": {
+				"from": 729000,
+				"to": 751000
+			},
+			"text": " Le coach IA, l'innovation, c'est la partie qui est censée accompagner l'utilisateur afin d'améliorer ses lits qui sont logiques de progression qu'il souhaite."
+		},
+		{
+			"timestamps": {
+				"from": "00:12:31,000",
+				"to": "00:12:45,000"
+			},
+			"offsets": {
+				"from": 751000,
+				"to": 765000
+			},
+			"text": " On doit se préparer pour un événement particulier, travailler un spot particulier, travailler pour des structures particulières."
+		},
+		{
+			"timestamps": {
+				"from": "00:12:45,000",
+				"to": "00:13:10,000"
+			},
+			"offsets": {
+				"from": 765000,
+				"to": 790000
+			},
+			"text": " Je suis pas très habitué à l'exercice, donc je cherche un peu mes mots. On a analysé une main, le diagnostic, toutes les données que l'on a collectées lors de l'utilisation de pokerforge."
+		},
+		{
+			"timestamps": {
+				"from": "00:13:10,000",
+				"to": "00:13:35,000"
+			},
+			"offsets": {
+				"from": 790000,
+				"to": 815000
+			},
+			"text": " On a aussi des plans de travail, des entraînements pour la journée, des semaines, des tournois, des événements où on peut se préparer le carrière mode."
+		},
+		{
+			"timestamps": {
+				"from": "00:13:35,000",
+				"to": "00:13:43,000"
+			},
+			"offsets": {
+				"from": 815000,
+				"to": 823000
+			},
+			"text": " La question parait intéressant, c'est les objectifs que j'ai répertoriés par exemple."
+		},
+		{
+			"timestamps": {
+				"from": "00:13:43,000",
+				"to": "00:14:02,000"
+			},
+			"offsets": {
+				"from": 823000,
+				"to": 842000
+			},
+			"text": " Ici, le coach live."
+		},
+		{
+			"timestamps": {
+				"from": "00:14:02,000",
+				"to": "00:14:08,000"
+			},
+			"offsets": {
+				"from": 842000,
+				"to": 848000
+			},
+			"text": " Je vais lancer une session pour poser les questions."
+		},
+		{
+			"timestamps": {
+				"from": "00:14:08,000",
+				"to": "00:14:13,000"
+			},
+			"offsets": {
+				"from": 848000,
+				"to": 853000
+			},
+			"text": " Mental game. Partir ne pas négliger qu'ils me tenaient à coeur."
+		},
+		{
+			"timestamps": {
+				"from": "00:14:13,000",
+				"to": "00:14:40,000"
+			},
+			"offsets": {
+				"from": 853000,
+				"to": 880000
+			},
+			"text": " Ce sera un outil pour pouvoir faire des exercices, diagnostiquer un petit peu son état mental, des exercices, de respiration, de la méditation, des articles à lire pour pouvoir renforcer au niveau mental, des missions."
+		},
+		{
+			"timestamps": {
+				"from": "00:14:40,000",
+				"to": "00:14:44,000"
+			},
+			"offsets": {
+				"from": 880000,
+				"to": 884000
+			},
+			"text": " Tout ceci me paraît plutôt motivant."
+		},
+		{
+			"timestamps": {
+				"from": "00:14:44,000",
+				"to": "00:15:05,000"
+			},
+			"offsets": {
+				"from": 884000,
+				"to": 905000
+			},
+			"text": " Si le projet apprend vie un jour, créer une petite communauté, forum de stratégie, des rivaux de mai, une petite compétition entre les utilisateurs, continuer à décider par l'IA, sur les leaks détectés, d'analyses, etc."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:05,000",
+				"to": "00:15:12,000"
+			},
+			"offsets": {
+				"from": 905000,
+				"to": 912000
+			},
+			"text": " Partage de range. Les ports et sports personnalisés entre joueurs."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:12,000",
+				"to": "00:15:17,000"
+			},
+			"offsets": {
+				"from": 912000,
+				"to": 917000
+			},
+			"text": " Des ranges et des adaptations qui peuvent se faire."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:17,000",
+				"to": "00:15:19,000"
+			},
+			"offsets": {
+				"from": 917000,
+				"to": 919000
+			},
+			"text": " C'est pour le travail de groupe."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:19,000",
+				"to": "00:15:23,000"
+			},
+			"offsets": {
+				"from": 919000,
+				"to": 923000
+			},
+			"text": " Quelque chose qui se fait énormément dans le milieu selon moi."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:23,000",
+				"to": "00:15:30,000"
+			},
+			"offsets": {
+				"from": 923000,
+				"to": 930000
+			},
+			"text": " On a fait le tour. J'espère que la présentation a été assez claire."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:30,000",
+				"to": "00:15:41,000"
+			},
+			"offsets": {
+				"from": 930000,
+				"to": 941000
+			},
+			"text": " Si vous avez d'autres questions, je reste disponible à toutes demandes de votre part afin de pouvoir récupérer mon compte et de jouer."
+		},
+		{
+			"timestamps": {
+				"from": "00:15:41,000",
+				"to": "00:15:46,000"
+			},
+			"offsets": {
+				"from": 941000,
+				"to": 946000
+			},
+			"text": " Je vous remercie de votre attention, passez une bonne journée et à bientôt !"
+		},
+		{
+			"timestamps": {
+				"from": "00:15:46,000",
+				"to": "00:15:49,040"
+			},
+			"offsets": {
+				"from": 946000,
+				"to": 949040
+			},
+			"text": " et une des trampes en Europe."
+		}
+	]
+}

@@ -1,0 +1,383 @@
+{
+  "source_file": "maquette(2).png",
+  "canvas_size_px": [
+    1672,
+    941
+  ],
+  "warning": "Assets are extracted from the supplied raster screenshot. They are not original vector/source assets. Use them as exact references; redraw to true SVG for production.",
+  "palette_hex": [
+    "#020817",
+    "#030B1A",
+    "#06142B",
+    "#071B38",
+    "#0A1F3F",
+    "#0D2D57",
+    "#0B3D75",
+    "#006DFF",
+    "#00B7FF",
+    "#00E5FF",
+    "#D7E9FF",
+    "#FFFFFF",
+    "#FFD05A",
+    "#FFB02E",
+    "#FF9D2E",
+    "#FF6B3D",
+    "#FF4A3D",
+    "#00FF9D",
+    "#17D465",
+    "#0B5C3B",
+    "#0F7A4D",
+    "#062617",
+    "#7C4DFF",
+    "#B14DFF",
+    "#111827",
+    "#1F2937"
+  ],
+  "typography": {
+    "ui_font_recommended": "Inter or Manrope",
+    "numeric_compact_font_recommended": "Rajdhani or Sora SemiBold",
+    "logo_font_note": "Exact font cannot be proven from the screenshot. Use a custom italic condensed display logo, or approximate with Teko ExtraBold Italic/Rajdhani Bold Italic/Bungee Inline."
+  },
+  "effects": {
+    "background": "deep navy/black radial gradient, subtle blue vignette",
+    "glass_panels": "rgba(2,8,23,.72) to rgba(6,20,43,.88), 1px blue border, 12-24px blur shadow",
+    "table_felt": "radial gradient #0F7A4D center to #062617 edges, fine noise texture",
+    "table_rim": "double rim: dark metallic/cyan outer, thin warm gold inner line",
+    "cyan_glow": "12-28px blur, 35-65% opacity",
+    "gold_glow": "8-20px blur, 35-55% opacity",
+    "red_glow": "6-16px blur, danger actions only",
+    "depth": "stacked shadows: close hard shadow + large soft shadow under cards, avatars and table"
+  },
+  "component_style": {
+    "cards": "rounded white cards with subtle shadow; villain card backs dark blue with PF monogram",
+    "avatars": "circular metallic medallions, profile icon centered, colored rim/glow by profile",
+    "hero_badge": "cyan HERO pill attached to avatar bottom",
+    "buttons": "rounded rectangles, gradient fill, 1px luminous border, hover neon glow",
+    "action_buttons": "Fold red, Call green, 4-bet blue, Shove red/orange, large numeric emphasis",
+    "chips": "realistic stacked poker chips, grouped by value, chip animation toward pot"
+  },
+  "animations": [
+    {
+      "name": "active_player_pulse",
+      "spec": "1.4s infinite ring pulse, cyan glow"
+    },
+    {
+      "name": "chip_to_pot",
+      "spec": "350-500ms ease-out translate + scale"
+    },
+    {
+      "name": "button_hover",
+      "spec": "150ms glow + translateY(-1px)"
+    },
+    {
+      "name": "solution_reveal",
+      "spec": "180ms lock fade out + content slide/fade"
+    },
+    {
+      "name": "street_transition",
+      "spec": "timeline tick and subtle blue table vignette pulse"
+    }
+  ],
+  "assets": [
+    {
+      "name": "01_logo_pokerforge",
+      "crop_box_px": [
+        15,
+        7,
+        230,
+        48
+      ],
+      "size_px": [
+        215,
+        41
+      ],
+      "png": "01_logo_pokerforge.png",
+      "png_x3": "01_logo_pokerforge_x3.png"
+    },
+    {
+      "name": "02_top_header",
+      "crop_box_px": [
+        0,
+        0,
+        1672,
+        58
+      ],
+      "size_px": [
+        1672,
+        58
+      ],
+      "png": "02_top_header.png",
+      "png_x3": "02_top_header_x3.png"
+    },
+    {
+      "name": "03_left_sidebar_full",
+      "crop_box_px": [
+        0,
+        58,
+        79,
+        941
+      ],
+      "size_px": [
+        79,
+        883
+      ],
+      "png": "03_left_sidebar_full.png",
+      "png_x3": "03_left_sidebar_full_x3.png"
+    },
+    {
+      "name": "04_session_panel",
+      "crop_box_px": [
+        78,
+        58,
+        304,
+        941
+      ],
+      "size_px": [
+        226,
+        883
+      ],
+      "png": "04_session_panel.png",
+      "png_x3": "04_session_panel_x3.png"
+    },
+    {
+      "name": "05_poker_table_full",
+      "crop_box_px": [
+        314,
+        136,
+        1224,
+        835
+      ],
+      "size_px": [
+        910,
+        699
+      ],
+      "png": "05_poker_table_full.png",
+      "png_x3": "05_poker_table_full_x3.png"
+    },
+    {
+      "name": "06_table_felt_texture_center",
+      "crop_box_px": [
+        480,
+        260,
+        1000,
+        700
+      ],
+      "size_px": [
+        520,
+        440
+      ],
+      "png": "06_table_felt_texture_center.png",
+      "png_x3": "06_table_felt_texture_center_x3.png"
+    },
+    {
+      "name": "07_pot_chips",
+      "crop_box_px": [
+        715,
+        425,
+        823,
+        545
+      ],
+      "size_px": [
+        108,
+        120
+      ],
+      "png": "07_pot_chips.png",
+      "png_x3": "07_pot_chips_x3.png"
+    },
+    {
+      "name": "08_hero_seat_cards_avatar_banner",
+      "crop_box_px": [
+        520,
+        180,
+        660,
+        386
+      ],
+      "size_px": [
+        140,
+        206
+      ],
+      "png": "08_hero_seat_cards_avatar_banner.png",
+      "png_x3": "08_hero_seat_cards_avatar_banner_x3.png"
+    },
+    {
+      "name": "09_utg_seat",
+      "crop_box_px": [
+        320,
+        376,
+        460,
+        560
+      ],
+      "size_px": [
+        140,
+        184
+      ],
+      "png": "09_utg_seat.png",
+      "png_x3": "09_utg_seat_x3.png"
+    },
+    {
+      "name": "10_co_seat",
+      "crop_box_px": [
+        916,
+        165,
+        1026,
+        360
+      ],
+      "size_px": [
+        110,
+        195
+      ],
+      "png": "10_co_seat.png",
+      "png_x3": "10_co_seat_x3.png"
+    },
+    {
+      "name": "11_btn_seat",
+      "crop_box_px": [
+        1080,
+        375,
+        1210,
+        565
+      ],
+      "size_px": [
+        130,
+        190
+      ],
+      "png": "11_btn_seat.png",
+      "png_x3": "11_btn_seat_x3.png"
+    },
+    {
+      "name": "12_bb_seat",
+      "crop_box_px": [
+        480,
+        575,
+        630,
+        755
+      ],
+      "size_px": [
+        150,
+        180
+      ],
+      "png": "12_bb_seat.png",
+      "png_x3": "12_bb_seat_x3.png"
+    },
+    {
+      "name": "13_sb_seat",
+      "crop_box_px": [
+        915,
+        575,
+        1050,
+        750
+      ],
+      "size_px": [
+        135,
+        175
+      ],
+      "png": "13_sb_seat.png",
+      "png_x3": "13_sb_seat_x3.png"
+    },
+    {
+      "name": "14_action_panel_right",
+      "crop_box_px": [
+        1235,
+        135,
+        1650,
+        868
+      ],
+      "size_px": [
+        415,
+        733
+      ],
+      "png": "14_action_panel_right.png",
+      "png_x3": "14_action_panel_right_x3.png"
+    },
+    {
+      "name": "15_villain_profile_card",
+      "crop_box_px": [
+        1240,
+        177,
+        1645,
+        317
+      ],
+      "size_px": [
+        405,
+        140
+      ],
+      "png": "15_villain_profile_card.png",
+      "png_x3": "15_villain_profile_card_x3.png"
+    },
+    {
+      "name": "16_action_buttons",
+      "crop_box_px": [
+        1255,
+        670,
+        1585,
+        765
+      ],
+      "size_px": [
+        330,
+        95
+      ],
+      "png": "16_action_buttons.png",
+      "png_x3": "16_action_buttons_x3.png"
+    },
+    {
+      "name": "17_bottom_controls",
+      "crop_box_px": [
+        315,
+        848,
+        1225,
+        925
+      ],
+      "size_px": [
+        910,
+        77
+      ],
+      "png": "17_bottom_controls.png",
+      "png_x3": "17_bottom_controls_x3.png"
+    },
+    {
+      "name": "18_cards_hero",
+      "crop_box_px": [
+        540,
+        185,
+        645,
+        275
+      ],
+      "size_px": [
+        105,
+        90
+      ],
+      "png": "18_cards_hero.png",
+      "png_x3": "18_cards_hero_x3.png"
+    },
+    {
+      "name": "19_bb_chip",
+      "crop_box_px": [
+        600,
+        625,
+        635,
+        700
+      ],
+      "size_px": [
+        35,
+        75
+      ],
+      "png": "19_bb_chip.png",
+      "png_x3": "19_bb_chip_x3.png"
+    },
+    {
+      "name": "20_sb_chip",
+      "crop_box_px": [
+        880,
+        625,
+        920,
+        700
+      ],
+      "size_px": [
+        40,
+        75
+      ],
+      "png": "20_sb_chip.png",
+      "png_x3": "20_sb_chip_x3.png"
+    }
+  ]
+}

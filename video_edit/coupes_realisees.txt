@@ -1,0 +1,48 @@
+POKERFORGE - JOURNAL DES COUPES
+Source : 2026-06-28 18-50-36.mkv
+Duree source : 00:15:47.184
+Duree cible : 00:14:50.000
+Total retire : 00:00:57.184
+
+Les timecodes ci-dessous correspondent a la video source.
+
+01. 00:03:40.213 --> 00:03:51.193 | 10.980 s
+    Suppression d'une formulation repetee sur le role central du Coach IA.
+
+02. 00:05:51.105 --> 00:05:54.215 | 03.110 s
+    Temps mort avant l'affichage du dashboard.
+
+03. 00:06:45.242 --> 00:06:50.003 | 04.761 s
+    Attente silencieuse pendant le changement d'ecran vers PokerStars.
+
+04. 00:06:50.632 --> 00:06:55.941 | 05.309 s
+    Suite de l'attente silencieuse pendant l'ouverture de PokerStars.
+
+05. 00:07:29.026 --> 00:07:32.838 | 03.812 s
+    Temps mort lors du passage vers les reglages du Trainer.
+
+06. 00:09:01.398 --> 00:09:14.610 | 13.212 s
+    Transition et phrase redondante apres la demonstration du Trainer.
+
+07. 00:10:08.743 --> 00:10:10.898 | 02.155 s
+    Pause silencieuse pendant un ajustement dans SharkSolver.
+
+08. 00:10:17.161 --> 00:10:30.270 | 13.109 s
+    Suppression du commentaire d'hesitation sur la prise en main du Solver.
+
+09. 00:15:46.448 --> 00:15:47.184 | 00.736 s
+    Suppression de la phrase parasite apres la conclusion.
+
+CONTENU CONSERVE
+- Presentation du projet et du probleme resolu
+- Dashboard et evenements
+- Absence d'add-on sur PokerStars
+- Trainer, modes, filtres et table de jeu
+- SharkSolver et matrices de ranges
+- Bibliotheque et historique des mains
+- Replayer et analyse IA
+- Coach AI, objectifs et Career Mode
+- Mental Game
+- Communaute et partage de ranges
+- Conclusion et coordonnees de disponibilite
+
