@@ -5008,8 +5008,8 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 ):(
-                  <div className={`pf-pot-readout${numTables>=3?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact={numTables>=3}/>
+                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                    <TrainingPotStack value={mainPotBb} compact={numTables>=2}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>

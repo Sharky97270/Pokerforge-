@@ -4260,13 +4260,13 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 .pf-hole-cards .card:nth-child(2){transform:rotate(4deg) translateX(-1px)!important;}
 .pf-villain-backs{filter:drop-shadow(0 7px 15px rgba(0,183,255,.34)) drop-shadow(0 8px 16px rgba(0,0,0,.88))!important;}
 
-.pf-pot-chip-stack{position:relative!important;display:block!important;width:78px!important;height:27px!important;overflow:hidden!important;margin:0 0 2px!important;border-radius:15px 15px 6px 6px!important;}
-.pf-pot-chip-stack>img{position:absolute!important;left:0!important;top:0!important;display:block!important;width:78px!important;height:auto!important;transform:none!important;filter:saturate(1.2) contrast(1.08) brightness(1.03) drop-shadow(0 7px 8px rgba(0,0,0,.56));}
+.pf-pot-chip-stack{position:relative!important;display:flex!important;justify-content:center!important;align-items:flex-end!important;width:auto!important;height:44px!important;overflow:visible!important;margin:0 0 2px!important;border-radius:0!important;}
 .pf-pot-readout{gap:1px!important;padding:2px 11px 6px!important;background:radial-gradient(ellipse at 50% 45%,rgba(1,8,22,.28),transparent 70%)!important;}
 .pf-pot-label{font-size:10px!important;color:#e7ecf3!important;letter-spacing:.08em!important;}
 .pf-pot-value{font-size:27px!important;color:#fff!important;text-shadow:0 2px 2px rgba(0,0,0,.88),0 0 14px rgba(0,191,255,.32)!important;}
-.pf-pot-readout.compact .pf-pot-chip-stack{width:48px!important;height:17px!important;transform:none!important;margin-bottom:1px!important;}
-.pf-pot-readout.compact .pf-pot-chip-stack>img{width:48px!important;}
+.pf-pot-readout.compact .pf-pot-chip-stack{width:auto!important;height:24px!important;transform:none!important;margin-bottom:1px!important;}
+.pf-pot-readout.compact .pf-pot-value{font-size:14px!important;}
+.pf-pot-readout.compact .pf-pot-label{font-size:7.5px!important;}
 
 .pf-blind-stack{padding:0!important;background:transparent!important;border:0!important;filter:drop-shadow(0 7px 10px rgba(0,0,0,.72))!important;}
 .pf-blind-art{display:block;width:31px;height:28px;overflow:hidden;border-radius:10px;}

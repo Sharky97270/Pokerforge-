@@ -105,9 +105,11 @@ export function BlindBadge({amount=1,label="BB",compact=false,style}){
 }
 export function BlindChipStack(props){return <BlindBadge {...props}/>;}
 export function TrainingPotStack({value=0,compact=false}){
+  const chipCount=Math.min(7,Math.max(3,Math.ceil((Number(value)||1)/4)));
+  const StackComp=compact?ChipStackSmall:ChipStackLarge;
   return(
     <div className={`pf-pot-chip-stack${compact?" compact":""}`}>
-      <img src="/assets/trainer/07_pot_chips_x3.png" alt="" draggable="false"/>
+      <StackComp count={chipCount} kind="pot" amount={value}/>
     </div>
   );
 }
