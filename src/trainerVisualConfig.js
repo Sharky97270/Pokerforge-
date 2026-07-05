@@ -82,12 +82,12 @@ export const TRAINER_VISUAL_CONFIG = {
     },
     2: {
       seatPositions: {
-        HJ: { x: 31, y: 17.5 },
-        CO: { x: 69, y: 17.5 },
-        BTN: { x: 90.5, y: 50 },
+        HJ: { x: 31, y: 21.5 },
+        CO: { x: 69, y: 21.5 },
+        BTN: { x: 85.5, y: 50 },
         SB: { x: 71.5, y: 82 },
         BB: { x: 28.5, y: 82 },
-        UTG: { x: 9.5, y: 50 },
+        UTG: { x: 14.5, y: 50 },
       },
       actionPush: { top: 0.12, bottom: 0.22, left: 0.21, right: 0.21, default: 0.22 },
       blindPush: { SB: 0.17, BB: 0.18, default: 0.17 },

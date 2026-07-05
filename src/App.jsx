@@ -5119,8 +5119,8 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=80;
-          const mtSeatTransform=isTopSeatMt?"translate(-50%,-42%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
-          const mtHeroCardSize=isTopSeatMt?(numTables===2?"md":numTables===3?"sm":"xs"):cfg.heroCard;
+          const mtSeatTransform=isTopSeatMt?"translate(-50%,-31%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
+          const mtHeroCardSize=isTopSeatMt?(numTables===2?"sm":"xs"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
           return(
