@@ -563,3 +563,68 @@ export const MENTAL_CONTENT={
     "Ton A-Game se déclenche par routine, pas par chance.",
   ],
 };
+
+export const ARTICLES=[
+  {
+    id:"cbet",ico:"🎯",title:"L'Art du Continuation Bet",sub:"Sizing, fréquence, boards favorables",diff:"Débutant",color:"#FFC247",
+    sections:[
+      {h:"Pourquoi c-bet ?",p:"Le continuation bet (cbet) est la pierre angulaire du jeu postflop. Quand vous avez raise préflop, votre range est plus forte et plus polarisée que celle du caller. Sur la majorité des flops, vous avez un <strong>range advantage</strong> — c'est-à-dire que votre range contient plus de mains très fortes. Cela vous permet de miser de manière profitable même avec des mains moyennes ou des bluffs."},
+      {h:"Sizing optimal",p:"Les solvers modernes ont révolutionné le sizing. Au lieu de toujours cbet 50-66%, la stratégie GTO utilise <strong>deux tailles prédominantes</strong> : 25-33% pot sur les boards secs (A72 rainbow) pour extraire thin value, et 66-75% pot sur les boards humides (T98 deux couleurs) pour deny equity des draws. Le small cbet (33%) sur boards secs est une des innovations majeures des 10 dernières années."},
+      {h:"Boards à cbet fort",p:"<strong>Boards high-card</strong> (A-high, K-high) : vous avez plus d'as et de rois en range → cbet ~70% freq. <strong>Boards secs</strong> (A72 rainbow) : peu de draws, votre range domine → cbet 75%+ freq. <strong>Boards à paires</strong> (772) : votre range contient proportionnellement plus de trips/full house → fréquence élevée."},
+      {h:"Boards à checker",p:"<strong>Boards bas et connectés</strong> (678 two-tone) : la range du caller contient beaucoup de deux-pairs, sets, draws → votre edge est réduit. <strong>Boards qui touchent massivement la range du BB</strong> (234, 567) : le BB call préflop beaucoup de petites paires et connecteurs → checker back pour pot control."},
+      {h:"Main emblématique",p:"Moneymaker vs Farha, WSOP 2003 ME. Chris Moneymaker open BTN avec K♠7♥, Farha BB call avec A♣Q♦. Flop 9♥2♣6♦. Moneymaker cbet 33% avec total air. Farha check-call. Turn 8♠ (flush draw arrivée). Moneymaker barrel à nouveau, représentant une range solide. Farha fold. <strong>Leçon : un cbet cohérent sur un board qui miss les deux ranges force des folds même avec top pair.</strong>"},
+    ],
+    hand:{title:"Moneymaker vs Farha — WSOP 2003 ME",cards:"K♠7♥",board:"9♥2♣6♦8♠",key:"C-bet air + barrel = pression de range optimale",url:"https://www.pokernews.com/news/2017/02/five-most-historic-poker-hands-27011.htm"},
+  },
+  {
+    id:"3bet",ico:"⚡",title:"3-Bet Ranges Modernes",sub:"Light 3-bet, polarisation, exploitation",diff:"Intermédiaire",color:"#1F8BFF",
+    sections:[
+      {h:"L'évolution du 3-bet",p:"En 2005, le 3-bet signifiait AA/KK et parfois QQ/AK. Aujourd'hui, les solvers GTO imposent des ranges de 3-bet incluant des mains comme A2s, K4s, J9s, 76s en BTN — soit 8-15% de toutes les mains selon la position. Cette polarisation est fondamentale : vous mélangez <strong>mains de value très fortes</strong> et <strong>bluffs avec equity et blockers</strong>."},
+      {h:"Les blockers — pourquoi A2s est parfait",p:"A2s a le As qui bloque les AA et AK adverses (mains qui 4-bet le plus). Le 2 ne bloque rien d'utile. En cas de call, vous avez un flush draw avec position. C'est le 3-bet bluff parfait : <strong>blockers + playability + fold equity maximale</strong>. Tom Dwan l'appliquait au High Stakes Poker dès 2009, validé par les solvers des années plus tard."},
+      {h:"Sizings selon la position",p:"IP (BTN 3-bet vs CO) : 2.8-3x est standard. OOP (BB 3-bet vs BTN) : 3.5-4x pour compenser le désavantage positionnel. Plus on est OOP, plus le sizing doit être grand pour réduire la surface de jeu postflop défavorable."},
+      {h:"Exploiter les folds excessifs",p:"Si votre adversaire fold >60% face 3-bet, passez à une stratégie linéaire : 3-bettez les 15% meilleures mains (toutes pour la valeur). Si fold <40% : réduisez votre range de bluffs, augmentez les hands for value. <strong>La fréquence de 3-bet GTO est ~8-12% selon position — tout écart est exploitable.</strong>"},
+      {h:"Main emblématique",p:"Tom Dwan, High Stakes Poker Season 7 (2009). UTG raise $1,200 avec JJ. Dwan re-raise à $4,200 avec 3♠4♠. Flop A♠Q♠7♥ → Dwan barrel avec flush draw. Turn 2♠ → Dwan a la flush, bet pour value. Villain fold. <strong>Leçon : 3-bet bluff avec equity = semi-bluff avec deux façons de gagner.</strong>"},
+    ],
+    hand:{title:"Tom Dwan — 3-bet léger HSP 2009",cards:"3♠4♠",board:"A♠Q♠7♥2♠",key:"Blocker + flush draw = 3-bet idéal",url:"https://upswingpoker.com/3-bet-strategy-aggressive-preflop/"},
+  },
+  {
+    id:"river",ico:"🌊",title:"Poker de River — Bluff & Value",sub:"Polarisation, sizing, bluff catching",diff:"Avancé",color:"#9B5CFF",
+    sections:[
+      {h:"La river est différente",p:"Sur la river, il n'y a plus d'equity à disputer — vous gagnez ou vous perdez. Cela rend la river la street la plus théorique du jeu. En GTO, la river est entièrement polarisée : vous betez avec vos <strong>très bonnes mains (value)</strong> et avec vos <strong>bluffs optimaux (missed draws)</strong>. Jamais avec les mains moyennes."},
+      {h:"Le ratio bluff/value",p:"La règle fondamentale : pour un bet de 50% pot, vous devez avoir <strong>2 value pour 1 bluff</strong>. Pour bet pot, c'est 2 value pour 1 bluff également (le ratio ne change pas — seules les fréquences absolues changent). Vos bluffs optimaux sont les mains avec les <strong>meilleurs blockers aux nuts adverses</strong>."},
+      {h:"Bluff catching — le MDF",p:"Face à un bet river de 75% pot, le MDF est 57% → vous devez call 57% de votre range. Mais vous ne pouvez call qu'avec des mains qui battent les bluffs, soit généralement des pairs et au-dessus. <strong>Phil Ivey vs Paul Jackson, Monte Carlo Millions</strong> : Ivey call river avec Q-high car il calculait que Jackson bluffait trop souvent."},
+      {h:"Sizing river",p:"Les deux sizings principaux en river GTO : <strong>small (33%)</strong> pour une range dépolarisée (value + bluffs faibles), <strong>overbet (125-200%)</strong> pour une range fortement polarisée (nuts + air). L'overbet est la plus haute expression du poker théorique moderne."},
+    ],
+    hand:{title:"Phil Ivey vs Paul Jackson — Monte Carlo",cards:"Q♥J♣",board:"A♦8♣3♦5♥2♠",key:"Call Q-high river = calcul de bluffing frequency adversaire",url:"https://bluffingmonkeys.com/5-iconic-poker-hands-that-made-history/"},
+  },
+  {
+    id:"icm",ico:"🏆",title:"ICM & Stratégie Tournoi",sub:"Bubble play, push/fold, pay jumps",diff:"Avancé",color:"#10D87A",
+    sections:[
+      {h:"Qu'est-ce que l'ICM ?",p:"L'Independent Chip Model convertit vos jetons de tournoi en <strong>valeur monétaire réelle</strong> selon la structure des prix. En cash game, 2x jetons = 2x argent. En tournoi, doubler vos jetons ne double JAMAIS votre EV monétaire car la variance augmente massivement."},
+      {h:"L'effet ICM sur le calling range",p:"À la bulle d'un tournoi, être éliminé = zéro gain. Cela comprime radicalement vos calling ranges. Exemple canonique : <strong>WSOP Main Event 2018 Final Table Bubble</strong>. Antoine Labat pocket kings face aux pocket aces de Nicolas Manion. Mathématiquement, fold KK pré-flop est défendable compte tenu du saut de paiement — même si chip EV dit call."},
+      {h:"Push/Fold — les charts Nash",p:"En dessous de 15bb, la stratégie optimale est push/fold. Les Nash Equilibrium charts indiquent exactement quelles mains shover (selon position et stack). ATo est shove à 12bb BTN. KQo shove à 10bb CO. Ces charts sont intégrés dans les trainers comme PokerForge pour vous enseigner la précision mathématique."},
+      {h:"Pay jump psychology",p:"<strong>Ne jamais sur-folder à cause de la nervosité</strong>. Les études montrent que les joueurs live sur-foldent de 15-20% comparé à l'optimal ICM. Le calculateur ICM (tool intégré dans PokerForge) vous permet de vérifier si un call est rentable selon stack, payout structure et position dans le tournoi."},
+    ],
+    hand:{title:"Labat vs Manion — WSOP 2018 Bubble FT",cards:"K♦K♣",board:"Fold préflop ?",key:"ICM : la valeur monétaire du fold > chip EV du call",url:"https://www.pokernews.com/strategy/can-you-fold-pocket-kings-on-the-wsop-final-table-bubble-33501.htm"},
+  },
+  {
+    id:"potodds",ico:"📐",title:"Mathématiques — Cotes & Equity",sub:"Pot odds, implied odds, SPR",diff:"Débutant",color:"#34D8FF",
+    sections:[
+      {h:"La formule fondamentale",p:"Cote du pot (%) = Mise à payer / (Pot + Mise à payer). Si la cote du pot est inférieure à votre equity estimée → call +EV. C'est aussi simple que ça. <strong>Exemple : pot 100$, bet 50$ → cote = 50/150 = 33%. Si votre equity est > 33%, call.</strong>"},
+      {h:"Compter ses outs",p:"Chaque out vaut ~2% d'equity par street. Flush draw = 9 outs = ~18% turn, ~36% turn+river combiné. Open-ended straight draw = 8 outs = ~16% turn. Pour une estimation rapide : outs × 2 (une street), outs × 4 (deux streets restantes)."},
+      {h:"Implied odds",p:"Les implied odds intègrent les gains futurs anticipés si vous complétez votre draw. Un set mining (call raise préflop avec une paire) a seulement ~11% d'equity de flopper le set, mais les implied odds le rendent rentable à 100bb+ : si vous flopper votre set, vous gagnez souvent le stack entier."},
+      {h:"SPR — Stack to Pot Ratio",p:"SPR = Stack effectif / Pot au flop. SPR < 4 : prêt à aller all-in avec top pair ou mieux. SPR 4-10 : besoin de deux pairs ou mieux. SPR > 10 : pot control, évitez les gros pots sans nuts. <strong>Doyle Brunson vs Jesse Alto, WSOP 1976 :</strong> call avec T-2 justifié par les implied odds — stack profond + board potentiellement drawable pour l'adversaire."},
+    ],
+    hand:{title:"Doyle Brunson — WSOP 1976 ME",cards:"T♠2♠",board:"A♦J♠T♥2♥T♦",key:"Call marginal justifié par implied odds profonds",url:"https://www.ignitioncasino.net/us/most-iconic-hands-played/"},
+  },
+  {
+    id:"position",ico:"📍",title:"La Position — Avantage Décisif",sub:"IP vs OOP, leverage, information",diff:"Débutant",color:"#FFC247",
+    sections:[
+      {h:"Pourquoi la position domine",p:"Agir en dernier vous donne une information cruciale : vous voyez ce que l'adversaire fait avant d'agir. Cette information vaut <strong>plusieurs big blinds par 100 mains</strong>. Les études solver montrent qu'en BTN vs BB (heads-up postflop), le BTN a environ +0.3bb d'avantage pur dû à la position, indépendamment des cartes."},
+      {h:"Pot control IP",p:"En position, vous contrôlez la taille du pot. Si le villain check, vous pouvez checker derrière pour voir une carte gratuite ou induire un bluff au prochain tour. Cette option n'existe pas OOP. C'est pourquoi les ranges IP sont beaucoup plus larges que les ranges OOP : même une main marginale devient jouable IP."},
+      {h:"Défense OOP — le check-raise",p:"La principale arme OOP est le <strong>check-raise</strong>. En checkant, vous invitez l'adversaire à bluffer ou value-bet, puis vous contre-attaquez avec une range forte. Les GTO solvers allouent 15-25% de check-raise range au flop OOP pour garder votre range non-exploitable."},
+      {h:"Tableaux de position",p:"Ordre d'avantage (du plus avantageux au moins) : BTN > CO > HJ/MP > SB > BB = UTG. Le SB est en quelque sorte la pire position car il agit toujours en premier postflop tout en ayant une obligation de poster. Les winrates par position confirment : BTN = meilleure position de loin."},
+    ],
+    hand:{title:"Position en action — BTN steal",cards:"Q♠7♠",board:"K♥4♦2♣",key:"BTN cbet 33% avec air = position + range adv. = fold 65% du temps",url:"https://upswingpoker.com/3-bet-strategy-aggressive-preflop/"},
+  },
+];
