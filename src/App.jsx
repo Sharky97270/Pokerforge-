@@ -286,7 +286,11 @@ function blindAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"blindAnchor");
 }
 function dealerAnchorPoint(layout){
-  return seatAnchorPoint(layout,"BTN","dealerAnchor");
+  // Jeton D toujours en bas-gauche du siège BTN, dérivé de la position réelle
+  // du siège (suit les retouches de layout ; l'ancre fixe dealerAnchor était périmée).
+  const seat=layout.seats?.BTN||{x:50,y:50};
+  const off={"1T":{x:7,y:9},"2T":{x:6.5,y:8},"3T":{x:6,y:7.5},"4T":{x:6,y:7.5}}[layout.name]||{x:6.5,y:8};
+  return {x:Math.max(4,seat.x-off.x),y:Math.min(90,seat.y+off.y)};
 }
 function actionLabelAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"actionLabelAnchor");
@@ -4183,7 +4187,7 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
             const p=resolveTrainerBlindPoint(trainingLayout,bp);
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-                <BlindChipStack amount={postedBlinds[bp]} label={bp} compact/>
+                <BlindChipStack amount={postedBlinds[bp]} label={bp}/>
               </div>
             );
           })}
@@ -4586,7 +4590,7 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
           const by=y+(50-y)*bp;
           return(
             <div key={`blind-mt-${pos}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=2}/>
+              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3}/>
             </div>
           );
         })}
@@ -4648,7 +4652,7 @@ function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainer
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=76;
-          const mtSeatTransform=isTopSeatMt?"translate(-50%,-31%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
+          const mtSeatTransform=isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
           const mtHeroCardSize=isTopSeatMt?(numTables===2?"sm":"xs"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
@@ -11642,9 +11646,10 @@ function CoachAnalyzeHand({onGoTrainer,onNav,onGoReplayer,initialRaw,onInitialCo
 }
 
 function CoachAITab({unit,onGoTrainer,onGoReplayer,jumpTo,onJumped,seed,onSeedApplied}){
-  const[sub,setSub]=useState("overview");
+  const[sub,setSub]=useState(()=>localStorage.getItem("pf_coach_sub")||"mental");
   const[stats,setStats]=useState(()=>loadStats());
   const[analyzeSeed,setAnalyzeSeed]=useState(null);  // HH entrante (Replayer → Coach AI)
+  useEffect(()=>{localStorage.setItem("pf_coach_sub",sub);},[sub]);
   useEffect(()=>{if(jumpTo){setSub(jumpTo);onJumped&&onJumped();}},[jumpTo]);
   useEffect(()=>{if(seed){setAnalyzeSeed(seed);setSub("analyze");onSeedApplied&&onSeedApplied();}},[seed]);
   const refresh=()=>setStats({...loadStats()});
@@ -11665,7 +11670,7 @@ function CoachAITab({unit,onGoTrainer,onGoReplayer,jumpTo,onJumped,seed,onSeedAp
         {sub==="event"     && <CoachEvent onGoTrainer={onGoTrainer} onRefresh={refresh}/>}
         {sub==="career"    && <CoachCareer stats={stats} onGoTrainer={onGoTrainer} onRefresh={refresh}/>}
         {sub==="live"      && <CoachLive profile={profile}/>}
-        {sub==="mental"    && <MentalGameTab onGoTrainer={onGoTrainer}/>}
+        {sub==="mental"    && <MentalGameTab onGoTrainer={onGoTrainer} NavIcon={NavIcon}/>}
         {sub==="history"   && <CoachHistory stats={stats}/>}
         {sub==="tools"     && <CoachTab unit={unit} onGoTrainer={onGoTrainer}/>}
       </div>
@@ -12799,7 +12804,7 @@ const LNAV=[
   {id:"library",  lbl:"Biblio",     col:"#2ECC71"},
   {id:"pratique", lbl:"Mains",      col:"#9B5CFF"},
   {id:"replayer", lbl:"Replayer",   col:"#FFC247"},
-  {id:"coach",    lbl:"Coach AI",   col:"#FF8A3D"},
+  {id:"coach",    lbl:"Coach AI",   col:"#1F8BFF"},
   {id:"community",lbl:"Communauté", col:"#FF5CC8"},
   {id:"settings", lbl:"Paramètres", col:"#C9D4E8"},
 ];
@@ -13125,7 +13130,8 @@ function AdminDashboard({profile,onGoTab}){
 }
 
 export default function App(){
-  const[tab,setTab]=useState("dash");
+  const[tab,setTabState]=useState(()=>localStorage.getItem("pf_active_tab")||"coach");
+  const setTab=next=>{setTabState(next);localStorage.setItem("pf_active_tab",next);};
   const[unit,setUnit]=useState("BB");
   const[deckType,setDeckType]=useState(()=>localStorage.getItem("pf_deck")||"modern");
   const[chipTheme,setChipTheme]=useState(()=>localStorage.getItem("pf_chip_theme")||"blue");
@@ -13349,7 +13355,7 @@ export default function App(){
             })}
             {/* Coach AI */}
             {(()=>{
-              const {lbl,col}=LNAV.find(n=>n.id==="coach")||{lbl:"Coach AI",col:"#FF8A3D"};
+              const {lbl,col}=LNAV.find(n=>n.id==="coach")||{lbl:"Coach AI",col:"#1F8BFF"};
               const isActive=tab==="coach";
               const isHov=hovNav==="coach";
               const icCol=isActive?col:isHov?col:"#6B85B8";
