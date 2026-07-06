@@ -77,3 +77,6 @@ export function buildDailyProgram(stats){
   const gainEstimate=(mainLeak.acc?Math.max(0,(75-mainLeak.acc)*0.05):0).toFixed(1);
   return{program:scores,mainLeak,gainEstimate,totalSpots:scores.reduce((s,p)=>s+p.spots,0)};
 }
+
+export function loadHands(){try{const s=localStorage.getItem("pf_hands");return s?JSON.parse(s):[];}catch{return [];}}
+export function saveHands(h){try{localStorage.setItem("pf_hands",JSON.stringify(h.slice(0,100)));}catch{}}

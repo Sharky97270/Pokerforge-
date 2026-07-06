@@ -62,3 +62,16 @@ export function CardFlip({r,s,size="md",faceDown=true,delay=0}){
   },[faceDown,delay]);
   return flipped?<Card r={r} s={s} size={size} delay={delay}/>:<CardBack size={size}/>;
 }
+
+/* ── MiniCard : carte premium compacte (deck actif) pour la liste ── */
+export function MiniCard({r,s}){
+  const st=getActiveDeck()[s]||{color:"#ccc",bg:"linear-gradient(145deg,#0d1525,#071B44)",border:"rgba(255,255,255,.12)"};
+  return(
+    <span style={{display:"inline-flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+      width:18,height:24,borderRadius:3,background:st.bg,border:`1px solid ${st.border}`,
+      boxShadow:"0 1px 3px rgba(0,0,0,.5)",lineHeight:1}}>
+      <span style={{fontFamily:T.brand,fontSize:10,fontWeight:900,color:st.color}}>{r}</span>
+      <span style={{fontSize:8,color:st.color,marginTop:-1}}>{s}</span>
+    </span>
+  );
+}
