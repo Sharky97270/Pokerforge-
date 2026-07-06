@@ -251,7 +251,7 @@ function buildVillainResponseFreqs(scenario,stack){
 /* Traduit un spot Entraîneur (acts/street hétérogènes) vers un scénario Shark Solver
    (5 actions normalisées). Heuristique best-effort : utilisée pour le cross-link
    Entraîneur → Solver afin de pré-remplir un spot proche plutôt que pertinent à 100%. */
-function buildScenarioFromTrainerParams(params){
+export function buildScenarioFromTrainerParams(params){
   const heroPos=params.heroPos||"BTN";
   const vsPos=params.vsPos||"BB";
   const stack=params.stack||100;

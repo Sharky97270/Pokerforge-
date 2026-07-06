@@ -256,7 +256,7 @@ function levelLabelFor(overall){
 
 /* ── localStorage : event prep / career goal / missions / historique ── */
 function loadCoachEvent(){try{return JSON.parse(localStorage.getItem("pf_coach_event")||"null");}catch{return null;}}
-function saveCoachEvent(ep){try{localStorage.setItem("pf_coach_event",JSON.stringify(ep));}catch{}}
+export function saveCoachEvent(ep){try{localStorage.setItem("pf_coach_event",JSON.stringify(ep));}catch{}}
 function clearCoachEvent(){try{localStorage.removeItem("pf_coach_event");}catch{}}
 function loadCareerGoal(){try{return localStorage.getItem("pf_career_goal")||null;}catch{return null;}}
 function saveCareerGoal(id){try{localStorage.setItem("pf_career_goal",id);}catch{}}
@@ -341,7 +341,7 @@ function daysUntil(dateStr){
   const d=new Date(dateStr+"T00:00:00");
   return Math.ceil((d-new Date())/86400000);
 }
-function buildEventPreparation(ev,stats){
+export function buildEventPreparation(ev,stats){
   const skills=ev.prep||[];
   const daysLeft=daysUntil(ev.start);
   const daysLeftEnd=daysUntil(ev.end);
