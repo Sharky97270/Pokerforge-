@@ -10,7 +10,7 @@
     "test:trainer": "node test-trainer-engine.mjs",
     "test:coach-engine": "node test-coach-engine.mjs",
     "test:coach-agents": "node test-coach-agents.mjs",
-    "test": "node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs",
+    "test": "node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs && node test-mental-diagnostic.mjs",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --esm prisma/seed.ts",
     "db:studio": "prisma studio",
@@ -22,17 +22,17 @@
     "seed": "ts-node --esm prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0",
-    "@supabase/supabase-js": "^2.107.0",
-    "prisma": "^7.8.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@prisma/client": "7.8.0",
+    "@supabase/supabase-js": "2.107.0",
+    "prisma": "7.8.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "@vitejs/plugin-react": "^4.3.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
-    "vite": "^5.4.2"
+    "@types/node": "25.9.2",
+    "@vitejs/plugin-react": "4.7.0",
+    "ts-node": "10.9.2",
+    "typescript": "6.0.3",
+    "vite": "5.4.21"
   }
 }

@@ -21,8 +21,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
       - name: Tests (trainer + coach)
         run: npm test
+
+      - name: Build standalone (vite build + inline)
+        run: npm run build:standalone
+
+      - name: Vérifier que le standalone commité est à jour
+        run: |
+          if ! git diff --quiet -- index-standalone.html; then
+            echo "::error::index-standalone.html n'est pas à jour — lancer 'npm run build:standalone' et committer."
+            exit 1
+          fi
+
+      - name: Publier le standalone en artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokerforge-standalone
+          path: index-standalone.html
+          retention-days: 30
