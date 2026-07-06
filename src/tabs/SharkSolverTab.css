@@ -1,0 +1,101 @@
+/* PokerForge — SharkSolver : design validé (script Codex visuel fonctionnel)
+   Palette : fond #030814/#07172b · panels #071427/#0a1d35 · accent #00aaff · violet #7c3cff */
+
+.ss-page{display:flex;flex-direction:column;height:100%;overflow:hidden;background:linear-gradient(180deg,#030814,#050f1f);}
+.ss-head{display:flex;align-items:center;gap:12px;padding:9px 18px;flex-shrink:0;
+  background:linear-gradient(90deg,rgba(124,60,255,.10),rgba(0,170,255,.06));
+  border-bottom:1px solid rgba(0,180,255,.28);}
+.ss-head-title{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:900;letter-spacing:2.5px;
+  color:#9fd4ff;text-shadow:0 0 18px rgba(0,170,255,.5);}
+.ss-head-sub{font-size:9px;color:#8ea4c7;font-family:Inter,sans-serif;border-left:1px solid rgba(0,180,255,.25);padding-left:10px;}
+.ss-head-honesty{margin-left:auto;font-size:8.5px;color:#8ea4c7;font-style:italic;font-family:Inter,sans-serif;}
+
+.ss-body{display:flex;flex:1;overflow:hidden;}
+.ss-main{flex:1;overflow-y:auto;padding:12px 14px;min-width:0;}
+.ss-right{width:302px;flex:0 0 302px;overflow-y:auto;padding:12px 12px 12px 0;display:flex;flex-direction:column;gap:12px;}
+
+.ss-card{background:linear-gradient(180deg,#0a1d35,#071427);border:1px solid rgba(0,180,255,.30);
+  border-radius:12px;padding:12px 14px;box-shadow:inset 0 1px 0 rgba(120,200,255,.05),0 8px 22px rgba(0,0,0,.25);}
+.ss-card+.ss-card{margin-top:0;}
+.ss-card-title{display:flex;align-items:center;gap:7px;font-family:'Space Grotesk',sans-serif;
+  font-size:9.5px;font-weight:900;letter-spacing:.09em;color:#54b8ff;margin-bottom:10px;text-transform:uppercase;}
+.ss-card-title::before{content:"";width:8px;height:8px;border:2px solid #00aaff;border-radius:50%;
+  box-shadow:0 0 8px rgba(0,170,255,.55);flex:0 0 auto;}
+
+/* Zone centrale : matrices + arbre */
+.ss-center{display:grid;grid-template-columns:minmax(340px,1fr) minmax(280px,360px) minmax(340px,1fr);
+  gap:12px;margin-top:12px;align-items:start;}
+.ss-center-col{min-width:0;display:flex;flex-direction:column;gap:12px;}
+
+/* Rangée du bas : insights / gains / actions rapides */
+.ss-bottom{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px;margin-top:12px;}
+
+/* Résumé du spot */
+.ss-summary-rows{display:flex;flex-direction:column;gap:5px;}
+.ss-summary-row{display:flex;justify-content:space-between;font-family:Inter,sans-serif;font-size:10px;}
+.ss-summary-row span{color:#8ea4c7;}
+.ss-summary-row strong{color:#f4f8ff;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:10px;}
+.ss-equity-wrap{display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,180,255,.16);}
+.ss-equity-legend{display:flex;flex-direction:column;gap:4px;font-family:Inter,sans-serif;font-size:10px;}
+.ss-equity-legend b{font-family:'JetBrains Mono',monospace;font-size:12px;}
+
+/* Qualité de la solution */
+.ss-quality{display:flex;gap:12px;align-items:center;}
+.ss-quality-list{display:flex;flex-direction:column;gap:4px;font-family:Inter,sans-serif;font-size:9.5px;color:#c9dcf5;}
+.ss-quality-list li{list-style:none;display:flex;align-items:center;gap:6px;}
+.ss-quality-list li::before{content:"✓";color:#00e58a;font-weight:900;font-size:9px;}
+.ss-quality-list li.off::before{content:"○";color:#8ea4c7;}
+
+/* Insights */
+.ss-insights li{list-style:none;display:flex;gap:7px;align-items:flex-start;
+  font-family:Inter,sans-serif;font-size:10px;color:#c9dcf5;line-height:1.55;margin-bottom:6px;}
+.ss-insights li::before{content:"IA";flex:0 0 auto;font-size:7px;font-weight:900;color:#00aaff;
+  border:1px solid rgba(0,170,255,.45);border-radius:4px;padding:1px 4px;margin-top:1px;}
+
+/* Ce que tu gagneras */
+.ss-gains{position:relative;overflow:hidden;}
+.ss-gains img{position:absolute;right:-12px;bottom:-8px;width:150px;opacity:.5;filter:saturate(1.1);pointer-events:none;}
+.ss-gains li{list-style:none;display:flex;gap:7px;align-items:center;
+  font-family:Inter,sans-serif;font-size:10px;color:#c9dcf5;margin-bottom:6px;position:relative;z-index:1;}
+.ss-gains li::before{content:"✓";color:#00e58a;font-weight:900;}
+
+/* Actions rapides */
+.ss-actions{display:flex;flex-direction:column;gap:7px;}
+.ss-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:9px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.03em;
+  border:1px solid rgba(0,180,255,.35);background:#081a30;color:#bfe3ff;transition:.15s ease;text-align:left;width:100%;}
+.ss-btn:hover{background:#0b2547;border-color:#00aaff;transform:translateY(-1px);box-shadow:0 0 14px rgba(0,170,255,.22);}
+.ss-btn.primary{background:linear-gradient(135deg,#0b5adf,#0a84ff);border-color:#2f9bff;color:#fff;
+  box-shadow:0 0 16px rgba(0,140,255,.35);}
+.ss-btn.gold{border-color:rgba(255,191,60,.5);color:#ffd98a;}
+.ss-btn.violet{border-color:rgba(124,60,255,.5);color:#cdb2ff;}
+.ss-btn.disabled{opacity:.55;cursor:not-allowed;}
+.ss-btn small{margin-left:auto;font-size:7.5px;font-weight:900;color:#7c3cff;border:1px solid rgba(124,60,255,.5);
+  border-radius:4px;padding:1px 5px;letter-spacing:.06em;}
+
+/* Footer */
+.ss-footer{display:flex;align-items:center;gap:18px;padding:6px 18px;flex-shrink:0;
+  border-top:1px solid rgba(0,180,255,.22);background:#050f1f;
+  font-family:Inter,sans-serif;font-size:8.5px;color:#8ea4c7;}
+.ss-footer b{color:#c9dcf5;font-weight:700;}
+.ss-footer .dot{width:5px;height:5px;border-radius:50%;background:#00e58a;box-shadow:0 0 6px #00e58a;display:inline-block;margin-right:4px;}
+
+/* ── Responsive ── */
+@media(max-width:1500px){
+  .ss-center{grid-template-columns:1fr 1fr;}
+  .ss-center-col.tree{grid-column:1 / -1;order:3;}
+  .ss-right{width:280px;flex-basis:280px;}
+}
+@media(max-width:1180px){
+  .ss-body{flex-direction:column;overflow-y:auto;}
+  .ss-main{overflow:visible;}
+  .ss-right{width:auto;flex:none;flex-direction:row;flex-wrap:wrap;padding:0 14px 12px;}
+  .ss-right>*{flex:1 1 300px;}
+  .ss-bottom{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:860px){
+  .ss-center{grid-template-columns:1fr;}
+  .ss-bottom{grid-template-columns:1fr;}
+  .ss-right{flex-direction:column;}
+  .ss-head-honesty{display:none;}
+}

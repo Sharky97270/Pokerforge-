@@ -1,6 +1,7 @@
 // PokerForge — Shark Solver : moteur CFR+, equite, exploit/ICM/PKO + UI (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useMemo } from "react";
 import { T } from "../theme.js";
+import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
    SHARK SOLVER — Analyse GTO & Détection de leaks
@@ -533,6 +534,12 @@ function buildSolverInsights(scenario,freqs,mode){
   });
   const pct=total>0?Math.round(raised/total*100):0;
   insights.push(`${scenario.heroPos} ${pac.label.toLowerCase()} environ ${pct}% des combos dans ce spot (${scenario.stack||100}bb).`);
+  const premiums=["AA","KK","QQ","AKs","AKo"].filter(k=>(freqs[k]?.r||0)>=90);
+  if(premiums.length>=3)insights.push(`Les mains fortes dominantes (${premiums.slice(0,4).join(", ")}) sont toujours dans l'action agressive.`);
+  const mixed=Object.entries(freqs).filter(([,f])=>(f.r||0)>10&&(f.r||0)<90&&((f.c||0)>10||(f.f||0)>10)).length;
+  if(mixed>0)insights.push(`${mixed} mains jouent en fréquence mixte — garder un équilibre entre value et bluffs (ex. suited connectors, Ax suited bas).`);
+  const foldPct=total>0?Math.round(Object.entries(freqs).reduce((a,[k,f])=>a+(k.length===2?6:k.endsWith("s")?4:12)*((f.f||0)/100),0)/total*100):0;
+  if(foldPct>0)insights.push(`${foldPct}% de la range part au fold — chaque main continuée doit avoir un plan postflop clair.`);
 
   if(scenario.action==="vs_open"){
     insights.push(`${scenario.vsPos} doit défendre suffisamment large pour ne pas être exploitable par un sur-open de ${scenario.heroPos}.`);
@@ -2192,6 +2199,142 @@ function SolverActionBar({scenario,mode,setMode,onReset,onSave,onExport,onGoTrai
   );
 }
 
+
+/* ═══ Cartes du visuel validé (script Codex) ═══ */
+function SolverEquityDonut({hero=50,size=92}){
+  const r=(size-14)/2,c=2*Math.PI*r;
+  const heroLen=c*Math.max(0,Math.min(100,hero))/100;
+  return(
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#122a4a" strokeWidth="9"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#7c3cff" strokeWidth="9"
+        strokeDasharray={`${c-heroLen} ${heroLen}`} strokeDashoffset={-heroLen} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#00aaff" strokeWidth="9"
+        strokeDasharray={`${heroLen} ${c-heroLen}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`} style={{filter:"drop-shadow(0 0 6px rgba(0,170,255,.6))"}}/>
+      <text x="50%" y="46%" textAnchor="middle" fill="#f4f8ff" fontSize="13" fontWeight="900" fontFamily="'JetBrains Mono',monospace">{Math.round(hero)}%</text>
+      <text x="50%" y="62%" textAnchor="middle" fill="#8ea4c7" fontSize="7" fontFamily="Inter,sans-serif">HERO</text>
+    </svg>
+  );
+}
+
+function SolverSummaryCard({scenario,mode,stackHero,stackVillain,effective,math,equityHero,villainActionEff,onReset}){
+  const modeLabel=(SOLVER_MODES.find(m=>m.id===mode)||{}).l||mode.toUpperCase();
+  return(
+    <div className="ss-card">
+      <div className="ss-card-title">Résumé du spot</div>
+      <div className="ss-summary-rows">
+        <div className="ss-summary-row"><span>Stacks</span><strong>{stackHero}bb vs {stackVillain}bb</strong></div>
+        <div className="ss-summary-row"><span>Stack effectif</span><strong>{effective}bb</strong></div>
+        <div className="ss-summary-row"><span>Pot</span><strong>{math.pot}bb</strong></div>
+        <div className="ss-summary-row"><span>SPR</span><strong>{math.spr}</strong></div>
+        <div className="ss-summary-row"><span>Action Hero</span><strong>{ACTION_LABELS[scenario.action]||scenario.action} {scenario.heroPos}</strong></div>
+        <div className="ss-summary-row"><span>Réponse {scenario.vsPos}</span><strong>{ACTION_LABELS[villainActionEff]||"Auto"}</strong></div>
+        <div className="ss-summary-row"><span>Mode</span><strong>{modeLabel}</strong></div>
+      </div>
+      <div className="ss-equity-wrap">
+        <SolverEquityDonut hero={equityHero}/>
+        <div className="ss-equity-legend">
+          <div style={{fontSize:8,color:"#8ea4c7",letterSpacing:".08em",fontWeight:800}}>ÉQUITÉ GLOBALE</div>
+          <span style={{color:"#54b8ff"}}>{scenario.heroPos} <b style={{color:"#9fd4ff"}}>{Math.round(equityHero*10)/10}%</b></span>
+          <span style={{color:"#b18cff"}}>{scenario.vsPos} <b style={{color:"#cdb2ff"}}>{Math.round((100-equityHero)*10)/10}%</b></span>
+          <span style={{fontSize:8,color:"#8ea4c7",fontStyle:"italic"}}>Énumération réelle de combos</span>
+        </div>
+      </div>
+      <button className="ss-btn" style={{marginTop:10,justifyContent:"center"}} onClick={onReset}>✎ Réinitialiser le spot</button>
+    </div>
+  );
+}
+
+function SolverQualityCard({cfr,busy}){
+  const done=!!cfr;
+  const conv=done?(cfr.complete?98:82):null;
+  return(
+    <div className="ss-card">
+      <div className="ss-card-title">Qualité de la solution</div>
+      {busy?(
+        <div style={{fontSize:10,color:"#54b8ff",fontFamily:"Inter,sans-serif"}}>⏳ Calcul CFR en cours…</div>
+      ):done?(
+        <div className="ss-quality">
+          <SolverEquityDonut hero={conv} size={72}/>
+          <ul className="ss-quality-list" style={{margin:0,padding:0}}>
+            <li>{cfr.complete?"Convergence atteinte":"Convergence partielle"}</li>
+            <li>Itérations : {cfr.iters?.toLocaleString?.()||cfr.iters}</li>
+            <li>Combos explorés : {(cfr.nH||0)+(cfr.nV||0)}</li>
+            <li className={cfr.complete?"":"off"}>Runouts complets</li>
+          </ul>
+        </div>
+      ):(
+        <ul className="ss-quality-list" style={{margin:0,padding:0}}>
+          <li className="off">CFR non lancé — mode heuristique</li>
+          <li className="off">Précision : estimation</li>
+          <li className="off">Lancer « Résoudre (CFR) » ci-dessus</li>
+        </ul>
+      )}
+      <div style={{fontSize:8,color:"#8ea4c7",fontStyle:"italic",marginTop:8,fontFamily:"Inter,sans-serif"}}>
+        CFR heuristique bêta — préflop/river simplifiés, pas un solver complet.
+      </div>
+    </div>
+  );
+}
+
+function SolverInsightsCard({scenario,heroFreqs,mode,onAddNote}){
+  const insights=useMemo(()=>buildSolverInsights(scenario,heroFreqs,mode),[scenario,heroFreqs,mode]);
+  return(
+    <div className="ss-card">
+      <div className="ss-card-title">Insights & notes</div>
+      <ul className="ss-insights" style={{margin:0,padding:0}}>
+        {insights.map((t,i)=><li key={i}>{t}</li>)}
+      </ul>
+      <button className="ss-btn" style={{marginTop:6}} onClick={onAddNote}>＋ Ajouter une note</button>
+    </div>
+  );
+}
+
+function SolverGainsCard(){
+  return(
+    <div className="ss-card ss-gains">
+      <div className="ss-card-title">Ce que tu gagneras</div>
+      <ul style={{margin:0,padding:0}}>
+        <li>Lecture complète du spot et des ranges.</li>
+        <li>Décision optimale GTO et exploitable.</li>
+        <li>Analyse détaillée des forces et faiblesses.</li>
+        <li>Export & entraînement intégrés.</li>
+      </ul>
+      <img src="/assets/mental/neon-brain-card.jpg" alt="" draggable="false"/>
+    </div>
+  );
+}
+
+function SolverQuickActions({onGoTrainer,onGoReplayer,onExport,onSave,mode,setMode}){
+  return(
+    <div className="ss-card">
+      <div className="ss-card-title">Actions rapides</div>
+      <div className="ss-actions">
+        <button className="ss-btn primary" onClick={onGoTrainer}>🎯 Travailler ce spot dans l'entraîneur</button>
+        <button className="ss-btn" onClick={onGoReplayer}>📤 Envoyer vers Replayer</button>
+        <button className="ss-btn gold" onClick={onSave}>💾 Sauvegarder scénario</button>
+        <button className="ss-btn" onClick={onExport}>📄 Exporter (JSON)</button>
+        <button className="ss-btn violet" onClick={()=>setMode(mode==="exploit"?"gto":"exploit")}>⚖ Comparer GTO / Exploit</button>
+        <button className="ss-btn violet disabled" disabled>🔒 Node Lock <small>BÊTA</small></button>
+      </div>
+    </div>
+  );
+}
+
+function SolverFooterBar({mode,validation}){
+  const modeLabel=(SOLVER_MODES.find(m=>m.id===mode)||{}).l||mode.toUpperCase();
+  return(
+    <div className="ss-footer">
+      <span><span className="dot"/>Données à jour</span>
+      <span>Base : <b>heuristique PokerForge</b> · équité par énumération</span>
+      <span style={{marginLeft:"auto"}}>Précision : <b>{validation&&!validation.ok?"spot à corriger":"estimation"}</b></span>
+      <span>Mode : <b>{modeLabel}</b></span>
+    </div>
+  );
+}
+
 export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,onGoReplayer=null,onInitialApplied=null}={}){
   const[scenario,setScenarioRaw]=useState(initialScenario||SOLVER_SCENARIOS[0]);
   const[mode,setMode]=useState(scenario.icmParams?"icm":scenario.pkoParams?"pko":"gto");
@@ -2514,12 +2657,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   })();
 
   return(
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",background:T.bg}}>
-      {/* Header compact */}
-      <div style={{background:`linear-gradient(90deg,rgba(155,92,255,.08),rgba(16,216,122,.05))`,borderBottom:`1px solid ${T.border}`,padding:"8px 16px",flexShrink:0,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-        <span style={{fontFamily:T.brand,fontSize:15,fontWeight:900,color:T.purple,letterSpacing:3,textShadow:`0 0 20px ${T.purpleGlow}`}}>🦈 Shark Solver</span>
-        <span style={{fontSize:9,color:T.text4,fontFamily:T.stats,borderLeft:`1px solid ${T.border}`,paddingLeft:8}}>GTO · Exploit · ICM · PKO · ChipEV</span>
-        <span style={{marginLeft:"auto",fontSize:8.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>Estimations heuristiques — pas un calcul solver exact</span>
+    <div className="ss-page">
+      <div className="ss-head">
+        <span className="ss-head-title">🦈 SHARK SOLVER</span>
+        <span className="ss-head-sub">GTO · Exploit · ICM · PKO · ChipEV</span>
+        <span className="ss-head-honesty">Estimations heuristiques — pas un calcul solver exact</span>
       </div>
 
       <SolverModeBar
@@ -2534,7 +2676,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
         showParams={showParams} setShowParams={setShowParams}
       />
 
-      <div className="shark-body-row" style={{display:"flex",flex:1,overflow:"hidden"}}>
+      <div className="ss-body">
         <SolverSidebar
           scenario={scenario} setScenario={selectScenario} onResetCell={resetSelection}
           savedSpots={savedSpots} setSavedSpots={setSavedSpots}
@@ -2543,7 +2685,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           format={format}
         />
 
-        <div className="shark-main-col" style={{flex:1,overflowY:"auto",padding:"12px 14px"}}>
+        <div className="ss-main">
           <SpotConfigPanel
             scenario={scenario} onUpdateScenario={onUpdateScenario}
             heroMode={heroMode} setHeroMode={setHeroMode} heroHand={heroHand} setHeroHand={setHeroHand} heroParse={heroParse}
@@ -2568,30 +2710,47 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             <button className={`shark-matrix-tab${mobileMatrixTab==="hero"?" on":""}`} onClick={()=>setMobileMatrixTab("hero")}>HERO RANGE</button>
             <button className={`shark-matrix-tab${mobileMatrixTab==="villain"?" on":""}`} onClick={()=>setMobileMatrixTab("villain")}>VILLAIN RANGE</button>
           </div>
-          <div className="shark-matrix-row" style={{display:"flex",gap:14,marginTop:10,flexWrap:"wrap",alignItems:"flex-start"}}>
-            <div className={`shark-matrix-pane${mobileMatrixTab==="hero"?" shark-pane-active":""}`} style={{flex:"1 1 480px",minWidth:480}}>
+          <div className="ss-center">
+            <div className={`ss-center-col shark-matrix-pane${mobileMatrixTab==="hero"?" shark-pane-active":""}`}>
               <SolverMatrixGrid
                 title={heroMode==="hand"?"HERO — MAIN":"HERO RANGE"} posLabel={`${scenario.heroPos} — ${heroMode==="hand"&&heroParse?.valid?comboLabel(heroParse):pac.label+(heroSizing?" "+heroSizing:"")}`}
                 freqs={heroFreqs} pac={pac} scenario={scenario} mode={mode} side="hero"
                 selectedCell={selectedCell} setSelectedCell={setSelectedCell}
                 hoveredCell={hoveredCell} setHoveredCell={setHoveredCell}
-                filterAction={filterAction} cellSize={33}
+                filterAction={filterAction} cellSize={27}
                 markHands={[...(mode==="icm"?(icmResult?.foldedHands||[]):mode==="pko"?(pkoResult?.widenedHands||[]):[]),...(heroKey?[heroKey]:[])]}
                 markColor={heroKey?T.cyan:mode==="icm"?T.red:mode==="pko"?T.green:undefined}
                 cfrMap={cfrOverlay&&cfrResult?cfrResult.heroByKey:null}
               />
             </div>
-            <div className={`shark-matrix-pane${mobileMatrixTab==="villain"?" shark-pane-active":""}`} style={{flex:"1 1 480px",minWidth:480}}>
+            <div className="ss-center-col tree">
+              <SolverDecisionTree
+                scenario={scenario} mode={mode} pac={pac} stats={stats} evByBucket={evByBucket}
+                selectedCell={selectedCell} heroFreqs={heroFreqs}
+                filterAction={filterAction} setFilterAction={setFilterAction}
+              />
+              <SolverDetailsTabs
+                scenario={scenario} mode={mode} pac={pac}
+                heroFreqs={heroFreqs} villainFreqs={villainFreqs}
+                selectedCell={selectedCell} exploitDetails={exploitDetails}
+                detailsTab={detailsTab} setDetailsTab={setDetailsTab}
+                stats={stats} evByBucket={evByBucket}
+              />
+            </div>
+            <div className={`ss-center-col shark-matrix-pane${mobileMatrixTab==="villain"?" shark-pane-active":""}`}>
               <SolverMatrixGrid
                 title={villainMode==="hand"?"VILAIN — MAIN":"VILAIN RANGE"} posLabel={`${scenario.vsPos} — ${villainMode==="hand"&&villainParse?.valid?comboLabel(villainParse):villainPac.label}`}
                 freqs={villainFreqs} pac={villainPac} scenario={scenario} mode={mode} side="villain"
                 selectedCell={selectedCell} setSelectedCell={setSelectedCell}
                 hoveredCell={hoveredCell} setHoveredCell={setHoveredCell}
-                filterAction={filterAction} cellSize={33}
+                filterAction={filterAction} cellSize={27}
                 markHands={villainKey?[villainKey]:[]}
                 markColor={villainKey?T.purple:undefined}
               />
             </div>
+          </div>
+
+          <div style={{marginTop:12}}>
             <SolverSelectedHandPanel
               selectedCell={selectedCell} scenario={scenario} mode={mode}
               heroFreqs={heroFreqs} villainFreqs={villainFreqs} pac={pac}
@@ -2602,45 +2761,39 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             />
           </div>
 
-          <div className="shark-bottom-row" style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap",alignItems:"flex-start"}}>
-            <SolverDecisionTree
-              scenario={scenario} mode={mode} pac={pac} stats={stats} evByBucket={evByBucket}
-              selectedCell={selectedCell} heroFreqs={heroFreqs}
-              filterAction={filterAction} setFilterAction={setFilterAction}
-            />
-            <SolverDetailsTabs
-              scenario={scenario} mode={mode} pac={pac}
-              heroFreqs={heroFreqs} villainFreqs={villainFreqs}
-              selectedCell={selectedCell} exploitDetails={exploitDetails}
-              detailsTab={detailsTab} setDetailsTab={setDetailsTab}
-              stats={stats} evByBucket={evByBucket}
-            />
-            <SolverEVChart
-              scenario={scenario} mode={mode} pac={pac} evByBucket={evByBucket}
-              selectedCell={selectedCell} heroFreqs={heroFreqs} villainFreqs={villainFreqs}
-            />
+          <div className="ss-bottom">
+            <SolverInsightsCard scenario={scenario} heroFreqs={heroFreqs} mode={mode} onAddNote={()=>setShowNoteForm(true)}/>
+            <SolverGainsCard/>
+            <SolverQuickActions onGoTrainer={handleGoTrainer} onGoReplayer={handleGoReplayer} onExport={onExport} onSave={onSave} mode={mode} setMode={setMode}/>
           </div>
-
-          <SolverCFRPanel
-            result={cfrResult} busy={cfrBusy} onSolve={runCFR}
-            betFrac={cfrBetFrac} setBetFrac={setCfrBetFrac} boardCards={board}
-            overlay={cfrOverlay} setOverlay={setCfrOverlay}
-          />
 
           <SolverNotesPanel
             scenario={scenario} freqs={heroFreqs} mode={mode}
             notes={notes} setNotes={setNotes}
             showNoteForm={showNoteForm} setShowNoteForm={setShowNoteForm}
           />
+        </div>
 
-          <SolverActionBar
-            scenario={scenario} mode={mode} setMode={setMode}
-            onReset={onReset} onSave={onSave} onExport={onExport}
-            onGoTrainer={handleGoTrainer} onGoReplayer={handleGoReplayer}
-            setShowNoteForm={setShowNoteForm}
+        <div className="ss-right">
+          <SolverSummaryCard
+            scenario={scenario} mode={mode} stackHero={stackHero} stackVillain={stackVillain}
+            effective={effective} math={math} equityHero={equityHero}
+            villainActionEff={villainActionEff} onReset={onReset}
           />
+          <SolverEVChart
+            scenario={scenario} mode={mode} pac={pac} evByBucket={evByBucket}
+            selectedCell={selectedCell} heroFreqs={heroFreqs} villainFreqs={villainFreqs}
+          />
+          <SolverCFRPanel
+            result={cfrResult} busy={cfrBusy} onSolve={runCFR}
+            betFrac={cfrBetFrac} setBetFrac={setCfrBetFrac} boardCards={board}
+            overlay={cfrOverlay} setOverlay={setCfrOverlay}
+          />
+          <SolverQualityCard cfr={cfrResult} busy={cfrBusy}/>
         </div>
       </div>
+
+      <SolverFooterBar mode={mode} validation={validation}/>
     </div>
   );
 }
