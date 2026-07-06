@@ -80,3 +80,45 @@ export function buildDailyProgram(stats){
 
 export function loadHands(){try{const s=localStorage.getItem("pf_hands");return s?JSON.parse(s):[];}catch{return [];}}
 export function saveHands(h){try{localStorage.setItem("pf_hands",JSON.stringify(h.slice(0,100)));}catch{}}
+
+export function safeStore(key,obj){
+  try{
+    const json=JSON.stringify(obj);
+    const cs=_checksum(json);
+    const payload=JSON.stringify({v:1,cs,d:json});
+    // Vérification quota (5 MB total)
+    const used=Object.keys(localStorage).reduce((a,k)=>{
+      const value=localStorage.getItem(k);
+      return a+(value?value.length:0);
+    },0);
+    if(used>4_800_000){console.warn("PF: localStorage presque plein, nettoyage ancien historique");
+      const hist=localStorage.getItem("pf_history");
+      if(hist){try{const h=JSON.parse(JSON.parse(hist).d||hist);localStorage.setItem("pf_history",JSON.stringify({v:1,cs:_checksum("[]"),d:"[]"}));}catch{}}}
+    localStorage.setItem(key,payload);
+  }catch(e){console.warn("PF safeStore:",e);}
+}
+export function safeLoad(key,fallback){
+  try{
+    const raw=localStorage.getItem(key);
+    if(!raw)return fallback;
+    // Tenter format sécurisé
+    const outer=JSON.parse(raw);
+    if(outer&&outer.v===1&&outer.cs&&outer.d){
+      if(_checksum(outer.d)!==outer.cs){console.warn("PF: checksum mismatch, données ignorées");return fallback;}
+      return JSON.parse(outer.d);
+    }
+    // Rétrocompat — ancien format sans enveloppe
+    return outer;
+  }catch{return fallback;}
+}
+
+// ── Remplacement des fonctions de stockage ────────────────────────────────
+function loadHistorySafe(){try{return safeLoad("pf_history_s",[]);}catch{return [];}}
+function saveHistorySafe(h){safeStore("pf_history_s",h.slice(0,50));saveHistory(h);}// double écriture transition
+export function loadHandsSafe(){try{return safeLoad("pf_hands_s",[]);}catch{return [];}}
+export function saveHandsSafe(h){safeStore("pf_hands_s",h.slice(0,100));saveHands(h);}
+export function loadStatsSafe(){
+  const d=safeLoad("pf_stats_s",null);
+  return d?{...STATS_DEFAULT,...d}:loadStats();
+}
+export function saveStatsSafe(st){safeStore("pf_stats_s",st);saveStats(st);}

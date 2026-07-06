@@ -628,3 +628,14 @@ export const ARTICLES=[
     hand:{title:"Position en action — BTN steal",cards:"Q♠7♠",board:"K♥4♦2♣",key:"BTN cbet 33% avec air = position + range adv. = fold 65% du temps",url:"https://upswingpoker.com/3-bet-strategy-aggressive-preflop/"},
   },
 ];
+
+export const POSITIONS_BY_SIZE={
+  2:["SB","BB"],
+  3:["BTN","SB","BB"],
+  4:["CO","BTN","SB","BB"],
+  5:["HJ","CO","BTN","SB","BB"],
+  6:["UTG","HJ","CO","BTN","SB","BB"],
+  7:["UTG","LJ","HJ","CO","BTN","SB","BB"],
+  8:["UTG","UTG+1","LJ","HJ","CO","BTN","SB","BB"],
+  9:["UTG","UTG+1","MP","LJ","HJ","CO","BTN","SB","BB"],
+};
