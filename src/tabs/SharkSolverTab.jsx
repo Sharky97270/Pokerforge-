@@ -2367,9 +2367,38 @@ function SolverQuickActions({onGoTrainer,onGoReplayer,onExport,onSave,mode,setMo
 
 
 /* ═══ Arbre de décision V2 — ligne stratégique + Node Lock fonctionnel ═══ */
-function SolverDecisionTreeV2({scenario,mode,pac,stats,evByBucket,heroFreqs,villainFreqs,villainAggBase,nodeLock,setNodeLock,nodeLockOpen,setNodeLockOpen,filterAction,setFilterAction,math,cfrResult}){
+
+/* ── Arbre multi-street : noeuds Flop/Turn/River (CFR sur la street du board, projections heuristiques sinon) ── */
+const SUIT_COL={"♥":"#ff4d6d","♦":"#ff9f43","♣":"#00e58a","♠":"#9fd4ff"};
+function buildMultiStreetNodes({math,board,cfrResult,betFrac}){
+  const bLen=board.length;
+  const mdfFold=Math.min(78,Math.round(betFrac/(1+betFrac)*100*1.12+6));
+  const cbetBase=cfrResult&&bLen<=3?cfrResult.heroBet:62;
+  const defs=[
+    {name:"Flop", verb:"C-bet", n:3, hero:cbetBase,                         vf:mdfFold,   vr:11},
+    {name:"Turn", verb:"Barrel",n:4, hero:Math.round(cbetBase*0.72),        vf:mdfFold-4, vr:9},
+    {name:"River",verb:"Bet",   n:5, hero:Math.round(cbetBase*0.55),        vf:mdfFold+4, vr:5},
+  ];
+  let pot=math.pot;
+  return defs.map(d=>{
+    const dec=cd=>({r:EQ_RANKVAL[cd>>2],s:"♠♥♦♣"[cd%4]});
+    const streetCards=(d.n===3?board.slice(0,3):board.slice(d.n-1,d.n)).map(dec);
+    const known=bLen>=d.n;
+    const isCfrStreet=cfrResult&&((bLen<=3&&d.n===3)||(bLen===4&&d.n===4)||(bLen===5&&d.n===5));
+    const hero=isCfrStreet?cfrResult.heroBet:d.hero;
+    const vil=isCfrStreet
+      ?{f:cfrResult.villFoldVsBetS,c:cfrResult.villCallVsBetS,r:cfrResult.villRaiseVsBetS}
+      :{f:Math.max(0,d.vf),c:Math.max(0,100-d.vf-d.vr),r:d.vr};
+    const node={name:d.name,verb:d.verb,cards:known?streetCards:null,hero,check:100-hero,vil,pot:Math.round(pot*10)/10,
+      src:isCfrStreet?"CFR":"projection heuristique",cfr:!!isCfrStreet};
+    pot=Math.round(node.pot*(1+2*betFrac)*10)/10; // pot de la street suivante si bet-call
+    return node;
+  });
+}
+function SolverDecisionTreeV2({scenario,mode,pac,stats,evByBucket,heroFreqs,villainFreqs,villainAggBase,nodeLock,setNodeLock,nodeLockOpen,setNodeLockOpen,filterAction,setFilterAction,math,cfrResult,board=[],betFrac=0.66}){
   const agg=useMemo(()=>villainAggOf(villainFreqs),[villainFreqs]);
   const [draft,setDraft]=useState(null);
+  const [streetDepth,setStreetDepth]=useState(5); // 0=préflop seul · 3/4/5 = profondeur
   const cur=draft||nodeLock||{f:villainAggBase.f,c:villainAggBase.c,r:villainAggBase.r};
   function setPart(k,v){
     v=Math.max(0,Math.min(100,Number(v)||0));
@@ -2416,15 +2445,35 @@ function SolverDecisionTreeV2({scenario,mode,pac,stats,evByBucket,heroFreqs,vill
         ))}
       </div>
       {nodeLock&&<div style={{marginTop:6,fontSize:8.5,color:"#cdb2ff",fontFamily:"Inter,sans-serif"}}>🔒 Lock actif — cible F {Math.round(nodeLock.f)}% / C {Math.round(nodeLock.c)}% / R {Math.round(nodeLock.r)}%{Math.abs(agg.f-nodeLock.f)>1.5?` · atteint ${agg.f}% (mains pures conservées)`:""} · base GTO F {villainAggBase.f}%</div>}
-      <div style={{textAlign:"center",margin:"6px 0 2px",color:"#3d5a80",fontSize:11,lineHeight:"10px"}}>▼</div>
-      {cfrResult?(
-        <div style={{padding:"7px 10px",borderRadius:8,background:"#081527",border:"1px solid rgba(124,60,255,.35)",fontFamily:"Inter,sans-serif",fontSize:9,color:"#c9dcf5",lineHeight:1.6}}>
-          <b style={{color:"#cdb2ff"}}>Si {scenario.vsPos} call</b> (CFR) : C-bet <b>{cfrResult.heroBet}%</b> · Check <b>{cfrResult.heroCheck}%</b><br/>
-          <b style={{color:"#cdb2ff"}}>vs C-bet {cfrResult.betSPct}%</b> : Fold <b>{cfrResult.villFoldVsBetS}%</b> · Call <b>{cfrResult.villCallVsBetS}%</b> · Raise <b>{cfrResult.villRaiseVsBetS}%</b>
+      {/* ── Multi-street ── */}
+      <div style={{display:"flex",gap:4,margin:"8px 0 6px",flexWrap:"wrap"}}>
+        {[["Préflop",0],["Flop",3],["Turn",4],["River",5],["Multi",5]].map(([l,d],i)=>(
+          <button key={l} onClick={()=>setStreetDepth(l==="Multi"?5:d)}
+            style={{padding:"3px 9px",borderRadius:6,fontSize:8,fontWeight:800,cursor:"pointer",fontFamily:"'Space Grotesk',sans-serif",letterSpacing:".04em",
+              border:`1px solid ${(l==="Multi"&&streetDepth===5&&i===4)||streetDepth===d&&l!=="Multi"?"#00aaff":"rgba(0,180,255,.22)"}`,
+              background:streetDepth===d?"rgba(0,170,255,.14)":"#081527",color:streetDepth===d?"#9fd4ff":"#8ea4c7"}}>{l}</button>
+        ))}
+      </div>
+      {streetDepth>0&&buildMultiStreetNodes({math,board,cfrResult,betFrac}).filter(n=>({Flop:3,Turn:4,River:5})[n.name]<=streetDepth).map(n=>(
+        <div key={n.name}>
+          <div style={{textAlign:"center",margin:"2px 0",color:"#3d5a80",fontSize:11,lineHeight:"10px"}}>▼</div>
+          <div style={{padding:"7px 10px",borderRadius:8,background:"#081527",border:`1px solid ${n.cfr?"rgba(124,60,255,.4)":"rgba(0,180,255,.16)"}`,fontFamily:"Inter,sans-serif",fontSize:9,color:"#c9dcf5",lineHeight:1.55}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+              <b style={{color:"#9fd4ff",fontSize:9.5}}>{n.name}</b>
+              {n.cards?<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:10,fontWeight:800}}>{n.cards.map((c,k)=><span key={k} style={{color:SUIT_COL[c.s]||"#9fd4ff",marginRight:3}}>{c.r}{c.s}</span>)}</span>
+                :<span style={{color:"#5d738f",fontStyle:"italic",fontSize:8}}>carte non saisie</span>}
+              <span style={{marginLeft:"auto",fontSize:7.5,fontWeight:900,padding:"1px 6px",borderRadius:4,
+                border:`1px solid ${n.cfr?"rgba(124,60,255,.55)":"rgba(141,164,199,.35)"}`,color:n.cfr?"#cdb2ff":"#8ea4c7"}}>{n.src}</span>
+            </div>
+            {scenario.vsPos} call → <b style={{color:"#00e58a"}}>{n.verb} {n.hero}%</b> · Check {n.check}%
+            <span style={{color:"#5d738f"}}> · pot ~{n.pot}bb</span><br/>
+            vs {n.verb.toLowerCase()} : Fold <b>{n.vil.f}%</b> · Call <b>{n.vil.c}%</b> · Raise <b>{n.vil.r}%</b>
+          </div>
         </div>
-      ):(
-        <div style={{padding:"7px 10px",borderRadius:8,background:"#081527",border:"1px dashed rgba(0,180,255,.25)",fontFamily:"Inter,sans-serif",fontSize:9,color:"#8ea4c7",fontStyle:"italic"}}>
-          Lance « Résoudre (CFR) » pour dérouler la suite postflop (C-bet / réponses).
+      ))}
+      {streetDepth>0&&!cfrResult&&(
+        <div style={{marginTop:5,fontSize:8,color:"#8ea4c7",fontStyle:"italic",fontFamily:"Inter,sans-serif"}}>
+          💡 Lance « Résoudre (CFR) » pour remplacer la street du board par un calcul réel.
         </div>
       )}
       {nodeLockOpen&&(
@@ -2516,6 +2565,8 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const heroParse=useMemo(()=>heroHand?parseHandToken(heroHand):null,[heroHand]);
   const villainParse=useMemo(()=>villainHand?parseHandToken(villainHand):null,[villainHand]);
   const boardParse=useMemo(()=>parseBoardToken(boardInput),[boardInput]);
+  /* Un résultat CFR ne vaut que pour le board sur lequel il a été calculé */
+  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);},[boardInput]);
   const board=boardParse.valid?boardParse.cards:[];
 
   function resetSelection(){
@@ -2866,7 +2917,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
                 nodeLock={nodeLock} setNodeLock={setNodeLock}
                 nodeLockOpen={nodeLockOpen} setNodeLockOpen={setNodeLockOpen}
                 filterAction={filterAction} setFilterAction={setFilterAction}
-                math={math} cfrResult={cfrResult}
+                math={math} cfrResult={cfrResult} board={board} betFrac={cfrBetFrac}
               />
               <SolverDetailsTabs
                 scenario={scenario} mode={mode} pac={pac}
