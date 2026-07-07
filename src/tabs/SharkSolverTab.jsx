@@ -704,6 +704,48 @@ function rangeVsRangeEquity(heroFreqs,villainFreqs){
   return Math.max(5,Math.min(95,Math.round(50+(h.avgStrength-v.avgStrength)/3)));
 }
 /* Fold equity = part de fold de la range adverse (pondérée combos) */
+
+/* ── Node Lock : agrégats combo-weighted d'une range (fold/call/raise en %) ── */
+function villainAggOf(freqs){
+  let t=0,f=0,c=0,r=0;
+  Object.entries(freqs).forEach(([k,fr])=>{
+    const n=k.length===2?6:k.endsWith("s")?4:12;
+    t+=n;f+=n*((fr.f||0)/100);c+=n*((fr.c||0)/100);r+=n*((fr.r||0)/100);
+  });
+  if(!t)return{f:0,c:0,r:0,combos:0};
+  return{f:Math.round(f/t*1000)/10,c:Math.round(c/t*1000)/10,r:Math.round(r/t*1000)/10,combos:Math.round(t)};
+}
+/* Re-scale chaque main vers les agrégats cibles (node lock), puis renormalise à 100 */
+function applyNodeLockToFreqs(freqs,target){
+  let cur=freqs;
+  for(let pass=0;pass<4;pass++){
+    const base=villainAggOf(cur);
+    const ratio={f:base.f>0?target.f/base.f:0,c:base.c>0?target.c/base.c:0,r:base.r>0?target.r/base.r:0};
+    const out={};
+    Object.entries(cur).forEach(([k,fr])=>{
+      let f=(fr.f||0)*ratio.f,c=(fr.c||0)*ratio.c,r=(fr.r||0)*ratio.r;
+      const sum=f+c+r;
+      if(sum<=0){out[k]={...fr};return;}
+      out[k]={f:Math.round(f/sum*1000)/10,c:Math.round(c/sum*1000)/10,r:Math.round(r/sum*1000)/10};
+    });
+    cur=out;
+  }
+  return cur;
+}
+/* Recommandation d'adaptation (heuristique) selon l'écart lock vs base */
+function nodeLockAdvice(base,lock,pot){
+  const dF=lock.f-base.f,dC=lock.c-base.c,dR=lock.r-base.r;
+  const evGain=Math.round(dF/100*pot*100)/100;
+  const cands=[];
+  if(dF>=5)cands.push({mag:dF,col:"#00e58a",txt:`Vilain sur-folde (+${Math.round(dF)} pts) : élargis ton agression — ~+${evGain}bb d EV immédiate par tentative (heuristique).`});
+  if(dF<=-5)cands.push({mag:-dF,col:"#ffbf3c",txt:`Vilain sous-folde (${Math.round(dF)} pts) : bluffe moins, value-bet plus large et plus gros.`});
+  if(dR>=3)cands.push({mag:dR,col:"#ff4d6d",txt:`Vilain relance davantage (+${Math.round(dR)} pts) : resserre ta range et 4bet/jam plus de value.`});
+  if(dR<=-3)cands.push({mag:-dR,col:"#00e58a",txt:`Vilain relance moins (${Math.round(dR)} pts) : tu peux jouer plus de mains marginales sans crainte du 3bet.`});
+  if(dC>=5)cands.push({mag:dC,col:"#ffbf3c",txt:`Vilain sur-call (+${Math.round(dC)} pts) : privilégie la value, réduis les bluffs et grossis tes sizings.`});
+  if(!cands.length)return{col:"#8ea4c7",txt:"Écart faible vs GTO estimé — l adaptation reste marginale."};
+  cands.sort((a,b)=>b.mag-a.mag);
+  return cands[0];
+}
 function rangeFoldPct(freqs){
   let w=0,fold=0;
   Object.entries(freqs||{}).forEach(([k,f])=>{
@@ -2307,7 +2349,7 @@ function SolverGainsCard(){
   );
 }
 
-function SolverQuickActions({onGoTrainer,onGoReplayer,onExport,onSave,mode,setMode}){
+function SolverQuickActions({onGoTrainer,onGoReplayer,onExport,onSave,mode,setMode,onNodeLock}){
   return(
     <div className="ss-card">
       <div className="ss-card-title">Actions rapides</div>
@@ -2317,8 +2359,97 @@ function SolverQuickActions({onGoTrainer,onGoReplayer,onExport,onSave,mode,setMo
         <button className="ss-btn gold" onClick={onSave}>💾 Sauvegarder scénario</button>
         <button className="ss-btn" onClick={onExport}>📄 Exporter (JSON)</button>
         <button className="ss-btn violet" onClick={()=>setMode(mode==="exploit"?"gto":"exploit")}>⚖ Comparer GTO / Exploit</button>
-        <button className="ss-btn violet disabled" disabled>🔒 Node Lock <small>BÊTA</small></button>
+        <button className="ss-btn violet" onClick={onNodeLock}>🔒 Node Lock <small>BÊTA</small></button>
       </div>
+    </div>
+  );
+}
+
+
+/* ═══ Arbre de décision V2 — ligne stratégique + Node Lock fonctionnel ═══ */
+function SolverDecisionTreeV2({scenario,mode,pac,stats,evByBucket,heroFreqs,villainFreqs,villainAggBase,nodeLock,setNodeLock,nodeLockOpen,setNodeLockOpen,filterAction,setFilterAction,math,cfrResult}){
+  const agg=useMemo(()=>villainAggOf(villainFreqs),[villainFreqs]);
+  const [draft,setDraft]=useState(null);
+  const cur=draft||nodeLock||{f:villainAggBase.f,c:villainAggBase.c,r:villainAggBase.r};
+  function setPart(k,v){
+    v=Math.max(0,Math.min(100,Number(v)||0));
+    const others=["f","c","r"].filter(x=>x!==k);
+    const rest=Math.max(0,100-v);
+    const oSum=cur[others[0]]+cur[others[1]];
+    const next={...cur,[k]:v,
+      [others[0]]:oSum>0?Math.round(cur[others[0]]/oSum*rest*10)/10:rest/2,
+      [others[1]]:oSum>0?Math.round(cur[others[1]]/oSum*rest*10)/10:rest/2};
+    setDraft(next);
+  }
+  const advice=nodeLock?nodeLockAdvice(villainAggBase,nodeLock,math.pot):null;
+  const vLabel=(ACTION_LABELS[scenario.action]||"")==="Open"?"3bet":"Raise";
+  const nodes=[
+    {k:"f",label:`${scenario.vsPos} Fold`,col:"#8ea4c7",pct:agg.f,sub:`gain immédiat +${math.pot}bb`},
+    {k:"c",label:`${scenario.vsPos} Call`,col:"#00aaff",pct:agg.c,sub:`${Math.round(agg.combos*agg.c/100)} combos`},
+    {k:"r",label:`${scenario.vsPos} ${vLabel}`,col:"#7c3cff",pct:agg.r,sub:`${Math.round(agg.combos*agg.r/100)} combos`},
+  ];
+  return(
+    <div className="ss-card">
+      <div className="ss-card-title" style={{justifyContent:"space-between"}}>
+        <span style={{display:"flex",alignItems:"center",gap:7}}>Arbre de décision</span>
+        <button className="ss-btn violet" style={{width:"auto",padding:"3px 8px",fontSize:8}}
+          onClick={()=>{setNodeLockOpen(!nodeLockOpen);setDraft(null);}}>
+          🔒 Node Lock{nodeLock?" ●":""}
+        </button>
+      </div>
+      <div style={{textAlign:"center",marginBottom:8}}>
+        <div style={{display:"inline-block",padding:"6px 14px",borderRadius:9,background:"rgba(0,229,138,.12)",border:"1px solid rgba(0,229,138,.5)",fontFamily:"'Space Grotesk',sans-serif",fontSize:10.5,fontWeight:900,color:"#7dffc8"}}>
+          {scenario.heroPos} {ACTION_LABELS[scenario.action]||scenario.action} · {stats.raisedPct}% ({stats.raisedCombos} combos) · EV {evByBucket.r>=0?"+":""}{evByBucket.r}bb
+        </div>
+        <div style={{color:"#3d5a80",fontSize:11,lineHeight:"10px"}}>▼</div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:5}}>
+        {nodes.map(n=>(
+          <div key={n.k} onClick={()=>setFilterAction(filterAction===n.k?"all":n.k)}
+            style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:8,cursor:"pointer",
+              background:filterAction===n.k?`${n.col}22`:"#081527",border:`1px solid ${filterAction===n.k?n.col:"rgba(0,180,255,.18)"}`,transition:"all .12s"}}>
+            <div style={{width:9,height:9,borderRadius:3,background:n.col,flexShrink:0}}/>
+            <span style={{fontSize:10,fontWeight:700,color:"#f4f8ff",fontFamily:"Inter,sans-serif",flex:1}}>{n.label}</span>
+            <span style={{fontSize:8.5,color:"#8ea4c7",fontFamily:"Inter,sans-serif"}}>{n.sub}</span>
+            <span style={{fontSize:11,fontWeight:900,fontFamily:"'JetBrains Mono',monospace",color:n.col,minWidth:44,textAlign:"right"}}>{n.pct}%</span>
+          </div>
+        ))}
+      </div>
+      {nodeLock&&<div style={{marginTop:6,fontSize:8.5,color:"#cdb2ff",fontFamily:"Inter,sans-serif"}}>🔒 Lock actif — cible F {Math.round(nodeLock.f)}% / C {Math.round(nodeLock.c)}% / R {Math.round(nodeLock.r)}%{Math.abs(agg.f-nodeLock.f)>1.5?` · atteint ${agg.f}% (mains pures conservées)`:""} · base GTO F {villainAggBase.f}%</div>}
+      <div style={{textAlign:"center",margin:"6px 0 2px",color:"#3d5a80",fontSize:11,lineHeight:"10px"}}>▼</div>
+      {cfrResult?(
+        <div style={{padding:"7px 10px",borderRadius:8,background:"#081527",border:"1px solid rgba(124,60,255,.35)",fontFamily:"Inter,sans-serif",fontSize:9,color:"#c9dcf5",lineHeight:1.6}}>
+          <b style={{color:"#cdb2ff"}}>Si {scenario.vsPos} call</b> (CFR) : C-bet <b>{cfrResult.heroBet}%</b> · Check <b>{cfrResult.heroCheck}%</b><br/>
+          <b style={{color:"#cdb2ff"}}>vs C-bet {cfrResult.betSPct}%</b> : Fold <b>{cfrResult.villFoldVsBetS}%</b> · Call <b>{cfrResult.villCallVsBetS}%</b> · Raise <b>{cfrResult.villRaiseVsBetS}%</b>
+        </div>
+      ):(
+        <div style={{padding:"7px 10px",borderRadius:8,background:"#081527",border:"1px dashed rgba(0,180,255,.25)",fontFamily:"Inter,sans-serif",fontSize:9,color:"#8ea4c7",fontStyle:"italic"}}>
+          Lance « Résoudre (CFR) » pour dérouler la suite postflop (C-bet / réponses).
+        </div>
+      )}
+      {nodeLockOpen&&(
+        <div style={{marginTop:8,padding:"9px 10px",borderRadius:9,background:"rgba(124,60,255,.08)",border:"1px solid rgba(124,60,255,.4)"}}>
+          <div style={{fontSize:8.5,fontWeight:900,color:"#cdb2ff",letterSpacing:".06em",marginBottom:6,fontFamily:"'Space Grotesk',sans-serif"}}>NODE LOCK — RÉPONSE {scenario.vsPos} (bêta)</div>
+          <div style={{display:"flex",gap:8}}>
+            {[["f","Fold"],["c","Call"],["r",vLabel]].map(([k,l])=>(
+              <label key={k} style={{flex:1,fontSize:8,color:"#8ea4c7",fontFamily:"Inter,sans-serif"}}>{l} %
+                <input type="number" min="0" max="100" step="1" value={Math.round(cur[k])}
+                  onChange={e=>setPart(k,e.target.value)}
+                  style={{width:"100%",marginTop:3,padding:"5px 6px",borderRadius:7,border:"1px solid rgba(124,60,255,.45)",background:"#0a1224",color:"#f4f8ff",fontFamily:"'JetBrains Mono',monospace",fontSize:11,boxSizing:"border-box"}}/>
+              </label>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:7,marginTop:8}}>
+            <button className="ss-btn primary" style={{flex:1,justifyContent:"center",padding:"6px"}}
+              onClick={()=>{setNodeLock({f:cur.f,c:cur.c,r:cur.r});setDraft(null);}}>Appliquer</button>
+            <button className="ss-btn" style={{flex:1,justifyContent:"center",padding:"6px"}}
+              onClick={()=>{setNodeLock(null);setDraft(null);}}>Réinitialiser (GTO)</button>
+          </div>
+          {advice&&<div style={{marginTop:8,fontSize:9,color:advice.col,fontFamily:"Inter,sans-serif",lineHeight:1.5}}>💡 {advice.txt}</div>}
+          <div style={{marginTop:5,fontSize:7.5,color:"#8ea4c7",fontStyle:"italic",fontFamily:"Inter,sans-serif"}}>La range Vilain est re-pondérée main par main — équité, fold equity et matrices se recalculent (heuristique).</div>
+        </div>
+      )}
+      <div style={{fontSize:8,color:"#5d738f",fontFamily:"Inter,sans-serif",marginTop:7,fontStyle:"italic"}}>Clique une branche pour filtrer les matrices · estimations heuristiques</div>
     </div>
   );
 }
@@ -2379,6 +2510,8 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[cfrResult,setCfrResult]=useState(null);
   const[cfrBusy,setCfrBusy]=useState(false);
   const[cfrOverlay,setCfrOverlay]=useState(false);
+  const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
+  const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
   const heroParse=useMemo(()=>heroHand?parseHandToken(heroHand):null,[heroHand]);
   const villainParse=useMemo(()=>villainHand?parseHandToken(villainHand):null,[villainHand]);
@@ -2403,6 +2536,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     setHeroHand("");setVillainHand("");
     setVillainAction(null);
     setCfrResult(null);setCfrOverlay(false);
+    setNodeLock(null);setNodeLockOpen(false);
     setMode(m=>{
       if(sc.icmParams)return"icm";
       if(sc.pkoParams)return"pko";
@@ -2473,7 +2607,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const pkoResult=useMemo(()=>mode==="pko"?applyPKOAdjustment(heroFreqsBase,pkoParams,scenario):null,[mode,heroFreqsBase,pkoParams,scenario]);
 
   const heroFreqs=heroExploit?heroExploit.freqs:icmResult?icmResult.freqs:pkoResult?pkoResult.freqs:heroFreqsBase;
-  const villainFreqs=villainExploit?villainExploit.freqs:villainFreqsBase;
+  const villainFreqsPreLock=villainExploit?villainExploit.freqs:villainFreqsBase;
+  const villainAggBase=useMemo(()=>villainAggOf(villainFreqsPreLock),[villainFreqsPreLock]);
+  const villainFreqs=useMemo(()=>nodeLock?applyNodeLockToFreqs(villainFreqsPreLock,nodeLock):villainFreqsPreLock,[villainFreqsPreLock,nodeLock]);
   const exploitDetails=heroExploit?heroExploit.details:null;
 
   const pac=useMemo(()=>primaryActionColor(scenario,mode),[scenario,mode]);
@@ -2543,7 +2679,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     const hList=(heroKey&&selectedCell.key===heroKey&&exactComboList(heroParse))||singleHandList(selectedCell.key);
     return monteCarloEquity(hList,villainComboList,1800,board);
   },[selectedCell,heroKey,heroParse,villainComboList,boardInput]);
-  const foldEquity=useMemo(()=>villainKey?(villainFreqs[villainKey]?.f||0):rangeFoldPct(villainFreqs),[villainKey,villainFreqs]);
+  const foldEquity=useMemo(()=>villainKey?(villainFreqs[villainKey]?.f||0):villainAggOf(villainFreqs).f,[villainKey,villainFreqs]);
   /* ── Lancement du moteur CFR (à la demande) ── */
   function runCFR(){
     setCfrBusy(true);
@@ -2724,10 +2860,13 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               />
             </div>
             <div className="ss-center-col tree">
-              <SolverDecisionTree
+              <SolverDecisionTreeV2
                 scenario={scenario} mode={mode} pac={pac} stats={stats} evByBucket={evByBucket}
-                selectedCell={selectedCell} heroFreqs={heroFreqs}
+                heroFreqs={heroFreqs} villainFreqs={villainFreqs} villainAggBase={villainAggBase}
+                nodeLock={nodeLock} setNodeLock={setNodeLock}
+                nodeLockOpen={nodeLockOpen} setNodeLockOpen={setNodeLockOpen}
                 filterAction={filterAction} setFilterAction={setFilterAction}
+                math={math} cfrResult={cfrResult}
               />
               <SolverDetailsTabs
                 scenario={scenario} mode={mode} pac={pac}
@@ -2764,7 +2903,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           <div className="ss-bottom">
             <SolverInsightsCard scenario={scenario} heroFreqs={heroFreqs} mode={mode} onAddNote={()=>setShowNoteForm(true)}/>
             <SolverGainsCard/>
-            <SolverQuickActions onGoTrainer={handleGoTrainer} onGoReplayer={handleGoReplayer} onExport={onExport} onSave={onSave} mode={mode} setMode={setMode}/>
+            <SolverQuickActions onGoTrainer={handleGoTrainer} onGoReplayer={handleGoReplayer} onExport={onExport} onSave={onSave} mode={mode} setMode={setMode} onNodeLock={()=>{setNodeLockOpen(true);document.querySelector('.ss-center-col.tree')?.scrollIntoView({behavior:'smooth',block:'center'});}}/>
           </div>
 
           <SolverNotesPanel
