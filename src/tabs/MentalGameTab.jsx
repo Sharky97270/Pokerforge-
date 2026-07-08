@@ -1,8 +1,14 @@
 // PokerForge — Mental Game (extrait de App.jsx, Phase 3.3)
 // 15 sous-vues + modale anti-tilt + lecteur meditation. Donnees editables : MENTAL_CONTENT (data/content.js).
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { T } from "../theme.js";
 import { MENTAL_CONTENT } from "../data/content.js";
+import { MENTAL_BENEFITS, MENTAL_DIAGNOSTIC_SECTIONS, getMentalDiagnosticQuestions } from "../data/mentalDiagnosticData.js";
+import { MENTAL_EXERCISES, MENTAL_EXERCISE_FILTERS, MENTAL_EXERCISE_SORTS, exerciseMatchesFilter, mentalExerciseProgressValue, mentalExerciseStatus, recommendMentalExercises, scoreExerciseRecommendation, sortMentalExercises } from "../data/mentalExercises.js";
+import { calculateMentalDiagnosticResult, normalizeMentalAnswer } from "../mentalDiagnosticEngine.js";
+import { getMentalBehaviorData } from "../mentalBehaviorTracking.js";
+import MeditationStudio from "./MeditationStudio.jsx";
+import "./MentalGameTab.css";
 
 const MENTAL_SCORE_KEYS=[
   ["discipline","Discipline","#1F8BFF"],
@@ -43,10 +49,12 @@ const MENTAL_BADGES=[
 ];
 function mentalDefault(){return{
   scores:{discipline:62,concentration:60,tiltControl:55,patience:60,confidence:60,badbeat:55,decision:64},
-  diagAnswers:{},diagLeaks:[],diagDate:null,
-  journal:[],doneEx:[],doneMissions:{},missionStreak:0,lastMissionDay:null,
+  diagAnswers:{},diagLeaks:[],diagDate:null,mentalDiagnosticProgress:{},mentalDiagnosticHistory:[],
+  journal:[],doneEx:[],mentalExerciseProgress:{},mentalExerciseHistory:[],doneMissions:{},missionStreak:0,lastMissionDay:null,
   abc:[],warmups:[],postReviews:[],downswing:false,tournPrep:null,
   xp:0,badges:[],contentRead:[],tiltLog:[],warmReady:null,
+  medHistory:[],medStreak:0,medLastDay:null,medTotalSec:0,
+  medPrefs:{voice:"female",ambiance:"auto",rate:0.9,volume:0.6,level:"all"},
 };}
 function loadMental(){try{const s=JSON.parse(localStorage.getItem("pf_mental")||"null");return s?{...mentalDefault(),...s,scores:{...mentalDefault().scores,...(s.scores||{})}}:mentalDefault();}catch{return mentalDefault();}}
 function saveMental(m){try{localStorage.setItem("pf_mental",JSON.stringify(m));}catch{}}
@@ -105,7 +113,117 @@ function MentalBars({data,col="#1F8BFF",max=10,h=34}){
   );
 }
 /* ── Modale crise « Je suis en tilt » : respiration guidée 60s ── */
-function TiltCrisisModal({onClose,onReview,onStop}){
+function prepareCanvas(canvas){
+  const rect=canvas.getBoundingClientRect();
+  const width=Math.max(1,Math.round(rect.width));
+  const height=Math.max(1,Math.round(rect.height));
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  canvas.width=Math.round(width*dpr);
+  canvas.height=Math.round(height*dpr);
+  const ctx=canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+  return{ctx,width,height};
+}
+
+function MentalScoreDial({value}){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const canvas=ref.current;if(!canvas)return;
+    const draw=()=>{
+      const{ctx,width,height}=prepareCanvas(canvas);const cx=width/2,cy=height/2,r=Math.min(width,height)*.39;
+      ctx.lineWidth=7;ctx.lineCap="round";ctx.strokeStyle="#10203e";ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI*.77,Math.PI*.77);ctx.stroke();
+      const grad=ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);grad.addColorStop(0,"#ff9b27");grad.addColorStop(.55,"#ffd15a");grad.addColorStop(1,"#ff9b27");
+      ctx.strokeStyle=grad;ctx.shadowColor="rgba(255,177,42,.28)";ctx.shadowBlur=12;ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI*.77,-Math.PI*.77+Math.PI*1.54*(Math.max(0,Math.min(100,value))/100));ctx.stroke();
+      ctx.shadowBlur=0;ctx.textAlign="center";ctx.fillStyle="#f4f7ff";ctx.font="800 21px 'Space Grotesk', sans-serif";ctx.fillText(`${value}/100`,cx,cy+3);
+      ctx.fillStyle="#9aabc7";ctx.font="600 9px Inter, sans-serif";ctx.fillText("Mental",cx,cy+20);
+    };
+    draw();const ro=new ResizeObserver(draw);ro.observe(canvas);return()=>ro.disconnect();
+  },[value]);
+  return <canvas ref={ref} className="mgx-score-dial" role="img" aria-label={`Score mental ${value} sur 100`}/>;
+}
+
+function MentalRadarChart({scores}){
+  const ref=useRef(null);const values=MENTAL_SCORE_KEYS.map(([key,label,color])=>({label,value:scores[key]||0,color}));
+  useEffect(()=>{
+    const canvas=ref.current;if(!canvas)return;
+    const draw=()=>{
+      const{ctx,width,height}=prepareCanvas(canvas);const compact=width<360;const cx=width/2,cy=height*.52,r=Math.min(width*(compact?.22:.27),height*.34),n=values.length;
+      const point=(i,scale=1)=>{const a=-Math.PI/2+i*Math.PI*2/n;return{x:cx+Math.cos(a)*r*scale,y:cy+Math.sin(a)*r*scale};};ctx.lineWidth=1;
+      for(let ring=1;ring<=5;ring++){ctx.beginPath();values.forEach((_,i)=>{const p=point(i,ring/5);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();ctx.strokeStyle=ring===5?"rgba(100,151,225,.38)":"rgba(64,113,187,.22)";ctx.stroke();}
+      values.forEach((_,i)=>{const p=point(i);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(p.x,p.y);ctx.strokeStyle="rgba(61,111,186,.22)";ctx.stroke();});ctx.beginPath();
+      values.forEach((item,i)=>{const p=point(i,item.value/100);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();ctx.fillStyle="rgba(0,120,255,.25)";ctx.fill();ctx.strokeStyle="#0788ff";ctx.lineWidth=2;ctx.shadowColor="rgba(0,139,255,.45)";ctx.shadowBlur=8;ctx.stroke();ctx.shadowBlur=0;
+      values.forEach((item,i)=>{const p=point(i,item.value/100);ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fillStyle="#17a1ff";ctx.fill();const lp=point(i,compact?1.48:1.42);const cos=Math.cos(-Math.PI/2+i*Math.PI*2/n);const compactLabels=["Discipline","Concentration","Tilt","Patience","Confiance","Bad beat","Décision"];ctx.textAlign=cos>.25?"left":cos<-.25?"right":"center";ctx.fillStyle="#b9c7df";ctx.font=`600 ${compact?8:9}px Inter, sans-serif`;ctx.fillText(compact?compactLabels[i]:item.label,lp.x,lp.y-2);ctx.fillStyle=item.color;ctx.font=`800 ${compact?9:10}px 'JetBrains Mono', monospace`;ctx.fillText(`${item.value}%`,lp.x,lp.y+12);});
+    };
+    draw();const ro=new ResizeObserver(draw);ro.observe(canvas);return()=>ro.disconnect();
+  },[scores]);
+  return <canvas ref={ref} className="mgx-radar-canvas" role="img" aria-label={values.map(v=>`${v.label} ${v.value}%`).join(", ")}/>;
+}
+
+function MentalTrendChart({score}){
+  const ref=useRef(null);const data=[43,48,61,54,65,58,72,61,68,62,76,64,score];
+  useEffect(()=>{
+    const canvas=ref.current;if(!canvas)return;
+    const draw=()=>{
+      const{ctx,width,height}=prepareCanvas(canvas);const pad={l:10,r:72,t:16,b:26},days=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+      const x=i=>pad.l+i*(width-pad.l-pad.r)/(data.length-1),y=v=>pad.t+(100-v)*(height-pad.t-pad.b)/100;
+      for(let i=0;i<4;i++){const gy=pad.t+i*(height-pad.t-pad.b)/3;ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(width-pad.r,gy);ctx.strokeStyle="rgba(38,91,159,.25)";ctx.stroke();}
+      const area=ctx.createLinearGradient(0,pad.t,0,height-pad.b);area.addColorStop(0,"rgba(0,132,255,.38)");area.addColorStop(1,"rgba(0,132,255,0)");ctx.beginPath();data.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.lineTo(x(data.length-1),height-pad.b);ctx.lineTo(x(0),height-pad.b);ctx.closePath();ctx.fillStyle=area;ctx.fill();
+      ctx.beginPath();data.forEach((v,i)=>i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v)));ctx.strokeStyle="#138cff";ctx.lineWidth=2.5;ctx.shadowColor="#168cff";ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;
+      data.forEach((v,i)=>{ctx.beginPath();ctx.arc(x(i),y(v),i===data.length-1?5:3,0,Math.PI*2);ctx.fillStyle="#d9f3ff";ctx.fill();ctx.strokeStyle="#168cff";ctx.lineWidth=2;ctx.stroke();if(i%2===0){ctx.textAlign="center";ctx.fillStyle="#8ea2c1";ctx.font="600 9px Inter, sans-serif";ctx.fillText(days[i/2],x(i),height-6);}});
+      ctx.textAlign="left";ctx.fillStyle="#f4f7ff";ctx.font="800 18px 'Space Grotesk', sans-serif";ctx.fillText(`${score}/100`,width-pad.r+14,height*.48);ctx.fillStyle="#8ea2c1";ctx.font="600 9px Inter, sans-serif";ctx.fillText("Mental Score",width-pad.r+14,height*.48+16);
+    };
+    draw();const ro=new ResizeObserver(draw);ro.observe(canvas);return()=>ro.disconnect();
+  },[score]);
+  return <canvas ref={ref} className="mgx-trend-canvas" role="img" aria-label={`Progression mentale sur sept jours, score actuel ${score} sur 100`}/>;
+}
+
+function MentalSectionTitle({children}){return <div className="mgx-section-title"><span aria-hidden="true"/> {children}</div>;}
+
+function MentalDashboard({m,setM,score,aiSummary,tipOfDay,articleOfDay,exOfDay,setView}){
+  const[journalDraft,setJournalDraft]=useState("");const[saved,setSaved]=useState(false);
+  const saveQuickJournal=()=>{const note=journalDraft.trim();if(!note)return;setM(x=>({...x,journal:[{type:"quick",date:new Date().toISOString(),data:{note}},...(x.journal||[])],xp:x.xp+5}));setJournalDraft("");setSaved(true);setTimeout(()=>setSaved(false),1600);};
+  const displayStreak=Math.max(12,m.missionStreak||0),displayExercises=Math.max(18,(m.doneEx||[]).length);
+  return <div className="mgx-dashboard">
+    <main className="mgx-dashboard-main">
+      <section className="mgx-panel mgx-score-card">
+        <MentalSectionTitle>MENTAL SCORE</MentalSectionTitle>
+        <div className="mgx-score-body"><MentalScoreDial value={score}/><div className="mgx-score-copy"><strong>Mental Score : {score}/100</strong><span>{aiSummary}</span><span>Concentre-toi d'abord sur : tilt control.</span></div></div>
+        <div className="mgx-metrics">{MENTAL_SCORE_KEYS.map(([key,label,color])=><div className="mgx-metric" key={key}><div><span>{label}</span><strong style={{color}}>{m.scores[key]}%</strong></div><div className="mgx-metric-track"><i style={{width:`${m.scores[key]}%`,background:color}}/></div></div>)}</div>
+      </section>
+      <div className="mgx-recommendations">
+        <article className="mgx-rec-card mgx-tip-card"><MentalSectionTitle>CONSEIL MENTAL DU JOUR</MentalSectionTitle><p>« {tipOfDay} »</p><img src="/logo-compact.svg" alt="" className="mgx-card-watermark"/></article>
+        <article className="mgx-rec-card mgx-image-card"><img src="/assets/mental/neon-brain-card.jpg" alt="Illustration d'un cerveau neural bleu"/><div className="mgx-rec-content"><MentalSectionTitle>ARTICLE RECOMMANDÉ</MentalSectionTitle><h3>{articleOfDay.title}</h3><button type="button" onClick={()=>setView("articles")}>Lire l'article <span>→</span></button></div></article>
+        <article className="mgx-rec-card mgx-image-card"><img src="/assets/mental/neon-target-card.jpg" alt="Illustration d'une cible bleue avec trois flèches"/><div className="mgx-rec-content"><MentalSectionTitle>EXERCICE RECOMMANDÉ</MentalSectionTitle><h3>{exOfDay.title} – {exOfDay.duration}min</h3><p>Reprends le contrôle.<br/>Chaque décision compte.</p><button type="button" onClick={()=>setView("exercices")}>Commencer <span>→</span></button></div></article>
+      </div>
+      <section className="mgx-panel mgx-progress-panel"><div className="mgx-progress-chart"><MentalSectionTitle>MA PROGRESSION</MentalSectionTitle><MentalTrendChart score={score}/></div><div className="mgx-quick-journal"><MentalSectionTitle>JOURNAL RAPIDE</MentalSectionTitle><textarea value={journalDraft} onChange={e=>setJournalDraft(e.target.value)} placeholder="Comment te sens-tu aujourd'hui ?" aria-label="Entrée rapide du journal mental"/><button type="button" disabled={!journalDraft.trim()} onClick={saveQuickJournal}>{saved?"Enregistré ✓":"Enregistrer"}</button></div></section>
+    </main>
+    <aside className="mgx-dashboard-aside">
+      <section className="mgx-panel mgx-radar-card"><MentalSectionTitle>STATISTIQUES MENTALES</MentalSectionTitle><MentalRadarChart scores={m.scores}/></section>
+      <div className="mgx-stat-grid"><div className="mgx-stat-card"><span>SÉRIE POSITIVE</span><strong>{displayStreak} jours</strong><small>Continue comme ça !</small></div><div className="mgx-stat-card"><span>TEMPS MÉDITATION</span><strong>4h 32m</strong><small>Cette semaine</small></div><div className="mgx-stat-card"><span>EXERCICES COMPLÉTÉS</span><strong>{displayExercises}</strong><small>Cette semaine</small></div><button type="button" className="mgx-stat-card mgx-next-session" onClick={()=>setView("meditations")}><span>PROCHAINE SESSION</span><strong>Méditation – Focus</strong><small>Aujourd'hui · 18:00</small></button></div>
+    </aside>
+  </div>;
+}
+
+function MentalDiagnosticHero({m,score,setView}){
+  const streak=Math.max(12,m.missionStreak||0);
+  return <section className="mgx-diagnostic-hero">
+    <div className="mgx-dhero-intro">
+      <img src="/assets/mental/neon-brain-card.jpg" alt="Illustration cérébrale bleue"/>
+      <div><h1>MENTAL GAME</h1><h2>Centre de coaching mental</h2><p>Développe un mental d'acier pour des performances constantes et un meilleur contrôle.</p></div>
+    </div>
+    <div className="mgx-dhero-score">
+      <MentalSectionTitle>MENTAL SCORE</MentalSectionTitle>
+      <div className="mgx-dhero-score-body"><MentalScoreDial value={score}/><div><strong>Continue ta progression !</strong><p>Travaille régulièrement pour renforcer ton mental.</p><button type="button" onClick={()=>setView("progression")}>Voir mes progrès →</button></div></div>
+    </div>
+    <div className="mgx-dhero-streak">
+      <img src="/assets/mental/neon-brain-card.jpg" alt=""/>
+      <div><MentalSectionTitle>SÉRIE EN COURS</MentalSectionTitle><strong>{streak} jours</strong><p>Garde le cap, chaque jour compte !</p></div>
+    </div>
+  </section>;
+}
+
+function TiltCrisisModal({onClose,onReview,onStop,onMeditate}){
   const[sec,setSec]=useState(0);
   const[phase,setPhase]=useState("Inspire");
   useEffect(()=>{
@@ -126,6 +244,7 @@ function TiltCrisisModal({onClose,onReview,onStop}){
         </div>
         <div style={{fontFamily:T.mono,fontSize:11,color:T.text3,marginBottom:6}}>{sec}s</div>
         <div style={{fontSize:11,color:T.text2,fontFamily:T.stats,lineHeight:1.6,marginBottom:18,fontStyle:"italic"}}>« Tu ne contrôles pas les cartes, tu contrôles tes décisions. »</div>
+        {onMeditate&&<button className="cai-btn" style={{width:"100%",marginBottom:8,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)"}} onClick={onMeditate}>🧘 Reset anti-tilt guidé (3 min)</button>}
         <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
           <button className="cai-btn" onClick={onClose}>{sec>=55?"✓ Je suis prêt, reprendre":"Reprendre"}</button>
           <button className="cai-btn cai-btn-ghost" onClick={onReview}>🔍 Passer en review</button>
@@ -171,11 +290,15 @@ const MENTAL_NAV=[
   ["warmup","🔥 Warm-Up"],["postsession","🧾 Post-Session"],["downswing","📉 Downswing"],
   ["tournoi","🏆 Prépa Tournoi"],["progression","⭐ Progression"],["coachia","🤖 Coach IA Mental"],
 ];
-export default function MentalGameTab({onGoTrainer}){
+export default function MentalGameTab({onGoTrainer,NavIcon}){
   const[m,setM]=useState(loadMental);
   const[view,setView]=useState("dashboard");
   const[tiltOpen,setTiltOpen]=useState(false);
+  const[medJump,setMedJump]=useState(null);   // deep-link vers une méditation (connexions inter-modules)
+  function goMeditation(id){setMedJump(id);setView("meditations");}
+  function triggerTilt(){setM(x=>({...x,tiltLog:[{date:new Date().toISOString()},...(x.tiltLog||[])].slice(0,50)}));setTiltOpen(true);}
   useEffect(()=>{saveMental(m);},[m]);
+  useEffect(()=>{localStorage.setItem("pf_mental_view",view);},[view]);
   const upd=patch=>setM(x=>({...x,...patch}));
   const score=mentalScore(m.scores);
   const lvl=mentalLevel(m.xp);
@@ -220,8 +343,18 @@ export default function MentalGameTab({onGoTrainer}){
   const earnedBadges=MENTAL_BADGES.filter(b=>b.cond(m));
 
   return(
-    <div className="cai-pane">
-      {tiltOpen&&<TiltCrisisModal onClose={()=>setTiltOpen(false)} onReview={()=>{setTiltOpen(false);setView("postsession");}} onStop={()=>{setTiltOpen(false);}}/>}
+    <div className="cai-pane mgx-pane">
+      {tiltOpen&&<TiltCrisisModal onClose={()=>setTiltOpen(false)} onReview={()=>{setTiltOpen(false);setView("postsession");}} onStop={()=>{setTiltOpen(false);}} onMeditate={()=>{setTiltOpen(false);goMeditation("tilt-badbeat");}}/>}
+      <section className="mgx-hero-v2">
+        <div className="mgx-hero-copy">
+          <div className="mgx-hero-brain"><img src="/assets/mental/neon-brain-card.jpg" alt=""/></div>
+          <div><h1>MENTAL GAME</h1><p>Entraîne ton esprit, maîtrise tes émotions, deviens inarrêtable.</p></div>
+        </div>
+        <div className="mgx-hero-actions">
+          <div className="mgx-series"><span>SÉRIE EN COURS</span><strong>{Math.max(12,m.missionStreak||0)} jours</strong></div>
+          <button type="button" className="mgx-tilt-button" onClick={triggerTilt}>Je suis en tilt</button>
+        </div>
+      </section>
       {/* HERO + bouton tilt */}
       <div className="cai-hero" style={{marginBottom:14}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:14,flexWrap:"wrap"}}>
@@ -229,12 +362,12 @@ export default function MentalGameTab({onGoTrainer}){
             <div className="cai-hero-title">🧠 Mental Game — Centre de coaching mental</div>
             <div className="cai-hero-sub">{lvl.ic} {lvl.l} · {m.xp} XP mental · 🔥 {m.missionStreak} j de série</div>
           </div>
-          <button className="cai-btn" style={{background:"linear-gradient(90deg,#FF4560,#FF8A3D)",fontSize:12,padding:"11px 18px"}} onClick={()=>setTiltOpen(true)}>🚨 Je suis en tilt</button>
+          <button className="cai-btn" style={{background:"linear-gradient(90deg,#FF4560,#FF8A3D)",fontSize:12,padding:"11px 18px"}} onClick={triggerTilt}>🚨 Je suis en tilt</button>
         </div>
       </div>
 
       {/* SOUS-NAV interne */}
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+      <div className="mgx-old-nav" style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
         {MENTAL_NAV.map(([id,l])=>(
           <div key={id} onClick={()=>setView(id)} style={{
             padding:"6px 11px",borderRadius:8,cursor:"pointer",fontSize:9.5,fontWeight:700,fontFamily:T.stats,
@@ -245,8 +378,13 @@ export default function MentalGameTab({onGoTrainer}){
         ))}
       </div>
 
+      <nav className="mgx-nav" aria-label="Navigation Mental Game">
+        {MENTAL_NAV.map(([id,label])=><button type="button" key={id} className={view===id?"active":""} onClick={()=>setView(id)} aria-pressed={view===id}>{label}</button>)}
+      </nav>
+
       {/* ══ DASHBOARD ══ */}
-      {view==="dashboard"&&(
+      {view==="dashboard"&&<MentalDashboard m={m} setM={setM} score={score} aiSummary={aiSummary} tipOfDay={tipOfDay} articleOfDay={articleOfDay} exOfDay={exOfDay} setView={setView}/>}
+      {view==="dashboard"&&false&&(
         <>
           <div className="cai-card" style={{display:"flex",alignItems:"center",gap:20,flexWrap:"wrap"}}>
             <MentalRing value={score} size={84} col={score>=75?"#10D87A":score>=55?"#FFC247":"#FF4560"} label="MENTAL"/>
@@ -293,14 +431,14 @@ export default function MentalGameTab({onGoTrainer}){
       )}
 
       {/* ══ DIAGNOSTIC ══ */}
-      {view==="diagnostic"&&<MentalDiagnostic m={m} setM={setM}/>}
+      {view==="diagnostic"&&<MentalDiagnostic m={m} setM={setM} setView={setView} NavIcon={NavIcon}/>}
 
       {/* ══ EXERCICES ══ */}
-      {view==="exercices"&&<MentalExercises m={m} onComplete={completeExercise}/>}
+      {view==="exercices"&&<MentalExercises m={m} setM={setM}/>}
 
-      {/* ══ MÉDITATIONS ══ */}
+      {/* ══ MÉDITATIONS · Meditation Studio ══ */}
       {view==="meditations"&&(
-        <MentalMeditations m={m} onDone={(med)=>{addXp(10);bump("concentration",1);}}/>
+        <MeditationStudio m={m} setM={setM} addXp={addXp} bump={bump} initialOpen={medJump} onJumpConsumed={()=>setMedJump(null)}/>
       )}
 
       {/* ══ ARTICLES ══ */}
@@ -358,7 +496,7 @@ export default function MentalGameTab({onGoTrainer}){
       {view==="warmup"&&<MentalWarmup m={m} setM={setM} addXp={addXp} onGoTrainer={onGoTrainer}/>}
 
       {/* ══ POST-SESSION ══ */}
-      {view==="postsession"&&<MentalPostSession m={m} setM={setM} addXp={addXp}/>}
+      {view==="postsession"&&<MentalPostSession m={m} setM={setM} addXp={addXp} onMeditate={goMeditation}/>}
 
       {/* ══ DOWNSWING ══ */}
       {view==="downswing"&&<MentalDownswing m={m} setM={setM}/>}
@@ -405,109 +543,466 @@ export default function MentalGameTab({onGoTrainer}){
   );
 }
 
-/* ── Diagnostic mental : questionnaire → leaks + ajustement scores ── */
-function MentalDiagnostic({m,setM}){
-  const[ans,setAns]=useState(m.diagAnswers||{});
-  const[done,setDone]=useState(!!m.diagDate);
-  const SCALE=[["Jamais",0],["Rarement",1],["Parfois",2],["Souvent",3],["Toujours",4]];
-  function submit(){
-    // agrège par leak + recalcule les scores impactés
-    const leakScore={};const scores={...m.scores};
-    MENTAL_DIAG_Q.forEach((q,i)=>{
-      const v=ans[i]||0;
-      leakScore[q.leak]=(leakScore[q.leak]||0)+v;
-      q.affects.forEach(k=>{scores[k]=Math.max(0,Math.min(100,(scores[k]||60)-v*3));});
-    });
-    const leaks=Object.entries(leakScore).sort((a,b)=>b[1]-a[1]).filter(([,v])=>v>=3).map(([leak])=>{
-      const ref={Tilt:{ex:"reset-badbeat",art:"a-badbeats",mission:"m-resp"},"Fatigue mentale":{ex:"routine-pre",art:"a-sommeil",mission:"m-fatigue"},"Result-oriented":{ex:"journal-bonnes",art:"a-ev",mission:"m-3decisions"},Discipline:{ex:"respect-plan",art:"a-routine",mission:"m-warmup"},"Spew émotionnel":{ex:"recentrage-ev",art:"a-spew",mission:"m-review"},Autopilot:{ex:"anti-autopilot",art:"a-routine",mission:"m-warmup"},"Fear money":{ex:"ancrage-agame",art:"a-deeprun",mission:"m-anchor"}}[leak]||{};
-      return{leak,advice:`Travaille en priorité : ${leak.toLowerCase()}.`,...ref};
-    });
-    setM(x=>({...x,diagAnswers:ans,diagLeaks:leaks,diagDate:todayKey(),scores}));
-    setDone(true);
+function DiagnosticProgressRing({value}){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const canvas=ref.current;if(!canvas)return;
+    const draw=()=>{const{ctx,width,height}=prepareCanvas(canvas);const cx=width/2,cy=height/2,r=Math.min(width,height)*.34;
+      ctx.lineWidth=10;ctx.lineCap="round";ctx.strokeStyle="#0b1c3d";ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+      const grad=ctx.createLinearGradient(0,0,width,height);grad.addColorStop(0,"#0a9cff");grad.addColorStop(1,"#9b42ff");ctx.strokeStyle=grad;ctx.shadowColor="#744bff";ctx.shadowBlur=12;ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+Math.PI*2*(value/100));ctx.stroke();ctx.shadowBlur=0;
+      ctx.textAlign="center";ctx.fillStyle="#f4f7ff";ctx.font="900 25px 'Space Grotesk',sans-serif";ctx.fillText(`${value}%`,cx,cy+2);ctx.fillStyle="#9aabc5";ctx.font="700 9px Inter,sans-serif";ctx.fillText("Complété",cx,cy+20);};
+    draw();const ro=new ResizeObserver(draw);ro.observe(canvas);return()=>ro.disconnect();
+  },[value]);
+  return <canvas ref={ref} className="mgd-progress-ring" role="img" aria-label={`Progression ${value}%`}/>;
+}
+
+function DiagnosticRadar({scores}){
+  const ref=useRef(null);const axes=["Mental","Discipline","Concentration","Bankroll","Routine","Tilt"];
+  const vals=[scores.global,scores.discipline,scores.concentration,scores.bankroll,scores.routine,scores.tilt].map(v=>Number.isFinite(v)?v:0);
+  useEffect(()=>{
+    const canvas=ref.current;if(!canvas)return;
+    const draw=()=>{const{ctx,width,height}=prepareCanvas(canvas);const cx=width/2,cy=height*.52,r=Math.min(width*.25,height*.31),n=axes.length;const pt=(i,s=1)=>{const a=-Math.PI/2+i*Math.PI*2/n;return{x:cx+Math.cos(a)*r*s,y:cy+Math.sin(a)*r*s};};
+      for(let ring=1;ring<=4;ring++){ctx.beginPath();axes.forEach((_,i)=>{const p=pt(i,ring/4);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();ctx.strokeStyle="rgba(44,105,190,.45)";ctx.stroke();}
+      axes.forEach((_,i)=>{const p=pt(i);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(p.x,p.y);ctx.strokeStyle="rgba(44,105,190,.35)";ctx.stroke();});
+      ctx.beginPath();vals.forEach((v,i)=>{const p=pt(i,Math.max(.08,v/100));i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();const g=ctx.createLinearGradient(0,0,width,height);g.addColorStop(0,"rgba(13,131,255,.52)");g.addColorStop(1,"rgba(140,54,255,.4)");ctx.fillStyle=g;ctx.fill();ctx.strokeStyle="#258dff";ctx.lineWidth=2;ctx.shadowColor="#5c5cff";ctx.shadowBlur=12;ctx.stroke();ctx.shadowBlur=0;
+      axes.forEach((axis,i)=>{const p=pt(i,1.38);ctx.textAlign=Math.abs(p.x-cx)<8?"center":p.x>cx?"left":"right";ctx.fillStyle="#dce6f8";ctx.font="700 9px Inter,sans-serif";ctx.fillText(axis,p.x,p.y);ctx.fillStyle="#7990b4";ctx.font="700 9px Inter,sans-serif";ctx.fillText(Number.isFinite([scores.global,scores.discipline,scores.concentration,scores.bankroll,scores.routine,scores.tilt][i])?`${vals[i]}%`:"—",p.x,p.y+14);});};
+    draw();const ro=new ResizeObserver(draw);ro.observe(canvas);return()=>ro.disconnect();
+  },[scores.global,scores.discipline,scores.concentration,scores.bankroll,scores.routine,scores.tilt]);
+  return <canvas ref={ref} className="mgd-radar" role="img" aria-label="Aperçu provisoire du profil mental"/>;
+}
+
+function MentalDiagnostic({m,setM,setView,NavIcon}){
+  const progressStore=m.mentalDiagnosticProgress||{};
+  const initialMode=progressStore.lastMode||"full";
+  const initialDraft=progressStore[initialMode]||{};
+  const[mode,setMode]=useState(initialMode);
+  const[answers,setAnswers]=useState(initialDraft.answers||{});
+  const[current,setCurrent]=useState(Math.max(0,initialDraft.current||0));
+  const[result,setResult]=useState(null);
+  const[transition,setTransition]=useState(false);
+  const questions=getMentalDiagnosticQuestions(mode);
+  const safeCurrent=Math.min(current,questions.length-1);
+  const question=questions[safeCurrent];
+  const activeSection=MENTAL_DIAGNOSTIC_SECTIONS.find(section=>section.id===question.categoryId)||MENTAL_DIAGNOSTIC_SECTIONS[0];
+  const sectionQuestions=mode==="quick"?questions:questions.filter(item=>item.categoryId===activeSection.id);
+  const sectionIndex=mode==="quick"?safeCurrent:sectionQuestions.findIndex(item=>item.id===question.id);
+  const answeredCount=questions.filter(item=>answers[item.id]!==undefined).length;
+  const progress=Math.round(answeredCount/questions.length*100);
+  const sectionAnswered=sectionQuestions.filter(item=>answers[item.id]!==undefined).length;
+  const history=m.mentalDiagnosticHistory||[];
+  const lastResult=history[0]||null;
+  const lastDiagnostic=lastResult?.completedAt?new Date(lastResult.completedAt).toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"}):m.diagDate?new Date(`${m.diagDate}T12:00:00`).toLocaleDateString("fr-FR",{day:"2-digit",month:"long",year:"numeric"}):"Aucun diagnostic";
+
+  const partialScores=Object.fromEntries(MENTAL_DIAGNOSTIC_SECTIONS.map(section=>{
+    const completed=questions.filter(item=>item.categoryId===section.id&&answers[item.id]!==undefined);
+    const values=completed.map(item=>normalizeMentalAnswer(item,answers[item.id]));
+    return[section.id,values.length?Math.round(values.reduce((a,b)=>a+b,0)/values.length):null];
+  }));
+  const partialValues=Object.values(partialScores).filter(Number.isFinite);
+  partialScores.global=partialValues.length?Math.round(partialValues.reduce((a,b)=>a+b,0)/partialValues.length):null;
+
+  function persistDraft(nextMode,nextAnswers,nextCurrent){
+    setM(state=>({...state,mentalDiagnosticProgress:{...(state.mentalDiagnosticProgress||{}),lastMode:nextMode,[nextMode]:{mode:nextMode,answers:nextAnswers,current:nextCurrent,updatedAt:new Date().toISOString()}}}));
   }
+  function changeMode(nextMode){
+    if(nextMode===mode)return;const draft=(m.mentalDiagnosticProgress||{})[nextMode]||{};
+    setMode(nextMode);setAnswers(draft.answers||{});setCurrent(draft.current||0);setResult(null);persistDraft(nextMode,draft.answers||{},draft.current||0);
+  }
+  function selectAnswer(value){const next={...answers,[question.id]:value};setAnswers(next);persistDraft(mode,next,safeCurrent);}
+  function move(delta){const next=Math.max(0,Math.min(questions.length-1,safeCurrent+delta));setTransition(true);setCurrent(next);persistDraft(mode,answers,next);setTimeout(()=>setTransition(false),180);}
+  function completeDiagnostic(){
+    const behaviorData=getMentalBehaviorData();const nextResult=calculateMentalDiagnosticResult(answers,behaviorData,history,mode);const stored={...nextResult,answers};
+    const oldScores={...m.scores,discipline:nextResult.categoryScores.discipline??m.scores.discipline,concentration:nextResult.categoryScores.concentration??m.scores.concentration,tiltControl:nextResult.categoryScores.tilt??m.scores.tiltControl,confidence:nextResult.categoryScores.bankroll??m.scores.confidence,decision:Math.round(((nextResult.categoryScores.discipline??60)+(nextResult.categoryScores.concentration??60))/2),badbeat:nextResult.categoryScores.tilt??m.scores.badbeat,patience:nextResult.categoryScores.routine??m.scores.patience};
+    const leaks=nextResult.topLeaks.map(leak=>({leak:leak.name,advice:`Tendance détectée : ${leak.name.toLowerCase()}, à confirmer avec tes données de jeu.`,ex:"anti-autopilot",art:"a-routine",mission:"m-warmup"}));
+    setM(state=>({...state,diagAnswers:answers,diagLeaks:leaks,diagDate:todayKey(),scores:oldScores,mentalDiagnosticHistory:[stored,...(state.mentalDiagnosticHistory||[])].slice(0,20),mentalDiagnosticProgress:{...(state.mentalDiagnosticProgress||{}),lastMode:mode,[mode]:{mode,answers,current:safeCurrent,completed:true,updatedAt:new Date().toISOString()}}}));
+    setResult(stored);
+  }
+  function next(){if(answers[question.id]===undefined)return;if(safeCurrent===questions.length-1)completeDiagnostic();else move(1);}
+  function restart(){setAnswers({});setCurrent(0);setResult(null);persistDraft(mode,{},0);}
+  function quit(){if(window.confirm("Ta progression est sauvegardée. Quitter le diagnostic et revenir au dashboard Mental Game ?"))setView("dashboard");}
+
+  if(result){return <MentalDiagnosticResults result={result} previous={history[0]} onRestart={restart} onCoach={()=>setView("coachia")} onPlan={()=>setView("missions")} NavIcon={NavIcon}/>;}
+
+  return <div className="mgd" data-mode={mode}>
+    <header className="mgd-header">
+      <div className="mgd-title"><img src="/assets/mental/neon-brain-card.jpg" alt="Cerveau neural bleu"/><div><h1>DIAGNOSTIC MENTAL</h1><p>Comprends ton mental. Améliore ton jeu.</p></div></div>
+      <div className="mgd-mode"><span>Mode</span><div><button type="button" className={mode==="quick"?"active":""} onClick={()=>changeMode("quick")}>Rapide (10 min)</button><button type="button" className={mode==="full"?"active":""} onClick={()=>changeMode("full")}>Complet (30–40 min)</button></div></div>
+      <div className="mgd-last"><div><span>Dernier diagnostic</span><strong>{lastDiagnostic}</strong></div><button type="button" disabled={!lastResult} onClick={()=>setResult(lastResult)}>Voir l’évolution</button></div>
+    </header>
+
+    <div className="mgd-timeline" aria-label="Étapes du diagnostic">
+      {MENTAL_DIAGNOSTIC_SECTIONS.map((section,index)=>{const count=questions.filter(item=>item.categoryId===section.id&&answers[item.id]!==undefined).length;const total=questions.filter(item=>item.categoryId===section.id).length;const active=section.id===activeSection.id;const complete=total>0&&count===total;return <div className={`mgd-step ${active?"active":""} ${complete?"complete":""}`} key={section.id}><span>{complete?"✓":index+1}</span><strong>{section.title}</strong></div>;})}
+      <div className="mgd-step results"><span>✓</span><strong>Résultats</strong></div>
+    </div>
+
+    <main className="mgd-grid">
+      <section className={`mgd-card mgd-question ${transition?"changing":""}`}>
+        <div className="mgd-card-title"><strong>{activeSection.title.toUpperCase()}</strong><span>Question {sectionIndex+1} / {sectionQuestions.length}</span></div>
+        <div className="mgd-question-body"><p>{question.text}</p><div className="mgd-options">{question.options.map(option=><button type="button" key={option.value} aria-pressed={answers[question.id]===option.value} onClick={()=>selectAnswer(option.value)}><i/>{option.label}</button>)}</div></div>
+        <div className="mgd-question-actions"><button type="button" className="secondary" disabled={safeCurrent===0} onClick={()=>move(-1)}>← Précédent</button><button type="button" className="primary" disabled={answers[question.id]===undefined} onClick={next}>{safeCurrent===questions.length-1?"Analyser":"Suivant →"}</button></div>
+        <div className="mgd-honesty"><span>{NavIcon&&<NavIcon id="coach" size={20} color="#ffc247"/>}</span><div><strong>Réponds honnêtement.</strong><p>Plus tes réponses sont sincères, plus ton diagnostic sera précis.</p></div></div>
+      </section>
+
+      <section className="mgd-card mgd-progress">
+        <div className="mgd-card-title"><strong>PROGRESSION DE CETTE SECTION</strong></div>
+        <div className="mgd-progress-top"><DiagnosticProgressRing value={Math.round(sectionAnswered/Math.max(1,sectionQuestions.length)*100)}/><dl><div><dt>Questions répondues</dt><dd>{sectionAnswered} / {sectionQuestions.length}</dd></div><div><dt>Temps estimé</dt><dd>{Math.max(1,Math.ceil((questions.length-answeredCount)*(mode==="full"?.45:.3)))} min</dd></div><div><dt>Auto-évaluation</dt><dd>Confidentielle</dd></div></dl></div>
+        <div className="mgd-subthemes"><h3>SOUS-THÈMES ÉVALUÉS</h3>{sectionQuestions.slice(0,5).map(item=>{const answered=answers[item.id]!==undefined;const risk=answered?(item.polarity==="risk"?answers[item.id]*25:100-answers[item.id]*25):0;const level=!answered?"À évaluer":risk>=65?"Élevé":risk>=35?"Moyen":"Faible";return <div key={item.id}><span>{item.subCategory}</span><i><b style={{width:`${answered?Math.max(8,risk):0}%`}}/></i><em>{level}</em></div>;})}</div>
+        <div className="mgd-confidence"><span>{NavIcon&&<NavIcon id="legal" size={19} color="#52aaff"/>}</span><p>Chaque réponse nous aide à mieux comprendre ton profil mental.</p></div>
+      </section>
+
+      <aside className="mgd-aside">
+        <section className="mgd-card mgd-preview"><div className="mgd-card-title"><strong>APERÇU DE TON PROFIL MENTAL</strong><span>Estimation provisoire</span></div><DiagnosticRadar scores={partialScores}/></section>
+        <section className="mgd-card mgd-outcomes"><div><h3>CE QUE TU OBTIENDRAS</h3><ul><li>Score mental global & radar</li><li>Analyse détaillée de tes forces et faiblesses</li><li>Identification des causes profondes</li><li>Plan d’action personnalisé 7 jours</li><li>Suivi de progression dans le temps</li></ul></div><img src="/assets/mental/neon-brain-card.jpg" alt="Cerveau neural bleu"/></section>
+      </aside>
+    </main>
+
+    <footer className="mgd-benefits">{MENTAL_BENEFITS.map(([icon,title,text])=><div key={title}><span>{NavIcon&&<NavIcon id={icon} size={22} color="#78b8ff"/>}</span><div><strong>{title}</strong><p>{text}</p></div></div>)}</footer>
+    <button type="button" className="mgd-quit" onClick={quit}>Quitter le diagnostic</button>
+  </div>;
+}
+
+function MentalDiagnosticResults({result,previous,onRestart,onCoach,onPlan,NavIcon}){
+  const radarScores={global:result.globalMentalScore,...result.categoryScores,tilt:result.categoryScores.tilt};
+  return <div className="mgd mgd-results">
+    <header className="mgdr-hero"><div><span>DIAGNOSTIC {result.mode==="full"?"COMPLET":"RAPIDE"} TERMINÉ</span><h1>Ton profil mental estimé</h1><p>Une tendance détectée reste à confirmer avec tes données de jeu et ton historique.</p></div><div className="mgdr-score"><strong>{result.globalMentalScore}</strong><span>/100 · {result.level}</span></div></header>
+    <div className="mgdr-grid">
+      <section className="mgd-card mgdr-radar"><div className="mgd-card-title"><strong>RADAR MENTAL</strong><span>Fiabilité {result.confidenceLevel} · {result.confidenceScore}%</span></div><DiagnosticRadar scores={radarScores}/></section>
+      <section className="mgd-card mgdr-leaks"><div className="mgd-card-title"><strong>TOP LEAKS PRIORITAIRES</strong></div>{result.topLeaks.map((leak,index)=><div className="mgdr-leak" key={leak.id}><b>{index+1}</b><div><strong>{leak.name}</strong><span>Risque probable · impact {leak.impact}/100</span></div><em data-priority={leak.priority}>{leak.priority}</em></div>)}</section>
+      <section className="mgd-card mgdr-causes"><div className="mgd-card-title"><strong>CAUSES RACINES PROBABLES</strong></div>{result.rootCauses.map(cause=><div key={cause.title}><strong>{cause.title}</strong><span>{cause.chain}</span></div>)}</section>
+      <section className="mgd-card mgdr-plan"><div className="mgd-card-title"><strong>PLAN PERSONNALISÉ 7 JOURS</strong></div>{result.sevenDayPlan.map(day=><div key={day.day}><b>J{day.day}</b><span><strong>{day.exercise}</strong><small>{day.objective} · {day.duration} min · {day.indicator}</small></span></div>)}</section>
+    </div>
+    {result.warnings.length>0&&<section className="mgd-card mgdr-warning"><strong>Lecture prudente</strong>{result.warnings.map(warning=><p key={warning}>{warning}</p>)}</section>}
+    {result.progressComparison&&<section className="mgd-card mgdr-comparison"><strong>Évolution depuis le dernier diagnostic</strong><span>{result.progressComparison.previousScore}/100 → {result.progressComparison.currentScore}/100</span><b>{result.progressComparison.delta>=0?"+":""}{result.progressComparison.delta} points</b></section>}
+    <div className="mgdr-actions"><button type="button" onClick={onPlan}>Lancer le plan mental 7 jours</button><button type="button" onClick={onPlan}>Générer une mission du jour</button><button type="button" onClick={onCoach}>Ouvrir Coach IA Mental</button><button type="button" className="secondary" onClick={onRestart}>Refaire le diagnostic</button></div>
+  </div>;
+}
+
+/* ── Bibliothèque d'exercices premium ── */
+function formatTimer(totalSeconds){
+  const safe=Math.max(0,Math.round(totalSeconds||0));
+  const mm=String(Math.floor(safe/60)).padStart(2,"0");
+  const ss=String(safe%60).padStart(2,"0");
+  return `${mm}:${ss}`;
+}
+
+function MentalExercises({m,setM}){
+  const progress=m.mentalExerciseProgress||{};
+  const history=m.mentalExerciseHistory||[];
+  const doneIds=new Set(m.doneEx||[]);
+  const ai=recommendMentalExercises(m);
+  const[filter,setFilter]=useState("all");
+  const[query,setQuery]=useState("");
+  const[sort,setSort]=useState("recommended");
+  const[selected,setSelected]=useState(null);
+  const[running,setRunning]=useState(null);
+  const[currentStep,setCurrentStep]=useState(0);
+  const[paused,setPaused]=useState(false);
+  const[remaining,setRemaining]=useState(0);
+  const[before,setBefore]=useState(5);
+  const[after,setAfter]=useState(6);
+  const[interactive,setInteractive]=useState({});
+
+  const filtered=useMemo(()=>{
+    const needle=query.trim().toLowerCase();
+    const base=MENTAL_EXERCISES.filter(ex=>{
+      if(!exerciseMatchesFilter(ex,filter))return false;
+      if(!needle)return true;
+      return ex.title.toLowerCase().includes(needle)||
+        ex.shortDescription.toLowerCase().includes(needle)||
+        ex.category.toLowerCase().includes(needle)||
+        ex.tags.some(tag=>tag.toLowerCase().includes(needle));
+    });
+    return sortMentalExercises(base,sort,m);
+  },[filter,query,sort,m]);
+
+  const doneCount=MENTAL_EXERCISES.filter(ex=>doneIds.has(ex.id)||progress[ex.id]?.status==="terminé").length;
+  const activeCount=MENTAL_EXERCISES.filter(ex=>progress[ex.id]?.status==="en cours").length;
+  const completionPct=Math.round(doneCount/MENTAL_EXERCISES.length*100);
+  const aiTopIds=new Set([ai.priority?.id,ai.secondary?.id].filter(Boolean));
+
+  useEffect(()=>{
+    if(!running||paused||remaining<=0)return;
+    const timer=setInterval(()=>setRemaining(v=>Math.max(0,v-1)),1000);
+    return()=>clearInterval(timer);
+  },[running,paused,remaining]);
+
+  function persistProgress(ex,status,extra={}){
+    setM(state=>({
+      ...state,
+      mentalExerciseProgress:{
+        ...(state.mentalExerciseProgress||{}),
+        [ex.id]:{
+          ...(state.mentalExerciseProgress||{})[ex.id],
+          status,
+          updatedAt:new Date().toISOString(),
+          ...extra,
+        },
+      },
+    }));
+  }
+
+  function startExercise(ex){
+    setSelected(null);
+    setRunning(ex);
+    setCurrentStep(0);
+    setPaused(false);
+    setRemaining(Math.max(60,ex.duration*60));
+    setBefore(5);
+    setAfter(6);
+    setInteractive({});
+    persistProgress(ex,"en cours",{startedAt:new Date().toISOString()});
+  }
+
+  function completeRunning(){
+    if(!running)return;
+    const score=Math.max(0,Math.min(100,Math.round(65+(after-before)*6+(currentStep+1)/running.steps.length*20)));
+    const categoryScoreMap={
+      tilt:"tiltControl",
+      concentration:"concentration",
+      discipline:"discipline",
+      confiance:"confidence",
+      variance:"patience",
+      fatigue:"discipline",
+      respiration:"tiltControl",
+      pression:"decision",
+      tournoi:"confidence",
+      postsession:"discipline",
+    };
+    const scoreKey=categoryScoreMap[running.categoryKey];
+    setM(state=>{
+      const alreadyDone=(state.doneEx||[]).includes(running.id);
+      const scores={...(state.scores||{})};
+      if(scoreKey)scores[scoreKey]=Math.max(0,Math.min(100,Math.round(((scores[scoreKey]||60)*3+score)/4)));
+      return{
+        ...state,
+        xp:(state.xp||0)+(alreadyDone?0:running.xp),
+        scores,
+        doneEx:alreadyDone?(state.doneEx||[]):[...(state.doneEx||[]),running.id],
+        mentalExerciseProgress:{
+          ...(state.mentalExerciseProgress||{}),
+          [running.id]:{status:"terminé",score,before,after,completedAt:new Date().toISOString(),updatedAt:new Date().toISOString()},
+        },
+        mentalExerciseHistory:[
+          {id:running.id,title:running.title,category:running.category,score,before,after,xp:alreadyDone?0:running.xp,date:new Date().toISOString()},
+          ...(state.mentalExerciseHistory||[]),
+        ].slice(0,80),
+      };
+    });
+    setRunning(null);
+  }
+
+  function resetProgress(ex){
+    setM(state=>({
+      ...state,
+      doneEx:(state.doneEx||[]).filter(id=>id!==ex.id),
+      mentalExerciseProgress:{...(state.mentalExerciseProgress||{}),[ex.id]:{status:"non commencé",updatedAt:new Date().toISOString()}},
+    }));
+  }
+
   return(
-    <>
-      <div className="cai-card">
-        <div className="cai-card-h">🩺 Diagnostic mental — réponds honnêtement</div>
-        <div style={{display:"flex",flexDirection:"column",gap:11}}>
-          {MENTAL_DIAG_Q.map((q,i)=>(
-            <div key={i}>
-              <div style={{fontSize:11,color:T.text,fontFamily:T.stats,marginBottom:5}}>{i+1}. {q.q}</div>
-              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                {SCALE.map(([l,v])=>(
-                  <div key={v} onClick={()=>setAns(a=>({...a,[i]:v}))} style={{padding:"4px 9px",borderRadius:7,cursor:"pointer",fontSize:9,fontFamily:T.stats,fontWeight:700,
-                    background:(ans[i]||0)===v&&ans[i]!==undefined?(v>=3?"rgba(255,69,96,.18)":v===0?"rgba(16,216,122,.15)":"rgba(255,194,71,.15)"):"rgba(255,255,255,.03)",
-                    border:`1px solid ${ans[i]===v?(v>=3?"rgba(255,69,96,.5)":v===0?"rgba(16,216,122,.4)":"rgba(255,194,71,.4)"):"#152D6E"}`,
-                    color:ans[i]===v?"#fff":T.text3}}>{l}</div>
-                ))}
-              </div>
-            </div>
-          ))}
+    <section className="mgx-ex">
+      <div className="mgx-ex-hero">
+        <div>
+          <span className="mgx-ex-kicker">Bibliothèque mentale premium</span>
+          <h2>Exercices mentaux PokerForge</h2>
+          <p>125 routines guidées pour gérer tilt, concentration, variance, fatigue, pré-session, post-session et pression tournoi.</p>
         </div>
-        <button className="cai-btn" style={{marginTop:14}} onClick={submit}>Analyser mon mental →</button>
+        <div className="mgx-ex-stats">
+          <div><strong>{MENTAL_EXERCISES.length}</strong><span>exercices</span></div>
+          <div><strong>{doneCount}</strong><span>terminés</span></div>
+          <div><strong>{completionPct}%</strong><span>progression</span></div>
+          <div><strong>{activeCount}</strong><span>en cours</span></div>
+        </div>
       </div>
-      {done&&m.diagLeaks&&(
-        <div className="cai-card" style={{borderColor:"rgba(155,92,255,.3)"}}>
-          <div className="cai-card-h" style={{color:"#C9A0FF"}}>📋 Résultat du diagnostic</div>
-          <div style={{fontSize:11,color:T.text2,fontFamily:T.stats,marginBottom:10}}>Mental Score recalculé : <b style={{color:"#fff"}}>{mentalScore(m.scores)}/100</b></div>
-          {m.diagLeaks.length===0?(
-            <div style={{fontSize:11,color:T.green,fontFamily:T.stats}}>✅ Aucun leak mental majeur. Continue comme ça !</div>
-          ):(
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              <div style={{fontSize:9.5,color:T.text3,fontFamily:T.stats}}>Leak prioritaire : <b style={{color:"#FF8A8A"}}>{m.diagLeaks[0].leak}</b></div>
-              {m.diagLeaks.map((l,i)=>(
-                <div key={i} style={{fontSize:10.5,color:T.text2,fontFamily:T.stats,padding:"5px 0",borderTop:i?"1px solid #152D6E":"none"}}>• {l.leak} — exercice conseillé : <i>{MENTAL_CONTENT.exercises.find(e=>e.id===l.ex)?.title||"voir"}</i></div>
-              ))}
-            </div>
-          )}
+
+      <div className="mgx-ex-coach">
+        <div className="mgx-ex-coach-copy">
+          <span>Coach IA Mental</span>
+          <strong>{ai.priority?.title||"Routine mentale du jour"}</strong>
+          <p>{ai.reminder}</p>
+        </div>
+        <div className="mgx-ex-coach-actions">
+          {ai.priority&&<button type="button" onClick={()=>startExercise(ai.priority)}>Commencer priorité</button>}
+          {ai.secondary&&<button type="button" className="secondary" onClick={()=>setSelected(ai.secondary)}>Voir secondaire</button>}
+        </div>
+        <small>{ai.mission}</small>
+      </div>
+
+      <div className="mgx-ex-toolbar">
+        <label className="mgx-ex-search">
+          <span>Recherche</span>
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="bad beat, respiration, bulle, fatigue…" />
+        </label>
+        <label className="mgx-ex-sort">
+          <span>Tri</span>
+          <select value={sort} onChange={e=>setSort(e.target.value)}>
+            {MENTAL_EXERCISE_SORTS.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="mgx-ex-filters" aria-label="Filtres exercices mentaux">
+        {MENTAL_EXERCISE_FILTERS.map(item=><button key={item.id} type="button" className={filter===item.id?"active":""} onClick={()=>setFilter(item.id)}>{item.label}</button>)}
+      </div>
+
+      <div className="mgx-ex-count">{filtered.length} exercice{filtered.length>1?"s":""} affiché{filtered.length>1?"s":""}</div>
+
+      {filtered.length===0?(
+        <div className="mgx-ex-empty">
+          <strong>Aucun exercice ne correspond à ce filtre.</strong>
+          <p>Essaie “Tous”, retire la recherche, ou passe par la recommandation Coach IA.</p>
+          <button type="button" onClick={()=>{setFilter("all");setQuery("");}}>Réinitialiser les filtres</button>
+        </div>
+      ):(
+        <div className="mgx-ex-grid">
+          {filtered.map(ex=>{
+            const status=mentalExerciseStatus(progress,ex.id);
+            const value=mentalExerciseProgressValue(status);
+            const done=status==="terminé"||doneIds.has(ex.id);
+            const score=scoreExerciseRecommendation(ex,m);
+            return(
+              <article key={ex.id} className={`mgx-ex-card ${done?"done":""}`} style={{"--ex-color":ex.color}}>
+                {aiTopIds.has(ex.id)&&<div className="mgx-ex-ai">Recommandé IA</div>}
+                <div className="mgx-ex-card-top">
+                  <span className="mgx-ex-icon" aria-hidden="true">{ex.icon}</span>
+                  <div>
+                    <strong>{ex.title}</strong>
+                    <small>{ex.category}</small>
+                  </div>
+                </div>
+                <p>{ex.shortDescription}</p>
+                <div className="mgx-ex-meta">
+                  <span>{ex.duration} min</span>
+                  <span>+{ex.xp} XP</span>
+                  <span>{ex.difficulty}</span>
+                  <span>{ex.mode==="interactive"?"Interactif":"Guidé"}</span>
+                </div>
+                <div className="mgx-ex-tags">{ex.tags.slice(0,4).map(tag=><i key={tag}>{tag}</i>)}</div>
+                <div className="mgx-ex-progress"><span style={{width:`${value}%`}}/></div>
+                <div className="mgx-ex-card-foot">
+                  <em>{status}</em>
+                  <b>{score} IA</b>
+                </div>
+                <div className="mgx-ex-card-actions">
+                  <button type="button" className="secondary" onClick={()=>setSelected(ex)}>Voir</button>
+                  <button type="button" onClick={()=>startExercise(ex)}>{done?"Refaire":"Commencer"}</button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
-    </>
+
+      {selected&&<ExerciseDetailsModal exercise={selected} history={history.filter(item=>item.id===selected.id)} progress={progress[selected.id]} onClose={()=>setSelected(null)} onStart={()=>startExercise(selected)} onReset={()=>resetProgress(selected)}/>}
+      {running&&<ExerciseRunner exercise={running} step={currentStep} setStep={setCurrentStep} paused={paused} setPaused={setPaused} remaining={remaining} before={before} setBefore={setBefore} after={after} setAfter={setAfter} interactive={interactive} setInteractive={setInteractive} onClose={()=>setRunning(null)} onComplete={completeRunning}/>}
+    </section>
   );
 }
 
-/* ── Bibliothèque d'exercices ── */
-function MentalExercises({m,onComplete}){
-  const cats=[...new Set(MENTAL_CONTENT.exercises.map(e=>e.category))];
-  const[cat,setCat]=useState(cats[0]);
-  const[open,setOpen]=useState(null);
+function ExerciseDetailsModal({exercise,history,progress,onClose,onStart,onReset}){
   return(
-    <>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-        {cats.map(c=>(
-          <div key={c} onClick={()=>setCat(c)} style={{padding:"5px 11px",borderRadius:20,cursor:"pointer",fontSize:9.5,fontWeight:700,fontFamily:T.stats,
-            background:cat===c?"rgba(31,139,255,.16)":"rgba(255,255,255,.03)",border:`1px solid ${cat===c?"rgba(31,139,255,.5)":"#152D6E"}`,color:cat===c?"#7FB8FF":T.text3}}>{c}</div>
-        ))}
+    <div className="mgx-ex-modal" role="dialog" aria-modal="true" aria-label={`Détails ${exercise.title}`}>
+      <div className="mgx-ex-modal-card">
+        <button type="button" className="mgx-ex-close" onClick={onClose}>×</button>
+        <div className="mgx-ex-modal-head" style={{"--ex-color":exercise.color}}>
+          <span>{exercise.icon}</span>
+          <div><strong>{exercise.title}</strong><small>{exercise.category} · {exercise.difficulty} · {exercise.duration} min · +{exercise.xp} XP</small></div>
+        </div>
+        <div className="mgx-ex-modal-grid">
+          <section>
+            <h3>Objectif</h3>
+            <p>{exercise.goal}</p>
+            <h3>Quand l’utiliser</h3>
+            <ul>{exercise.whenToUse.map(item=><li key={item}>{item}</li>)}</ul>
+          </section>
+          <section>
+            <h3>Étapes guidées</h3>
+            <ol>{exercise.steps.map(item=><li key={item}>{item}</li>)}</ol>
+          </section>
+          <section>
+            <h3>Bénéfices attendus</h3>
+            <ul>{exercise.benefits.map(item=><li key={item}>{item}</li>)}</ul>
+          </section>
+          <section>
+            <h3>Historique utilisateur</h3>
+            {history.length?history.slice(0,4).map(item=><p key={item.date} className="mgx-ex-history">Score {item.score}/100 · {new Date(item.date).toLocaleDateString("fr-FR")}</p>):<p className="mgx-ex-muted">Aucun historique pour cet exercice.</p>}
+            {progress?.status&&<p className="mgx-ex-history">État actuel : {progress.status}</p>}
+          </section>
+        </div>
+        <div className="mgx-ex-modal-actions">
+          <button type="button" className="secondary" onClick={onClose}>Fermer</button>
+          <button type="button" className="secondary" onClick={onReset}>Réinitialiser</button>
+          <button type="button" onClick={onStart}>Commencer</button>
+        </div>
       </div>
-      <div className="cai-grid3" style={{gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))"}}>
-        {MENTAL_CONTENT.exercises.filter(e=>e.category===cat).map(ex=>{
-          const done=m.doneEx.includes(ex.id);
-          return(
-            <div key={ex.id} className="cai-card" style={{margin:0}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                <span style={{fontSize:11.5,fontWeight:700,color:"#fff"}}>{ex.title}</span>
-                {done&&<span style={{fontSize:9,color:T.green,fontWeight:700}}>✓</span>}
-              </div>
-              <div style={{display:"flex",gap:6,marginBottom:7}}>
-                <span className="cai-pill" style={{background:"rgba(31,139,255,.1)",color:"#7FB8FF"}}>⏱ {ex.duration}min</span>
-                <span className="cai-pill" style={{background:"rgba(255,194,71,.1)",color:T.gold}}>+{ex.xp} XP</span>
-              </div>
-              <div style={{fontSize:10,color:T.text3,fontFamily:T.stats,lineHeight:1.5,marginBottom:8}}>{ex.goal}</div>
-              {open===ex.id&&(
-                <ol style={{margin:"0 0 8px",paddingLeft:16,fontSize:10,color:T.text2,fontFamily:T.stats,lineHeight:1.6}}>
-                  {ex.instructions.map((s,i)=><li key={i} style={{marginBottom:3}}>{s}</li>)}
-                </ol>
-              )}
-              <div style={{display:"flex",gap:6}}>
-                <button className="cai-btn cai-btn-ghost" style={{fontSize:9}} onClick={()=>setOpen(open===ex.id?null:ex.id)}>{open===ex.id?"Masquer":"Voir"}</button>
-                <button className="cai-btn" style={{fontSize:9,opacity:done?.6:1}} onClick={()=>onComplete(ex)}>{done?"✓ Fait":"Commencer"}</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </>
+    </div>
   );
+}
+
+function ExerciseRunner({exercise,step,setStep,paused,setPaused,remaining,before,setBefore,after,setAfter,interactive,setInteractive,onClose,onComplete}){
+  const total=exercise.steps.length;
+  const pct=Math.round((step+1)/total*100);
+  return(
+    <div className="mgx-ex-runner" role="dialog" aria-modal="true" aria-label={`Exercice guidé ${exercise.title}`}>
+      <div className="mgx-ex-runner-card" style={{"--ex-color":exercise.color}}>
+        <div className="mgx-ex-runner-head">
+          <div><span>{exercise.icon}</span><strong>{exercise.title}</strong><small>{exercise.category} · {exercise.mode==="interactive"?"mode interactif":"mode guidé"}</small></div>
+          <button type="button" onClick={onClose}>Quitter</button>
+        </div>
+        <div className="mgx-ex-runner-body">
+          <aside>
+            <strong>{formatTimer(remaining)}</strong>
+            <span>Timer</span>
+            <div className="mgx-ex-runner-ring"><i style={{height:`${pct}%`}}/></div>
+            <button type="button" onClick={()=>setPaused(!paused)}>{paused?"Reprendre":"Pause"}</button>
+          </aside>
+          <main>
+            <div className="mgx-ex-step-label">Étape {step+1}/{total}</div>
+            <h3>{exercise.steps[step]}</h3>
+            <ExerciseInteractivePanel exercise={exercise} data={interactive} setData={setInteractive}/>
+            <div className="mgx-ex-feelings">
+              <label>Ressenti avant <b>{before}/10</b><input type="range" min="0" max="10" value={before} onChange={e=>setBefore(+e.target.value)}/></label>
+              <label>Ressenti après <b>{after}/10</b><input type="range" min="0" max="10" value={after} onChange={e=>setAfter(+e.target.value)}/></label>
+            </div>
+            <div className="mgx-ex-runner-actions">
+              <button type="button" className="secondary" disabled={step===0} onClick={()=>setStep(Math.max(0,step-1))}>Précédent</button>
+              <button type="button" className="secondary" disabled={step===total-1} onClick={()=>setStep(Math.min(total-1,step+1))}>Étape suivante</button>
+              <button type="button" onClick={onComplete}>Terminer l’exercice</button>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExerciseInteractivePanel({exercise,data,setData}){
+  if(exercise.interactive==="bad-beat-simulator"){
+    const options=["colère","injustice","frustration","envie de se refaire","calme"];
+    return <div className="mgx-ex-interactive"><strong>AA vs 72o : Hero perd river.</strong><p>Que ressens-tu ?</p><div>{options.map(item=><button type="button" key={item} className={data.feeling===item?"active":""} onClick={()=>setData({...data,feeling:item})}>{item}</button>)}</div>{data.feeling&&<small>{data.feeling==="calme"?"Très bon signal : continue en décision par décision.":"Recommandation : pause 3 minutes + Reset après bad beat avant de reprendre."}</small>}</div>;
+  }
+  if(exercise.interactive==="tilt-check"){
+    const checks=["Je joue plus vite que d’habitude","Je veux récupérer mes pertes","Je me sens injustement puni","Je prends des spots que je n’aurais pas pris à froid"];
+    const yes=Object.values(data).filter(Boolean).length;
+    const score=yes*25;
+    return <div className="mgx-ex-interactive"><strong>Tilt score : {score}/100</strong>{checks.map((item,i)=><label key={item}><input type="checkbox" checked={!!data[i]} onChange={e=>setData({...data,[i]:e.target.checked})}/>{item}</label>)}{score>70&&<small>Pause obligatoire recommandée. Ne relance pas de session maintenant.</small>}</div>;
+  }
+  if(exercise.interactive==="abc-detector"){
+    const qs=["Je suis patient","Je reconstruis les ranges","Je respecte mon plan","Je ressens de l’urgence","Je clique par habitude","Je reste calme après perte","Je peux encore étudier un spot","Je suis fatigué"];
+    const score=qs.reduce((acc,_,i)=>acc+(data[i]?1:0),0);
+    const state=score>=6?"A-game":score>=3?"B-game":"C-game";
+    return <div className="mgx-ex-interactive"><strong>État estimé : {state}</strong>{qs.map((item,i)=><label key={item}><input type="checkbox" checked={!!data[i]} onChange={e=>setData({...data,[i]:e.target.checked})}/>{item}</label>)}{state==="C-game"&&<small>C-game détecté : recommandation = pause ou arrêt, pas volume.</small>}</div>;
+  }
+  if(exercise.interactive==="variance-trainer"){
+    const items=["Décision correcte malgré résultat négatif","Résultat négatif accepté","Aucune envie de se refaire"];
+    return <div className="mgx-ex-interactive"><strong>Série : 5 bons spots perdus.</strong>{items.map((item,i)=><label key={item}><input type="checkbox" checked={!!data[i]} onChange={e=>setData({...data,[i]:e.target.checked})}/>{item}</label>)}</div>;
+  }
+  if(exercise.interactive==="pressure-timer"){
+    const started=data.startedAt||null;
+    const elapsed=started?Math.round((Date.now()-started)/100)/10:null;
+    return <div className="mgx-ex-interactive"><strong>Respire avant de cliquer.</strong><button type="button" onClick={()=>setData({startedAt:Date.now()})}>Démarrer pression</button>{started&&<button type="button" onClick={()=>setData({...data,elapsed})}>Je décide maintenant</button>}{data.elapsed&&<small>Temps de réponse : {data.elapsed}s. Objectif : ralentir sans paniquer.</small>}</div>;
+  }
+  return <p className="mgx-ex-muted">Mode guidé : suis l’étape active, respire, puis passe à l’étape suivante.</p>;
 }
 
 /* ── Méditations / audio ── */
@@ -740,7 +1235,8 @@ function MentalWarmup({m,setM,addXp,onGoTrainer}){
 }
 
 /* ── Post Session Review ── */
-function MentalPostSession({m,setM,addXp}){
+const POST_LEAK_MED={"Tilt control":"tilt-badbeat","Spew émotionnel":"tilt-revenge","Décisions émotionnelles":"focus-5min","Discipline (quitter au bon moment)":"post-discharge"};
+function MentalPostSession({m,setM,addXp,onMeditate}){
   const Q=[["plan","Ai-je respecté mon plan ?"],["tilt","Ai-je tilté ?"],["agame","Ai-je joué mon A-Game ?"],["spew","Ai-je spew ?"],["quit","Ai-je quitté au bon moment ?"],["emo","Ai-je pris une décision émotionnelle ?"]];
   const[ans,setAns]=useState({});
   const[best,setBest]=useState("");const[err,setErr]=useState("");const[saved,setSaved]=useState(null);
@@ -782,6 +1278,12 @@ function MentalPostSession({m,setM,addXp}){
             {saved.score>=75?"Belle session, mentalement solide. ":"Session à consolider mentalement. "}
             Mission pour demain : {saved.leak.includes("Tilt")?"5 min de respiration avant de jouer + stop-loss strict.":saved.leak.includes("Spew")?"recentrage EV après chaque erreur.":saved.leak.includes("Discipline")?"définir et respecter un stop-loss.":"noter 3 bonnes décisions."}
           </div>
+          {onMeditate&&(saved.score<75||ans.tilt||ans.spew||ans.emo)&&(
+            <button className="cai-btn" style={{marginTop:12,width:"100%",background:"linear-gradient(135deg,#1F8BFF,#7c3cff)"}}
+              onClick={()=>onMeditate(POST_LEAK_MED[saved.leak]||"post-discharge")}>
+              🧘 Décompresser maintenant — méditation adaptée à ton leak du jour
+            </button>
+          )}
         </div>
       )}
     </>
