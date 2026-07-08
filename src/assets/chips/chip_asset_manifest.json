@@ -1,0 +1,27 @@
+{
+  "chipThemes": [
+    "classic_casino",
+    "premium_casino",
+    "poker_online",
+    "neon_modern",
+    "vip_gold"
+  ],
+  "denominations": [
+    "0.5bb",
+    "1bb",
+    "2.5bb",
+    "3bb",
+    "4bb",
+    "5bb",
+    "25bb",
+    "100bb"
+  ],
+  "responsiveScale": {
+    "1T": 1.0,
+    "2T": 0.78,
+    "3T": 0.64,
+    "4T": 0.52
+  },
+  "safeZones": "Use table-specific bet anchors. Chip stacks must never overlap cards, avatars, action buttons, pot label, board or other bet blocks.",
+  "doNotModify": "Training logic, betting amounts, spot engine, actions and calculations."
+}

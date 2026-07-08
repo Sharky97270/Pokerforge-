@@ -26,6 +26,7 @@ import {
   createTrainingSpotFromHand,
   describeCoachSpot,
 } from "./src/spotAiEngine.js";
+import { CSS } from "./src/styles.js";
 
 function callTransition({ spot, ctx, state = {}, autoFull = false }) {
   return resolveTrainerRoundState({
@@ -185,33 +186,52 @@ function callTransition({ spot, ctx, state = {}, autoFull = false }) {
     if (seat.x >= 82) return { x: seat.x + 6, y: seat.y - 4 };
     return { x: seat.x, y: seat.y - 6 };
   };
-  const trainingModes = ["spot", "street", "mix", "full", "session"];
+  const trainingModes = ["spot", "street", "full", "session", "mix"];
+  const trainerStrategies = ["gto", "exploit"];
+  const sessionLengths = ["sprint", "standard", "marathon", "unlimited"];
+  const heroPositions = ["UTG", "HJ", "CO", "BTN", "SB", "BB"];
+  const railScore = (seat, geom) => {
+    const centerX = (geom.left + (100 - geom.right)) / 2;
+    const centerY = (geom.top + (100 - geom.bottom)) / 2;
+    const radiusX = (100 - geom.left - geom.right) / 2;
+    const radiusY = (100 - geom.top - geom.bottom) / 2;
+    return ((seat.x - centerX) / radiusX) ** 2 + ((seat.y - centerY) / radiusY) ** 2;
+  };
 
   for (const trainingMode of trainingModes) {
-    for (const mode of [1, 2, 3, 4]) {
+    for (const trainerStrategy of trainerStrategies) {
+      for (const sessionLength of sessionLengths) {
+        for (const mode of [1, 2, 3, 4]) {
+      const qaMode = `${trainingMode}/${trainerStrategy}/${sessionLength}/${mode}T`;
       const cfg = getTrainerVisualLayoutConfig(mode);
       const geom = trainerTableGeometry(mode);
       const boardPt = trainerBoardPosition(mode);
       const preflopPot = trainerPotPosition(mode, false);
       const postflopPot = trainerPotPosition(mode, true);
-      assert.ok(Math.abs(geom.left - geom.right) <= 2, `${trainingMode}/${mode}T table geometry must be symmetrical enough for the maquette oval`);
-      assert.ok(geom.top >= 8 && geom.bottom >= 10, `${trainingMode}/${mode}T felt must keep premium vertical breathing room`);
-      assert.deepEqual(boardPt, { x: 50, y: 54 }, `${trainingMode}/${mode}T board must stay centered below the pot`);
-      assert.deepEqual(preflopPot, { x: 50, y: 50 }, `${trainingMode}/${mode}T preflop pot must stay centered`);
-      assert.deepEqual(postflopPot, { x: 50, y: 29 }, `${trainingMode}/${mode}T postflop pot must sit above the board`);
-      assert.ok(cfg.seatPositions.HJ.x < 50, `${trainingMode}/${mode}T HJ must stay left of center`);
-      assert.ok(cfg.seatPositions.CO.x > 50, `${trainingMode}/${mode}T CO must stay right of center`);
-      assert.ok(cfg.anchorOverrides.BB.blindAnchor.y >= cfg.seatPositions.BB.y - 10, `${trainingMode}/${mode}T BB blind must stay near BB seat`);
-      assert.ok(cfg.anchorOverrides.SB.blindAnchor.y >= cfg.seatPositions.SB.y - 10, `${trainingMode}/${mode}T SB blind must stay near SB seat`);
+      assert.ok(Math.abs(geom.left - geom.right) <= 2, `${qaMode} table geometry must be symmetrical enough for the maquette oval`);
+      assert.ok(geom.top >= 8 && geom.bottom >= 10, `${qaMode} felt must keep premium vertical breathing room`);
+      assert.deepEqual(boardPt, { x: 50, y: 54 }, `${qaMode} board must stay centered below the pot`);
+      assert.deepEqual(preflopPot, { x: 50, y: 50 }, `${qaMode} preflop pot must stay centered`);
+      assert.deepEqual(postflopPot, { x: 50, y: 29 }, `${qaMode} postflop pot must sit above the board`);
+      assert.ok(cfg.seatPositions.HJ.x < 50, `${qaMode} HJ must stay left of center`);
+      assert.ok(cfg.seatPositions.CO.x > 50, `${qaMode} CO must stay right of center`);
+      assert.ok(cfg.anchorOverrides.BB.blindAnchor.y >= cfg.seatPositions.BB.y - 10, `${qaMode} BB blind must stay near BB seat`);
+      assert.ok(cfg.anchorOverrides.SB.blindAnchor.y >= cfg.seatPositions.SB.y - 10, `${qaMode} SB blind must stay near SB seat`);
       for (const [pos, seat] of Object.entries(cfg.seatPositions)) {
-        assert.ok(seat.x >= geom.left && seat.x <= 100 - geom.right, `${trainingMode}/${mode}T ${pos} seat must sit inside felt horizontal bounds`);
-        assert.ok(seat.y >= geom.top && seat.y <= 100 - geom.bottom, `${trainingMode}/${mode}T ${pos} seat must sit inside felt vertical bounds`);
+        const score = railScore(seat, geom);
+        assert.ok(seat.x >= geom.left && seat.x <= 100 - geom.right, `${qaMode} ${pos} seat must stay within horizontal table bounds`);
+        assert.ok(seat.y >= geom.top && seat.y <= 100 - geom.bottom, `${qaMode} ${pos} seat must stay within vertical table bounds`);
+        assert.ok(score >= 0.72 && score <= 1.08, `${qaMode} ${pos} seat must remain anchored to the outer golden rail (score ${score.toFixed(2)})`);
       }
-      for (const pos of ["HJ", "CO", "BTN", "SB", "BB", "UTG"]) {
+      for (const pos of heroPositions) {
+        const seat = cfg.seatPositions[pos];
+        const cards = cardAnchorFor(seat);
         const betAnchor = cfg.anchorOverrides[pos]?.betAnchor;
         const postflopBetAnchor = cfg.anchorOverrides[pos]?.postflopBetAnchor || betAnchor;
-        if (betAnchor) assert.equal(inside(betAnchor, boardZone), false, `${trainingMode}/${mode}T ${pos} bet anchor must avoid board zone`);
-        if (postflopBetAnchor) assert.equal(inside(postflopBetAnchor, boardZone), false, `${trainingMode}/${mode}T ${pos} postflop bet anchor must avoid board zone`);
+        assert.ok(dist(cards, seat) >= 7, `${qaMode} Hero ${pos} cards must remain separated from the avatar anchor`);
+        if (pos === "BB" || pos === "SB") assert.ok(seat.y <= 79, `${qaMode} Hero ${pos} must keep bottom-band clearance`);
+        if (betAnchor) assert.equal(inside(betAnchor, boardZone), false, `${qaMode} ${pos} bet anchor must avoid board zone`);
+        if (postflopBetAnchor) assert.equal(inside(postflopBetAnchor, boardZone), false, `${qaMode} ${pos} postflop bet anchor must avoid board zone`);
       }
       for (const pos of ["BB", "SB"]) {
         const seat = cfg.seatPositions[pos];
@@ -220,13 +240,28 @@ function callTransition({ spot, ctx, state = {}, autoFull = false }) {
         const preflopBet = cfg.anchorOverrides[pos].preflopBetAnchor || cfg.anchorOverrides[pos].betAnchor;
         const postflopBet = cfg.anchorOverrides[pos].postflopBetAnchor || cfg.anchorOverrides[pos].betAnchor;
         for (const [slotName, bet] of [["preflop", preflopBet], ["postflop", postflopBet]]) {
-          assert.ok(dist(bet, blind) >= 10, `${trainingMode}/${mode}T ${pos} ${slotName} bet must not touch blind`);
-          assert.ok(dist(bet, cards) >= 12, `${trainingMode}/${mode}T ${pos} ${slotName} bet must not touch cards`);
-          assert.ok(dist(bet, seat) >= 10, `${trainingMode}/${mode}T ${pos} ${slotName} bet must not touch avatar seat`);
+          assert.ok(dist(bet, blind) >= 10, `${qaMode} ${pos} ${slotName} bet must not touch blind`);
+          assert.ok(dist(bet, cards) >= 12, `${qaMode} ${pos} ${slotName} bet must not touch cards`);
+          assert.ok(dist(bet, seat) >= 10, `${qaMode} ${pos} ${slotName} bet must not touch avatar seat`);
+        }
+      }
         }
       }
     }
   }
+
+  const mobileCfg = getTrainerVisualLayoutConfig(1, "mobile");
+  for (const heroPos of heroPositions) {
+    const score = railScore(mobileCfg.seatPositions[heroPos], mobileCfg.tableGeometry);
+    assert.ok(score >= 0.72 && score <= 1.08, `mobile/1T Hero ${heroPos} must remain anchored to the outer golden rail`);
+  }
+
+  const commandDockRule = CSS.match(/\.pf-trainer-command-dock\{([^}]*)\}/)?.[1] || "";
+  assert.match(commandDockRule, /position:relative/, "1T command dock must participate in layout flow instead of overlaying the table");
+  assert.match(commandDockRule, /height:54px/, "1T command dock must keep its compact premium height");
+  assert.match(commandDockRule, /margin:8px 0 8px 14px/, "1T command dock must preserve a safety gap from the table");
+  assert.match(CSS, /\.grid1>\.mt-slot\{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;\}/, "1T table slot must shrink above the command dock without overlap");
+  assert.match(CSS, /\.t1-left \.felt-oval\{top:3%!important;left:2\.5%!important;right:2\.5%!important;bottom:6%!important;\}/, "mobile 1T felt must keep bottom safety clearance");
 
   assert.equal(trainerChipValueBand(0.5), "forced");
   assert.equal(trainerChipValueBand(4.5), "small");

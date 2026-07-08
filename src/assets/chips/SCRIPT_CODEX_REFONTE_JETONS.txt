@@ -1,0 +1,89 @@
+SCRIPT CODEX — REFONTE TOTALE DES JETONS POKERFORGE
+
+OBJECTIF
+Remplacer entièrement le modèle actuel de jetons PokerForge par un nouveau système graphique premium, style casino / poker en ligne, sans toucher au fonctionnement du trainer.
+
+LIVRABLES FOURNIS DANS CE PACK
+- png/ : jetons prêts à intégrer en PNG transparent.
+- svg/ : modèles vectoriels modifiables.
+- gif/ : animations de mise / empilement.
+- chip_asset_manifest.json : configuration de base pour thèmes, valeurs et tailles responsive.
+
+RÈGLE IMPORTANTE
+Supprimer ou désactiver l'ancien modèle de jetons avant intégration afin d'éviter tout conflit visuel, doublon CSS, cache d'asset ou superposition entre anciens et nouveaux jetons.
+
+INTÉGRATION
+1. Créer un dossier assets/chips/pokerforge-v2/.
+2. Copier les dossiers png, svg et gif.
+3. Remplacer toutes les références aux anciens jetons par le nouveau système.
+4. Conserver strictement les montants calculés par le moteur existant.
+5. Ne pas modifier la logique des actions, sizings, spots, historique ou solution.
+6. La refonte concerne uniquement la présentation.
+
+THÈMES À AJOUTER DANS LES PARAMÈTRES EN BAS À GAUCHE
+- Classic Casino
+- Premium Casino
+- Poker Online
+- Neon Modern
+- VIP Gold
+
+PERSONNALISATION
+Ajouter dans les paramètres :
+- choix du style de jetons,
+- couleur principale modifiable,
+- couleur secondaire modifiable,
+- aperçu temps réel,
+- retour au thème par défaut.
+
+ADAPTATION TRAINER 1T / 2T / 3T / 4T
+Les jetons doivent automatiquement s'adapter à la taille des tables :
+- 1T : taille normale, détail maximal.
+- 2T : réduction contrôlée, lisibilité conservée.
+- 3T : stacks simplifiés, pas de surcharge.
+- 4T : taille compacte, priorité à la lisibilité des montants.
+
+Aucun chevauchement autorisé avec :
+- cartes Hero,
+- cartes board,
+- avatars,
+- noms de positions,
+- bouton dealer,
+- boutons d'action,
+- pot central,
+- blocs de mise,
+- historique.
+
+COHÉRENCE AVEC LES MISES
+Chaque stack affiché doit correspondre exactement au montant annoncé.
+Exemples :
+- 0.5bb = petit jeton SB.
+- 1bb = BB.
+- 2.5bb = open raise.
+- 3bb = sizing raise.
+- 4bb = sizing raise.
+- 25bb / 100bb = gros stack ou all-in.
+
+TESTS OBLIGATOIRES
+Tester toutes les configurations :
+- Trainer 1T
+- Trainer 2T
+- Trainer 3T
+- Trainer 4T
+- Desktop
+- Mobile
+- Préflop / flop / turn / river
+- Pot central
+- Mises SB / BB
+- Open raise
+- Call
+- 3bet
+- All-in
+
+VALIDATION
+La refonte est validée uniquement si :
+- les nouveaux jetons remplacent totalement les anciens,
+- les thèmes sont modifiables depuis les paramètres,
+- les proportions sont correctes sur 1T/2T/3T/4T,
+- aucun chevauchement n'est visible,
+- les montants affichés restent cohérents,
+- le fonctionnement du trainer reste inchangé.

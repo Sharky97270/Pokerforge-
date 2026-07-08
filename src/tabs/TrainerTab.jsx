@@ -2344,7 +2344,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="blue",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire"}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire"}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -3699,14 +3699,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               return hasBoard?(
                 /* Pot compact au-dessus du board */
                 <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                  <TrainingPotStack value={potVal} compact/>
+                  <TrainingPotStack value={potVal} compact themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
                 </div>
               ):(
                 /* Pot centré quand pas de board */
                 <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                  <TrainingPotStack value={potVal}/>
+                  <TrainingPotStack value={potVal} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
                 </div>
@@ -3961,6 +3961,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   compact={false}
                   kind={isH?"hero":seatMultiway?"multiway":"villain"}
                   themeKey={chipTheme}
+                  colorKey={chipColor}
+                  sizeMode={chipSizeMode}
+                  tableMode={1}
                 />
 
               </React.Fragment>
@@ -3972,7 +3975,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const p=resolveTrainerBlindPoint(trainingLayout,bp);
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-                <BlindChipStack amount={postedBlinds[bp]} label={bp}/>
+                <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
               </div>
             );
           })}
@@ -4321,13 +4324,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
                   <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact/>
+                    <TrainingPotStack value={mainPotBb} compact themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 ):(
                   <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact={numTables>=2}/>
+                    <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
@@ -4375,7 +4378,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const by=y+(50-y)*bp;
           return(
             <div key={`blind-mt-${pos}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3}/>
+              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
             </div>
           );
         })}
@@ -4526,6 +4529,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               compact={numTables>=3}
               kind={isH?"hero":seatMultiway?"multiway":"villain"}
               themeKey={chipTheme}
+              colorKey={chipColor}
+              sizeMode={chipSizeMode}
+              tableMode={numTables}
             />
             </React.Fragment>
           );
@@ -5274,7 +5280,7 @@ const TRAIN_MODES=[
   {id:"mix",    l:"Mix",       ic:"🔀", col:"#FF8A3D", desc:"Mélange Spot · Street · Full Hand."},
 ];
 const TRAIN_STREETS=["Flop","Turn","River"];
-export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="blue",seed=null,onSeedApplied}){
+export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",seed=null,onSeedApplied}){
   const[f,setF]=useState(()=>{
     try{const s=JSON.parse(localStorage.getItem("pf_trainer_cfg")||"null");return s?{...TRAINER_CFG_DEFAULT,...s}:TRAINER_CFG_DEFAULT;}
     catch{return TRAINER_CFG_DEFAULT;}
@@ -6263,7 +6269,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="bl
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);

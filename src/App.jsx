@@ -1,7 +1,7 @@
 import { CSS, CSS_TABLE } from "./styles.js";
 import { CARD_DECKS, getSuitStyle, getActiveDeck, setActiveDeckKey } from "./components/table/deck.js";
 import { Card, CardBack, HeroHoleCards, VillainBackCards, CardFlip, MiniCard } from "./components/table/Cards.jsx";
-import { BlindChipStack, TrainingPotStack, SeatActionZone, PlayerSeat, CHIP_THEMES } from "./components/table/Chips.jsx";
+import { BlindChipStack, TrainingPotStack, SeatActionZone, PlayerSeat, ChipThemeSelector } from "./components/table/Chips.jsx";
 import { roundBb, shuffle } from "./utils/format.js";
 import { trainerAvatarKey, trainerSeatAvatarProfile, PlayerAvatarPremium } from "./components/table/Avatars.jsx";
 import { T } from "./theme.js";
@@ -192,7 +192,7 @@ function CloudSyncPanel(){
 const btnPrim={padding:"8px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:10.5,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",background:"linear-gradient(90deg,#1F8BFF,#3D6BFF)",color:"#fff"};
 const btnGhost={padding:"8px 14px",borderRadius:8,cursor:"pointer",fontSize:10.5,fontWeight:700,fontFamily:"'Space Grotesk',sans-serif",background:"rgba(255,255,255,.04)",border:"1px solid #1A3A80",color:"#C9D4E8"};
 
-function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme,onOpenLegal}){
+function SettingsPanel({deckType,setDeckType,chipTheme="neon_modern",setChipTheme,chipColor="blue",setChipColor,chipSizeMode="auto",setChipSizeMode,onOpenLegal}){
   const[saved,setSaved]=useState(false);
   // ── Accessibilité & mobile ──
   const[a11y,setA11y]=useState(()=>{
@@ -278,28 +278,15 @@ function SettingsPanel({deckType,setDeckType,chipTheme="blue",setChipTheme,onOpe
 
       {/* Section jetons */}
       <div className="settings-section">
-        <div className="settings-section-title">🪙 Thème des jetons</div>
-        <div style={{fontSize:10.5,color:"#9FB0CC",fontFamily:"'Inter',sans-serif",marginBottom:14,lineHeight:1.6}}>
-          Style visuel des jetons sur la table du Trainer. Sélectionné globalement.
-        </div>
-        <div className="chip-theme-grid">
-          {Object.values(CHIP_THEMES).map(theme=>{
-            const isActive=chipTheme===theme.id;
-            return(
-              <div key={theme.id} className={`chip-theme-card${isActive?" active":""}`} onClick={()=>setChipTheme&&setChipTheme(theme.id)}>
-                {/* Preview chip stack */}
-                <div style={{display:"flex",justifyContent:"center",gap:3,alignItems:"flex-end",marginBottom:8,filter:`drop-shadow(0 2px 6px ${theme.glow})`}}>
-                  {theme.cols.slice(0,4).map((c,i)=>(
-                    <div key={i} style={{width:14,height:6,borderRadius:"50%",background:c,border:`1px solid ${theme.edge}`,transform:`translateY(${i*-3}px)`,boxShadow:`0 1px 4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.2)`}}/>
-                  ))}
-                </div>
-                <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:10,fontWeight:700,color:isActive?"#E8F0FF":"#9FB0CC",marginBottom:2}}>{theme.name}</div>
-                <div style={{fontFamily:"'Inter',sans-serif",fontSize:8.5,color:"#6F81A8"}}>{theme.desc}</div>
-                {isActive&&<div style={{marginTop:6,fontSize:9,color:"#1F8BFF",fontFamily:"'Inter',sans-serif",fontWeight:700}}>✓ Actif</div>}
-              </div>
-            );
-          })}
-        </div>
+        <div className="settings-section-title">🪙 Jetons du Trainer</div>
+        <ChipThemeSelector
+          chipTheme={chipTheme}
+          chipColor={chipColor}
+          chipSizeMode={chipSizeMode}
+          onThemeChange={setChipTheme}
+          onColorChange={setChipColor}
+          onSizeModeChange={setChipSizeMode}
+        />
       </div>
 
       {/* ── Accessibilité & Mobile ── */}
@@ -939,7 +926,12 @@ export default function App(){
   const setTab=next=>{setTabState(next);localStorage.setItem("pf_active_tab",next);};
   const[unit,setUnit]=useState("BB");
   const[deckType,setDeckType]=useState(()=>localStorage.getItem("pf_deck")||"modern");
-  const[chipTheme,setChipTheme]=useState(()=>localStorage.getItem("pf_chip_theme")||"blue");
+  const[chipTheme,setChipTheme]=useState(()=>{
+    const saved=localStorage.getItem("pf_chip_theme")||"neon_modern";
+    return saved==="blue"?"neon_modern":saved==="gold"?"vip_gold":saved==="titan"?"premium_casino":saved;
+  });
+  const[chipColor,setChipColor]=useState(()=>localStorage.getItem("pf_chip_color")||"blue");
+  const[chipSizeMode,setChipSizeMode]=useState(()=>localStorage.getItem("pf_chip_size_mode")||"auto");
   const[hovNav,setHovNav]=useState(null); // hover state pour nav
   const[coachJump,setCoachJump]=useState(null);
   const[solverScenario,setSolverScenario]=useState(null);
@@ -1263,14 +1255,14 @@ export default function App(){
             flexDirection:isTrainer?"row":"column",
             overflowY:isFullHeightTool?"hidden":"auto",
           }}>
-          {tab==="trainer"   && <TrainerTab unit={unit} onGoSolver={(params)=>{setSolverScenario(buildScenarioFromTrainerParams(params));setTab("solver");}} chipTheme={chipTheme} seed={trainerSeed} onSeedApplied={()=>setTrainerSeed(null)}/>}
+          {tab==="trainer"   && <TrainerTab unit={unit} onGoSolver={(params)=>{setSolverScenario(buildScenarioFromTrainerParams(params));setTab("solver");}} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} seed={trainerSeed} onSeedApplied={()=>setTrainerSeed(null)}/>}
           {tab==="solver"    && <SharkSolverTab initialScenario={solverScenario} onInitialApplied={()=>setSolverScenario(null)} onGoTrainer={(seed)=>{setTrainerSeed(seed?{...seed,hpos:seed.hpos||seed.heroPos,vpos:seed.vpos||seed.vsPos}:null);setTab("trainer");}} onGoReplayer={()=>{setReplayerTabSeed("solver");setTab("replayer");}}/>}
           {tab==="dash"      && <DashboardTab NavIcon={NavIcon} onGoTrainer={()=>setTab("trainer")} onGoReplayer={()=>setTab("replayer")} onPrepareEvent={handlePrepareEvent} onGoSolver={()=>{setReplayerTabSeed("ranges");setTab("replayer");}} onGoCoach={()=>setTab("coach")} onGoHands={()=>setTab("pratique")}/>}
           {tab==="library"   && <LibraryTab RangeGrid={RangeGrid} RangePopup={RangePopup}/>}
           {tab==="pratique"  && <PracticedHands/>}
           {tab==="replayer"  && <ReplayerTab unit={unit} onGoTrainer={(seed)=>{setTrainerSeed(seed||null);setTab("trainer");}} onGoCoach={(raw)=>{setCoachSeed(raw);setTab("coach");}} initialText={replayerSeed} onInitialApplied={()=>setReplayerSeed(null)} initialTab={replayerTabSeed} onInitialTabApplied={()=>setReplayerTabSeed("replay")}/>}
           {tab==="coach"     && <CoachAITab NavIcon={NavIcon} CoachTab={CoachTab} unit={unit} onGoTrainer={(seed)=>{setTrainerSeed(seed||null);setTab("trainer");}} onGoReplayer={(raw)=>{setReplayerSeed(raw);setTab("replayer");}} seed={coachSeed} onSeedApplied={()=>setCoachSeed(null)} jumpTo={coachJump} onJumped={()=>setCoachJump(null)}/>}
-          {tab==="settings"  && <SettingsPanel deckType={deckType} setDeckType={(id)=>{setDeckType(id);setActiveDeckKey(id);}} chipTheme={chipTheme} setChipTheme={(id)=>{setChipTheme(id);ACTIVE_CHIP_THEME=id;localStorage.setItem("pf_chip_theme",id);}} onOpenLegal={setLegalOpen}/>}
+          {tab==="settings"  && <SettingsPanel deckType={deckType} setDeckType={(id)=>{setDeckType(id);setActiveDeckKey(id);}} chipTheme={chipTheme} setChipTheme={(id)=>{setChipTheme(id);ACTIVE_CHIP_THEME=id;localStorage.setItem("pf_chip_theme",id);}} chipColor={chipColor} setChipColor={(id)=>{setChipColor(id);localStorage.setItem("pf_chip_color",id);}} chipSizeMode={chipSizeMode} setChipSizeMode={(id)=>{setChipSizeMode(id);localStorage.setItem("pf_chip_size_mode",id);}} onOpenLegal={setLegalOpen}/>}
           {tab==="admin"     && (
             !isAdmin
               ? <AdminForbidden onBack={()=>setTab("dash")}/>

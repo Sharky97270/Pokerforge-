@@ -1,0 +1,280 @@
+/* PokerForge chip system v2 — PNG assets + responsive stacks.
+   This file intentionally uses v2 classes to neutralize the legacy CSS chip renderer
+   without touching poker decisions, amounts, pot logic or trainer state. */
+
+:root{
+  --pf-chip-base-size:32px;
+  --pf-chip-stack-rise:4px;
+  --pf-chip-tilt:0deg;
+}
+
+body .pf-chip-stack.pf-chip-stack-v2{
+  position:relative!important;
+  display:inline-block!important;
+  isolation:isolate!important;
+  width:calc(var(--pf-chip-base-size) * var(--pf-chip-stack-scale,1) + 34px)!important;
+  height:calc(var(--pf-chip-base-size) * var(--pf-chip-stack-scale,1) + (var(--pf-chip-count,3) * var(--pf-chip-stack-rise)) + 4px)!important;
+  min-width:0!important;
+  filter:drop-shadow(0 8px 14px var(--pf-chip-glow,rgba(31,139,255,.44))) drop-shadow(0 3px 7px rgba(0,0,0,.84))!important;
+  transform:translateZ(0)!important;
+  transform-origin:center bottom!important;
+  pointer-events:none!important;
+}
+
+body .pf-chip-stack.pf-chip-stack-v2.pf-chip-large{--pf-chip-base-size:34px;--pf-chip-stack-rise:4.7px;}
+body .pf-chip-stack.pf-chip-stack-v2.pf-chip-medium{--pf-chip-base-size:27px;--pf-chip-stack-rise:3.8px;}
+body .pf-chip-stack.pf-chip-stack-v2.pf-chip-small{--pf-chip-base-size:21px;--pf-chip-stack-rise:3px;}
+
+body .pf-chip-stack.pf-chip-stack-v2[data-table-mode="2T"]{--pf-chip-stack-rise:3.3px;}
+body .pf-chip-stack.pf-chip-stack-v2[data-table-mode="3T"],
+body .pf-chip-stack.pf-chip-stack-v2[data-table-mode="4T"]{--pf-chip-stack-rise:2.5px;}
+
+body .pf-chip-token{
+  position:absolute!important;
+  left:calc(50% - (var(--pf-chip-base-size) * var(--pf-chip-scale,1)) / 2 + ((var(--pf-chip-i,0) - 2) * 2.4px))!important;
+  bottom:calc(var(--pf-chip-i,0) * var(--pf-chip-stack-rise))!important;
+  width:calc(var(--pf-chip-base-size) * var(--pf-chip-scale,1))!important;
+  height:calc(var(--pf-chip-base-size) * var(--pf-chip-scale,1))!important;
+  display:block!important;
+  border-radius:50%!important;
+  font-style:normal!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  transform:rotate(calc((var(--pf-chip-i,0) - 2) * 3deg)) translateZ(0)!important;
+  will-change:transform!important;
+  overflow:visible!important;
+}
+
+body .pf-chip-token-img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  object-fit:contain!important;
+  user-select:none!important;
+  pointer-events:none!important;
+  filter:saturate(1.08) contrast(1.06) brightness(1.04)!important;
+}
+
+body .pf-chip-token-fallback{
+  width:100%!important;
+  height:100%!important;
+  border-radius:50%!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  color:var(--pf-chip-text,#fff)!important;
+  font-family:'JetBrains Mono',monospace!important;
+  font-size:calc(9px * var(--pf-chip-scale,1))!important;
+  font-weight:900!important;
+  background:
+    radial-gradient(circle at 35% 22%,rgba(255,255,255,.62),transparent 31%),
+    conic-gradient(from 18deg,var(--pf-chip-accent) 0 18deg,transparent 18deg 43deg,var(--pf-chip-edge) 43deg 58deg,transparent 58deg 105deg,var(--pf-chip-accent) 105deg 124deg,transparent 124deg 360deg),
+    linear-gradient(145deg,var(--pf-chip-primary),#061326 84%)!important;
+  border:2px solid var(--pf-chip-edge,#dce8ff)!important;
+  box-shadow:inset 0 -5px 7px rgba(0,0,0,.64),inset 0 2px 4px rgba(255,255,255,.24),0 4px 10px rgba(0,0,0,.68)!important;
+}
+
+body .pf-chip-stack.pf-chip-stack-v2.is-danger{
+  filter:drop-shadow(0 0 18px rgba(255,69,96,.56)) drop-shadow(0 7px 13px rgba(0,0,0,.82))!important;
+  animation:pfChipAllInPulse 1.15s ease-in-out infinite!important;
+}
+body .pf-chip-stack.pf-chip-stack-v2.is-pot{filter:drop-shadow(0 8px 14px rgba(31,139,255,.35)) drop-shadow(0 3px 7px rgba(0,0,0,.84))!important;}
+body .pf-chip-stack.pf-chip-stack-v2.is-blind{filter:drop-shadow(0 6px 11px rgba(231,236,243,.34)) drop-shadow(0 2px 5px rgba(0,0,0,.8))!important;}
+body .pf-chip-stack.pf-chip-stack-v2.is-multiway{filter:drop-shadow(0 8px 14px rgba(0,230,184,.42)) drop-shadow(0 3px 7px rgba(0,0,0,.84))!important;}
+
+body .pf-action-chip-badge.pf-chip-badge-v2{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:7px!important;
+  min-height:34px!important;
+  max-width:150px!important;
+  padding:5px 10px 6px!important;
+  border-radius:12px!important;
+  background:linear-gradient(180deg,rgba(3,11,29,.91),rgba(1,6,17,.82))!important;
+  border:1px solid rgba(31,139,255,.36)!important;
+  box-shadow:0 12px 24px rgba(0,0,0,.62),inset 0 1px 0 rgba(255,255,255,.11),0 0 18px rgba(31,139,255,.12)!important;
+  backdrop-filter:blur(8px)!important;
+  animation:pfChipBadgeIn .2s cubic-bezier(.22,1,.36,1)!important;
+}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-piles{
+  display:flex!important;
+  align-items:flex-end!important;
+  gap:0!important;
+  margin-right:-4px!important;
+  flex:0 0 auto!important;
+}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-piles>.pf-chip-stack-v2{margin-left:-17px!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-piles>.pf-chip-stack-v2:first-child{margin-left:0!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-piles.piles-1>.pf-chip-stack-v2{margin-left:0!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-copy{
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+  min-width:0!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-copy strong{
+  max-width:76px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  color:#dce8ff!important;
+  font-family:'Space Grotesk',sans-serif!important;
+  font-size:9px!important;
+  font-weight:900!important;
+  letter-spacing:.04em!important;
+}
+body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-copy em{
+  color:#fff!important;
+  font-family:'JetBrains Mono',monospace!important;
+  font-size:10px!important;
+  font-style:normal!important;
+  font-weight:900!important;
+  text-shadow:0 0 11px rgba(31,139,255,.55)!important;
+}
+body .pf-action-chip-badge.pf-chip-badge-v2.compact{
+  gap:4px!important;
+  min-height:25px!important;
+  max-width:112px!important;
+  padding:2px 6px 3px!important;
+  border-radius:8px!important;
+}
+body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-piles>.pf-chip-stack-v2{margin-left:-20px!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-copy strong{font-size:6.8px!important;max-width:52px!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-copy em{font-size:7.4px!important;}
+
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call{border-color:rgba(16,216,122,.4)!important;background:linear-gradient(180deg,rgba(2,24,14,.88),rgba(1,11,10,.78))!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call .pf-action-chip-copy strong,
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call .pf-action-chip-copy em{color:#10d87a!important;text-shadow:0 0 10px rgba(16,216,122,.54)!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-bet,
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-open{border-color:rgba(255,194,71,.42)!important;background:linear-gradient(180deg,rgba(32,18,2,.88),rgba(18,8,1,.78))!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-bet .pf-action-chip-copy strong,
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-open .pf-action-chip-copy strong{color:#ffc247!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-raise{border-color:rgba(31,139,255,.48)!important;background:linear-gradient(180deg,rgba(3,16,44,.9),rgba(1,7,23,.8))!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-raise .pf-action-chip-copy strong,
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-raise .pf-action-chip-copy em{color:#60b0ff!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin{border-color:rgba(255,69,96,.62)!important;background:linear-gradient(180deg,rgba(44,4,12,.92),rgba(20,2,7,.82))!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin .pf-action-chip-copy strong,
+body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin .pf-action-chip-copy em{color:#ff7090!important;}
+
+body .pf-pot-chip-stack.pf-pot-chip-stack-v2{
+  position:relative!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  width:auto!important;
+  height:47px!important;
+  margin:0 0 1px!important;
+  overflow:visible!important;
+  border-radius:0!important;
+}
+body .pf-pot-chip-stack.pf-pot-chip-stack-v2.compact{height:25px!important;margin-bottom:0!important;}
+body .pf-pot-chip-stack.pf-pot-chip-stack-v2>.pf-chip-stack-v2{margin:0 auto!important;}
+
+body .pf-blind-stack.pf-blind-stack-v2{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  gap:1px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  filter:drop-shadow(0 8px 12px rgba(0,0,0,.74))!important;
+}
+body .pf-blind-stack.pf-blind-stack-v2 strong{
+  margin-top:-3px!important;
+  color:#fff!important;
+  font-family:'JetBrains Mono',monospace!important;
+  font-size:11px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  text-shadow:0 2px 2px rgba(0,0,0,.86),0 0 12px rgba(0,191,255,.4)!important;
+}
+body .pf-blind-stack.pf-blind-stack-v2 em{
+  min-width:24px!important;
+  height:19px!important;
+  border-radius:999px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  color:#051126!important;
+  font-family:'Space Grotesk',sans-serif!important;
+  font-size:7px!important;
+  font-style:normal!important;
+  font-weight:900!important;
+  background:linear-gradient(145deg,#f7faff,#8da9d7)!important;
+  border:1px solid rgba(255,255,255,.48)!important;
+  box-shadow:0 5px 9px rgba(0,0,0,.56),inset 0 1px 0 #fff!important;
+}
+body .pf-blind-stack.pf-blind-stack-v2.compact{transform:scale(.82)!important;transform-origin:center!important;}
+
+.pf-chip-settings{display:flex;flex-direction:column;gap:14px;}
+.pf-chip-settings-head{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:13px 15px;border-radius:13px;
+  background:linear-gradient(135deg,rgba(31,139,255,.09),rgba(155,92,255,.06));
+  border:1px solid rgba(31,139,255,.24);
+}
+.pf-chip-settings-kicker{
+  color:#34d8ff;font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:900;
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px;
+}
+.pf-chip-settings-head p{margin:0;color:#9fb0cc;font-family:'Inter',sans-serif;font-size:10.5px;line-height:1.5;}
+.pf-chip-settings-live{display:flex;align-items:center;gap:9px;min-width:max-content;}
+.pf-chip-settings-live img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(31,139,255,.5));}
+.pf-chip-settings-live span{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:900;}
+.pf-chip-settings-live em{font-family:'JetBrains Mono',monospace;font-size:9px;font-style:normal;color:#8da9d7;}
+.pf-chip-section-label{
+  margin-top:2px;color:#8da9d7;font-family:'Space Grotesk',sans-serif;font-size:9.5px;font-weight:900;
+  letter-spacing:.12em;text-transform:uppercase;
+}
+.chip-theme-grid.chip-theme-grid-v2{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;gap:11px!important;}
+.chip-theme-card.chip-theme-card-v2{
+  appearance:none;text-align:left;cursor:pointer;position:relative;min-height:134px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  padding:12px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(3,13,31,.84),rgba(2,8,20,.9));
+  border:1px solid rgba(31,139,255,.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(0,0,0,.28);
+  color:#dce8ff;
+}
+.chip-theme-card.chip-theme-card-v2:hover{border-color:rgba(52,216,255,.48);transform:translateY(-1px);}
+.chip-theme-card.chip-theme-card-v2.active{border-color:#1f8bff;background:linear-gradient(180deg,rgba(31,139,255,.17),rgba(2,8,20,.92));box-shadow:0 0 22px rgba(31,139,255,.16),inset 0 1px 0 rgba(255,255,255,.1);}
+.chip-theme-preview-v2{width:46px;height:40px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;}
+.chip-theme-preview-v2 img{width:38px;height:38px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(31,139,255,.42));}
+.chip-theme-card-v2 strong{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:900;color:#f2f6ff;}
+.chip-theme-card-v2 small{font-family:'Inter',sans-serif;font-size:9px;color:#7f91b5;line-height:1.45;}
+.chip-theme-card-v2 em{position:absolute;right:10px;top:10px;font-family:'Inter',sans-serif;font-size:8px;font-style:normal;font-weight:900;color:#34d8ff;}
+.pf-chip-color-row,.pf-chip-size-row{display:flex;flex-wrap:wrap;gap:8px;}
+.pf-chip-color-btn,.pf-chip-size-btn{
+  appearance:none;border:1px solid rgba(31,139,255,.22);border-radius:999px;
+  background:rgba(7,27,68,.5);color:#9fb0cc;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:10px;font-weight:800;
+  padding:7px 11px;display:inline-flex;align-items:center;gap:7px;
+}
+.pf-chip-color-btn i{display:block;width:15px;height:15px;border-radius:50%;background:linear-gradient(145deg,var(--pf-chip-accent),var(--pf-chip-primary));box-shadow:0 0 10px var(--pf-chip-glow);}
+.pf-chip-color-btn.active,.pf-chip-size-btn.active{border-color:#34d8ff;color:#fff;background:rgba(31,139,255,.18);box-shadow:0 0 14px rgba(31,139,255,.16);}
+
+@keyframes pfChipBadgeIn{
+  from{opacity:0;transform:translateY(4px) scale(.96);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+@keyframes pfChipAllInPulse{
+  0%,100%{transform:translateZ(0) scale(1);}
+  50%{transform:translateZ(0) scale(1.05);}
+}
+
+@media (max-width: 760px){
+  body .pf-action-chip-badge.pf-chip-badge-v2{max-width:118px!important;padding:3px 7px 4px!important;}
+  body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-copy strong{font-size:7.4px!important;max-width:58px!important;}
+  body .pf-action-chip-badge.pf-chip-badge-v2 .pf-action-chip-copy em{font-size:8px!important;}
+  .pf-chip-settings-head{align-items:flex-start;flex-direction:column;}
+  .chip-theme-grid.chip-theme-grid-v2{grid-template-columns:1fr!important;}
+}
+
+@media (prefers-reduced-motion: reduce){
+  body .pf-chip-stack-v2,
+  body .pf-action-chip-badge.pf-chip-badge-v2{animation:none!important;}
+}
