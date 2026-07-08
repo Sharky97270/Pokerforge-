@@ -1,10 +1,14 @@
 // PokerForge Meditation Studio — expérience de préparation mentale premium.
 // Audio : ambiances générées en WebAudio (aucune piste protégée) + narration
-// via speechSynthesis du navigateur. Architecture prête pour une API TTS
-// (OpenAI / ElevenLabs) : remplacer speakParagraph() par un appel + <audio>.
+// voix naturelle via l'edge function meditation-tts (OpenAI TTS, clé serveur),
+// avec repli automatique sur la voix du navigateur (speechSynthesis) si indispo.
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./MeditationStudio.css";
 import { MEDITATIONS, MEDITATION_CATS, BREATH_PROTOCOLS, ROUTINE_PACKS, getMeditation } from "../data/meditations.js";
+import { TTS_VOICES, ttsAvailable, fetchTTSUrl, prefetchTTS } from "../meditationTTS.js";
+
+const VOICE_LABEL = { f_soft:"Femme douce", f:"Femme", m:"Homme", m_deep:"Homme grave" };
+const normVoice = v => (v==="female"?"f":v==="male"?"m":(VOICE_LABEL[v]?v:"f"));
 
 const LEVEL_LABEL = { novice:"Novice", inter:"Intermédiaire", expert:"Expert" };
 const CAT_OF = id => MEDITATION_CATS.find(c => c.id === id) || { col:"#1F8BFF", icon:"🧘", label:"" };
@@ -79,15 +83,22 @@ function MeditationPlayer({ med, prefs, onSavePrefs, onFinish, onClose }){
   const perPara = total / paras.length;
   const [playing, setPlaying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [voice, setVoice] = useState(prefs.voice);         // female | male | off
+  const [voice, setVoice] = useState(normVoice(prefs.voice)); // f_soft | f | m | m_deep | off
   const [ambiance, setAmbiance] = useState(prefs.ambiance==="auto"?med.ambiance:prefs.ambiance);
   const [rate, setRate] = useState(prefs.rate);
   const [volume, setVolume] = useState(prefs.volume ?? 0.6);
   const [done, setDone] = useState(false);
+  const [apiTTS, setApiTTS] = useState(false);   // voix naturelle serveur disponible
+  const [ttsBusy, setTtsBusy] = useState(false); // génération de la voix en cours
   const ambRef = useRef(null);
-  const ttsOK = typeof window!=="undefined" && "speechSynthesis" in window;
+  const audioRef = useRef(null);                 // <audio> pour la voix API
+  const speechOK = typeof window!=="undefined" && "speechSynthesis" in window;
+  const ttsOK = apiTTS || speechOK;
 
   const paraIdx = Math.min(paras.length-1, Math.floor(elapsed/perPara));
+
+  // Disponibilité de la voix naturelle serveur (une seule fois)
+  useEffect(()=>{ ttsAvailable().then(setApiTTS); },[]);
 
   // Horloge maîtresse (updater pur : pas de setState d'un autre composant ici)
   useEffect(()=>{
@@ -112,43 +123,61 @@ function MeditationPlayer({ med, prefs, onSavePrefs, onFinish, onClose }){
     if(ambiance!=="silence"){ ambRef.current = createAmbiance(ambiance); if(ambRef.current) ambRef.current.setVolume(volume); }
   },[ambiance]); // eslint-disable-line
 
-  // Narration : parle le paragraphe courant
-  useEffect(()=>{
-    if(!playing || voice==="off" || !ttsOK) return;
-    speakParagraph(paras[paraIdx]);
-    return ()=>{ try{ window.speechSynthesis.cancel(); }catch(e){} };
-  },[paraIdx, playing, voice, rate]); // eslint-disable-line
+  function stopAudio(){ try{ if(audioRef.current) audioRef.current.pause(); }catch(e){} }
+  function cancelSpeech(){ if(speechOK){ try{ window.speechSynthesis.cancel(); }catch(e){} } }
 
-  function speakParagraph(text){
-    if(!ttsOK) return;
+  // Narration : voix naturelle serveur (API) si dispo, sinon voix du navigateur.
+  useEffect(()=>{
+    if(!playing || voice==="off") return;
+    let cancelled = false;
+    stopAudio(); cancelSpeech();
+    (async ()=>{
+      if(apiTTS){
+        setTtsBusy(true);
+        const url = await fetchTTSUrl(paras[paraIdx], voice, rate);
+        if(cancelled) return;
+        setTtsBusy(false);
+        if(url && audioRef.current && playing){
+          audioRef.current.src = url;
+          audioRef.current.play().catch(()=>{});
+          if(paraIdx+1 < paras.length) prefetchTTS(paras[paraIdx+1], voice, rate); // pré-génère la suite
+          return;
+        }
+      }
+      if(!cancelled && speechOK) speakBrowser(paras[paraIdx]); // repli
+    })();
+    return ()=>{ cancelled = true; };
+  },[paraIdx, playing, voice, rate, apiTTS]); // eslint-disable-line
+
+  function speakBrowser(text){
+    if(!speechOK) return;
     try{
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = "fr-FR"; u.rate = rate; u.pitch = voice==="male"?0.85:1.05;
-      const voices = window.speechSynthesis.getVoices().filter(v=>/fr/i.test(v.lang));
-      if(voices.length){
-        const want = voice==="male" ? voices.find(v=>/(thomas|male|homme|paul|nicolas)/i.test(v.name)) : voices.find(v=>/(amelie|audrey|female|femme|marie|virginie)/i.test(v.name));
-        u.voice = want || voices[0];
-      }
+      const female = voice==="f_soft" || voice==="f";
+      u.lang="fr-FR"; u.rate=rate;
+      u.pitch = voice==="m_deep"?0.7 : voice==="m"?0.85 : voice==="f_soft"?1.15 : 1.05;
+      const vs = window.speechSynthesis.getVoices().filter(v=>/fr/i.test(v.lang));
+      if(vs.length){ const want = female ? vs.find(v=>/(amelie|audrey|female|femme|marie|virginie|c[ée]line)/i.test(v.name)) : vs.find(v=>/(thomas|male|homme|paul|nicolas)/i.test(v.name)); u.voice = want||vs[0]; }
       window.speechSynthesis.speak(u);
     }catch(e){}
   }
 
   function finish(){
     setPlaying(false);
+    stopAudio(); cancelSpeech();
     if(ambRef.current){ ambRef.current.stop(); ambRef.current=null; }
-    if(ttsOK){ try{ window.speechSynthesis.cancel(); }catch(e){} }
     onSavePrefs({ voice, ambiance:prefs.ambiance==="auto"?"auto":ambiance, rate, volume });
     setDone(true);
   }
   function hardStop(){
     setPlaying(false); setElapsed(0);
+    stopAudio(); cancelSpeech();
     if(ambRef.current){ ambRef.current.stop(); ambRef.current=null; }
-    if(ttsOK){ try{ window.speechSynthesis.cancel(); }catch(e){} }
   }
   useEffect(()=>()=>{ // cleanup au démontage
+    stopAudio(); cancelSpeech();
     if(ambRef.current){ ambRef.current.stop(); }
-    if(ttsOK){ try{ window.speechSynthesis.cancel(); }catch(e){} }
   },[]); // eslint-disable-line
 
   if(done) return <MeditationPostForm med={med} onFinish={onFinish} onClose={onClose}/>;
@@ -163,8 +192,15 @@ function MeditationPlayer({ med, prefs, onSavePrefs, onFinish, onClose }){
 
         <BreathingCircle protocolId={med.breath} playing={playing}/>
 
+        <audio ref={audioRef} preload="auto"
+          onPlay={()=>{ if(ambRef.current) ambRef.current.setVolume(volume*0.4); }}
+          onEnded={()=>{ if(ambRef.current) ambRef.current.setVolume(volume); }}
+          onPause={()=>{ if(ambRef.current) ambRef.current.setVolume(volume); }}/>
+
         <div className={`med-guide-text${playing&&voice!=="off"?" speaking":""}`}>
-          <div className="med-guide-idx">GUIDE · {paraIdx+1}/{paras.length}{voice!=="off"&&ttsOK?" · voix active":""}</div>
+          <div className="med-guide-idx">GUIDE · {paraIdx+1}/{paras.length}
+            {voice==="off" ? "" : ttsBusy ? " · génération de la voix…" : apiTTS ? " · voix naturelle IA" : speechOK ? " · voix navigateur" : ""}
+          </div>
           {paras[paraIdx]}
         </div>
 
@@ -180,12 +216,13 @@ function MeditationPlayer({ med, prefs, onSavePrefs, onFinish, onClose }){
         </div>
 
         <div className="med-controls">
-          <div className="med-ctl">
-            <label>VOIX</label>
+          <div className="med-ctl" style={{gridColumn:"1 / -1"}}>
+            <label>VOIX {apiTTS?"· naturelle IA":speechOK?"· navigateur":""}</label>
             <div className="med-seg">
-              {[["female","Femme"],["male","Homme"],["off","Silence"]].map(([k,l])=>(
-                <button key={k} className={voice===k?"on":""} onClick={()=>setVoice(k)}>{l}</button>
+              {TTS_VOICES.map(v=>(
+                <button key={v.id} className={voice===v.id?"on":""} onClick={()=>setVoice(v.id)}>{v.label}</button>
               ))}
+              <button className={voice==="off"?"on":""} onClick={()=>setVoice("off")}>Silence</button>
             </div>
           </div>
           <div className="med-ctl">
@@ -207,8 +244,9 @@ function MeditationPlayer({ med, prefs, onSavePrefs, onFinish, onClose }){
         </div>
 
         <div className="med-audio-note">
-          {ttsOK ? "🎧 Narration lue par la voix de ton navigateur · ambiance générée en direct (aucun fichier externe)."
-                 : "🎧 Voix de synthèse indisponible sur ce navigateur — mode texte guidé + ambiance. Suis le rythme du minuteur."}
+          {apiTTS ? "🎧 Narration en voix naturelle (IA) · ambiance générée en direct · la voix s'adapte au timbre choisi."
+                 : speechOK ? "🎧 Voix naturelle IA indisponible — repli sur la voix du navigateur · ambiance en direct."
+                 : "🎧 Voix indisponible sur ce navigateur — mode texte guidé + ambiance. Suis le rythme du minuteur."}
         </div>
       </div>
     </div>
