@@ -6,9 +6,7 @@
    L'accès est scopé côté serveur par RLS via le header x-device-id.
 ════════════════════════════════════════════════════════════════ */
 import { createClient } from "@supabase/supabase-js";
-
-const SUPA_URL = "https://uspwvzbvjnuwdmvhoegk.supabase.co";
-const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcHd2emJ2am51d2RtdmhvZWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjkzMDYsImV4cCI6MjA5NzMwNTMwNn0.hNZURnCvTcztXw3PoNltfmgmcfvhnmmcwiYHS3UmP9M";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config/supabase.js";
 
 // Rubriques synchronisées : toutes les clés pf_* SAUF les secrets / l'ID lui-même.
 const NO_SYNC = new Set(["pf_device_id", "pf_ak", "pf_apikey", "pf_news_seen"]);
@@ -35,7 +33,7 @@ let syncId = getSyncId();
 let client = null;
 function makeClient(id) {
   try {
-    return createClient(SUPA_URL, SUPA_KEY, {
+    return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { "x-device-id": id } },
     });

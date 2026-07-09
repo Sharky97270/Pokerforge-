@@ -6,8 +6,7 @@
    Fallback propre : { ok:false, noKey/​_neterr } → l'UI montre le
    contenu déterministe + un message clair.
 ════════════════════════════════════════════════════════════════ */
-const SUPA_URL = "https://uspwvzbvjnuwdmvhoegk.supabase.co";
-const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcHd2emJ2am51d2RtdmhvZWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjkzMDYsImV4cCI6MjA5NzMwNTMwNn0.hNZURnCvTcztXw3PoNltfmgmcfvhnmmcwiYHS3UmP9M";
+import { supabaseAnonHeaders, supabaseFunctionUrl } from "./config/supabase.js";
 
 /* mode : "chat" | "explain" | "debrief" | "mental" | "tournoi"
    context : objet poker compact (main normalisée, leaks, profil…) — JAMAIS de clé/secret. */
@@ -15,9 +14,9 @@ export async function coachChat({ mode = "chat", userMessage, messages, context 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const r = await fetch(`${SUPA_URL}/functions/v1/coach-chat`, {
+    const r = await fetch(supabaseFunctionUrl("coach-chat"), {
       method: "POST",
-      headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" },
+      headers: supabaseAnonHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ mode, userMessage, messages, context }), signal: ctrl.signal,
     });
     clearTimeout(t);

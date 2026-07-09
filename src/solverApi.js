@@ -6,18 +6,15 @@
    Chaque appel a un FALLBACK local pour ne jamais casser l'UI.
 ════════════════════════════════════════════════════════════════ */
 import { authClient } from "./auth.js";
-
-const SUPA_URL = "https://uspwvzbvjnuwdmvhoegk.supabase.co";
-const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcHd2emJ2am51d2RtdmhvZWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjkzMDYsImV4cCI6MjA5NzMwNTMwNn0.hNZURnCvTcztXw3PoNltfmgmcfvhnmmcwiYHS3UmP9M";
-const FN = (n) => `${SUPA_URL}/functions/v1/${n}`;
+import { supabaseAnonHeaders, supabaseFunctionUrl } from "./config/supabase.js";
 
 async function callFn(name, body, timeoutMs = 6000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const r = await fetch(FN(name), {
+    const r = await fetch(supabaseFunctionUrl(name), {
       method: "POST",
-      headers: { apikey: ANON, Authorization: "Bearer " + ANON, "Content-Type": "application/json" },
+      headers: supabaseAnonHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(body || {}), signal: ctrl.signal,
     });
     clearTimeout(t);

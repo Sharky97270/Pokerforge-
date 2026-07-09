@@ -8,12 +8,10 @@
      Supabase Auth gère le hash et la validation côté serveur.
 ════════════════════════════════════════════════════════════════ */
 import { createClient } from "@supabase/supabase-js";
-
-const SUPA_URL = "https://uspwvzbvjnuwdmvhoegk.supabase.co";
-const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcHd2emJ2am51d2RtdmhvZWdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjkzMDYsImV4cCI6MjA5NzMwNTMwNn0.hNZURnCvTcztXw3PoNltfmgmcfvhnmmcwiYHS3UmP9M";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config/supabase.js";
 
 /* Client dédié à l'auth (session persistée — distinct du client de sync device-id). */
-export const authClient = createClient(SUPA_URL, SUPA_KEY, {
+export const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "pf_auth" },
 });
 
