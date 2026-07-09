@@ -134,13 +134,14 @@ function MeditationPlayer({ med, prefs, onSavePrefs, onFinish, onClose }){
     (async ()=>{
       if(apiTTS){
         setTtsBusy(true);
-        const url = await fetchTTSUrl(paras[paraIdx], voice, rate);
+        const ttsOpts = { speed: rate, category: med.cat, duration: med.duration, progress: paraIdx/paras.length };
+        const url = await fetchTTSUrl(paras[paraIdx], voice, ttsOpts);
         if(cancelled) return;
         setTtsBusy(false);
         if(url && audioRef.current && playing){
           audioRef.current.src = url;
           audioRef.current.play().catch(()=>{});
-          if(paraIdx+1 < paras.length) prefetchTTS(paras[paraIdx+1], voice, rate); // pré-génère la suite
+          if(paraIdx+1 < paras.length) prefetchTTS(paras[paraIdx+1], voice, { speed:rate, category:med.cat, duration:med.duration, progress:(paraIdx+1)/paras.length }); // pré-génère la suite
           return;
         }
       }
@@ -327,7 +328,7 @@ export default function MeditationStudio({ m, setM, addXp, bump, initialOpen=nul
   const [level, setLevel] = useState(m.medPrefs?.level || "all"); // all | novice | inter | expert
   const [cat, setCat] = useState("all");
   const [active, setActive] = useState(null); // méditation en cours
-  const prefs = m.medPrefs || { voice:"female", ambiance:"auto", rate:0.9, volume:0.6, level:"all" };
+  const prefs = m.medPrefs || { voice:"m_deep", ambiance:"auto", rate:0.9, volume:0.6, level:"all" };
 
   // Deep-link : un autre module (tilt, post-session, plan tournoi) demande d'ouvrir une séance
   useEffect(()=>{

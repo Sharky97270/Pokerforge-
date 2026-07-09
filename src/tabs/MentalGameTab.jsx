@@ -54,7 +54,7 @@ function mentalDefault(){return{
   abc:[],warmups:[],postReviews:[],downswing:false,tournPrep:null,
   xp:0,badges:[],contentRead:[],tiltLog:[],warmReady:null,
   medHistory:[],medStreak:0,medLastDay:null,medTotalSec:0,
-  medPrefs:{voice:"female",ambiance:"auto",rate:0.9,volume:0.6,level:"all"},
+  medPrefs:{voice:"m_deep",ambiance:"auto",rate:0.9,volume:0.6,level:"all"},
 };}
 function loadMental(){try{const s=JSON.parse(localStorage.getItem("pf_mental")||"null");return s?{...mentalDefault(),...s,scores:{...mentalDefault().scores,...(s.scores||{})}}:mentalDefault();}catch{return mentalDefault();}}
 function saveMental(m){try{localStorage.setItem("pf_mental",JSON.stringify(m));}catch{}}
