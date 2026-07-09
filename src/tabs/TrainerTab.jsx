@@ -123,11 +123,17 @@ const TRAINER_VISUAL_2T=getTrainerVisualLayoutConfig(2);
 const TRAINER_VISUAL_3T=getTrainerVisualLayoutConfig(3);
 const TRAINER_VISUAL_4T=getTrainerVisualLayoutConfig(4);
 const TRAINER_VISUAL_1T_MOBILE=getTrainerVisualLayoutConfig(1,"mobile");
+const TRAINER_VISUAL_2T_MOBILE=getTrainerVisualLayoutConfig(2,"mobile");
+const TRAINER_VISUAL_3T_MOBILE=getTrainerVisualLayoutConfig(3,"mobile");
+const TRAINER_VISUAL_4T_MOBILE=getTrainerVisualLayoutConfig(4,"mobile");
 const trainingTableLayout1T=createTrainingTableLayout("1T",TRAINER_VISUAL_1T.seatPositions,TRAINER_VISUAL_1T);
 const trainingTableLayout2T=createTrainingTableLayout("2T",TRAINER_VISUAL_2T.seatPositions,TRAINER_VISUAL_2T);
 const trainingTableLayout3T=createTrainingTableLayout("3T",TRAINER_VISUAL_3T.seatPositions,TRAINER_VISUAL_3T);
 const trainingTableLayout4T=createTrainingTableLayout("4T",TRAINER_VISUAL_4T.seatPositions,TRAINER_VISUAL_4T);
 const trainingTableLayout1TMobile=createTrainingTableLayout("1T-mobile",TRAINER_VISUAL_1T_MOBILE.seatPositions,TRAINER_VISUAL_1T_MOBILE);
+const trainingTableLayout2TMobile=createTrainingTableLayout("2T-mobile",TRAINER_VISUAL_2T_MOBILE.seatPositions,TRAINER_VISUAL_2T_MOBILE);
+const trainingTableLayout3TMobile=createTrainingTableLayout("3T-mobile",TRAINER_VISUAL_3T_MOBILE.seatPositions,TRAINER_VISUAL_3T_MOBILE);
+const trainingTableLayout4TMobile=createTrainingTableLayout("4T-mobile",TRAINER_VISUAL_4T_MOBILE.seatPositions,TRAINER_VISUAL_4T_MOBILE);
 const TRAINING_SEAT_LAYOUTS={
   1:trainingTableLayout1T,
   2:trainingTableLayout2T,
@@ -135,8 +141,15 @@ const TRAINING_SEAT_LAYOUTS={
   4:trainingTableLayout4T,
   multi:trainingTableLayout2T,
 };
+const TRAINING_SEAT_LAYOUTS_MOBILE={
+  1:trainingTableLayout1TMobile,
+  2:trainingTableLayout2TMobile,
+  3:trainingTableLayout3TMobile,
+  4:trainingTableLayout4TMobile,
+  multi:trainingTableLayout2TMobile,
+};
 function getTrainingLayout(numTables,isMobile=false){
-  if(isMobile&&numTables===1)return trainingTableLayout1TMobile;
+  if(isMobile)return TRAINING_SEAT_LAYOUTS_MOBILE[numTables]||trainingTableLayout2TMobile;
   return TRAINING_SEAT_LAYOUTS[numTables]||trainingTableLayout2T;
 }
 function pctCss(v){return `${Number(v||0)}%`;}
@@ -2910,14 +2923,30 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     3:{pb:MT_TABLE_PB, board:"lg",  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:"md",  vilCard:"xs",  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
     4:{pb:MT_TABLE_PB, board:"md",  boardGap:3, seat:30, fpos:7,    fstk:6,   actFnt:10, actPad:"8px 6px 7px",   heroCard:"sm",  vilCard:"xs",  cardSize:"xs", dbtnSz:10, compact:true,  potFntB:12, potFnt:13},
   };
-  const cfg=TRAINING_LAYOUT[numTables]||TRAINING_LAYOUT[2];
+  const baseCfg=TRAINING_LAYOUT[numTables]||TRAINING_LAYOUT[2];
+  const cfg=isMobile&&numTables>1
+    ?{
+      ...baseCfg,
+      board:numTables===2?"lg":numTables===3?"md":"sm",
+      boardGap:numTables===2?4:3,
+      seat:numTables===2?40:numTables===3?32:26,
+      fpos:numTables===2?9.5:numTables===3?7.5:6.5,
+      fstk:numTables===2?8.5:numTables===3?6.8:6,
+      heroCard:numTables===2?"md":numTables===3?"sm":"xs",
+      vilCard:"xs",
+      dbtnSz:numTables===2?15:12,
+      compact:true,
+      potFntB:numTables===2?11:10,
+      potFnt:numTables===2?13:12,
+    }
+    :baseCfg;
   const trainingLayout=getTrainingLayout(numTables,isMobile);
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
-  const boardSize=numTables===1?(isMobile?(boardCount>=5?"lg":"xl"):"2xl"):cfg.board;
+  const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):"2xl"):cfg.board;
   const heroCardSize1T=isMobile?"1t-hero-mobile":"1t-hero";
-  const villainCardSize1T="1t-villain";
+  const villainCardSize1T=isMobile?"xs":"1t-villain";
   const visualStreet=playingFull?fhStreet:(spot.street||"Preflop");
   const isVisualPreflop=/^pre/i.test(visualStreet);
   const postedBlinds={SB:TRAINER_BLINDS.SB,BB:TRAINER_BLINDS.BB};
@@ -3790,7 +3819,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               lastAct.id==="ALLIN"?"action-allin":"action-bet":"";
             const vp=isV?(VILLAIN_PROFILES[spot.vtype]||{vpip:22,pfr:18}):SEAT_DEFAULT_STATS[pos]||{vpip:22,pfr:18};
             const displayStack=isH?parseFloat(spot.stack)||100:60;
-            const avSz=isH?70:64;
+            const avSz=isMobile?(isH?46:40):(isH?70:64);
             const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
             const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
             const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
@@ -3815,11 +3844,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const cpx=actionPt.x;
             const cpy=actionPt.y;
             const isTopSeat1T=coord.y<=24;
-            const isBottomSeat1T=coord.y>=76;
-            const seatTransform1T=isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
+            const isBottomSeat1T=coord.y>=68;
+            const seatTransform1T=isMobile
+              ?(isTopSeat1T?"translate(-50%,-35%)":isBottomSeat1T?"translate(-50%,-58%)":"translate(-50%,-50%)")
+              :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
             const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
-            const heroCardGapForSeat1T=isTopSeat1T?5:isBottomSeat1T?5:8;
-            const heroCardMarginForSeat1T=isTopSeat1T?4:isBottomSeat1T?5:6;
+            const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
+            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?5:6);
             return(
               <React.Fragment key={pos}>
 
@@ -3958,7 +3989,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   amount={!playingFull?betAmt:0}
                   label={chipLabel||trainerActionVerb(trainerActionType(lastAct?.id||"BET"))}
                   type={trainerVisualActionType(chipLabel||lastAct?.id||"BET")}
-                  compact={false}
+                  compact={isMobile}
                   kind={isH?"hero":seatMultiway?"multiway":"villain"}
                   themeKey={chipTheme}
                   colorKey={chipColor}
@@ -4439,8 +4470,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard});
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
-          const isBottomSeatMt=y>=76;
-          const mtSeatTransform=isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
+          const isBottomSeatMt=y>=74;
+          const mtSeatTransform=isMobile
+            ?(isTopSeatMt?"translate(-50%,-27%)":isBottomSeatMt?"translate(-50%,-55%)":"translate(-50%,-50%)")
+            :isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
           const mtHeroCardSize=isTopSeatMt?(numTables===2?"sm":"xs"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
@@ -4526,7 +4559,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               amount={!playingFull?seatActionAmount:0}
               label={seatActionLabel||trainerActionVerb(seatActionType)}
               type={seatActionType}
-              compact={numTables>=3}
+              compact={isMobile||numTables>=3}
               kind={isH?"hero":seatMultiway?"multiway":"villain"}
               themeKey={chipTheme}
               colorKey={chipColor}
@@ -5329,6 +5362,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const gridRef=useRef(null);
   const tapRef=useRef({t:0,id:-1,y:0,moved:false});
   const curDotRef=useRef(null);
+  const mobileTrainingSingleTableOnly=isMobile;
+  useEffect(()=>{
+    if(!mobileTrainingSingleTableOnly||ntables===1)return;
+    setNtables(1);
+    setExpandedT(null);
+    setZoomed(false);
+  },[mobileTrainingSingleTableOnly,ntables]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   // Persiste la config Trainer (réglages pro) entre les sessions
   useEffect(()=>{try{localStorage.setItem("pf_trainer_cfg",JSON.stringify(f));}catch{}},[f]);
@@ -5404,13 +5444,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(!started||done)return;
     try{
       localStorage.setItem("pf_trainer_autosave",JSON.stringify({
-        ts:Date.now(),smode,ntables,f,trainerMode,trainMode,streetStart,platform,showSol,
+        ts:Date.now(),smode,ntables:mobileTrainingSingleTableOnly?1:ntables,f,trainerMode,trainMode,streetStart,platform,showSol,
         queue:queue.map(s=>({...s,ctx:undefined})),
         queueIds:queue.map(s=>s.id),idx,
         results:results.map(r=>({id:r.spot.id,correct:r.correct,ua:r.ua,qi:r.qi})),
       }));
     }catch{}
-  },[started,done,idx,results,queue,smode,ntables,trainerMode,trainMode,streetStart,platform,showSol]);
+  },[started,done,idx,results,queue,smode,ntables,mobileTrainingSingleTableOnly,trainerMode,trainMode,streetStart,platform,showSol]);
   useEffect(()=>{if(done){try{localStorage.removeItem("pf_trainer_autosave");}catch{}}},[done]);
   const[resume,setResume]=useState(()=>{
     try{
@@ -5434,7 +5474,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const byQueueId=Object.fromEntries(q.map(s=>[s.id,s]));
     const res=(resume.results||[]).map(r=>({spot:byQueueId[r.id]||byId[r.id],correct:r.correct,ua:r.ua,qi:r.qi})).filter(r=>r.spot);
     if(resume.f)setF(resume.f);
-    setSmode(resume.smode||20);setNtables(Math.min(4,resume.ntables||1));
+    setSmode(resume.smode||20);setNtables(mobileTrainingSingleTableOnly?1:Math.min(4,resume.ntables||1));
     setTrainerMode(resume.trainerMode||"gto");setPlatform(resume.platform||"pokerstars");
     if(resume.trainMode)setTrainMode(resume.trainMode);if(resume.streetStart)setStreetStart(resume.streetStart);
     setShowSol(!!resume.showSol);
@@ -5563,6 +5603,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   }
 
   function start(retry=false){
+    if(mobileTrainingSingleTableOnly&&ntables!==1)setNtables(1);
     let q;
     if(retry){const pool=results.filter(r=>!r.correct).map(r=>r.spot);if(pool.length){let a=[];while(a.length<smode)a=[...a,...shuffle(pool)];q=a.slice(0,smode);}}
     // Options de queue selon le type de session
@@ -5578,6 +5619,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   }
   // ── Review + Leak Drill (slice 1) ──
   function launchDrill(patchF,opts){
+    if(mobileTrainingSingleTableOnly&&ntables!==1)setNtables(1);
     const ef={...f,...patchF,spotTypes:[],objectives:[]};
     setF(ef);
     const q=buildQ(ef,smode,{...(opts||{}),trainerMode,trainMode,platform});
@@ -5704,7 +5746,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             ⚙ Filtres {mobSidebar?"▲":"▼"}
           </button>
           <div style={{display:"flex",gap:4}}>
-            {[1,2,3,4].map(n=><button key={n} className={`mob-filter-btn${ntables===n?" on":""}`} onClick={()=>setNtables(n)}>{n}T</button>)}
+            {[1,2,3,4].map(n=>{
+              const lock=mobileTrainingSingleTableOnly&&n>1;
+              return <button key={n} className={`mob-filter-btn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} disabled={lock} style={{opacity:lock?.38:1,cursor:lock?"not-allowed":"pointer"}} title={lock?"Mobile : 1T uniquement pour garder la table lisible":`${n}T`}>{n}T</button>;
+            })}
           </div>
         </div>
       )}
@@ -5739,7 +5784,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div className="sbsep"/>
           <div className="sb">
             <div className="sblbl">Multitabling</div>
-            <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(fullSolo&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} style={{opacity:lock&&ntables!==n?.4:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
+            <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(fullSolo&&n>1)||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{opacity:lock&&ntables!==n?.38:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
             {fullSolo&&<div style={{marginTop:5,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 {trainMode==="full"?"Full Hand":"Session"} se joue en 1 table.</div>}
           </div>
           <div className="sbsep"/>
@@ -6060,8 +6105,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           </div>
           {/* Tables — clic direct = cycle 1T→2T→3T→4T */}
           <div className="sb-icon-btn" title={`${ntables}T — clic = table suivante`}
-            onClick={()=>!sessionActive&&setNtables(n=>n>=4?1:n+1)}
-            style={{cursor:sessionActive?"not-allowed":"pointer"}}>
+            onClick={()=>!sessionActive&&!mobileTrainingSingleTableOnly&&setNtables(n=>n>=4?1:n+1)}
+            style={{cursor:(sessionActive||mobileTrainingSingleTableOnly)?"not-allowed":"pointer"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:13,fontWeight:700,color:T.blue}}>{ntables}T</span>
             <span className="lbl">Tables</span>
           </div>
@@ -6193,19 +6238,19 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 <span style={{fontSize:18,flexShrink:0}}>⏸</span>
                 <div style={{flex:1,textAlign:"left",minWidth:0}}>
                   <div style={{fontFamily:T.stats,fontSize:11,fontWeight:700,color:T.text}}>Session interrompue — {resume.results?.length||0}/{resume.smode===999?"∞":resume.smode} spots joués</div>
-                  <div style={{fontFamily:T.stats,fontSize:9,color:T.text3}}>{resume.ntables||1} table{(resume.ntables||1)>1?"s":""} · {resume.trainerMode==="exploit"?"🦈 Exploit":"🎯 GTO"} · progression sauvegardée</div>
+                  <div style={{fontFamily:T.stats,fontSize:9,color:T.text3}}>{mobileTrainingSingleTableOnly?1:(resume.ntables||1)} table{(!mobileTrainingSingleTableOnly&&(resume.ntables||1)>1)?"s":""} · {resume.trainerMode==="exploit"?"🦈 Exploit":"🎯 GTO"} · progression sauvegardée</div>
                 </div>
                 <button className="btn btng" style={{fontSize:10,padding:"7px 13px",flexShrink:0}} onClick={resumeAutosave}>▶ Reprendre</button>
                 <button className="btn btns" style={{fontSize:10,padding:"7px 9px",flexShrink:0}} title="Abandonner cette session" onClick={dismissResume}>✕</button>
               </div>
             )}
-            <div style={{fontSize:12,color:T.text2,maxWidth:420,lineHeight:1.75}}>Situations réelles · Villain joue · EV affichée · <strong style={{color:T.accent}}>4 tables simultanées</strong></div>
+            <div style={{fontSize:12,color:T.text2,maxWidth:420,lineHeight:1.75}}>Situations réelles · Villain joue · EV affichée · <strong style={{color:T.accent}}>{mobileTrainingSingleTableOnly?"1 table mobile lisible":"4 tables simultanées"}</strong></div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
               {SMODES.map(m=><button key={m.id} className={`btn ${smode===m.id?"btng":"btns"}`} onClick={()=>setSmode(m.id)}>{m.l} ({m.id===999?"∞":m.id})</button>)}
             </div>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:11,color:T.text2}}>Tables :</span>
-              {[1,2,3,4].map(n=>{const lock=fullSolo&&n>1;return <div key={n} className={`mtbtn${ntables===n?" on":""}`} style={{width:38,opacity:lock?.4:1,cursor:lock?"not-allowed":"pointer"}} onClick={()=>!lock&&setNtables(n)}>{n}T</div>;})}
+              {[1,2,3,4].map(n=>{const lock=(fullSolo&&n>1)||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{width:38,opacity:lock?.38:1,cursor:lock?"not-allowed":"pointer"}} onClick={()=>!lock&&setNtables(n)}>{n}T</div>;})}
             </div>
             <div onClick={()=>setShowSol(s=>!s)} style={{
               display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 18px",borderRadius:30,
