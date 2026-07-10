@@ -1,5 +1,6 @@
 // PokerForge — Entraineur GTO : layouts, IA vilain, generation de spots, table, session (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { T } from "../theme.js";
 import { useIsMobile, vibrate, VIB } from "../utils/ui.js";
 import { roundBb, shuffle } from "../utils/format.js";
@@ -2365,7 +2366,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -3160,7 +3161,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   /* ══════════════════════════════════════════════════
      MODE 1 TABLE — layout immersif style GTO Wizard
   ══════════════════════════════════════════════════ */
-  if(is1T){
+  // ── Helpers de rendu (définis inconditionnellement : le panneau droit 1T est
+  //    réutilisé tel quel par les tables multi via portal — cf. renderRightPanel) ──
     // Positions des sièges autour de la table (% du conteneur externe)
     // Positions recalibrées : HJ/CO poussés à y:12 pour dégager le HUD (+9% vs avant)
     // Positions recalibrées avec safe-area : sièges du haut descendus (y:19) pour que
@@ -3656,7 +3658,232 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       );
     };
 
-    return(
+      const renderRightPanel=()=>(
+        <div className="t1-right" style={{flex:"0 0 32%",display:"flex",flexDirection:"column",background:"linear-gradient(180deg,#030D2A,#020810)",borderLeft:"1px solid #152D6E",overflow:"hidden",minWidth:0}}>
+
+          {/* HUD compact */}
+          <div style={{flexShrink:0,background:"linear-gradient(90deg,#040B1F,#030D2A)",borderBottom:"1px solid #152D6E",padding:"5px 10px",display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}>
+            <span className="hud-chip hud-pos" style={{fontSize:8.5,padding:"2px 7px"}}>📍 {spot.hpos}</span>
+            <span className="hud-chip hud-stack" style={{fontSize:8.5,padding:"2px 7px"}}>📊 {spot.stack}</span>
+            <span className="hud-chip hud-spr" style={{fontSize:8.5,padding:"2px 7px"}}>SPR {spr}</span>
+            {potOddsStr&&<span className="hud-chip hud-odds" style={{fontSize:8.5,padding:"2px 7px"}}>Odds {potOddsStr}</span>}
+            <span style={{marginLeft:"auto",padding:"2px 7px",borderRadius:5,fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:700,background:trainerMode==="gto"?"rgba(52,216,255,.08)":"rgba(255,138,61,.08)",color:trainerMode==="gto"?"#34D8FF":"#FF8A3D",border:`1px solid ${trainerMode==="gto"?"rgba(52,216,255,.2)":"rgba(255,138,61,.2)"}`}}>{trainerMode==="gto"?"GTO":PLATFORM_PROFILES[platform]?.flag||"🦈"}</span>
+            <div className="hud-diff" style={{fontSize:8,padding:"1px 6px"}}><span style={{width:5,height:5,borderRadius:"50%",background:diffCol,flexShrink:0}}/>{diffLabel}</div>
+          </div>
+
+          {/* ── ZONE SCROLLABLE ── */}
+          <div style={{flex:1,overflowY:"auto",overflowX:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
+
+            {/* VILLAIN THINKING dans la colonne droite */}
+            {phase==="villain_thinking"&&(()=>{
+              const vp=VILLAIN_PROFILES[spot.vtype];
+              return(
+                <div style={{flexShrink:0,background:"linear-gradient(135deg,rgba(155,92,255,.1),rgba(155,92,255,.03))",borderBottom:"1px solid rgba(155,92,255,.2)",padding:"10px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
+                    <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,background:vp?`${vp.col}18`:"rgba(155,92,255,.15)",border:`2px solid ${vp?vp.col+"66":"rgba(155,92,255,.5)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:`0 0 16px ${vp?vp.col+"44":"rgba(155,92,255,.3)"}`,animation:"seatVilActive 1.5s ease-in-out infinite"}}>🤔</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:10,fontWeight:800,color:vp?vp.col:"#9B5CFF",marginBottom:2}}>⚡ {spot.vpos} · {spot.vtype}</div>
+                      <div style={{fontSize:8,color:T.text4,fontFamily:T.stats}}>{trainerMode==="exploit"&&vp?`Profil ${spot.vtype} — VPIP ${vp.vpip}%, Agg ${vp.agg}…`:"Calcule la stratégie GTO optimale…"}</div>
+                    </div>
+                    <span style={{padding:"2px 7px",borderRadius:20,background:"rgba(155,92,255,.08)",border:"1px solid rgba(155,92,255,.2)",fontSize:7.5,fontWeight:700,color:"rgba(155,92,255,.8)"}}>🤖 IA</span>
+                  </div>
+                  <div style={{overflow:"hidden",borderRadius:2,background:"rgba(155,92,255,.1)"}}>
+                    <div className="think-bar" style={{background:`linear-gradient(90deg,${vp?vp.col+"66":"rgba(155,92,255,.5)"},${vp?vp.col:"#9B5CFF"})`}}/>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* VILLAIN IA HUD — style GTO Wizard moderne */}
+            {(()=>{
+              const vp=VILLAIN_PROFILES[spot.vtype];
+              if(!vp)return null;
+              return(
+                <div style={{flexShrink:0,padding:"9px 11px 8px",borderBottom:"1px solid #152D6E",background:"rgba(155,92,255,.03)"}}>
+                  <div style={{fontSize:7.5,color:"#9B5CFF",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:6}}>VILLAIN IA</div>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
+                    <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,background:`${vp.col}18`,border:`2px solid ${vp.col}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,boxShadow:`0 0 14px ${vp.col}33`}}>{vp.ico||"🤖"}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:11,fontWeight:800,color:vp.col,marginBottom:1}}>{spot.vtype}</div>
+                      <div style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{spot.vpos} · {vp.desc}</div>
+                    </div>
+                  </div>
+                  {[["VPIP",vp.vpip,50,"#34D8FF"],["PFR",vp.pfr,40,"#10D87A"],["Agg",Math.round(vp.agg*20),100,"#FF8A3D"]].map(([lbl,val,max,col])=>(
+                    <div key={lbl} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                      <span style={{width:24,fontSize:7.5,fontFamily:T.stats,color:T.text4,flexShrink:0}}>{lbl}</span>
+                      <div style={{flex:1,height:4,background:"rgba(255,255,255,.06)",borderRadius:2,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${(val/max)*100}%`,background:col,borderRadius:2,transition:"width .6s"}}/>
+                      </div>
+                      <span style={{width:26,textAlign:"right",fontSize:7.5,fontFamily:T.mono,color:col,flexShrink:0}}>{lbl==="Agg"?vp.agg:val+"%"}</span>
+                    </div>
+                  ))}
+                  {trainerMode==="exploit"&&vp.exploitTip&&(
+                    <div style={{marginTop:5,padding:"4px 7px",borderRadius:5,background:`${vp.col}0C`,border:`1px solid ${vp.col}28`,fontSize:7.5,color:vp.col,fontFamily:T.stats,lineHeight:1.45}}>{vp.exploitTip}</div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {answered!==null&&renderHeroFeedback()}
+
+            {/* ANALYSE GTO */}
+            {(()=>{
+              const solBlurred=!showSol;
+              const accentCols=["#FF4560","#10D87A","#1F8BFF","#FFC247","#9B5CFF"];
+              const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
+              return(
+                <div style={{flexShrink:0,padding:"9px 11px 8px",borderBottom:"1px solid #152D6E",position:"relative",overflow:"hidden"}}>
+                  <div style={{fontSize:7.5,color:"#34D8FF",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:6}}>ANALYSE GTO</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    {spot.acts.map((a,i)=>{
+                      const freq=spot.freq[a.id]||0;
+                      if(freq===0)return null;
+                      const isB=i===spot.ok;
+                      const col=accentCols[i%accentCols.length];
+                      return(
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{width:34,fontSize:8,fontFamily:T.stats,fontWeight:700,color:isB?T.green:T.text3,flexShrink:0}}>{a.l}</span>
+                          <div style={{flex:1,height:5,background:"rgba(255,255,255,.05)",borderRadius:3,overflow:"hidden"}}>
+                            <div style={{height:"100%",width:`${freq}%`,background:col,borderRadius:3,transition:"width .7s"}}/>
+                          </div>
+                          <span style={{width:24,textAlign:"right",fontSize:8,fontFamily:T.mono,color:isB?T.green:T.text4}}>{freq}%</span>
+                          {spot.ev[a.id]!==undefined&&<span style={{width:38,textAlign:"right",fontSize:8,fontFamily:T.mono,color:spot.ev[a.id]>=0?T.green:T.red,flexShrink:0}}>{spot.ev[a.id]>=0?"+":""}{spot.ev[a.id]?.toFixed(1)}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5}}>
+                    <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>EV optimal :</span>
+                    <span style={{fontSize:9,fontFamily:T.mono,fontWeight:700,color:bestEv>=0?T.green:T.amber}}>{bestEv>0?"+":""}{bestEv.toFixed(2)}bb</span>
+                  </div>
+                  {solBlurred&&(
+                    <div className="sol-lock">
+                      <span style={{fontSize:16}}>🔒</span>
+                      <span style={{fontSize:8,fontFamily:T.stats,fontWeight:700,color:T.text3,letterSpacing:".05em"}}>Solution masquée</span>
+                      <button onClick={onToggleSol} className="sol-toggle-btn sol-hidden" style={{marginTop:5,fontSize:8,padding:"3px 10px"}}>Révéler</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ANALYSE EXPLOIT */}
+            {(()=>{
+              const solBlurred=!showSol;
+              const vp=VILLAIN_PROFILES[spot.vtype];
+              return(
+                <div style={{flexShrink:0,padding:"8px 11px",borderBottom:"1px solid #152D6E",position:"relative",overflow:"hidden"}}>
+                  <div style={{fontSize:7.5,color:"#FF8A3D",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:5}}>ANALYSE EXPLOIT</div>
+                  <div style={{fontSize:8,color:T.text3,fontFamily:"'Inter',sans-serif",lineHeight:1.5,marginBottom:4}}>{spot.expl||"Analysez la range villain et choisissez l'action exploitative optimale."}</div>
+                  {vp&&<div style={{padding:"4px 7px",borderRadius:5,background:`${vp.col}10`,border:`1px solid ${vp.col}28`,fontSize:7.5,color:vp.col,fontFamily:T.stats}}>Agg: {vp.agg} · {vp.desc}</div>}
+                  {solBlurred&&(
+                    <div className="sol-lock">
+                      <span style={{fontSize:16}}>🔒</span>
+                      <span style={{fontSize:8,fontFamily:T.stats,fontWeight:700,color:T.text3,letterSpacing:".05em"}}>Solution masquée</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* HISTORIQUE — chemin d'action complet jusqu'à Hero (préflop reconstruit) + actions live */}
+            {(()=>{
+              const fullLog=[...(spotCtx.preActions||[]),...handLog];
+              return(
+            <div style={{flexShrink:0,padding:"8px 11px",borderBottom:"1px solid #152D6E"}}>
+              <div style={{fontSize:7.5,color:"#FFC247",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:5}}>HISTORIQUE</div>
+              {fullLog.length>0?(
+                <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                  {fullLog.map((t,i)=>{
+                    const isHeroRow=t.position===spot.hpos;
+                    return(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:4,opacity:t.actionType==="FOLD"?.55:1}}>
+                      <span style={{width:26,fontSize:7.5,fontFamily:T.stats,fontWeight:700,color:isHeroRow?T.gold:T.text3,padding:"1px 4px",borderRadius:3,background:isHeroRow?"rgba(255,194,71,.1)":"rgba(255,255,255,.04)",border:`1px solid ${isHeroRow?"rgba(255,194,71,.25)":"rgba(255,255,255,.06)"}`,flexShrink:0}}>{t.position}</span>
+                      <span className={`tlact ${tlCls(t.actionType)}`} style={{fontSize:7.5,padding:"1px 5px"}}>{trainerActionVerb(t.actionType)}</span>
+                      {(t.displayAmount??t.amountBb)>0&&<span style={{fontSize:7.5,fontFamily:T.mono,color:T.amber,marginLeft:"auto"}}>{fmt(t.displayAmount??t.amountBb)}</span>}
+                      {t.potAfterAction>0&&<span style={{fontSize:7.5,fontFamily:T.mono,color:T.text4,marginLeft:(t.displayAmount??t.amountBb)>0?0:"auto"}}>P {fmt(t.potAfterAction)}</span>}
+                    </div>
+                    );
+                  })}
+                  {answered===null&&<div style={{display:"flex",alignItems:"center",gap:4,marginTop:1}}>
+                    <span style={{width:26,fontSize:7.5,fontFamily:T.stats,fontWeight:800,color:T.gold,padding:"1px 4px",borderRadius:3,background:"rgba(255,194,71,.14)",border:"1px solid rgba(255,194,71,.35)",flexShrink:0}}>{spot.hpos}</span>
+                    <span style={{fontSize:7.5,color:T.gold,fontFamily:T.stats,fontStyle:"italic"}}>à toi de jouer{spotCtx.facing?` — face à ${spotCtx.facing.label.toLowerCase()} ${fmt(spotCtx.facing.amount)}`:(/^pre/i.test(spot.street||"")?" — premier à parler":` — ${spot.vpos} check`)}</span>
+                  </div>}
+                </div>
+              ):(
+                <div style={{fontSize:8.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>Pas encore d'actions</div>
+              )}
+            </div>
+              );
+            })()}
+
+            {/* INFORMATIONS */}
+            <div style={{flexShrink:0,padding:"8px 11px",borderBottom:"1px solid #152D6E"}}>
+              <div style={{fontSize:7.5,color:"#10D87A",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:5}}>INFORMATIONS</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 8px"}}>
+                {[
+                  ["Street",spot.street,"#34D8FF"],
+                  ["Pot",fmt(currentPotBb||1.5),T.gold],
+                  ["Stack",fmt(parseFloat(spot.stack)||100)+" bb",T.amber],
+                  ["SPR",spr,T.text3],
+                  ...(spot.toCall>0?[["Pot odds",potOddsStr,"#FF8A3D"]]:[] ),
+                  ["Difficulté",spot.diff===1?"Débutant":spot.diff===2?"Inter.":spot.diff===3?"Avancé":"Expert",spot.diff===1?T.green:spot.diff===2?T.amber:spot.diff===3?T.red:"#9B5CFF"],
+                ].map(([lbl,val,col])=>(
+                  <div key={lbl} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>{lbl}</span>
+                    <span style={{fontSize:8.5,fontFamily:T.mono,fontWeight:700,color:col}}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* EV RÉSULTATS */}
+            {phase==="done"&&answered!==null&&(
+              <div style={{flexShrink:0}}>{renderEvResults()}</div>
+            )}
+
+            {/* FULL-HAND : actions accessibles même solution masquée */}
+            {renderFhActions()}
+
+            {/* ══ AIDE MULTI-TABLE — contenu de l'ex-bandeau bas, intégré ici quand
+               la solution est affichée (numTables>1). Piloté par le spot de la table active. ══ */}
+            {numTables>1&&showSol&&(()=>{
+              const acts=Array.isArray(spot?.acts)?spot.acts:[];
+              const sk=(i,f)=>acts[i]?.l||f;
+              return(
+                <div className="pf-mtp-help">
+                  <div className="pf-mtp-title" style={{color:"#54b8ff"}}>INSTRUCTIONS</div>
+                  <div className="pf-mtp-help-instr">
+                    <strong>{(spot?.street||"PREFLOP").toUpperCase()} · {spot?.hpos||"Hero"}</strong>
+                    <span>{spot?.desc||"Prends la meilleure décision sur cette table."}</span>
+                  </div>
+                  <div className="pf-mtp-title" style={{color:"#54b8ff",marginTop:8}}>RACCOURCIS</div>
+                  <div className="pf-mtp-help-keys">
+                    {[["F1",sk(0,"Fold")],["F2",sk(1,"Check/Call")],["F3",sk(2,"Bet/Raise")],["F4",sk(3,"Bet Pot/All-in")]].map(([k,l])=>(
+                      <div key={k} className="pf-mtp-help-key"><span className="kk">{k}</span><span className="kl">{l}</span></div>
+                    ))}
+                  </div>
+                  <div className="pf-mtp-title" style={{color:"#54b8ff",marginTop:8}}>RAPPELS · ACTIONS RAPIDES</div>
+                  <ul className="pf-mtp-help-list">
+                    <li>La table active (halo bleu) reçoit les raccourcis F1–F4.</li>
+                    <li>Clique une autre table pour la rendre active.</li>
+                    <li>Min = mise minimale · 2.5x/3x/3.5x/4x = multiplier · All-in = tapis.</li>
+                    <li>+/- = ajuster le montant.</li>
+                  </ul>
+                </div>
+              );
+            })()}
+
+          </div>{/* ── fin zone scrollable ── */}
+
+          {/* ══ TIMELINE — bas du bandeau droit (maquette v2). Les actions Héro
+             sont désormais centrées sous la table : plus aucun chevauchement. ══ */}
+          {renderTimeline()}
+
+        </div>
+      );
+
+    if(is1T) return(
       <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden",...(oneTableStableShellStyle||{})}}>
 
         {/* ── BARRE TOP : streets + timeline (desktop) ── */}
@@ -4090,200 +4317,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         </div>{/* ── fin COLONNE GAUCHE ── */}
 
-        {/* ══ COLONNE DROITE : CONTRÔLES (desktop — masquée mobile, contenu → bottom sheet) ══ */}
-        <div className="t1-right" style={{flex:"0 0 32%",display:"flex",flexDirection:"column",background:"linear-gradient(180deg,#030D2A,#020810)",borderLeft:"1px solid #152D6E",overflow:"hidden",minWidth:0}}>
-
-          {/* HUD compact */}
-          <div style={{flexShrink:0,background:"linear-gradient(90deg,#040B1F,#030D2A)",borderBottom:"1px solid #152D6E",padding:"5px 10px",display:"flex",flexWrap:"wrap",gap:4,alignItems:"center"}}>
-            <span className="hud-chip hud-pos" style={{fontSize:8.5,padding:"2px 7px"}}>📍 {spot.hpos}</span>
-            <span className="hud-chip hud-stack" style={{fontSize:8.5,padding:"2px 7px"}}>📊 {spot.stack}</span>
-            <span className="hud-chip hud-spr" style={{fontSize:8.5,padding:"2px 7px"}}>SPR {spr}</span>
-            {potOddsStr&&<span className="hud-chip hud-odds" style={{fontSize:8.5,padding:"2px 7px"}}>Odds {potOddsStr}</span>}
-            <span style={{marginLeft:"auto",padding:"2px 7px",borderRadius:5,fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:700,background:trainerMode==="gto"?"rgba(52,216,255,.08)":"rgba(255,138,61,.08)",color:trainerMode==="gto"?"#34D8FF":"#FF8A3D",border:`1px solid ${trainerMode==="gto"?"rgba(52,216,255,.2)":"rgba(255,138,61,.2)"}`}}>{trainerMode==="gto"?"GTO":PLATFORM_PROFILES[platform]?.flag||"🦈"}</span>
-            <div className="hud-diff" style={{fontSize:8,padding:"1px 6px"}}><span style={{width:5,height:5,borderRadius:"50%",background:diffCol,flexShrink:0}}/>{diffLabel}</div>
-          </div>
-
-          {/* ── ZONE SCROLLABLE ── */}
-          <div style={{flex:1,overflowY:"auto",overflowX:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
-
-            {/* VILLAIN THINKING dans la colonne droite */}
-            {phase==="villain_thinking"&&(()=>{
-              const vp=VILLAIN_PROFILES[spot.vtype];
-              return(
-                <div style={{flexShrink:0,background:"linear-gradient(135deg,rgba(155,92,255,.1),rgba(155,92,255,.03))",borderBottom:"1px solid rgba(155,92,255,.2)",padding:"10px 12px"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
-                    <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,background:vp?`${vp.col}18`:"rgba(155,92,255,.15)",border:`2px solid ${vp?vp.col+"66":"rgba(155,92,255,.5)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:`0 0 16px ${vp?vp.col+"44":"rgba(155,92,255,.3)"}`,animation:"seatVilActive 1.5s ease-in-out infinite"}}>🤔</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:10,fontWeight:800,color:vp?vp.col:"#9B5CFF",marginBottom:2}}>⚡ {spot.vpos} · {spot.vtype}</div>
-                      <div style={{fontSize:8,color:T.text4,fontFamily:T.stats}}>{trainerMode==="exploit"&&vp?`Profil ${spot.vtype} — VPIP ${vp.vpip}%, Agg ${vp.agg}…`:"Calcule la stratégie GTO optimale…"}</div>
-                    </div>
-                    <span style={{padding:"2px 7px",borderRadius:20,background:"rgba(155,92,255,.08)",border:"1px solid rgba(155,92,255,.2)",fontSize:7.5,fontWeight:700,color:"rgba(155,92,255,.8)"}}>🤖 IA</span>
-                  </div>
-                  <div style={{overflow:"hidden",borderRadius:2,background:"rgba(155,92,255,.1)"}}>
-                    <div className="think-bar" style={{background:`linear-gradient(90deg,${vp?vp.col+"66":"rgba(155,92,255,.5)"},${vp?vp.col:"#9B5CFF"})`}}/>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* VILLAIN IA HUD — style GTO Wizard moderne */}
-            {(()=>{
-              const vp=VILLAIN_PROFILES[spot.vtype];
-              if(!vp)return null;
-              return(
-                <div style={{flexShrink:0,padding:"9px 11px 8px",borderBottom:"1px solid #152D6E",background:"rgba(155,92,255,.03)"}}>
-                  <div style={{fontSize:7.5,color:"#9B5CFF",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:6}}>VILLAIN IA</div>
-                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
-                    <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,background:`${vp.col}18`,border:`2px solid ${vp.col}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:19,boxShadow:`0 0 14px ${vp.col}33`}}>{vp.ico||"🤖"}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:11,fontWeight:800,color:vp.col,marginBottom:1}}>{spot.vtype}</div>
-                      <div style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{spot.vpos} · {vp.desc}</div>
-                    </div>
-                  </div>
-                  {[["VPIP",vp.vpip,50,"#34D8FF"],["PFR",vp.pfr,40,"#10D87A"],["Agg",Math.round(vp.agg*20),100,"#FF8A3D"]].map(([lbl,val,max,col])=>(
-                    <div key={lbl} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                      <span style={{width:24,fontSize:7.5,fontFamily:T.stats,color:T.text4,flexShrink:0}}>{lbl}</span>
-                      <div style={{flex:1,height:4,background:"rgba(255,255,255,.06)",borderRadius:2,overflow:"hidden"}}>
-                        <div style={{height:"100%",width:`${(val/max)*100}%`,background:col,borderRadius:2,transition:"width .6s"}}/>
-                      </div>
-                      <span style={{width:26,textAlign:"right",fontSize:7.5,fontFamily:T.mono,color:col,flexShrink:0}}>{lbl==="Agg"?vp.agg:val+"%"}</span>
-                    </div>
-                  ))}
-                  {trainerMode==="exploit"&&vp.exploitTip&&(
-                    <div style={{marginTop:5,padding:"4px 7px",borderRadius:5,background:`${vp.col}0C`,border:`1px solid ${vp.col}28`,fontSize:7.5,color:vp.col,fontFamily:T.stats,lineHeight:1.45}}>{vp.exploitTip}</div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {answered!==null&&renderHeroFeedback()}
-
-            {/* ANALYSE GTO */}
-            {(()=>{
-              const solBlurred=!showSol;
-              const accentCols=["#FF4560","#10D87A","#1F8BFF","#FFC247","#9B5CFF"];
-              const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
-              return(
-                <div style={{flexShrink:0,padding:"9px 11px 8px",borderBottom:"1px solid #152D6E",position:"relative",overflow:"hidden"}}>
-                  <div style={{fontSize:7.5,color:"#34D8FF",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:6}}>ANALYSE GTO</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    {spot.acts.map((a,i)=>{
-                      const freq=spot.freq[a.id]||0;
-                      if(freq===0)return null;
-                      const isB=i===spot.ok;
-                      const col=accentCols[i%accentCols.length];
-                      return(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:5}}>
-                          <span style={{width:34,fontSize:8,fontFamily:T.stats,fontWeight:700,color:isB?T.green:T.text3,flexShrink:0}}>{a.l}</span>
-                          <div style={{flex:1,height:5,background:"rgba(255,255,255,.05)",borderRadius:3,overflow:"hidden"}}>
-                            <div style={{height:"100%",width:`${freq}%`,background:col,borderRadius:3,transition:"width .7s"}}/>
-                          </div>
-                          <span style={{width:24,textAlign:"right",fontSize:8,fontFamily:T.mono,color:isB?T.green:T.text4}}>{freq}%</span>
-                          {spot.ev[a.id]!==undefined&&<span style={{width:38,textAlign:"right",fontSize:8,fontFamily:T.mono,color:spot.ev[a.id]>=0?T.green:T.red,flexShrink:0}}>{spot.ev[a.id]>=0?"+":""}{spot.ev[a.id]?.toFixed(1)}</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5}}>
-                    <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>EV optimal :</span>
-                    <span style={{fontSize:9,fontFamily:T.mono,fontWeight:700,color:bestEv>=0?T.green:T.amber}}>{bestEv>0?"+":""}{bestEv.toFixed(2)}bb</span>
-                  </div>
-                  {solBlurred&&(
-                    <div className="sol-lock">
-                      <span style={{fontSize:16}}>🔒</span>
-                      <span style={{fontSize:8,fontFamily:T.stats,fontWeight:700,color:T.text3,letterSpacing:".05em"}}>Solution masquée</span>
-                      <button onClick={onToggleSol} className="sol-toggle-btn sol-hidden" style={{marginTop:5,fontSize:8,padding:"3px 10px"}}>Révéler</button>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* ANALYSE EXPLOIT */}
-            {(()=>{
-              const solBlurred=!showSol;
-              const vp=VILLAIN_PROFILES[spot.vtype];
-              return(
-                <div style={{flexShrink:0,padding:"8px 11px",borderBottom:"1px solid #152D6E",position:"relative",overflow:"hidden"}}>
-                  <div style={{fontSize:7.5,color:"#FF8A3D",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:5}}>ANALYSE EXPLOIT</div>
-                  <div style={{fontSize:8,color:T.text3,fontFamily:"'Inter',sans-serif",lineHeight:1.5,marginBottom:4}}>{spot.expl||"Analysez la range villain et choisissez l'action exploitative optimale."}</div>
-                  {vp&&<div style={{padding:"4px 7px",borderRadius:5,background:`${vp.col}10`,border:`1px solid ${vp.col}28`,fontSize:7.5,color:vp.col,fontFamily:T.stats}}>Agg: {vp.agg} · {vp.desc}</div>}
-                  {solBlurred&&(
-                    <div className="sol-lock">
-                      <span style={{fontSize:16}}>🔒</span>
-                      <span style={{fontSize:8,fontFamily:T.stats,fontWeight:700,color:T.text3,letterSpacing:".05em"}}>Solution masquée</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* HISTORIQUE — chemin d'action complet jusqu'à Hero (préflop reconstruit) + actions live */}
-            {(()=>{
-              const fullLog=[...(spotCtx.preActions||[]),...handLog];
-              return(
-            <div style={{flexShrink:0,padding:"8px 11px",borderBottom:"1px solid #152D6E"}}>
-              <div style={{fontSize:7.5,color:"#FFC247",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:5}}>HISTORIQUE</div>
-              {fullLog.length>0?(
-                <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                  {fullLog.map((t,i)=>{
-                    const isHeroRow=t.position===spot.hpos;
-                    return(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:4,opacity:t.actionType==="FOLD"?.55:1}}>
-                      <span style={{width:26,fontSize:7.5,fontFamily:T.stats,fontWeight:700,color:isHeroRow?T.gold:T.text3,padding:"1px 4px",borderRadius:3,background:isHeroRow?"rgba(255,194,71,.1)":"rgba(255,255,255,.04)",border:`1px solid ${isHeroRow?"rgba(255,194,71,.25)":"rgba(255,255,255,.06)"}`,flexShrink:0}}>{t.position}</span>
-                      <span className={`tlact ${tlCls(t.actionType)}`} style={{fontSize:7.5,padding:"1px 5px"}}>{trainerActionVerb(t.actionType)}</span>
-                      {(t.displayAmount??t.amountBb)>0&&<span style={{fontSize:7.5,fontFamily:T.mono,color:T.amber,marginLeft:"auto"}}>{fmt(t.displayAmount??t.amountBb)}</span>}
-                      {t.potAfterAction>0&&<span style={{fontSize:7.5,fontFamily:T.mono,color:T.text4,marginLeft:(t.displayAmount??t.amountBb)>0?0:"auto"}}>P {fmt(t.potAfterAction)}</span>}
-                    </div>
-                    );
-                  })}
-                  {answered===null&&<div style={{display:"flex",alignItems:"center",gap:4,marginTop:1}}>
-                    <span style={{width:26,fontSize:7.5,fontFamily:T.stats,fontWeight:800,color:T.gold,padding:"1px 4px",borderRadius:3,background:"rgba(255,194,71,.14)",border:"1px solid rgba(255,194,71,.35)",flexShrink:0}}>{spot.hpos}</span>
-                    <span style={{fontSize:7.5,color:T.gold,fontFamily:T.stats,fontStyle:"italic"}}>à toi de jouer{spotCtx.facing?` — face à ${spotCtx.facing.label.toLowerCase()} ${fmt(spotCtx.facing.amount)}`:(/^pre/i.test(spot.street||"")?" — premier à parler":` — ${spot.vpos} check`)}</span>
-                  </div>}
-                </div>
-              ):(
-                <div style={{fontSize:8.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>Pas encore d'actions</div>
-              )}
-            </div>
-              );
-            })()}
-
-            {/* INFORMATIONS */}
-            <div style={{flexShrink:0,padding:"8px 11px",borderBottom:"1px solid #152D6E"}}>
-              <div style={{fontSize:7.5,color:"#10D87A",fontFamily:T.stats,fontWeight:800,letterSpacing:".1em",marginBottom:5}}>INFORMATIONS</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 8px"}}>
-                {[
-                  ["Street",spot.street,"#34D8FF"],
-                  ["Pot",fmt(currentPotBb||1.5),T.gold],
-                  ["Stack",fmt(parseFloat(spot.stack)||100)+" bb",T.amber],
-                  ["SPR",spr,T.text3],
-                  ...(spot.toCall>0?[["Pot odds",potOddsStr,"#FF8A3D"]]:[] ),
-                  ["Difficulté",spot.diff===1?"Débutant":spot.diff===2?"Inter.":spot.diff===3?"Avancé":"Expert",spot.diff===1?T.green:spot.diff===2?T.amber:spot.diff===3?T.red:"#9B5CFF"],
-                ].map(([lbl,val,col])=>(
-                  <div key={lbl} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>{lbl}</span>
-                    <span style={{fontSize:8.5,fontFamily:T.mono,fontWeight:700,color:col}}>{val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* EV RÉSULTATS */}
-            {phase==="done"&&answered!==null&&(
-              <div style={{flexShrink:0}}>{renderEvResults()}</div>
-            )}
-
-            {/* FULL-HAND : actions accessibles même solution masquée */}
-            {renderFhActions()}
-
-          </div>{/* ── fin zone scrollable ── */}
-
-          {/* ══ TIMELINE — bas du bandeau droit (maquette v2). Les actions Héro
-             sont désormais centrées sous la table : plus aucun chevauchement. ══ */}
-          {renderTimeline()}
-
-        </div>{/* ── fin COLONNE DROITE ── */}
+        {renderRightPanel()}
 
         </div>{/* ── fin ZONE PRINCIPALE 2 COLONNES ── */}
 
@@ -4348,10 +4382,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
       </div>
     );
-  }
 
   return(
     <div className="tw" style={{background:"#040B1F"}}>
+      {/* Multi-table : la table ACTIVE projette le VRAI panneau 1T dans la colonne partagée */}
+      {numTables>1&&isActive&&panelTarget&&createPortal(renderRightPanel(),panelTarget)}
       {/* ── BARRE TOP compacte : streets + timeline + timer ── */}
       <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"wrap",minHeight:28,flexShrink:0}}>
         {STREETS.map(s=>{
@@ -4383,9 +4418,21 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         )}
       </div>
 
-      {/* ── ZONE TABLE — ovale elliptique centré dans le viewport de mosaïque
-           (mobile : garde l'aspect-ratio en padding) ── */}
-      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:{flex:"1 1 0%",minHeight:96,width:"100%",alignSelf:"stretch"}}>
+      {/* ── ZONE TABLE — calibrée sur les dimensions du script multi-table V1 :
+           ovale 2T 400×310 · 3T haut 398×205 (bas 500×164 via CSS) · 4T 398×176.
+           Hauteur = espace disponible, largeur dérivée du ratio (proportions maquette
+           conservées à toute résolution). Mobile : aspect-ratio en padding (inchangé). ── */}
+      <div className="mt-zone-fit" style={isMobile?undefined:{flex:"1 1 0%",minHeight:0,width:"100%",display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:2,overflow:"hidden"}}>
+      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:(()=>{
+        // Ratio de zone dérivé du ratio d'OVALE cible (script V1) corrigé des marges
+        // de la géométrie : ovale 2T 400×310 · 3T haut 398×205 · 4T 398×176.
+        const g=trainingLayout.tableGeometry;
+        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/176;
+        const zoneAR=ovalAR*(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
+        // Piloté par la LARGEUR de cellule (stable quel que soit le contenu des
+        // actions) → le ratio d'ovale est identique sur toutes les tables du mode.
+        return{width:"100%",height:"auto",aspectRatio:String(zoneAR.toFixed(4)),maxHeight:"100%",flexShrink:0};
+      })()}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
@@ -4632,6 +4679,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           );
         })}
       </div>
+      </div>{/* ── fin mt-zone-fit ── */}
 
       {/* ── TOAST ── */}
       {showToast&&<div className="error-toast"><span className="error-toast-icon">⚠</span>{showToast}</div>}
@@ -5419,6 +5467,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
   const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
+  const[panelEl,setPanelEl]=useState(null);             // conteneur DOM du panneau droit partagé (cible du portal 1T)
   const[zoomed,setZoomed]=useState(false);              // pincement zoom actif
   const sheetRef=useRef(null);
   const sheetTouch=useRef({y:0,dy:0});
@@ -5804,160 +5853,6 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // Callback: ouvrir le Shark Solver avec le spot en cours
   const onGoSolverFn=onGoSolverProp||null;
 
-  /* ══════════════════════════════════════════════════════════════════
-     MULTI-TABLE : panneau droit partagé + bandeau explicatif (maquette V1).
-     Pilotés par activeSpot (table active). Réutilisent les données parent
-     (VILLAIN_PROFILES, résultats de session) — pas de logique métier dupliquée.
-     ══════════════════════════════════════════════════════════════════ */
-  const isLastBatchNow=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
-  const renderSharedPanel=()=>{
-    const s=activeSpot; if(!s) return null;
-    const vp=VILLAIN_PROFILES[s.vtype]||null;
-    const potN=parseFloat(s.pot)||0;
-    const stackN=parseFloat(s.stack)||100;
-    const spr=potN>0?(stackN/potN).toFixed(1):"—";
-    const toCall=Number(s.toCall)||0;
-    const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
-    const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
-    const diffCol=s.diff===1?T.green:s.diff===2?T.amber:s.diff===3?T.red:s.diff===4?"#9B5CFF":T.amber;
-    const bestAct=Array.isArray(s.acts)&&s.ok!=null?s.acts[s.ok]:null;
-    const posOrder=["UTG","HJ","CO","BTN","SB","BB"];
-    return(
-      <aside className="pf-mt-rightpanel">
-        {/* VILLAIN IA */}
-        <div className="pf-mtp-sec">
-          <div className="pf-mtp-title">VILLAIN IA</div>
-          {vp?(
-            <div className="pf-vil-card" style={{borderColor:vp.col+"44",marginBottom:0}}>
-              <div className="pf-vil-head">
-                <div className="pf-vil-ava" style={{background:`${vp.col}16`,borderColor:vp.col+"66",boxShadow:`0 0 14px ${vp.col}33`,width:38,height:38,fontSize:18}}>🤖</div>
-                <div style={{minWidth:0}}>
-                  <div className="pf-vil-type" style={{color:vp.col,fontSize:13}}>{s.vtype}</div>
-                  <div className="pf-vil-sub" style={{fontSize:9.5}}>{s.vpos} · {vp.desc}</div>
-                </div>
-              </div>
-              <div className="pf-mtp-bars">
-                {[["VPIP",vp.vpip,"#34D8FF"],["PFR",vp.pfr,"#10D87A"],["AGG",Math.min(100,vp.agg*20),"#FF8A3D",vp.agg]].map(([l,v,c,raw])=>(
-                  <div key={l} className="pf-mtp-bar">
-                    <span className="k">{l}</span>
-                    <div className="tr"><i style={{width:`${v}%`,background:c}}/></div>
-                    <span className="v" style={{color:c}}>{raw!=null?raw:v+"%"}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ):<div className="pf-mtp-empty">Aucun vilain sur ce spot</div>}
-        </div>
-        {/* SOLUTION */}
-        <div className="pf-mtp-sec">
-          <div className="pf-mtp-title">SOLUTION</div>
-          {showSol&&bestAct?(
-            <div className="pf-mtp-sol reveal">
-              <span className="lbl">Action GTO</span>
-              <strong style={{color:T.green}}>{bestAct.l}</strong>
-              {s.freq&&<span className="frq">{Math.round(s.freq[bestAct.id]||0)}%</span>}
-            </div>
-          ):(
-            <div className="pf-mtp-sol">
-              <span className="lbl">🔒 Solution masquée</span>
-              <button className="pf-mtp-reveal" onClick={()=>setShowSol(true)}>Révéler</button>
-            </div>
-          )}
-        </div>
-        {/* HISTORIQUE (préflop) */}
-        <div className="pf-mtp-sec">
-          <div className="pf-mtp-title">HISTORIQUE</div>
-          <div className="pf-mtp-histo">
-            {posOrder.map(p=>{
-              let v="—";
-              if(p==="SB")v="Petite blind 0.5bb";
-              else if(p==="BB")v="Grosse blind 1bb";
-              else if(s.ctx?.folded?.includes?.(p))v="Fold";
-              else if(p===s.hpos)v="À parler";
-              return(
-                <div key={p} className={`pf-mtp-hrow${p===s.hpos?" hero":""}`}>
-                  <span className="p">{p}</span><span className="a">{v}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        {/* INFORMATIONS */}
-        <div className="pf-mtp-sec">
-          <div className="pf-mtp-title">INFORMATIONS</div>
-          <div className="pf-mtp-info">
-            {[["Street",s.street||"Preflop",T.text],["Stack Hero",`${roundBb(stackN)}bb`,T.text],["Pot",`${roundBb(potN)}bb`,T.gold],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#9B5CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
-              <div key={k} className="pf-mtp-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
-            ))}
-          </div>
-        </div>
-        {/* TIMELINE */}
-        <div className="pf-mtp-sec pf-mtp-timeline">
-          <div className="pf-mtp-title">TIMELINE</div>
-          <div className="pf-mtp-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
-          <div className="pf-mtp-tl-ctrls">
-            <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
-            <button className="pf-mtp-tl-next" disabled={!allSettled} onClick={handleNext}>
-              {allSettled?(isLastBatchNow?"🏆 Résultats":"Main suivante ▶"):"Décision en cours…"}
-            </button>
-          </div>
-        </div>
-      </aside>
-    );
-  };
-
-  const renderMultiTableFooter=()=>{
-    const s=activeSpot;
-    const acts=Array.isArray(s?.acts)?s.acts:[];
-    const shortcut=(i,fallback)=>acts[i]?.l||fallback;
-    return(
-      <footer className="pf-mt-footer">
-        <div className="pf-mtf-col">
-          <div className="pf-mtf-h">INSTRUCTIONS</div>
-          <div className="pf-mtf-instr">
-            <strong>TABLE {activeTable+1} — {(s?.street||"PREFLOP").toUpperCase()}</strong>
-            <span>{s?.hpos||"Hero"} · {s?.desc||"Prends la meilleure décision sur cette table."}</span>
-            <em>Quelle est la meilleure action ?</em>
-          </div>
-        </div>
-        <div className="pf-mtf-col">
-          <div className="pf-mtf-h">VOS OBJECTIFS</div>
-          <ul className="pf-mtf-list ok">
-            <li>Prendre la meilleure décision sur chaque table</li>
-            <li>Gagner en régularité et en précision</li>
-            <li>Comprendre les ranges et les sizings</li>
-            <li>Améliorer ton jeu en multi-tabling</li>
-          </ul>
-        </div>
-        <div className="pf-mtf-col">
-          <div className="pf-mtf-h">RAPPELS CLÉS</div>
-          <ul className="pf-mtf-list dot">
-            <li>La table active (halo bleu) reçoit les raccourcis.</li>
-            <li>Clique une autre table pour la rendre active.</li>
-            <li>Le panneau droit suit toujours la table active.</li>
-            <li>Pense à ton plan sur les prochaines streets.</li>
-          </ul>
-        </div>
-        <div className="pf-mtf-col">
-          <div className="pf-mtf-h">RACCOURCIS</div>
-          <div className="pf-mtf-keys">
-            {[["F1",shortcut(0,"Fold")],["F2",shortcut(1,"Check/Call")],["F3",shortcut(2,"Bet/Raise")],["F4",shortcut(3,"Bet Pot/All-in")]].map(([k,l])=>(
-              <div key={k} className="pf-mtf-key"><span className="kk">{k}</span><span className="kl">{l}</span></div>
-            ))}
-          </div>
-        </div>
-        <div className="pf-mtf-col">
-          <div className="pf-mtf-h">ACTIONS RAPIDES</div>
-          <ul className="pf-mtf-list dot">
-            <li>Min : mise minimale</li>
-            <li>2.5x / 3x / 3.5x / 4x : multiplier la mise</li>
-            <li>All-in : tapis</li>
-            <li>+/- : ajuster le montant</li>
-          </ul>
-        </div>
-      </footer>
-    );
-  };
 
   return(
     <div style={{display:"flex",flex:1,overflow:"hidden",flexDirection:"column"}}>
@@ -6547,7 +6442,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -6595,12 +6490,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               )}
             </div>
           </div>{/* ── fin gridRef (playground) ── */}
-          {/* ══ PANNEAU DROIT PARTAGÉ (multi-table desktop) — suit la table active ══ */}
-          {ntables>1&&!isMobile&&renderSharedPanel()}
+          {/* ══ COLONNE DROITE PARTAGÉE — reçoit le VRAI panneau 1T de la table active (portal) ══ */}
+          {ntables>1&&!isMobile&&<div className="pf-mt-sharedcol" ref={setPanelEl}/>}
           </div>
         )}
-        {/* ══ BANDEAU EXPLICATIF (multi-table desktop) ══ */}
-        {started&&!done&&ntables>1&&!isMobile&&renderMultiTableFooter()}
         {/* Reset zoom (pincement) */}
         {isMobile&&zoomed&&ntables>1&&started&&!done&&(
           <button className="mt-zoom-reset" onClick={resetZoom}>↺ Zoom 100%</button>

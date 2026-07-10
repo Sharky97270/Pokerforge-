@@ -237,12 +237,21 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:14px;}
 /* Mosaïque multi-table (maquette V1) : remplit tout le playground, lignes étirées,
    séparation nette entre tables, aucune table fantôme. */
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,0.92fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:center;justify-items:stretch;height:100%;min-height:0;}
+.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,0.82fr);gap:8px;padding:8px;align-items:center;justify-items:stretch;height:100%;min-height:0;}
 .grid3>.mt-slot:nth-child(3){grid-column:1/-1;}
 .grid3>.mt-slot:nth-child(3) .tw{max-width:560px;margin:0 auto;width:100%;}
-.grid3>.mt-slot:nth-child(3) .training-table-zone{max-height:56%!important;}
-.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+/* Dimensions de viewport du script V1 (réf. 1536×1024) : la mosaïque reste compacte
+   et proportionnée comme la maquette, l'espace excédentaire est réparti autour. */
+.grid2,.grid3,.grid4{justify-items:center;}
+.grid2>.mt-slot{max-height:585px;height:100%;max-width:520px;width:100%;}
+.grid3>.mt-slot{max-height:460px;height:100%;max-width:500px;width:100%;}
+.grid3>.mt-slot:nth-child(3){max-height:360px;max-width:640px;}
+.grid4>.mt-slot{max-height:380px;height:100%;max-width:500px;width:100%;}
+/* Table 3 (bas) : ovale 500×164 du script. Ratio de zone corrigé des marges de la
+   géométrie 3T (t11 b12.5 l7.4 r7.4) : (500/164)×0.765/0.852 ≈ 2.7375 */
+.grid3>.mt-slot:nth-child(3) .training-table-zone{aspect-ratio:2.7375!important;}
+.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:center;justify-items:stretch;height:100%;min-height:0;}
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}
 .mt-slot{position:relative;min-width:0;}
@@ -274,11 +283,28 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .mt-table-title em{font-style:normal;color:#00D9FF;font-size:8px;line-height:1;}
 /* Multi-table : la zone d'action ne doit pas dupliquer l'aperçu des cartes Hero
    (déjà sur la table) — on le masque pour compacter et éviter le rognage. */
-.grid2 .tw>.training-table-zone~div>div:has(.hero-card-wrap),
-.grid3 .tw>.training-table-zone~div>div:has(.hero-card-wrap),
-.grid4 .tw>.training-table-zone~div>div:has(.hero-card-wrap){display:none!important;}
-/* Boutons d'action compacts en mosaïque */
-.grid2 .gto-btn,.grid3 .gto-btn,.grid4 .gto-btn{min-height:30px!important;padding:5px 6px!important;}
+.grid2 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
+.grid3 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
+.grid4 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap){display:none!important;}
+/* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
+.grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
+.grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
+/* Colonne droite partagée : reçoit le VRAI panneau 1T (t1-right) de la table active via portal */
+.pf-mt-sharedcol{flex:0 0 300px;width:300px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
+.pf-mt-sharedcol>.t1-right{flex:1 1 auto!important;width:100%!important;}
+/* Aide multi-table intégrée au panneau droit (ex-bandeau bas) */
+.pf-mtp-help{flex-shrink:0;padding:9px 11px;margin-top:2px;border-top:1px solid #152D6E;background:rgba(6,20,38,.5);}
+.pf-mtp-help .pf-mtp-title{font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:800;letter-spacing:.13em;margin-bottom:5px;}
+.pf-mtp-help-instr{display:flex;flex-direction:column;gap:2px;margin-bottom:2px;}
+.pf-mtp-help-instr strong{font-family:'Space Grotesk',sans-serif;font-size:9.5px;font-weight:800;color:#DCEBFF;letter-spacing:.04em;}
+.pf-mtp-help-instr span{font-family:'Inter',sans-serif;font-size:9.5px;color:#A9B7C9;line-height:1.35;}
+.pf-mtp-help-keys{display:flex;flex-direction:column;gap:4px;}
+.pf-mtp-help-key{display:flex;align-items:center;gap:7px;}
+.pf-mtp-help-key .kk{font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:800;color:#F4F7FB;background:#0B2238;border:1px solid #16305f;border-radius:5px;padding:1px 6px;flex-shrink:0;}
+.pf-mtp-help-key .kl{font-family:'Inter',sans-serif;font-size:9.5px;color:#A9B7C9;}
+.pf-mtp-help-list{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;}
+.pf-mtp-help-list li{font-family:'Inter',sans-serif;font-size:9px;color:#8FA2C4;line-height:1.3;padding-left:11px;position:relative;}
+.pf-mtp-help-list li::before{content:"•";position:absolute;left:1px;color:#0878FF;}
 
 /* ══ MULTI-TABLE — panneau droit partagé (maquette V1) ══ */
 .pf-mt-rightpanel{
