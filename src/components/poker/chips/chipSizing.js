@@ -28,30 +28,57 @@ export function getChipSizeScale({ tableMode = "1T", sizeMode = "auto", compact 
   return Number((tableScale * modeScale * compactScale).toFixed(3));
 }
 
+// Répartit `total` jetons en un nombre de piles agréable, SANS perdre de jeton
+// (la somme des piles == total). Garantit la cohérence hauteur ↔ montant.
+function splitChipPiles(total, maxPiles) {
+  const t = Math.max(1, Math.round(total));
+  const piles = Math.max(1, Math.min(maxPiles, Math.ceil(t / 3)));
+  const base = Math.floor(t / piles);
+  const rem = t - base * piles;
+  return Array.from({ length: piles }, (_, i) => Math.max(1, base + (i < rem ? 1 : 0)));
+}
+
+// Hauteur de pile fonction du MONTANT misé : plus la mise est grande, plus la
+// pile est haute (barème logarithmique borné, monotone). Ainsi le nombre de
+// jetons affichés est toujours cohérent avec la taille de la mise, et la
+// dénomination (couleur/valeur du jeton) suit les paliers standards.
+function stackTypeFor(amount, isAllIn) {
+  if (isAllIn || amount >= 80) return "allin";
+  if (amount <= 1.75) return "blind";
+  if (amount <= 4.5) return "short";
+  if (amount <= 12) return "medium";
+  if (amount <= 60) return "large";
+  return "monster";
+}
+
 export function getChipStackVisualAmount(amountBB = 0, tableMode = "1T", isAllIn = false) {
   const amount = Math.max(0, Number(amountBB) || 0);
   const t = String(tableMode || "1T");
   const dense = t === "3T" || t === "4T";
 
-  if (isAllIn || amount >= 80) {
-    return { amount, denomination: 100, visibleChips: dense ? 4 : 6, pileCount: dense ? 3 : 4, stackType: "allin" };
+  // Dénomination (palier standard) — aligne la couleur/valeur du jeton sur le
+  // montant, cohérente avec chipDenominationForAmount() utilisé par <Chip/>.
+  const denomination =
+    amount <= 0.75 ? 0.5 :
+    amount <= 1.75 ? 1 :
+    amount <= 2.75 ? 2.5 :
+    amount <= 3.5 ? 3 :
+    amount <= 4.5 ? 4 :
+    amount <= 12 ? 5 :
+    amount <= 60 ? 25 : 100;
+
+  if (amount <= 0) {
+    return { amount, denomination, visibleChips: 0, pileCount: 0, piles: [], stackType: stackTypeFor(0, false) };
   }
-  if (amount <= 0.75) {
-    return { amount, denomination: 0.5, visibleChips: dense ? 1 : 2, pileCount: 1, stackType: "blind" };
-  }
-  if (amount <= 1.75) {
-    return { amount, denomination: 1, visibleChips: dense ? 2 : 3, pileCount: 1, stackType: "blind" };
-  }
-  if (amount <= 4.5) {
-    return { amount, denomination: amount <= 2.75 ? 2.5 : amount <= 3.5 ? 3 : 4, visibleChips: dense ? 2 : 3, pileCount: 1, stackType: "short" };
-  }
-  if (amount <= 12) {
-    return { amount, denomination: 5, visibleChips: dense ? 3 : 4, pileCount: dense ? 1 : 2, stackType: "medium" };
-  }
-  if (amount <= 60) {
-    return { amount, denomination: 25, visibleChips: dense ? 3 : 5, pileCount: dense ? 2 : 3, stackType: "large" };
-  }
-  return { amount, denomination: 100, visibleChips: dense ? 4 : 6, pileCount: dense ? 3 : 4, stackType: "monster" };
+
+  const cap = dense ? 5 : 8;
+  let visibleChips = isAllIn ? cap : Math.round(1.8 * Math.log(1 + amount) + 0.4);
+  visibleChips = Math.max(1, Math.min(cap, visibleChips));
+  // Tables denses : on compresse un peu la hauteur pour rester lisible.
+  if (dense && !isAllIn) visibleChips = Math.max(1, Math.min(cap, Math.ceil(visibleChips * 0.7)));
+
+  const piles = splitChipPiles(visibleChips, dense ? 2 : 4);
+  return { amount, denomination, visibleChips, pileCount: piles.length, piles, stackType: stackTypeFor(amount, isAllIn) };
 }
 
 export function getChipAnchorPosition(position, tableMode = "1T") {

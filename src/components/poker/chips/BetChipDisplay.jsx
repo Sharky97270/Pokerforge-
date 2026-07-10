@@ -16,8 +16,9 @@ export default function BetChipDisplay({
 }) {
   const tableModeKey = typeof tableMode === "string" ? tableMode : getChipTableMode(tableMode);
   const visual = getChipStackVisualAmount(amount, tableModeKey, String(type).toLowerCase() === "allin");
-  const pileCount = amount > 0 ? Math.max(1, Math.min(4, visual.pileCount)) : 0;
-  const chipsPerPile = Math.max(1, Math.min(5, visual.visibleChips));
+  // Piles à somme constante : le nombre TOTAL de jetons = visual.visibleChips,
+  // donc cohérent avec le montant misé (pas de multiplication pile × jetons).
+  const piles = amount > 0 ? visual.piles : [];
 
   return (
     <span
@@ -28,11 +29,11 @@ export default function BetChipDisplay({
       style={style}
     >
       {amount > 0 && (
-        <span className={`pf-action-chip-piles piles-${pileCount}`}>
-          {Array.from({ length: pileCount }).map((_, i) => (
+        <span className={`pf-action-chip-piles piles-${piles.length}`}>
+          {piles.map((chipCount, i) => (
             <ChipStack
               key={i}
-              count={Math.max(1, Math.min(5, chipsPerPile - (i % 2)))}
+              count={chipCount}
               amount={amount}
               kind={type === "allin" ? "danger" : i % 3 === 1 ? "pot" : kind}
               themeKey={themeKey}
