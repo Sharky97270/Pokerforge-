@@ -2365,7 +2365,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -2870,6 +2870,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       if(!playingFull&&answered!==null){fire(onNext);}
       return;
     }
+    // ── Raccourcis F1–F4 : positionnels sur les actions du spot (table active) ──
+    const fk={F1:0,F2:1,F3:2,F4:3}[e.key];
+    if(fk!==undefined){
+      if(!playingFull&&phase==="hero_reply"&&vact){
+        return fire(handleHeroReply,["FOLD","CALL","RAISE","RAISE"][fk]);
+      }
+      if(!playingFull&&phase==="hero"&&answered===null&&Array.isArray(spot?.acts)&&spot.acts[fk]){
+        return fire(handleHeroAct,fk);
+      }
+      return;
+    }
     const k=(e.key||"").toLowerCase();
     if(!["f","c","b","r","a"].includes(k))return;
     // ── Mode main complète (Full Hand) ──
@@ -2901,11 +2912,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     }
   };
   useEffect(()=>{
-    if(numTables!==1)return;
+    // 1T : toujours. Multi-table : seule la table ACTIVE écoute (raccourcis F1–F4).
+    if(numTables!==1&&!isActive)return;
     const h=(e)=>keyHandlerRef.current&&keyHandlerRef.current(e);
     window.addEventListener("keydown",h);
     return()=>window.removeEventListener("keydown",h);
-  },[numTables]);
+  },[numTables,isActive]);
 
   // ── Spot impossible : la main s'arrête, message clair, passage automatique ──
   if(spotImpossible){
@@ -6535,7 +6547,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
