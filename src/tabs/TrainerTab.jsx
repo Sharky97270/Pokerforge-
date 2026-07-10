@@ -4373,7 +4373,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
       {/* ── ZONE TABLE — ovale elliptique centré dans le viewport de mosaïque
            (mobile : garde l'aspect-ratio en padding) ── */}
-      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:{width:"100%",aspectRatio:"1.62 / 1",maxHeight:"66%",margin:"auto 0",alignSelf:"center"}}>
+      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:{flex:"1 1 0%",minHeight:96,width:"100%",alignSelf:"stretch"}}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
@@ -5435,6 +5435,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // État de session : true = session en cours → filtres verrouillés
   const sessionActive=started&&!done;
   const curSpot=queue[idx]||null;
+  // Multi-table : spot de la table active (panneau droit partagé + raccourcis)
+  const activeSpot=queue[idx+(ntables>1?activeTable:0)]||curSpot;
 
   /* ══ Leak Hunter — basé sur les stats persistées (sessions précédentes) ══ */
   const trainerStats=useMemo(()=>loadStats(),[done,started]);
@@ -5789,6 +5791,161 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const gridClass=ntables===1?"grid1":ntables===2?"grid2":ntables===3?"grid3":ntables===4?"grid4":ntables<=6?"grid6":"grid8";
   // Callback: ouvrir le Shark Solver avec le spot en cours
   const onGoSolverFn=onGoSolverProp||null;
+
+  /* ══════════════════════════════════════════════════════════════════
+     MULTI-TABLE : panneau droit partagé + bandeau explicatif (maquette V1).
+     Pilotés par activeSpot (table active). Réutilisent les données parent
+     (VILLAIN_PROFILES, résultats de session) — pas de logique métier dupliquée.
+     ══════════════════════════════════════════════════════════════════ */
+  const isLastBatchNow=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+  const renderSharedPanel=()=>{
+    const s=activeSpot; if(!s) return null;
+    const vp=VILLAIN_PROFILES[s.vtype]||null;
+    const potN=parseFloat(s.pot)||0;
+    const stackN=parseFloat(s.stack)||100;
+    const spr=potN>0?(stackN/potN).toFixed(1):"—";
+    const toCall=Number(s.toCall)||0;
+    const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
+    const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
+    const diffCol=s.diff===1?T.green:s.diff===2?T.amber:s.diff===3?T.red:s.diff===4?"#9B5CFF":T.amber;
+    const bestAct=Array.isArray(s.acts)&&s.ok!=null?s.acts[s.ok]:null;
+    const posOrder=["UTG","HJ","CO","BTN","SB","BB"];
+    return(
+      <aside className="pf-mt-rightpanel">
+        {/* VILLAIN IA */}
+        <div className="pf-mtp-sec">
+          <div className="pf-mtp-title">VILLAIN IA</div>
+          {vp?(
+            <div className="pf-vil-card" style={{borderColor:vp.col+"44",marginBottom:0}}>
+              <div className="pf-vil-head">
+                <div className="pf-vil-ava" style={{background:`${vp.col}16`,borderColor:vp.col+"66",boxShadow:`0 0 14px ${vp.col}33`,width:38,height:38,fontSize:18}}>🤖</div>
+                <div style={{minWidth:0}}>
+                  <div className="pf-vil-type" style={{color:vp.col,fontSize:13}}>{s.vtype}</div>
+                  <div className="pf-vil-sub" style={{fontSize:9.5}}>{s.vpos} · {vp.desc}</div>
+                </div>
+              </div>
+              <div className="pf-mtp-bars">
+                {[["VPIP",vp.vpip,"#34D8FF"],["PFR",vp.pfr,"#10D87A"],["AGG",Math.min(100,vp.agg*20),"#FF8A3D",vp.agg]].map(([l,v,c,raw])=>(
+                  <div key={l} className="pf-mtp-bar">
+                    <span className="k">{l}</span>
+                    <div className="tr"><i style={{width:`${v}%`,background:c}}/></div>
+                    <span className="v" style={{color:c}}>{raw!=null?raw:v+"%"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ):<div className="pf-mtp-empty">Aucun vilain sur ce spot</div>}
+        </div>
+        {/* SOLUTION */}
+        <div className="pf-mtp-sec">
+          <div className="pf-mtp-title">SOLUTION</div>
+          {showSol&&bestAct?(
+            <div className="pf-mtp-sol reveal">
+              <span className="lbl">Action GTO</span>
+              <strong style={{color:T.green}}>{bestAct.l}</strong>
+              {s.freq&&<span className="frq">{Math.round(s.freq[bestAct.id]||0)}%</span>}
+            </div>
+          ):(
+            <div className="pf-mtp-sol">
+              <span className="lbl">🔒 Solution masquée</span>
+              <button className="pf-mtp-reveal" onClick={()=>setShowSol(true)}>Révéler</button>
+            </div>
+          )}
+        </div>
+        {/* HISTORIQUE (préflop) */}
+        <div className="pf-mtp-sec">
+          <div className="pf-mtp-title">HISTORIQUE</div>
+          <div className="pf-mtp-histo">
+            {posOrder.map(p=>{
+              let v="—";
+              if(p==="SB")v="Petite blind 0.5bb";
+              else if(p==="BB")v="Grosse blind 1bb";
+              else if(s.ctx?.folded?.includes?.(p))v="Fold";
+              else if(p===s.hpos)v="À parler";
+              return(
+                <div key={p} className={`pf-mtp-hrow${p===s.hpos?" hero":""}`}>
+                  <span className="p">{p}</span><span className="a">{v}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* INFORMATIONS */}
+        <div className="pf-mtp-sec">
+          <div className="pf-mtp-title">INFORMATIONS</div>
+          <div className="pf-mtp-info">
+            {[["Street",s.street||"Preflop",T.text],["Stack Hero",`${roundBb(stackN)}bb`,T.text],["Pot",`${roundBb(potN)}bb`,T.gold],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#9B5CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+              <div key={k} className="pf-mtp-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
+            ))}
+          </div>
+        </div>
+        {/* TIMELINE */}
+        <div className="pf-mtp-sec pf-mtp-timeline">
+          <div className="pf-mtp-title">TIMELINE</div>
+          <div className="pf-mtp-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
+          <div className="pf-mtp-tl-ctrls">
+            <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
+            <button className="pf-mtp-tl-next" disabled={!allSettled} onClick={handleNext}>
+              {allSettled?(isLastBatchNow?"🏆 Résultats":"Main suivante ▶"):"Décision en cours…"}
+            </button>
+          </div>
+        </div>
+      </aside>
+    );
+  };
+
+  const renderMultiTableFooter=()=>{
+    const s=activeSpot;
+    const acts=Array.isArray(s?.acts)?s.acts:[];
+    const shortcut=(i,fallback)=>acts[i]?.l||fallback;
+    return(
+      <footer className="pf-mt-footer">
+        <div className="pf-mtf-col">
+          <div className="pf-mtf-h">INSTRUCTIONS</div>
+          <div className="pf-mtf-instr">
+            <strong>TABLE {activeTable+1} — {(s?.street||"PREFLOP").toUpperCase()}</strong>
+            <span>{s?.hpos||"Hero"} · {s?.desc||"Prends la meilleure décision sur cette table."}</span>
+            <em>Quelle est la meilleure action ?</em>
+          </div>
+        </div>
+        <div className="pf-mtf-col">
+          <div className="pf-mtf-h">VOS OBJECTIFS</div>
+          <ul className="pf-mtf-list ok">
+            <li>Prendre la meilleure décision sur chaque table</li>
+            <li>Gagner en régularité et en précision</li>
+            <li>Comprendre les ranges et les sizings</li>
+            <li>Améliorer ton jeu en multi-tabling</li>
+          </ul>
+        </div>
+        <div className="pf-mtf-col">
+          <div className="pf-mtf-h">RAPPELS CLÉS</div>
+          <ul className="pf-mtf-list dot">
+            <li>La table active (halo bleu) reçoit les raccourcis.</li>
+            <li>Clique une autre table pour la rendre active.</li>
+            <li>Le panneau droit suit toujours la table active.</li>
+            <li>Pense à ton plan sur les prochaines streets.</li>
+          </ul>
+        </div>
+        <div className="pf-mtf-col">
+          <div className="pf-mtf-h">RACCOURCIS</div>
+          <div className="pf-mtf-keys">
+            {[["F1",shortcut(0,"Fold")],["F2",shortcut(1,"Check/Call")],["F3",shortcut(2,"Bet/Raise")],["F4",shortcut(3,"Bet Pot/All-in")]].map(([k,l])=>(
+              <div key={k} className="pf-mtf-key"><span className="kk">{k}</span><span className="kl">{l}</span></div>
+            ))}
+          </div>
+        </div>
+        <div className="pf-mtf-col">
+          <div className="pf-mtf-h">ACTIONS RAPIDES</div>
+          <ul className="pf-mtf-list dot">
+            <li>Min : mise minimale</li>
+            <li>2.5x / 3x / 3.5x / 4x : multiplier la mise</li>
+            <li>All-in : tapis</li>
+            <li>+/- : ajuster le montant</li>
+          </ul>
+        </div>
+      </footer>
+    );
+  };
 
   return(
     <div style={{display:"flex",flex:1,overflow:"hidden",flexDirection:"column"}}>
@@ -6347,6 +6504,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         </div></div>}
         {reviewOpen&&<TrainerReviewPanel onClose={()=>setReviewOpen(false)} onDrill={startErrorDrill} onReplay={replaySpot}/>}
         {started&&!done&&(
+          <div className="pf-mt-playrow" style={ntables>1&&!isMobile?{flex:1,minHeight:0,display:"flex",flexDirection:"row",overflow:"hidden"}:{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
             <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
@@ -6424,8 +6582,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 </div>
               )}
             </div>
+          </div>{/* ── fin gridRef (playground) ── */}
+          {/* ══ PANNEAU DROIT PARTAGÉ (multi-table desktop) — suit la table active ══ */}
+          {ntables>1&&!isMobile&&renderSharedPanel()}
           </div>
         )}
+        {/* ══ BANDEAU EXPLICATIF (multi-table desktop) ══ */}
+        {started&&!done&&ntables>1&&!isMobile&&renderMultiTableFooter()}
         {/* Reset zoom (pincement) */}
         {isMobile&&zoomed&&ntables>1&&started&&!done&&(
           <button className="mt-zoom-reset" onClick={resetZoom}>↺ Zoom 100%</button>
