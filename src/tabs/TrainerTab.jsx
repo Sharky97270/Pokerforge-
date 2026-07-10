@@ -258,8 +258,16 @@ function resolveTrainerActionPoint(layout,pos,{hasBoard=false}={}){
   pt=separateActionFromAnchor(pt,blind,seat,isBlindSeat?TRAINER_VISUAL_CONFIG.anchorSafety.minBetBlindGap:7);
   pt=separateActionFromAnchor(pt,cards,seat,isBlindSeat?TRAINER_VISUAL_CONFIG.anchorSafety.minBetCardsGap:8);
   pt=separateActionFromAnchor(pt,seat,seat,isBlindSeat?TRAINER_VISUAL_CONFIG.anchorSafety.minBetSeatGap:8);
-  if(seat.y>=70&&pt.y<62)pt.y=seat.y>=82?68:62;
-  if(seat.y<=24&&pt.y>33&&pointInsideZone(pt,collisionZone))pt.y=33;
+  if(hasBoard&&pointInsideZone(pt,collisionZone)){
+    pt=clampPointOutsideBoard(pt,seat,collisionZone,4);
+  }
+  if(seat.y>=70){
+    const bottomMin=hasBoard?collisionZone.yMax+4:(seat.y>=82?68:62);
+    if(pt.y<bottomMin)pt.y=bottomMin;
+  }
+  if(seat.y<=24&&pointInsideZone(pt,collisionZone)){
+    pt.y=hasBoard?collisionZone.yMin-4:33;
+  }
   if(seat.x<=20&&pt.x>28)pt.x=28;
   if(seat.x>=80&&pt.x<72)pt.x=72;
   const geom=layout.tableGeometry||feltGeometryFor(2);
@@ -2393,6 +2401,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const fullPending=useRef(false); // true = une main complète va suivre → ne pas régler la table tout de suite
   // ── Mobile v9 : solution plein écran + swipe ──
   const isMobile=useIsMobile();
+  const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
+    ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
+    :null;
   const[solOpen,setSolOpen]=useState(false);
   const solRef=useRef(null);
   const solTouch=useRef({y:0,dy:0});
@@ -2944,7 +2955,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
-  const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):"2xl"):cfg.board;
+  const oneTableBoardSize=TRAINER_VISUAL_CONFIG.boardSize?.oneTable||"1t-hero";
+  const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):oneTableBoardSize):cfg.board;
+  const boardGap=numTables===1?(isMobile?(boardCount>=5?3:4):(boardCount>=5?5:6)):cfg.boardGap;
   const heroCardSize1T=isMobile?"1t-hero-mobile":"1t-hero";
   const villainCardSize1T=isMobile?"xs":"1t-villain";
   const visualStreet=playingFull?fhStreet:(spot.street||"Preflop");
@@ -3608,31 +3621,31 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const renderTimeline=()=>{
       const total=spotTotal||20;
       const done=Math.min(spotIndex+(answered!==null?1:0),total);
-      const tbtn={width:28,height:28,borderRadius:8,cursor:"pointer",border:"1px solid #16305f",background:"#081527",color:"#cfe0ff",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"};
+      const tbtn={width:24,height:24,borderRadius:7,cursor:"pointer",border:"1px solid #16305f",background:"#081527",color:"#cfe0ff",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"};
       return(
-        <div className="mtr-timeline-panel" style={{flexShrink:0,borderTop:"1px solid #152D6E",background:"linear-gradient(180deg,#040B22,#030912)",padding:"9px 12px 11px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}>
-            <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:9,fontWeight:800,letterSpacing:".12em",color:"#54b8ff"}}>TIMELINE</span>
-            <div style={{flex:1,height:5,borderRadius:20,background:"#0c1e3e",overflow:"hidden"}}>
+        <div className="mtr-timeline-panel" style={{flexShrink:0,borderTop:"1px solid #152D6E",background:"linear-gradient(180deg,#040B22,#030912)",padding:"5px 10px 6px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+            <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,letterSpacing:".12em",color:"#54b8ff"}}>TIMELINE</span>
+            <div style={{flex:1,height:4,borderRadius:20,background:"#0c1e3e",overflow:"hidden"}}>
               <div style={{height:"100%",width:`${total?done/total*100:0}%`,background:"linear-gradient(90deg,#1F8BFF,#34D8FF)",borderRadius:20,boxShadow:"0 0 8px rgba(52,180,255,.5)",transition:"width .3s"}}/>
             </div>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.text3,minWidth:34,textAlign:"right"}}>{done}/{total}</span>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8,color:T.text3,minWidth:30,textAlign:"right"}}>{done}/{total}</span>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:4,justifyContent:"center"}}>
             <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Début">⏮</button>
             <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Précédent">⏪</button>
-            <button style={{...tbtn,width:34,height:34,fontSize:13,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 14px rgba(80,120,255,.4)"}} onClick={()=>{if(phase==="done")onNext();}} title={phase==="done"?"Main suivante":"En cours"}>▶</button>
+            <button style={{...tbtn,width:28,height:28,fontSize:12,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 12px rgba(80,120,255,.34)"}} onClick={()=>{if(phase==="done")onNext();}} title={phase==="done"?"Main suivante":"En cours"}>▶</button>
             <button style={tbtn} onClick={onNext} title="Suivant">⏩</button>
             <button style={{...tbtn,opacity:isLast?.4:1,cursor:isLast?"not-allowed":"pointer"}} disabled={isLast} onClick={onNext} title="Passer">⏭</button>
-            <span style={{marginLeft:8,fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,border:"1px solid #16305f",borderRadius:6,padding:"3px 7px"}}>1×</span>
-            <button style={{...tbtn,marginLeft:2}} onClick={onFocusToggle} title="Focus / plein écran">⛶</button>
+            <span style={{marginLeft:5,fontFamily:"'JetBrains Mono',monospace",fontSize:7.5,color:T.text4,border:"1px solid #16305f",borderRadius:5,padding:"2px 6px"}}>1×</span>
+            <button style={{...tbtn,marginLeft:1}} onClick={onFocusToggle} title="Focus / plein écran">⛶</button>
           </div>
         </div>
       );
     };
 
     return(
-      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden"}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden",...(oneTableStableShellStyle||{})}}>
 
         {/* ── BARRE TOP : streets + timeline (desktop) ── */}
         <div className="trainer-topstrip" style={{flexShrink:0,background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",minHeight:34}}>
@@ -3772,9 +3785,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               );
             })()}
 
-            {/* BOARD — centré, taille boardSize (2xl en 1T) */}
+            {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div key={`board-${boardKey}`} style={{position:"absolute",top:`${boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:8,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>

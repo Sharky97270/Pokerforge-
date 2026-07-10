@@ -426,6 +426,11 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .card-1t-hero .card-corner-r{font-size:20px;}
 .card-1t-hero .card-corner-s{font-size:15px;}
 .card-1t-hero .card-center{font-size:31px;}
+.card-1t-board{width:52px;height:72px;border-radius:7px;}
+.card-1t-board .card-corner-r{font-size:20px;}
+.card-1t-board .card-corner-s{font-size:15px;}
+.card-1t-board .card-center{font-size:31px;}
+.card-1t-board .card-corner{top:4px;left:4px;}
 .card-1t-hero-top{width:44px;height:61px;border-radius:6px;}
 .card-1t-hero-top .card-corner-r{font-size:17px;}
 .card-1t-hero-top .card-corner-s{font-size:12px;}
@@ -1803,6 +1808,20 @@ body::before{
 .action-allin{background:rgba(255,69,96,.2);color:#FF4560;border-color:rgba(255,69,96,.5);animation:badgePop .25s cubic-bezier(.34,1.56,.64,1),urgentPulse .5s infinite;}
 .action-thinking{background:rgba(155,92,255,.14);color:#c090ff;border-color:rgba(155,92,255,.32);}
 .action-hero-turn{background:rgba(255,194,71,.16);color:#FFC247;border-color:rgba(255,194,71,.42);}
+.pf-player-seat .seat-action-badge{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  padding:1px 4px!important;
+}
+.pf-player-seat[data-seat="BB"] .seat-action-badge,
+.pf-player-seat[data-seat="SB"] .seat-action-badge{
+  transform:translateX(22px)!important;
+}
+.pf-player-seat[data-seat="BTN"] .seat-action-badge{
+  transform:translateX(14px)!important;
+}
 .table-action-line{
   position:absolute;left:50%;bottom:7%;transform:translateX(-50%);
   max-width:78%;padding:3px 9px;border-radius:7px;
@@ -2407,6 +2426,15 @@ body::before{
   display:flex;gap:8px;padding:10px 14px 14px;
   background:#030D2A;border-top:1px solid #152D6E;flex-shrink:0;
 }
+.t1-right .gto-next-zone{
+  position:sticky!important;
+  bottom:18px!important;
+  z-index:5!important;
+  gap:6px!important;
+  padding:7px 10px 8px!important;
+  background:linear-gradient(180deg,rgba(3,13,42,.96),#030912)!important;
+  box-shadow:0 -8px 18px rgba(0,0,0,.36)!important;
+}
 .gto-next-btn{
   flex:1;padding:12px;border-radius:11px;border:none;cursor:pointer;
   font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;
@@ -2415,11 +2443,13 @@ body::before{
   box-shadow:0 4px 18px rgba(31,139,255,.35);
 }
 .gto-next-btn:hover{box-shadow:0 6px 24px rgba(31,139,255,.5);transform:translateY(-1px);}
+.t1-right .gto-next-btn{padding:9px 10px!important;border-radius:9px!important;font-size:12px!important;min-height:38px!important;}
 .gto-btn-secondary{
   padding:12px 16px;border-radius:11px;border:1px solid #1A3A80;cursor:pointer;
   font-family:'Inter',sans-serif;font-size:12px;font-weight:600;
   background:#071B44;color:#9FB0CC;transition:all .15s;
 }
+.t1-right .gto-btn-secondary{padding:9px 11px!important;border-radius:9px!important;min-height:38px!important;}
 .gto-btn-secondary:hover{border-color:#2E6CFF;color:#FFFFFF;}
 
 /* ── Mini fréquence globale ── */
@@ -4210,6 +4240,38 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 .pf-action-allin .pf-action-chip-copy strong,.pf-action-allin .pf-action-chip-copy em{color:#FF7090!important;}
 .pf-action-check,.pf-action-fold{display:none!important;}
 
+/* 1T QA: chip/pot content stays visible, decorative frames disappear. */
+.pf-seat-action-zone .pf-action-chip-badge,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  animation:none!important;
+  padding:0!important;
+  min-height:0!important;
+  border-radius:0!important;
+}
+.pf-seat-action-zone .pf-action-chip-badge.pf-action-call,
+.pf-seat-action-zone .pf-action-chip-badge.pf-action-bet,
+.pf-seat-action-zone .pf-action-chip-badge.pf-action-open,
+.pf-seat-action-zone .pf-action-chip-badge.pf-action-raise,
+.pf-seat-action-zone .pf-action-chip-badge.pf-action-allin,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-bet,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-open,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-raise,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin{
+  background:transparent!important;
+  border-color:transparent!important;
+}
+.pf-pot-readout{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  filter:drop-shadow(0 7px 18px rgba(0,0,0,.7))!important;
+}
+
 /* Trainer art pack: exact medallions, PF card backs and casino materials. */
 .pf-avatar-premium{
   overflow:visible!important;
@@ -4836,7 +4898,7 @@ export const CSS_TABLE=`
   }
   .tw{border-radius:0!important;}
   .training-table-zone{overflow:hidden!important;}
-  .t1-left .felt-oval{top:7%!important;left:4%!important;right:4%!important;bottom:14%!important;}
+  .t1-left .felt-oval{top:3%!important;left:2.5%!important;right:2.5%!important;bottom:6%!important;}
   .trainer-hud{min-height:30px!important;padding:4px 8px!important;gap:5px!important;}
   .trainer-hud .hud-chip{font-size:8px!important;padding:2px 7px!important;}
 

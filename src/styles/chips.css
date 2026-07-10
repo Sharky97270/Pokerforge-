@@ -159,6 +159,25 @@ body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin{border-color:rgba(25
 body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin .pf-action-chip-copy strong,
 body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin .pf-action-chip-copy em{color:#ff7090!important;}
 
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  animation:none!important;
+  padding:0!important;
+  min-height:0!important;
+  border-radius:0!important;
+}
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-bet,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-open,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-raise,
+body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin{
+  background:transparent!important;
+  border-color:transparent!important;
+}
+
 body .pf-pot-chip-stack.pf-pot-chip-stack-v2{
   position:relative!important;
   display:flex!important;
