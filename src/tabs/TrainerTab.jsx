@@ -4371,13 +4371,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         )}
       </div>
 
-      {/* ── ZONE TABLE — verrouillée, jamais redimensionnée par le panneau solution ── */}
-      <div className="training-table-zone" style={{paddingBottom:cfg.pb}}>
+      {/* ── ZONE TABLE — ovale elliptique centré dans le viewport de mosaïque
+           (mobile : garde l'aspect-ratio en padding) ── */}
+      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:{width:"100%",aspectRatio:"1.62 / 1",maxHeight:"66%",margin:"auto 0",alignSelf:"center"}}>
 
-        {/* FEUTRE OVALE PREMIUM — multi-table */}
+        {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
           position:"absolute",top:`${trainingLayout.tableGeometry.top}%`,left:`${trainingLayout.tableGeometry.left}%`,right:`${trainingLayout.tableGeometry.right}%`,bottom:`${trainingLayout.tableGeometry.bottom}%`,
-          background:"radial-gradient(ellipse at 50% 25%,rgba(60,156,91,.7) 0%,rgba(19,83,46,.94) 36%,rgba(7,44,23,.98) 66%,#03140B 100%)",
+          background:"radial-gradient(ellipse at 50% 25%,rgba(26,62,115,.95) 0%,rgba(13,38,78,.99) 38%,rgba(6,20,46,.998) 70%,#030b1e 100%)",
           border:"1px solid rgba(255,214,121,.58)",
           borderRadius:"50%",
           boxShadow:errorFlash
@@ -5405,6 +5406,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[sheetTab,setSheetTab]=useState(null);          // null | villain | stats | notes | history
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
+  const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
   const[zoomed,setZoomed]=useState(false);              // pincement zoom actif
   const sheetRef=useRef(null);
   const sheetTouch=useRef({y:0,dy:0});
@@ -5418,6 +5420,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setExpandedT(null);
     setZoomed(false);
   },[mobileTrainingSingleTableOnly,ntables]);
+  // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
+  useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   // Persiste la config Trainer (réglages pro) entre les sessions
   useEffect(()=>{try{localStorage.setItem("pf_trainer_cfg",JSON.stringify(f));}catch{}},[f]);
@@ -6343,20 +6347,30 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         </div></div>}
         {reviewOpen&&<TrainerReviewPanel onClose={()=>setReviewOpen(false)} onDrill={startErrorDrill} onReplay={replaySpot}/>}
         {started&&!done&&(
-          <div ref={gridRef} style={ntables===1?{flex:1,minHeight:0,display:"flex",flexDirection:"column"}:{}}>
-            <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{}}>
+          <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+            <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
                 const spot=queue[idx+t];if(!spot)return null;
                 const isAns=!!tableAns[t];
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
+                const isActiveT=ntables>1&&activeTable===t;
                 return(
                   <div key={`${idx}-${t}`}
-                    className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}`}
+                    className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}${isActiveT?" mt-slot-focus":""}`}
                     style={ntables>1?{display:"flex",flexDirection:"column"}:undefined}
+                    onMouseDown={ntables>1&&!isMobile?()=>setActiveTable(t):undefined}
                     onTouchStart={isMobile&&ntables>1?slotTouchStart:undefined}
                     onTouchMove={isMobile&&ntables>1?slotTouchMove:undefined}
                     onTouchEnd={isMobile&&ntables>1?()=>slotTouchEnd(t):undefined}>
+                    {/* Titre TABLE n + état (multi-table) */}
+                    {ntables>1&&(
+                      <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
+                        <span>TABLE {t+1}</span>
+                        {isAns&&<i title="Répondue">✓</i>}
+                        {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
+                      </div>
+                    )}
                     {/* Bouton fermer (table agrandie) */}
                     {expanded&&<button className="mt-expand-x" onClick={()=>setExpandedT(null)} title="Réduire">✕</button>}
                     {/* Bouton agrandir (mobile multi) */}

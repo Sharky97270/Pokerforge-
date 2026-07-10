@@ -235,13 +235,43 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* minmax(0,1fr) au lieu de 1fr : force des colonnes STRICTEMENT égales
    (50/50, 33/33/33...), indépendamment du contenu de chaque table. */
 .grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:14px;}
-.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:10px;align-items:start;}
-.grid3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;padding:6px;align-items:start;}
-.grid3>div:nth-child(3){grid-column:1/-1;}
-.grid4{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;padding:6px;align-items:start;}
+/* Mosaïque multi-table (maquette V1) : remplit tout le playground, lignes étirées,
+   séparation nette entre tables, aucune table fantôme. */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,0.92fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid3>.mt-slot:nth-child(3){grid-column:1/-1;}
+.grid3>.mt-slot:nth-child(3) .tw{max-width:560px;margin:0 auto;width:100%;}
+.grid3>.mt-slot:nth-child(3) .training-table-zone{max-height:56%!important;}
+.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}
 .mt-slot{position:relative;min-width:0;}
+/* Chaque table remplit sa cellule de mosaïque */
+.grid2>.mt-slot,.grid3>.mt-slot,.grid4>.mt-slot{min-height:0;display:flex;flex-direction:column;}
+.grid2>.mt-slot>.tw,.grid3>.mt-slot>.tw,.grid4>.mt-slot>.tw{flex:1;min-height:0;display:flex;flex-direction:column;}
+/* Viewport de table : bordure/halo maquette, séparation nette */
+.grid2>.mt-slot,.grid3>.mt-slot,.grid4>.mt-slot{
+  border:1px solid #12304C;border-radius:6px;
+  background:linear-gradient(180deg,#061426 0%,#020914 100%);
+  box-sizing:border-box;overflow:hidden;transition:border-color .18s,box-shadow .18s;
+}
+.grid2>.mt-slot.mt-slot-focus,.grid3>.mt-slot.mt-slot-focus,.grid4>.mt-slot.mt-slot-focus{
+  border-color:#1769FF;box-shadow:0 0 14px rgba(0,120,255,.22);
+}
+.grid2>.mt-slot.table-slot-answered,.grid3>.mt-slot.table-slot-answered,.grid4>.mt-slot.table-slot-answered{
+  border-color:rgba(0,232,137,.45);
+}
+/* Titre TABLE n (maquette) */
+.mt-table-title{
+  display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  height:22px;margin:5px auto 1px;padding:0 12px;border-radius:6px;
+  font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;
+  color:#A9B7C9;background:rgba(8,26,45,.75);border:1px solid #12304C;
+}
+.mt-table-title.active{color:#DCEBFF;border-color:#1769FF;background:rgba(23,105,255,.14);}
+.mt-table-title.answered{color:#00E889;border-color:rgba(0,232,137,.4);}
+.mt-table-title i{font-style:normal;color:#00E889;font-size:10px;}
+.mt-table-title em{font-style:normal;color:#00D9FF;font-size:8px;line-height:1;}
 /* Seat fold visual */
 .seat-folded,.pf-mt-seat-folded{
   opacity:.7!important;
@@ -4967,7 +4997,8 @@ export const CSS_TABLE=`
   .pf-mt-seat .pf-avatar-art{inset:3px!important;}
   .pf-mt-nameplate{padding:2px 5px!important;border-radius:7px!important;margin-top:0!important;min-width:40px!important;}
   .pf-mt-nameplate .pf-seat-hero-chip{font-size:5px!important;padding:1px 4px!important;}
-  .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:58%!important;}
+  /* Multi-table (maquette V1) : la zone de table remplit le viewport (plus d'aspect-ratio figé). */
+  .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:0!important;flex:1 1 auto!important;min-height:0!important;}
 
   .mtr-actions{
     padding:7px 10px calc(9px + env(safe-area-inset-bottom,0px))!important;
