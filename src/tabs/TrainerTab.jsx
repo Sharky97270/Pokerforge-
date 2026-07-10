@@ -182,7 +182,7 @@ function trainerFeltStyle(numTables,{phase,errorFlash,geometry}={}){
     left:pctCss(g.left),
     right:pctCss(g.right),
     bottom:pctCss(g.bottom),
-    background:"radial-gradient(ellipse at 50% 18%,rgba(20,107,65,.94) 0%,rgba(8,70,43,.99) 38%,rgba(4,43,26,.998) 70%,#01140b 100%)",
+    background:"radial-gradient(ellipse at 50% 18%,rgba(26,62,115,.95) 0%,rgba(13,38,78,.99) 38%,rgba(6,20,46,.998) 70%,#030b1e 100%)",
     border:`2px solid rgba(255,208,90,${borderAlpha})`,
     borderRadius:"50%",
     boxShadow,
@@ -2357,7 +2357,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire"}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -3603,6 +3603,34 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       </>
     );
 
+    /* ══ TIMELINE — bas du bandeau droit (maquette v2). Progression de session
+       + navigation. Ne chevauche jamais les actions (désormais sous la table). ══ */
+    const renderTimeline=()=>{
+      const total=spotTotal||20;
+      const done=Math.min(spotIndex+(answered!==null?1:0),total);
+      const tbtn={width:28,height:28,borderRadius:8,cursor:"pointer",border:"1px solid #16305f",background:"#081527",color:"#cfe0ff",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"};
+      return(
+        <div className="mtr-timeline-panel" style={{flexShrink:0,borderTop:"1px solid #152D6E",background:"linear-gradient(180deg,#040B22,#030912)",padding:"9px 12px 11px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}>
+            <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:9,fontWeight:800,letterSpacing:".12em",color:"#54b8ff"}}>TIMELINE</span>
+            <div style={{flex:1,height:5,borderRadius:20,background:"#0c1e3e",overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${total?done/total*100:0}%`,background:"linear-gradient(90deg,#1F8BFF,#34D8FF)",borderRadius:20,boxShadow:"0 0 8px rgba(52,180,255,.5)",transition:"width .3s"}}/>
+            </div>
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.text3,minWidth:34,textAlign:"right"}}>{done}/{total}</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"center"}}>
+            <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Début">⏮</button>
+            <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Précédent">⏪</button>
+            <button style={{...tbtn,width:34,height:34,fontSize:13,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 14px rgba(80,120,255,.4)"}} onClick={()=>{if(phase==="done")onNext();}} title={phase==="done"?"Main suivante":"En cours"}>▶</button>
+            <button style={tbtn} onClick={onNext} title="Suivant">⏩</button>
+            <button style={{...tbtn,opacity:isLast?.4:1,cursor:isLast?"not-allowed":"pointer"}} disabled={isLast} onClick={onNext} title="Passer">⏭</button>
+            <span style={{marginLeft:8,fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,border:"1px solid #16305f",borderRadius:6,padding:"3px 7px"}}>1×</span>
+            <button style={{...tbtn,marginLeft:2}} onClick={onFocusToggle} title="Focus / plein écran">⛶</button>
+          </div>
+        </div>
+      );
+    };
+
     return(
       <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden"}}>
 
@@ -3690,7 +3718,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         <div className="t1-row" style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
 
         {/* ══ COLONNE GAUCHE : TABLE (68% desktop · plein écran mobile) ══ */}
-        <div className="t1-left" style={{flex:"0 0 68%",position:"relative",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
+        <div className="t1-left" style={{flex:"0 0 68%",display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
+
+         <div className="t1-table-area" style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
 
           {/* Focus Mode button */}
           {onFocusToggle&&<div className={`focus-mode-btn${focusMode?" on":""}`} title={focusMode?"Quitter le focus":"Mode focus"} onClick={onFocusToggle}>{focusMode?"⊡":"⊠"}</div>}
@@ -4025,6 +4055,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             </div>
           )}
 
+         </div>{/* ── fin ZONE TABLE ── */}
+
+          {/* ══ ACTIONS HÉRO — centrées sous la table (maquette v2 : actions puis sizings) ══ */}
+          <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
+            {phase==="hero_reply"&&vact&&renderHeroReply()}
+            {phase==="hero"&&renderActionZone()}
+          </div>
+
         </div>{/* ── fin COLONNE GAUCHE ── */}
 
         {/* ══ COLONNE DROITE : CONTRÔLES (desktop — masquée mobile, contenu → bottom sheet) ══ */}
@@ -4216,11 +4254,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
           </div>{/* ── fin zone scrollable ── */}
 
-          {/* RÉPONSE HÉRO — fixée en bas */}
-          {phase==="hero_reply"&&vact&&renderHeroReply()}
-
-          {/* ACTION ZONE HÉRO — fixée en bas */}
-          {phase==="hero"&&renderActionZone()}
+          {/* ══ TIMELINE — bas du bandeau droit (maquette v2). Les actions Héro
+             sont désormais centrées sous la table : plus aucun chevauchement. ══ */}
+          {renderTimeline()}
 
         </div>{/* ── fin COLONNE DROITE ── */}
 
@@ -6314,7 +6350,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
