@@ -219,10 +219,12 @@ function blindAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"blindAnchor");
 }
 function dealerAnchorPoint(layout){
-  // Jeton D toujours en bas-gauche du siège BTN, dérivé de la position réelle
-  // du siège (suit les retouches de layout ; l'ancre fixe dealerAnchor était périmée).
+  // Jeton D dérivé de la position réelle du siège BTN.
+  // 1T (figé) : bas-gauche. Multi : à GAUCHE du siège à hauteur d'avatar —
+  // le bas-gauche chevauchait la nameplate (badge position/stack sous l'avatar)
+  // sur les zones compactes ; vérifié sans collision (nameplate/cartes/mises).
   const seat=layout.seats?.BTN||{x:50,y:50};
-  const off={"1T":{x:7,y:9},"2T":{x:6.5,y:8},"3T":{x:6,y:7.5},"4T":{x:6,y:7.5}}[layout.name]||{x:6.5,y:8};
+  const off={"1T":{x:7,y:9},"2T":{x:9,y:0},"3T":{x:8,y:0},"4T":{x:8,y:0}}[layout.name]||{x:9,y:0};
   return {x:Math.max(4,seat.x-off.x),y:Math.min(90,seat.y+off.y)};
 }
 function actionLabelAnchorPoint(layout,pos){
@@ -4475,9 +4477,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 )}
-                {/* Board centré — taille cfg.board adaptée par numTables */}
+                {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
                 {hasBoard&&(
-                  <div key={`board-mt-${boardKey}`} style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
+                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
                     {boardCards.map((c,i)=>(
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>

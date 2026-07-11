@@ -286,6 +286,17 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid2 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
 .grid3 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
 .grid4 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap){display:none!important;}
+/* Calibrage cartes multi-table (retour utilisateur) : héros ×0.7, board ×0.5.
+   Scopé .pf-mt-seat / .mt-board-zone → le 1T figé n'est pas affecté. */
+.grid2 .pf-mt-seat .hero-card-wrap,
+.grid3 .pf-mt-seat .hero-card-wrap,
+.grid4 .pf-mt-seat .hero-card-wrap{zoom:.7;}
+.mt-board-zone{zoom:.5;}
+/* Pot multi-table : aucun cadre/fond — jetons + texte posés sur le feutre */
+.grid2 .pf-pot-readout,.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
+  background:transparent!important;border:none!important;box-shadow:none!important;
+  outline:none!important;backdrop-filter:none!important;
+}
 /* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
 .grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
