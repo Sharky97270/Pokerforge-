@@ -4424,7 +4424,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
            ovale 2T 400×310 · 3T haut 398×205 (bas 500×164 via CSS) · 4T 398×176.
            Hauteur = espace disponible, largeur dérivée du ratio (proportions maquette
            conservées à toute résolution). Mobile : aspect-ratio en padding (inchangé). ── */}
-      <div className="mt-zone-fit" style={isMobile?undefined:{flex:"1 1 0%",minHeight:0,width:"100%",display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:2,overflow:"hidden"}}>
+      <div className="mt-zone-fit" style={isMobile?undefined:{flex:"0 0 auto",width:"100%",display:"flex",justifyContent:"center",paddingTop:2}}>
       <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:(()=>{
         // Ratio de zone dérivé du ratio d'OVALE cible (script V1) corrigé des marges
         // de la géométrie : ovale 2T 400×310 · 3T haut 398×205 · 4T 398×176.
@@ -4432,8 +4432,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         const ovalAR=numTables===2?400/310:numTables===3?398/205:398/176;
         const zoneAR=ovalAR*(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
         // Piloté par la LARGEUR de cellule (stable quel que soit le contenu des
-        // actions) → le ratio d'ovale est identique sur toutes les tables du mode.
-        return{width:"100%",height:"auto",aspectRatio:String(zoneAR.toFixed(4)),maxHeight:"100%",flexShrink:0};
+        // actions) → le ratio d'ovale est identique sur toutes les tables du mode
+        // et à toute résolution (le viewport épouse la hauteur naturelle).
+        return{width:"100%",height:"auto",aspectRatio:String(zoneAR.toFixed(4)),flexShrink:0};
       })()}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
@@ -4484,6 +4485,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>
                       </div>
+                    ))}
+                    {/* Largeur du board complet réservée (script §7) : emplacements
+                       turn/river en attente → aucun recentrage brutal des cartes */}
+                    {Array.from({length:Math.max(0,5-boardCards.length)},(_,i)=>(
+                      <span key={`ph${i}`} className={`mt-board-ph card-${cfg.board}`} aria-hidden="true"/>
                     ))}
                   </div>
                 )}

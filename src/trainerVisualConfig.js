@@ -116,13 +116,13 @@ export const TRAINER_VISUAL_CONFIG = {
       actionLabelPush: { top: 0.35, bottom: 0.32, left: 0.32, right: 0.32, default: 0.32 },
       anchorOverrides: {
         // blindAnchor décalé vers le centre (+3.5) : les dos de cartes BB/SB chevauchaient les jetons de blinde
-        BB: { blindAnchor: { x: 38.5, y: 76.5 }, betAnchor: { x: 44, y: 67.5 }, preflopBetAnchor: { x: 43, y: 66.5 }, postflopBetAnchor: { x: 44, y: 68 }, actionLabelAnchor: { x: 39, y: 71 } },
-        SB: { blindAnchor: { x: 61.5, y: 76.5 }, betAnchor: { x: 56, y: 67.5 }, preflopBetAnchor: { x: 57, y: 66.5 }, postflopBetAnchor: { x: 56, y: 68 }, actionLabelAnchor: { x: 61, y: 71 } },
+        BB: { blindAnchor: { x: 38.5, y: 77.5 }, betAnchor: { x: 44, y: 67.5 }, preflopBetAnchor: { x: 43, y: 66.5 }, postflopBetAnchor: { x: 44, y: 68 }, actionLabelAnchor: { x: 39, y: 71 } },
+        SB: { blindAnchor: { x: 61.5, y: 77.5 }, betAnchor: { x: 56, y: 67.5 }, preflopBetAnchor: { x: 57, y: 66.5 }, postflopBetAnchor: { x: 56, y: 68 }, actionLabelAnchor: { x: 61, y: 71 } },
         // HJ/CO : mises descendues (les cartes des sièges hauts débordaient sur le jeton de mise)
         HJ: { betAnchor: { x: 29, y: 45 }, preflopBetAnchor: { x: 32, y: 44 }, postflopBetAnchor: { x: 29, y: 38 }, actionLabelAnchor: { x: 38, y: 54 } },
         CO: { betAnchor: { x: 71, y: 45 }, preflopBetAnchor: { x: 68, y: 44 }, postflopBetAnchor: { x: 71, y: 38 }, actionLabelAnchor: { x: 62, y: 54 } },
         UTG: { betAnchor: { x: 22, y: 52 }, actionLabelAnchor: { x: 27, y: 55 } },
-        BTN: { betAnchor: { x: 79, y: 52 }, dealerAnchor: { x: 78, y: 65 }, actionLabelAnchor: { x: 74, y: 55 } },
+        BTN: { betAnchor: { x: 76, y: 58 }, dealerAnchor: { x: 78, y: 65 }, actionLabelAnchor: { x: 74, y: 55 } },
       },
       responsive: {
         mobile: {
@@ -161,12 +161,12 @@ export const TRAINER_VISUAL_CONFIG = {
       actionLabelPush: { top: 0.33, bottom: 0.3, left: 0.3, right: 0.3, default: 0.3 },
       anchorOverrides: {
         // blindAnchor décalé vers le centre (+3.5) : dos de cartes BB/SB vs jetons de blinde
-        BB: { blindAnchor: { x: 38.5, y: 76.5 }, betAnchor: { x: 44, y: 67.5 }, preflopBetAnchor: { x: 43, y: 66.5 }, postflopBetAnchor: { x: 44, y: 68 }, actionLabelAnchor: { x: 39, y: 71 } },
-        SB: { blindAnchor: { x: 61.5, y: 76.5 }, betAnchor: { x: 56, y: 67.5 }, preflopBetAnchor: { x: 57, y: 66.5 }, postflopBetAnchor: { x: 56, y: 68 }, actionLabelAnchor: { x: 61, y: 71 } },
+        BB: { blindAnchor: { x: 38.5, y: 77.5 }, betAnchor: { x: 44, y: 67.5 }, preflopBetAnchor: { x: 43, y: 66.5 }, postflopBetAnchor: { x: 44, y: 68 }, actionLabelAnchor: { x: 39, y: 71 } },
+        SB: { blindAnchor: { x: 61.5, y: 77.5 }, betAnchor: { x: 56, y: 67.5 }, preflopBetAnchor: { x: 57, y: 66.5 }, postflopBetAnchor: { x: 56, y: 68 }, actionLabelAnchor: { x: 61, y: 71 } },
         HJ: { betAnchor: { x: 29, y: 42 }, preflopBetAnchor: { x: 31, y: 39 }, postflopBetAnchor: { x: 29, y: 38 }, actionLabelAnchor: { x: 38, y: 54 } },
         CO: { betAnchor: { x: 71, y: 42 }, preflopBetAnchor: { x: 69, y: 39 }, postflopBetAnchor: { x: 71, y: 38 }, actionLabelAnchor: { x: 62, y: 54 } },
         UTG: { betAnchor: { x: 22, y: 52 }, actionLabelAnchor: { x: 27, y: 55 } },
-        BTN: { betAnchor: { x: 79, y: 52 }, dealerAnchor: { x: 78, y: 65 }, actionLabelAnchor: { x: 74, y: 55 } },
+        BTN: { betAnchor: { x: 76, y: 58 }, dealerAnchor: { x: 78, y: 65 }, actionLabelAnchor: { x: 74, y: 55 } },
       },
       responsive: {
         mobile: {
@@ -205,12 +205,12 @@ export const TRAINER_VISUAL_CONFIG = {
       actionLabelPush: { top: 0.31, bottom: 0.29, left: 0.29, right: 0.29, default: 0.29 },
       anchorOverrides: {
         // blindAnchor décalé vers le centre (+3.5) : dos de cartes BB/SB vs jetons de blinde
-        BB: { blindAnchor: { x: 38.5, y: 76.5 }, betAnchor: { x: 44, y: 67 }, preflopBetAnchor: { x: 43, y: 66 }, postflopBetAnchor: { x: 44, y: 68 }, actionLabelAnchor: { x: 39, y: 70.5 } },
-        SB: { blindAnchor: { x: 61.5, y: 76.5 }, betAnchor: { x: 56, y: 67 }, preflopBetAnchor: { x: 57, y: 66 }, postflopBetAnchor: { x: 56, y: 68 }, actionLabelAnchor: { x: 61, y: 70.5 } },
+        BB: { blindAnchor: { x: 38.5, y: 77.5 }, betAnchor: { x: 44, y: 67 }, preflopBetAnchor: { x: 43, y: 66 }, postflopBetAnchor: { x: 44, y: 68 }, actionLabelAnchor: { x: 39, y: 70.5 } },
+        SB: { blindAnchor: { x: 61.5, y: 77.5 }, betAnchor: { x: 56, y: 67 }, preflopBetAnchor: { x: 57, y: 66 }, postflopBetAnchor: { x: 56, y: 68 }, actionLabelAnchor: { x: 61, y: 70.5 } },
         HJ: { betAnchor: { x: 29, y: 42 }, preflopBetAnchor: { x: 31, y: 39 }, postflopBetAnchor: { x: 29, y: 38 }, actionLabelAnchor: { x: 38, y: 54 } },
         CO: { betAnchor: { x: 71, y: 42 }, preflopBetAnchor: { x: 69, y: 39 }, postflopBetAnchor: { x: 71, y: 38 }, actionLabelAnchor: { x: 62, y: 54 } },
         UTG: { betAnchor: { x: 22, y: 52 }, actionLabelAnchor: { x: 27, y: 55 } },
-        BTN: { betAnchor: { x: 79, y: 52 }, dealerAnchor: { x: 78, y: 65 }, actionLabelAnchor: { x: 74, y: 55 } },
+        BTN: { betAnchor: { x: 76, y: 58 }, dealerAnchor: { x: 78, y: 65 }, actionLabelAnchor: { x: 74, y: 55 } },
       },
       responsive: {
         mobile: {

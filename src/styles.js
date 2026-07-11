@@ -241,16 +241,24 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr) minmax(0,0.82fr);gap:8px;padding:8px;align-items:center;justify-items:stretch;height:100%;min-height:0;}
 .grid3>.mt-slot:nth-child(3){grid-column:1/-1;}
 .grid3>.mt-slot:nth-child(3) .tw{max-width:560px;margin:0 auto;width:100%;}
-/* Dimensions de viewport du script V1 (réf. 1536×1024) : la mosaïque reste compacte
-   et proportionnée comme la maquette, l'espace excédentaire est réparti autour. */
+/* Viewports en hauteur NATURELLE (contenu = titre + streets + table ratio-exacte
+   + actions) : l'ovale garde ses proportions script à toute résolution — plus de
+   caps de hauteur à recalibrer. Largeurs maxi ≈ viewports maquette (réf. 1536). */
 .grid2,.grid3,.grid4{justify-items:center;}
-.grid2>.mt-slot{max-height:585px;height:100%;max-width:520px;width:100%;}
-.grid3>.mt-slot{max-height:460px;height:100%;max-width:500px;width:100%;}
-.grid3>.mt-slot:nth-child(3){max-height:360px;max-width:640px;}
-.grid4>.mt-slot{max-height:380px;height:100%;max-width:500px;width:100%;}
+.grid2>.mt-slot{height:auto;max-height:100%;max-width:520px;width:100%;}
+.grid3>.mt-slot{height:auto;max-height:100%;max-width:500px;width:100%;}
+.grid3>.mt-slot:nth-child(3){max-width:640px;}
+.grid4>.mt-slot{height:auto;max-height:100%;max-width:500px;width:100%;}
 /* Table 3 (bas) : ovale 500×164 du script. Ratio de zone corrigé des marges de la
    géométrie 3T (t11 b12.5 l7.4 r7.4) : (500/164)×0.765/0.852 ≈ 2.7375 */
 .grid3>.mt-slot:nth-child(3) .training-table-zone{aspect-ratio:2.7375!important;}
+/* Table basse très plate : clusters de sièges réduits (script §4 : éléments plus
+   petits en bas) — sinon nameplates des sièges hauts et cartes des sièges bas se
+   rejoignent au centre. Compensation héros : .82×.85 ≈ .7 (identique aux tables hautes). */
+.grid3>.mt-slot:nth-child(3) .pf-mt-seat{zoom:.82;}
+.grid3>.mt-slot:nth-child(3) .pf-mt-seat .hero-card-wrap{zoom:.85;}
+/* Pot réduit sur la table basse : à (50,29) il effleurait le board sur l'ovale plat */
+.grid3>.mt-slot:nth-child(3) .pf-pot-readout{zoom:.8;}
 .grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:center;justify-items:stretch;height:100%;min-height:0;}
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}
@@ -258,14 +266,14 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Chaque table remplit sa cellule de mosaïque */
 .grid2>.mt-slot,.grid3>.mt-slot,.grid4>.mt-slot{min-height:0;display:flex;flex-direction:column;}
 .grid2>.mt-slot>.tw,.grid3>.mt-slot>.tw,.grid4>.mt-slot>.tw{flex:1;min-height:0;display:flex;flex-direction:column;}
-/* Viewport de table : bordure/halo maquette, séparation nette */
+/* Viewport de table : bordure/halo maquette (tokens §13), séparation nette */
 .grid2>.mt-slot,.grid3>.mt-slot,.grid4>.mt-slot{
-  border:1px solid #12304C;border-radius:6px;
-  background:linear-gradient(180deg,#061426 0%,#020914 100%);
+  border:1px solid var(--pf-mt-border,#12304C);border-radius:6px;
+  background:linear-gradient(180deg,var(--pf-mt-bg-panel,#061426) 0%,var(--pf-mt-bg-app,#020914) 100%);
   box-sizing:border-box;overflow:hidden;transition:border-color .18s,box-shadow .18s;
 }
 .grid2>.mt-slot.mt-slot-focus,.grid3>.mt-slot.mt-slot-focus,.grid4>.mt-slot.mt-slot-focus{
-  border-color:#1769FF;box-shadow:0 0 14px rgba(0,120,255,.22);
+  border-color:var(--pf-mt-border-active,#1769FF);box-shadow:0 0 14px var(--pf-mt-glow-blue,rgba(0,120,255,.22));
 }
 .grid2>.mt-slot.table-slot-answered,.grid3>.mt-slot.table-slot-answered,.grid4>.mt-slot.table-slot-answered{
   border-color:rgba(0,232,137,.45);
@@ -286,12 +294,39 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid2 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
 .grid3 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
 .grid4 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap){display:none!important;}
+/* ══ Tokens palette multi-table (script V1 §13 + §6) ══ */
+:root{
+  --pf-mt-bg-app:#020914;--pf-mt-bg-panel:#061426;--pf-mt-bg-panel-alt:#081A2D;
+  --pf-mt-felt:#06264A;--pf-mt-felt-deep:#031A35;
+  --pf-mt-border:#12304C;--pf-mt-border-soft:#0B2238;--pf-mt-border-active:#1769FF;--pf-mt-border-gold:#C8953E;
+  --pf-mt-text:#F4F7FB;--pf-mt-text-2:#A9B7C9;--pf-mt-text-muted:#6E7E91;
+  --pf-mt-cyan:#00D9FF;--pf-mt-blue:#0878FF;--pf-mt-green:#00E889;--pf-mt-red:#FF3B35;
+  --pf-mt-gold-light:#F4C56A;--pf-mt-gold:#C8953E;--pf-mt-gold-dark:#6F4518;
+  --pf-mt-glow-blue:rgba(0,120,255,.25);--pf-mt-glow-cyan:rgba(0,217,255,.20);--pf-mt-glow-gold:rgba(200,149,62,.22);
+  --pf-scale-1t:1;--pf-scale-2t:.78;--pf-scale-3t-top:.66;--pf-scale-3t-bottom:.61;--pf-scale-4t:.58;
+}
+/* Emplacement de carte en attente (turn/river) — pastille dorée maquette */
+.mt-board-ph{
+  display:block;box-sizing:border-box;flex-shrink:0;
+  border:1px dashed var(--pf-mt-glow-gold);
+  background:rgba(200,149,62,.05);
+  box-shadow:inset 0 0 8px rgba(0,0,0,.35);
+}
 /* Calibrage cartes multi-table (retour utilisateur) : héros ×0.7, board ×0.5.
    Scopé .pf-mt-seat / .mt-board-zone → le 1T figé n'est pas affecté. */
 .grid2 .pf-mt-seat .hero-card-wrap,
 .grid3 .pf-mt-seat .hero-card-wrap,
 .grid4 .pf-mt-seat .hero-card-wrap{zoom:.7;}
 .mt-board-zone{zoom:.5;}
+/* Badges de mise 2T : jetons AU-DESSUS du libellé (vertical, comme la maquette)
+   → badge étroit qui tient dans le couloir board ↔ nameplate. 3T/4T restent
+   horizontaux (zones plus petites : un badge haut y percute blindes/pot). */
+.grid2 .pf-seat-action-zone .pf-action-chip-badge{
+  flex-direction:column!important;gap:1px!important;align-items:center!important;
+}
+.grid2 .pf-seat-action-zone .pf-action-chip-copy{
+  display:flex;flex-direction:row;gap:3px;align-items:baseline;line-height:1.1;text-align:center;
+}
 /* Pot multi-table : aucun cadre/fond — jetons + texte posés sur le feutre */
 .grid2 .pf-pot-readout,.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
   background:transparent!important;border:none!important;box-shadow:none!important;
