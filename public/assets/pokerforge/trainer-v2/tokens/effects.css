@@ -1,0 +1,35 @@
+/* PokerForge Trainer V2 — Tokens effets (planche §11) : glow, ombres, bordures, rayons */
+:root,
+.trainer-v2 {
+  /* Rayons */
+  --pf-radius-sm: 8px;
+  --pf-radius-md: 12px;
+  --pf-radius-lg: 18px;
+  --pf-radius-pill: 999px;
+
+  /* Glows (halos) */
+  --pf-glow-cyan: 0 0 18px rgba(32, 207, 255, .45);
+  --pf-glow-gold: 0 0 18px rgba(255, 184, 0, .38);
+  --pf-glow-green: 0 0 16px rgba(23, 201, 100, .40);
+  --pf-glow-red: 0 0 16px rgba(229, 57, 53, .42);
+  --pf-glow-purple: 0 0 16px rgba(168, 85, 247, .42);
+  --pf-glow-blue: 0 0 16px rgba(30, 58, 102, .55);
+
+  /* Ombres portées */
+  --pf-shadow-sm: 0 2px 6px rgba(0, 0, 0, .5);
+  --pf-shadow-md: 0 6px 18px rgba(0, 0, 0, .55);
+  --pf-shadow-lg: 0 14px 34px rgba(0, 0, 0, .6);
+  --pf-shadow-card: 0 6px 14px rgba(0, 0, 0, .7);
+
+  /* Bordures d'état (planche §11 border_states) */
+  --pf-border-blue: 1px solid rgba(32, 207, 255, .55);
+  --pf-border-orange: 1px solid rgba(255, 107, 0, .55);
+  --pf-border-green: 1px solid rgba(23, 201, 100, .55);
+  --pf-border-metal: 1px solid rgba(139, 148, 158, .35);
+
+  /* Surfaces panneaux (planche §11 metal/glass) */
+  --pf-panel-metal: linear-gradient(180deg, #0F1F3A 0%, #0B1626 100%);
+  --pf-panel-glass: linear-gradient(180deg, rgba(30, 58, 102, .28), rgba(11, 22, 38, .5));
+  --pf-felt: radial-gradient(ellipse at 50% 22%, #1E3A66 0%, #132B4D 42%, #0B1626 100%);
+  --pf-gold-ring-grad: linear-gradient(180deg, #FFD873 0%, #FFB800 45%, #8A5A00 100%);
+}

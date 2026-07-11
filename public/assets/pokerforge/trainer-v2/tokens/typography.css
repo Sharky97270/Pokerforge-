@@ -1,0 +1,29 @@
+/* PokerForge Trainer V2 — Tokens typographie (planche §10)
+   Titres/Boutons : Orbitron Bold · Texte principal : Montserrat SemiBold
+   Texte secondaire : Montserrat Regular · Chiffres/Stats : DIN Condensed Bold
+   Fallbacks alignés sur la stack existante du projet (Space Grotesk / Inter / JetBrains Mono). */
+:root,
+.trainer-v2 {
+  --pf-font-title: "Orbitron", "Space Grotesk", sans-serif;      /* titres, boutons */
+  --pf-font-main: "Montserrat", "Inter", sans-serif;             /* texte principal (SemiBold) */
+  --pf-font-secondary: "Montserrat", "Inter", sans-serif;        /* texte secondaire (Regular) */
+  --pf-font-stats: "DIN Condensed", "JetBrains Mono", monospace; /* chiffres, stacks, EV */
+
+  /* Échelle typographique (lisible, retour utilisateur : pas de <11px) */
+  --pf-fs-h: 12px;   /* en-têtes de section */
+  --pf-fs-lg: 15px;  /* titres de bloc (nom vilain…) */
+  --pf-fs-md: 13px;  /* boutons, labels forts */
+  --pf-fs-base: 12px;/* texte courant */
+  --pf-fs-sm: 11px;  /* labels secondaires */
+  --pf-fs-num: 13px; /* chiffres / stats */
+
+  --pf-fw-title: 800;
+  --pf-fw-main: 600;
+  --pf-fw-secondary: 400;
+  --pf-ls-title: .12em;
+}
+
+.trainer-v2 .pf-title { font-family: var(--pf-font-title); font-weight: var(--pf-fw-title); letter-spacing: var(--pf-ls-title); }
+.trainer-v2 .pf-main  { font-family: var(--pf-font-main); font-weight: var(--pf-fw-main); }
+.trainer-v2 .pf-sec   { font-family: var(--pf-font-secondary); font-weight: var(--pf-fw-secondary); color: var(--pf-text-2); }
+.trainer-v2 .pf-num   { font-family: var(--pf-font-stats); font-weight: 700; }

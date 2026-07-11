@@ -1,0 +1,27 @@
+/* PokerForge Trainer V2 — Boutons d'action (planche §06). Reconstruits en CSS
+   (pas d'image) : le texte et les montants restent HTML dynamiques.
+   Variantes : check (vert) · call (bleu) · bet/raise/cbet (orange/or) · fold (rouge).
+   Le texte de montant s'affiche via .pf-btn small. Requiert les tokens. */
+.trainer-v2 .pf-btn{
+  --c: var(--pf-green);
+  display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  min-height:44px;padding:8px 14px;border-radius:var(--pf-radius-sm);cursor:pointer;
+  font-family:var(--pf-font-title);font-weight:800;font-size:var(--pf-fs-md);letter-spacing:.02em;
+  color:#fff;background:linear-gradient(180deg, color-mix(in srgb, var(--c) 26%, #0B1626), color-mix(in srgb, var(--c) 12%, #0B1626));
+  border:1px solid color-mix(in srgb, var(--c) 55%, transparent);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.4);
+  transition:transform .12s, box-shadow .15s, background .15s, border-color .15s;
+}
+.trainer-v2 .pf-btn small{font-family:var(--pf-font-stats);font-weight:700;font-size:11px;opacity:.85;color:color-mix(in srgb, var(--c) 70%, #fff);}
+.trainer-v2 .pf-btn:hover{transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 4px 14px rgba(0,0,0,.5), 0 0 14px color-mix(in srgb, var(--c) 40%, transparent);border-color:var(--c);}
+.trainer-v2 .pf-btn:active{transform:translateY(0);filter:brightness(.94);}
+.trainer-v2 .pf-btn:disabled,.trainer-v2 .pf-btn[aria-disabled="true"]{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none;filter:grayscale(.3);}
+
+.trainer-v2 .pf-btn--check{--c:var(--pf-green);}
+.trainer-v2 .pf-btn--call{--c:var(--pf-cyan);}
+.trainer-v2 .pf-btn--bet,
+.trainer-v2 .pf-btn--raise,
+.trainer-v2 .pf-btn--cbet{--c:var(--pf-orange);}
+.trainer-v2 .pf-btn--betpot{--c:var(--pf-gold);}
+.trainer-v2 .pf-btn--fold,
+.trainer-v2 .pf-btn--allin{--c:var(--pf-red);}

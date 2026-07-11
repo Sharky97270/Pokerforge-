@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Bouton Dealer">
+  <defs>
+    <radialGradient id="dealerFace" cx="50%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="45%" stop-color="#FFC947"/>
+      <stop offset="100%" stop-color="#C8860E"/>
+    </radialGradient>
+    <linearGradient id="dealerRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFD873"/>
+      <stop offset="50%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#8A5A00"/>
+    </linearGradient>
+    <filter id="dealerGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#dealerRim)" filter="url(#dealerGlow)"/>
+  <circle cx="32" cy="32" r="24" fill="url(#dealerFace)" stroke="#8A5A00" stroke-width="1.2"/>
+  <circle cx="32" cy="32" r="24" fill="none" stroke="#FFF3C4" stroke-width=".8" opacity=".6"/>
+  <text x="32" y="41" text-anchor="middle" font-family="Orbitron, 'Space Grotesk', sans-serif" font-weight="800" font-size="26" fill="#5A3A00">D</text>
+</svg>
