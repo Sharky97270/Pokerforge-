@@ -1181,6 +1181,9 @@ body::before{
 .cai-hist-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;}
 
 .cai-fab{position:fixed;bottom:22px;right:24px;z-index:90;display:flex;align-items:center;gap:8px;padding:13px 20px;border-radius:30px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1F8BFF,#9B5CFF);box-shadow:0 8px 24px rgba(91,60,255,.35);cursor:pointer;transition:transform .15s;}
+/* Multi-table : Coach AI est dans la barre (à gauche d'Arrêter) → le FAB flottant
+   ne doit plus chevaucher la timeline. On le masque quand la mosaïque est active. */
+body:has(.pf-mt-sharedcol) .cai-fab,body:has(.pf-mt-sharedcol) .cai-fab-panel{display:none!important;}
 .cai-fab:hover{transform:translateY(-2px) scale(1.03);}
 .cai-fab-panel{position:fixed;bottom:84px;right:24px;z-index:90;width:340px;max-height:min(60vh,440px);display:flex;flex-direction:column;background:#0A1530;border:1px solid #1A3A80;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.5);overflow:hidden;}
 .cai-fab-head{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid #152D6E;background:rgba(31,139,255,.06);}

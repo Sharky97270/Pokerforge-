@@ -5431,7 +5431,7 @@ const TRAIN_MODES=[
   {id:"mix",    l:"Mix",       ic:"🔀", col:"#FF8A3D", desc:"Mélange Spot · Street · Full Hand."},
 ];
 const TRAIN_STREETS=["Flop","Turn","River"];
-export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",seed=null,onSeedApplied}){
+export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",seed=null,onSeedApplied,onGoCoach}){
   const[f,setF]=useState(()=>{
     try{const s=JSON.parse(localStorage.getItem("pf_trainer_cfg")||"null");return s?{...TRAINER_CFG_DEFAULT,...s}:TRAINER_CFG_DEFAULT;}
     catch{return TRAINER_CFG_DEFAULT;}
@@ -6478,9 +6478,18 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:T.text4}}>
               {idx+1}/{smode===999?"∞":smode}
             </div>
+            {/* Coach AI — dans la barre, à gauche d'Arrêter (multi-table ; maquette v2) */}
+            {ntables>1&&onGoCoach&&(
+              <button onClick={onGoCoach} className="pf-mt-coach-btn" style={{
+                marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:6,padding:"6px 16px",borderRadius:20,fontSize:11,
+                fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,cursor:"pointer",minWidth:118,justifyContent:"center",
+                border:"1px solid rgba(120,90,255,.5)",background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",color:"#fff",
+                boxShadow:"0 2px 12px rgba(80,120,255,.35)",transition:"all .2s",
+              }}>🧠 Coach AI</button>
+            )}
             {/* Bouton Arrêter */}
             <button onClick={stopSession} style={{
-              marginLeft:"auto",padding:"4px 14px",borderRadius:20,fontSize:10,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",
+              marginLeft:ntables>1&&onGoCoach?0:"auto",padding:"4px 14px",borderRadius:20,fontSize:10,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",
               border:"1px solid rgba(255,69,96,.45)",background:"rgba(255,69,96,.1)",
               color:T.red,transition:"all .2s",
             }}>⏹ Arrêter</button>
