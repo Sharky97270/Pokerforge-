@@ -4388,7 +4388,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   return(
     <div className="tw" style={{background:"#040B1F"}}>
       {/* Multi-table : la table ACTIVE projette le VRAI panneau 1T dans la colonne partagée */}
-      {numTables>1&&isActive&&panelTarget&&createPortal(renderRightPanel(),panelTarget)}
+      {/* multi-table : panneau droit rendu par le parent (renderMultiPanel) */}
       {/* ── BARRE TOP compacte : streets + timeline + timer ── */}
       <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"wrap",minHeight:28,flexShrink:0}}>
         {STREETS.map(s=>{
@@ -5475,6 +5475,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
   const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
+  const[mtRangePopup,setMtRangePopup]=useState(null);   // multi-table : popup ranges GTO plein écran
   const[panelEl,setPanelEl]=useState(null);             // conteneur DOM du panneau droit partagé (cible du portal 1T)
   const[zoomed,setZoomed]=useState(false);              // pincement zoom actif
   const sheetRef=useRef(null);
@@ -5860,6 +5861,138 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const gridClass=ntables===1?"grid1":ntables===2?"grid2":ntables===3?"grid3":ntables===4?"grid4":ntables<=6?"grid6":"grid8";
   // Callback: ouvrir le Shark Solver avec le spot en cours
   const onGoSolverFn=onGoSolverProp||null;
+
+  /* ══════════════════════════════════════════════════════════════════
+     PANNEAU DROIT MULTI-TABLE V2 — refonte lisibilité (retour utilisateur).
+     Typographie confortable, hiérarchie claire, ranges en plein écran.
+     Piloté par activeSpot + tableAns[activeTable] (données parent). Le 1T
+     figé conserve son propre panneau (renderRightPanel), non modifié.
+     ══════════════════════════════════════════════════════════════════ */
+  const renderMultiPanel=()=>{
+    const s=activeSpot; if(!s) return null;
+    const vp=VILLAIN_PROFILES[s.vtype]||null;
+    const ans=tableAns[activeTable]||null;
+    const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
+    const spr=potN>0?(stackN/potN).toFixed(1):"—";
+    const toCall=Number(s.toCall)||0;
+    const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
+    const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
+    const diffCol=s.diff===1?"#00E889":s.diff===2?"#FFC247":s.diff===3?"#FF7A45":s.diff===4?"#B85CFF":"#FFC247";
+    const acts=Array.isArray(s.acts)?s.acts:[];
+    const best=s.ok!=null?s.acts?.[s.ok]:null;
+    const bestEv=best?Number(s.ev?.[best.id]||0):0;
+    const revealed=showSol||!!ans;
+    const chosen=ans?s.acts?.[ans.ua]:null;
+    const chosenEv=chosen?Number(s.ev?.[chosen.id]||0):0;
+    const isGto=trainerMode==="gto";
+    // Barre GTO : freq + EV par action
+    const actRows=acts.map((a,i)=>({a,i,freq:Math.round(Number(s.freq?.[a.id]||0)),ev:Number(s.ev?.[a.id]||0),best:i===s.ok,chosen:ans&&i===ans.ua}));
+    const barCol=(a)=>{const t=trainerActionType(a);return t==="FOLD"||t==="ALLIN"?"#FF4560":t==="CALL"?"#1F8BFF":t==="CHECK"||t==="CHECK_BACK"?"#8fa2c4":"#00E889";};
+    return(
+      <div className="pf-p2">
+        {/* Bandeau chips : contexte */}
+        <div className="pf-p2-chips">
+          <span className="pf-p2-chip"><b>↑</b>{s.hpos}</span>
+          <span className="pf-p2-chip">{roundBb(stackN)}bb</span>
+          <span className="pf-p2-chip">SPR {spr}</span>
+          <span className="pf-p2-chip" style={{color:isGto?"#34D8FF":"#FF8A3D",borderColor:isGto?"#1a4a66":"#5a3a1a"}}>{isGto?"GTO":"Exploit"}</span>
+          <span className="pf-p2-chip" style={{marginLeft:"auto",color:diffCol,borderColor:"transparent",background:"transparent",fontWeight:700}}>● {diffLbl}</span>
+        </div>
+
+        {/* VILLAIN IA */}
+        {vp&&(
+          <section className="pf-p2-sec">
+            <div className="pf-p2-h">VILLAIN IA</div>
+            <div className="pf-p2-vil">
+              <div className="pf-p2-vil-ava" style={{borderColor:vp.col+"88",boxShadow:`0 0 16px ${vp.col}44`,background:`${vp.col}18`}}>{vp.ico||"🤖"}</div>
+              <div style={{minWidth:0,flex:1}}>
+                <div className="pf-p2-vil-name" style={{color:vp.col}}>{s.vtype}</div>
+                <div className="pf-p2-vil-sub">{s.vpos} · {vp.desc}</div>
+              </div>
+            </div>
+            <div className="pf-p2-bars">
+              {[["VPIP",vp.vpip,"#34D8FF",100],["PFR",vp.pfr,"#00E889",100],["AGG",vp.agg,"#FF8A3D",5]].map(([l,v,c,max])=>(
+                <div key={l} className="pf-p2-bar">
+                  <span className="k">{l}</span>
+                  <div className="tr"><i style={{width:`${Math.min(100,v/max*100)}%`,background:c}}/></div>
+                  <span className="v" style={{color:c}}>{l==="AGG"?v:v+"%"}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* SOLUTION / ANALYSE */}
+        <section className="pf-p2-sec">
+          <div className="pf-p2-h">{isGto?"ANALYSE GTO":"ANALYSE"}</div>
+          {!revealed?(
+            <div className="pf-p2-locked">
+              <span>🔒 Solution masquée</span>
+              <button className="pf-p2-reveal" onClick={()=>setShowSol(true)}>Révéler</button>
+            </div>
+          ):(
+            <>
+              {ans&&best&&(
+                <div className={`pf-p2-verdict ${ans.correct?"ok":"ko"}`}>
+                  <strong>{chosen?.l||"—"} {ans.correct?"✓ correct":"✕ à revoir"}</strong>
+                  <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
+                </div>
+              )}
+              <div className="pf-p2-actlist">
+                {actRows.map(r=>(
+                  <div key={r.i} className={`pf-p2-actrow${r.best?" best":""}${r.chosen?" chosen":""}`}>
+                    <span className="lab">{r.best&&<i>✦</i>}{r.a.l}</span>
+                    <div className="tr"><i style={{width:`${r.freq}%`,background:barCol(r.a)}}/></div>
+                    <span className="frq">{r.freq}%</span>
+                    <span className="ev" style={{color:r.ev>=bestEv-0.01?"#00E889":"#8fa2c4"}}>{r.ev>=0?"+":""}{r.ev.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+              {best&&<div className="pf-p2-optimal">EV optimale <b>+{bestEv.toFixed(2)}bb</b></div>}
+              <button className="pf-p2-ranges" onClick={()=>setMtRangePopup({heroPos:s.hpos,vilPos:s.vpos,heroAction:best?.id?.toLowerCase()||"open",stackBB:stackN})}>🃏 Voir les ranges GTO</button>
+            </>
+          )}
+        </section>
+
+        {/* HISTORIQUE */}
+        <section className="pf-p2-sec">
+          <div className="pf-p2-h">HISTORIQUE</div>
+          <div className="pf-p2-histo">
+            {["UTG","HJ","CO","BTN","SB","BB"].map(p=>{
+              let v="—",vc="#6E7E91";
+              if(p==="SB"){v="Petite blind 0.5bb";}
+              else if(p==="BB"){v="Grosse blind 1bb";}
+              else if(s.ctx?.folded?.includes?.(p)){v="Fold";vc="#8792a6";}
+              else if(p===s.hpos){v="À parler";vc="#8FC0FF";}
+              return <div key={p} className={`pf-p2-hrow${p===s.hpos?" hero":""}`}><span className="p">{p}</span><span className="a" style={{color:vc}}>{v}</span></div>;
+            })}
+          </div>
+        </section>
+
+        {/* INFORMATIONS */}
+        <section className="pf-p2-sec">
+          <div className="pf-p2-h">INFORMATIONS</div>
+          <div className="pf-p2-info">
+            {[["Street",s.street||"Preflop","#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+              <div key={k} className="pf-p2-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
+            ))}
+          </div>
+        </section>
+
+        {/* TIMELINE */}
+        <section className="pf-p2-sec pf-p2-tl">
+          <div className="pf-p2-h">TIMELINE</div>
+          <div className="pf-p2-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
+          <div className="pf-p2-tl-row">
+            <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
+            <button className="pf-p2-next" disabled={!allSettled} onClick={handleNext}>
+              {allSettled?(idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length)?"🏆 Résultats":"Main suivante ▶"):"Décision en cours…"}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  };
 
 
   return(
@@ -6418,6 +6551,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           </div>
         </div></div>}
         {reviewOpen&&<TrainerReviewPanel onClose={()=>setReviewOpen(false)} onDrill={startErrorDrill} onReplay={replaySpot}/>}
+        {mtRangePopup&&<RangePopup {...mtRangePopup} onClose={()=>setMtRangePopup(null)}/>}
         {started&&!done&&(
           <div className="pf-mt-playrow" style={ntables>1&&!isMobile?{flex:1,minHeight:0,display:"flex",flexDirection:"row",overflow:"hidden"}:{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
@@ -6499,7 +6633,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           </div>{/* ── fin gridRef (playground) ── */}
           {/* ══ COLONNE DROITE PARTAGÉE — reçoit le VRAI panneau 1T de la table active (portal) ══ */}
-          {ntables>1&&!isMobile&&<div className="pf-mt-sharedcol" ref={setPanelEl}/>}
+          {ntables>1&&!isMobile&&<div className="pf-mt-sharedcol">{renderMultiPanel()}</div>}
           </div>
         )}
         {/* Reset zoom (pincement) */}

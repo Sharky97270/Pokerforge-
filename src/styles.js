@@ -317,7 +317,7 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid2 .pf-mt-seat .hero-card-wrap,
 .grid3 .pf-mt-seat .hero-card-wrap,
 .grid4 .pf-mt-seat .hero-card-wrap{zoom:.7;}
-.mt-board-zone{zoom:.5;}
+.mt-board-zone{zoom:.55;}/* board +10% (retour utilisateur) */
 /* Badges de mise 2T : jetons AU-DESSUS du libellé (vertical, comme la maquette)
    → badge étroit qui tient dans le couloir board ↔ nameplate. 3T/4T restent
    horizontaux (zones plus petites : un badge haut y percute blindes/pot). */
@@ -335,9 +335,80 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
 .grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
-/* Colonne droite partagée : reçoit le VRAI panneau 1T (t1-right) de la table active via portal */
-.pf-mt-sharedcol{flex:0 0 300px;width:300px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
+/* Colonne droite partagée multi-table : panneau V2 lisible (renderMultiPanel) */
+.pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
 .pf-mt-sharedcol>.t1-right{flex:1 1 auto!important;width:100%!important;}
+
+/* ══ PANNEAU DROIT MULTI-TABLE V2 — refonte lisibilité ══ */
+.pf-p2{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overflow-x:hidden;
+  padding:12px 13px 14px;background:linear-gradient(180deg,var(--pf-mt-bg-panel-alt,#081A2D),var(--pf-mt-bg-app,#020914));
+  border-left:1px solid var(--pf-mt-border,#12304C);box-sizing:border-box;}
+.pf-p2::-webkit-scrollbar{width:7px;}
+.pf-p2::-webkit-scrollbar-thumb{background:#173257;border-radius:5px;}
+.pf-p2-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.pf-p2-chip{display:inline-flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
+  color:#cfe0ff;background:#0c1e3a;border:1px solid #17345c;border-radius:7px;padding:4px 9px;}
+.pf-p2-chip b{color:#54b8ff;font-weight:800;}
+.pf-p2-sec{display:flex;flex-direction:column;gap:8px;padding-bottom:12px;border-bottom:1px solid rgba(18,48,76,.6);}
+.pf-p2-sec:last-child{border-bottom:none;padding-bottom:0;}
+.pf-p2-h{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;letter-spacing:.13em;color:#54b8ff;}
+/* Villain */
+.pf-p2-vil{display:flex;gap:11px;align-items:center;}
+.pf-p2-vil-ava{width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:23px;border:2px solid;}
+.pf-p2-vil-name{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:800;line-height:1.1;}
+.pf-p2-vil-sub{font-family:'Inter',sans-serif;font-size:11px;color:#8fa2c4;margin-top:2px;line-height:1.3;}
+.pf-p2-bars{display:flex;flex-direction:column;gap:7px;}
+.pf-p2-bar{display:flex;align-items:center;gap:9px;}
+.pf-p2-bar .k{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;width:38px;flex-shrink:0;}
+.pf-p2-bar .tr{flex:1;height:7px;border-radius:20px;background:#0b2238;overflow:hidden;}
+.pf-p2-bar .tr i{display:block;height:100%;border-radius:20px;}
+.pf-p2-bar .v{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;min-width:34px;text-align:right;}
+/* Solution masquée */
+.pf-p2-locked{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;background:#0b2238;border:1px solid #14304f;}
+.pf-p2-locked span{font-family:'Inter',sans-serif;font-size:12px;color:#a9b7c9;}
+.pf-p2-reveal{margin-left:auto;padding:6px 16px;border-radius:8px;border:1px solid #1769FF;background:rgba(23,105,255,.16);color:#9fc8ff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+.pf-p2-reveal:hover{background:rgba(23,105,255,.32);color:#fff;}
+/* Verdict */
+.pf-p2-verdict{display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:10px;border:1px solid;}
+.pf-p2-verdict.ok{background:rgba(0,232,137,.08);border-color:rgba(0,232,137,.35);}
+.pf-p2-verdict.ko{background:rgba(255,69,96,.08);border-color:rgba(255,69,96,.35);}
+.pf-p2-verdict strong{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;color:#f4f7fb;}
+.pf-p2-verdict span{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;}
+/* Analyse GTO — lignes d'action */
+.pf-p2-actlist{display:flex;flex-direction:column;gap:6px;}
+.pf-p2-actrow{display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:8px;background:rgba(11,34,56,.5);}
+.pf-p2-actrow.best{background:rgba(0,232,137,.08);}
+.pf-p2-actrow.chosen{outline:1px solid rgba(120,160,255,.5);}
+.pf-p2-actrow .lab{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;color:#e6eefc;width:78px;flex-shrink:0;display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pf-p2-actrow .lab i{font-style:normal;color:#00E889;font-size:11px;}
+.pf-p2-actrow .tr{flex:1;height:7px;border-radius:20px;background:#0a1a30;overflow:hidden;}
+.pf-p2-actrow .tr i{display:block;height:100%;border-radius:20px;}
+.pf-p2-actrow .frq{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#dbe7ff;min-width:34px;text-align:right;}
+.pf-p2-actrow .ev{font-family:'JetBrains Mono',monospace;font-size:11px;min-width:34px;text-align:right;}
+.pf-p2-optimal{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;text-align:right;}
+.pf-p2-optimal b{color:#00E889;}
+.pf-p2-ranges{margin-top:2px;padding:9px;border-radius:9px;border:1px solid #17345c;background:#0c1e3a;color:#cfe0ff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;}
+.pf-p2-ranges:hover{border-color:#1769FF;background:rgba(23,105,255,.16);color:#fff;}
+/* Historique */
+.pf-p2-histo{display:flex;flex-direction:column;gap:3px;}
+.pf-p2-hrow{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:6px;}
+.pf-p2-hrow.hero{background:rgba(23,105,255,.12);}
+.pf-p2-hrow .p{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#7f8ca3;}
+.pf-p2-hrow.hero .p{color:#8FC0FF;}
+.pf-p2-hrow .a{font-family:'Inter',sans-serif;font-size:11.5px;}
+/* Informations */
+.pf-p2-info{display:flex;flex-direction:column;gap:5px;}
+.pf-p2-irow{display:flex;align-items:center;justify-content:space-between;}
+.pf-p2-irow .k{font-family:'Inter',sans-serif;font-size:12px;color:#8090a5;}
+.pf-p2-irow .v{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;}
+/* Timeline */
+.pf-p2-tl{margin-top:auto;gap:8px;}
+.pf-p2-tl-track{height:6px;border-radius:20px;background:#0b2238;overflow:hidden;}
+.pf-p2-tl-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#0878FF,#00D9FF);box-shadow:0 0 8px rgba(0,217,255,.4);}
+.pf-p2-tl-row{display:flex;align-items:center;gap:10px;}
+.pf-p2-tl-row .cnt{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;}
+.pf-p2-next{flex:1;padding:10px;border-radius:9px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#0878FF,#00D9FF);box-shadow:0 3px 14px rgba(8,120,255,.36);}
+.pf-p2-next:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;background:#12304C;}
 /* Aide multi-table intégrée au panneau droit (ex-bandeau bas) */
 .pf-mtp-help{flex-shrink:0;padding:9px 11px;margin-top:2px;border-top:1px solid #152D6E;background:rgba(6,20,38,.5);}
 .pf-mtp-help .pf-mtp-title{font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:800;letter-spacing:.13em;margin-bottom:5px;}
