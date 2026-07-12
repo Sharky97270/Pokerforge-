@@ -294,6 +294,54 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid2 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
 .grid3 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
 .grid4 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap){display:none!important;}
+/* Skin V2 — boutons d'action de la mosaïque (planche §06) : corps navy sombre,
+   bordure + libellé colorés par type, hover lumineux. */
+.grid2 .gto-btn,.grid3 .gto-btn,.grid4 .gto-btn{
+  --c:var(--pf-gray);
+  border-radius:var(--pf-radius-sm)!important;
+  border:1px solid color-mix(in srgb,var(--c) 45%,transparent)!important;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 14%,#0B1626),color-mix(in srgb,var(--c) 6%,#0B1626))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 2px 8px rgba(0,0,0,.45)!important;
+  transition:transform .12s,box-shadow .15s,border-color .15s!important;
+}
+.grid2 .gto-btn:hover:not(:disabled),.grid3 .gto-btn:hover:not(:disabled),.grid4 .gto-btn:hover:not(:disabled){
+  transform:translateY(-1px)!important;border-color:var(--c)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 14px rgba(0,0,0,.5),0 0 14px color-mix(in srgb,var(--c) 40%,transparent)!important;
+}
+.grid2 .gto-btn:active:not(:disabled),.grid3 .gto-btn:active:not(:disabled),.grid4 .gto-btn:active:not(:disabled){transform:translateY(0) scale(.98)!important;filter:brightness(.94);}
+.grid2 .gto-btn:disabled,.grid3 .gto-btn:disabled,.grid4 .gto-btn:disabled{opacity:.42;filter:grayscale(.3);}
+.grid2 .gto-btn-CHECK,.grid3 .gto-btn-CHECK,.grid4 .gto-btn-CHECK,
+.grid2 .gto-btn-CALL,.grid3 .gto-btn-CALL,.grid4 .gto-btn-CALL{--c:var(--pf-green);}
+.grid2 .gto-btn-FOLD,.grid3 .gto-btn-FOLD,.grid4 .gto-btn-FOLD{--c:var(--pf-red);}
+.grid2 .gto-btn-RAISE,.grid3 .gto-btn-RAISE,.grid4 .gto-btn-RAISE,
+.grid2 .gto-btn-OPEN,.grid3 .gto-btn-OPEN,.grid4 .gto-btn-OPEN,
+.grid2 .gto-btn-BET,.grid3 .gto-btn-BET,.grid4 .gto-btn-BET,
+.grid2 [class*="gto-btn-3BET"],.grid3 [class*="gto-btn-3BET"],.grid4 [class*="gto-btn-3BET"],
+.grid2 [class*="gto-btn-4BET"],.grid3 [class*="gto-btn-4BET"],.grid4 [class*="gto-btn-4BET"],
+.grid2 [class*="gto-btn-5BET"],.grid3 [class*="gto-btn-5BET"],.grid4 [class*="gto-btn-5BET"]{--c:var(--pf-orange);}
+.grid2 .gto-btn-ALLIN,.grid3 .gto-btn-ALLIN,.grid4 .gto-btn-ALLIN{--c:var(--pf-red);}
+.grid2 .gto-btn .gto-btn-label,.grid3 .gto-btn .gto-btn-label,.grid4 .gto-btn .gto-btn-label{color:color-mix(in srgb,var(--c) 78%,#fff)!important;}
+.grid2 .gto-btn .gto-btn-sizing,.grid3 .gto-btn .gto-btn-sizing,.grid4 .gto-btn .gto-btn-sizing{color:color-mix(in srgb,var(--c) 62%,#fff)!important;}
+/* Dealer V2 : SVG vectoriel — on neutralise le disque CSS d'origine */
+.dealer-btn.dealer-btn-v2{background:none!important;border:none!important;box-shadow:none!important;animation:none!important;padding:0!important;color:transparent!important;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));}
+
+/* ══ Tokens TRAINER V2 (planche Assets Trainer V2 §09/§10/§11) ══
+   Source de vérité : public/assets/pokerforge/trainer-v2/tokens/*.css
+   (inlinés ici car le build standalone n'embarque pas les <link> runtime). */
+:root{
+  --pf-bg-900:#0B1626;--pf-bg-800:#0F1F3A;--pf-blue-700:#132B4D;--pf-blue-600:#1E3A66;
+  --pf-cyan:#20CFFF;--pf-gold:#FFB800;--pf-orange:#FF6B00;--pf-green:#17C964;
+  --pf-red:#E53935;--pf-purple:#A855F7;--pf-gray:#8B949E;--pf-white:#E6E6E6;
+  --pf-radius-sm:8px;--pf-radius-md:12px;--pf-radius-lg:18px;
+  --pf-glow-cyan:0 0 18px rgba(32,207,255,.45);--pf-glow-gold:0 0 18px rgba(255,184,0,.38);
+  --pf-glow-green:0 0 16px rgba(23,201,100,.40);--pf-glow-red:0 0 16px rgba(229,57,53,.42);
+  --pf-glow-purple:0 0 16px rgba(168,85,247,.42);
+  --pf-shadow-card:0 6px 14px rgba(0,0,0,.7);
+  --pf-font-title:'Orbitron','Space Grotesk',sans-serif;
+  --pf-font-main:'Montserrat','Inter',sans-serif;
+  --pf-font-stats:'DIN Condensed','JetBrains Mono',monospace;
+}
+
 /* ══ Tokens palette multi-table (script V1 §13 + §6) ══ */
 :root{
   --pf-mt-bg-app:#020914;--pf-mt-bg-panel:#061426;--pf-mt-bg-panel-alt:#081A2D;

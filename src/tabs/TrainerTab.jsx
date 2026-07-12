@@ -10,6 +10,7 @@ import { Card, CardBack, HeroHoleCards, VillainBackCards } from "../components/t
 import { CHIP_THEMES, BlindChipStack, TrainingPotStack, SeatActionZone, PlayerSeat } from "../components/table/Chips.jsx";
 import { trainerAvatarKey, trainerSeatAvatarProfile, PlayerAvatarPremium } from "../components/table/Avatars.jsx";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
+import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
@@ -2407,6 +2408,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
     ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
     :null;
+  // Skin Trainer V2 : jetons vectoriels forcés en multi-table (1T conserve le thème utilisateur)
+  const effChipTheme=numTables>1?"trainer_v2":chipTheme;
   const[solOpen,setSolOpen]=useState(false);
   const solRef=useRef(null);
   const solTouch=useRef({y:0,dy:0});
@@ -4012,14 +4015,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               return hasBoard?(
                 /* Pot compact au-dessus du board */
                 <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                  <TrainingPotStack value={potVal} compact themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
+                  <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
                 </div>
               ):(
                 /* Pot centré quand pas de board */
                 <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                  <TrainingPotStack value={potVal} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
+                  <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
                 </div>
@@ -4275,7 +4278,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   type={trainerVisualActionType(chipLabel||lastAct?.id||"BET")}
                   compact={isMobile}
                   kind={isH?"hero":seatMultiway?"multiway":"villain"}
-                  themeKey={chipTheme}
+                  themeKey={effChipTheme}
                   colorKey={chipColor}
                   sizeMode={chipSizeMode}
                   tableMode={1}
@@ -4290,7 +4293,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const p=resolveTrainerBlindPoint(trainingLayout,bp);
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-                <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
+                <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
               </div>
             );
           })}
@@ -4467,13 +4470,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
                   <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+                    <TrainingPotStack value={mainPotBb} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 ):(
                   <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+                    <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
@@ -4512,7 +4515,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         {(()=>{
           const d=dealerAnchorPoint(trainingLayout);
           const sz=cfg.dbtnSz;
-          return <div className="dealer-btn" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz,fontSize:sz<=14?7:9}}>D</div>;
+          return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
         })()}
 
         {/* SIÈGES — tailles 100% basées sur cfg */}
@@ -4526,7 +4529,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const by=y+(50-y)*bp;
           return(
             <div key={`blind-mt-${pos}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
             </div>
           );
         })}
@@ -4678,7 +4681,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               type={seatActionType}
               compact={isMobile||numTables>=3}
               kind={isH?"hero":seatMultiway?"multiway":"villain"}
-              themeKey={chipTheme}
+              themeKey={effChipTheme}
               colorKey={chipColor}
               sizeMode={chipSizeMode}
               tableMode={numTables}
