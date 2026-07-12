@@ -5251,12 +5251,19 @@ export const CSS_TABLE=`
   .grid1>.mt-slot>div{height:auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
   .t1-row{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:visible!important;}
   .t1-left{
-    flex:0 0 clamp(285px,42dvh,360px)!important;
-    height:clamp(285px,42dvh,360px)!important;
-    min-height:285px!important;
+    /* La table REMPLIT la hauteur disponible au lieu d'une hauteur figée :
+       sur écran court (barre Safari) elle ne déborde plus sur le bandeau d'actions. */
+    flex:1 1 0!important;
+    height:auto!important;
+    min-height:0!important;
     max-height:360px!important;
     overflow:hidden!important;
+    /* Écart anti-collision : dégage l'avatar du siège HERO (qui déborde sous le feutre) du bandeau. */
+    padding-bottom:14px!important;
+    box-sizing:border-box!important;
   }
+  /* Raccourcis clavier inutiles sur mobile (pas de clavier) → hauteur récupérée pour le feutre. */
+  .mtr-kbd-hints{display:none!important;}
   .tw{border-radius:0!important;}
   .training-table-zone{overflow:hidden!important;}
   .t1-left .felt-oval{top:4.7%!important;left:.5%!important;right:.5%!important;bottom:4.2%!important;}
@@ -5351,7 +5358,8 @@ export const CSS_TABLE=`
   .logo-wrapper,.logo-full-wrap{max-width:42vw!important;}
   .logo-full-wrap img.pf-header-logo{height:34px!important;max-width:42vw!important;}
   .hdr-breadcrumb span{font-size:11px!important;}
-  .t1-left{flex-basis:300px!important;height:300px!important;min-height:300px!important;}
+  /* Reste flexible sur écran étroit (iPhone mini/SE) — pas de hauteur figée qui ferait déborder la table. */
+  .t1-left{flex:1 1 0!important;flex-basis:0!important;height:auto!important;min-height:0!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) + 6px)!important;height:calc(var(--avatar-size) + 6px)!important;}
   .card-1t-hero-mobile{width:31px!important;height:43px!important;}
   .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.66)!important;}
