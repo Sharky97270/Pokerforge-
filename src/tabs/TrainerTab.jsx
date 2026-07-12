@@ -2408,8 +2408,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
     ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
     :null;
-  // Skin Trainer V2 : jetons vectoriels forcés en multi-table (1T conserve le thème utilisateur)
-  const effChipTheme=numTables>1?"trainer_v2":chipTheme;
+  // Skin Trainer V2 : jetons vectoriels forcés dans TOUT le Trainer (refonte 1T
+  // défigée — même logique que le multi ; le sélecteur de thème reste pour les
+  // autres surfaces éventuelles).
+  const effChipTheme="trainer_v2";
   const[solOpen,setSolOpen]=useState(false);
   const solRef=useRef(null);
   const solTouch=useRef({y:0,dy:0});
@@ -3975,7 +3977,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         <div className="t1-row" style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
 
         {/* ══ COLONNE GAUCHE : TABLE (68% desktop · plein écran mobile) ══ */}
-        <div className="t1-left" style={{flex:"0 0 68%",display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
+        {/* Refonte V2 : la table occupe toute la largeur — le panneau droit est
+           désormais la colonne partagée V2 rendue par le parent (même logique
+           que le multi). */}
+        <div className="t1-left" style={{flex:"1 1 auto",minWidth:0,display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
 
          <div className="t1-table-area" style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
 
@@ -4300,7 +4305,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
           {(()=>{
             const d=dealerAnchorPoint(trainingLayout);
-            return <div className="dealer-btn" style={{left:`${d.x}%`,top:`${d.y}%`}}>D</div>;
+            return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
           {compactActionLine()&&<div className="table-action-line"><strong>{spot.street}</strong> {compactActionLine()}</div>}
@@ -4322,7 +4327,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         </div>{/* ── fin COLONNE GAUCHE ── */}
 
-        {renderRightPanel()}
+        {/* Refonte V2 : renderRightPanel() (panneau 1T historique) n'est plus
+           rendu — le panneau droit V2 partagé est rendu par le parent. */}
 
         </div>{/* ── fin ZONE PRINCIPALE 2 COLONNES ── */}
 
@@ -6481,8 +6487,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:T.text4}}>
               {idx+1}/{smode===999?"∞":smode}
             </div>
-            {/* Coach AI — dans la barre, à gauche d'Arrêter (multi-table ; maquette v2) */}
-            {ntables>1&&onGoCoach&&(
+            {/* Coach AI — dans la barre, à gauche d'Arrêter (maquette v2, tous modes) */}
+            {onGoCoach&&(
               <button onClick={onGoCoach} className="pf-mt-coach-btn" style={{
                 marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:6,padding:"6px 16px",borderRadius:20,fontSize:11,
                 fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,cursor:"pointer",minWidth:118,justifyContent:"center",
@@ -6492,7 +6498,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             )}
             {/* Bouton Arrêter */}
             <button onClick={stopSession} style={{
-              marginLeft:ntables>1&&onGoCoach?0:"auto",padding:"4px 14px",borderRadius:20,fontSize:10,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",
+              marginLeft:onGoCoach?0:"auto",padding:"4px 14px",borderRadius:20,fontSize:10,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",
               border:"1px solid rgba(255,69,96,.45)",background:"rgba(255,69,96,.1)",
               color:T.red,transition:"all .2s",
             }}>⏹ Arrêter</button>
@@ -6565,7 +6571,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         {reviewOpen&&<TrainerReviewPanel onClose={()=>setReviewOpen(false)} onDrill={startErrorDrill} onReplay={replaySpot}/>}
         {mtRangePopup&&<RangePopup {...mtRangePopup} onClose={()=>setMtRangePopup(null)}/>}
         {started&&!done&&(
-          <div className="pf-mt-playrow" style={ntables>1&&!isMobile?{flex:1,minHeight:0,display:"flex",flexDirection:"row",overflow:"hidden"}:{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+          <div className="pf-mt-playrow" style={!isMobile?{flex:1,minHeight:0,display:"flex",flexDirection:"row",overflow:"hidden"}:{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
             <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
@@ -6612,40 +6618,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   </div>
                 );
               })}
-              {ntables===1&&curSpot&&(
-                <div className="pf-trainer-command-dock" aria-label="Commandes de la table">
-                  <div className="pf-trainer-command-status">
-                    <span className="pf-trainer-command-kicker">TABLE 1T</span>
-                    <strong>{curSpot.hpos||"Hero"} <i>vs</i> {curSpot.vpos||"Vilain"}</strong>
-                    <span>{idx+1}/{smode===999?queue.length:Math.min(smode,queue.length)} spots</span>
-                  </div>
-                  <div className="pf-trainer-street-track" aria-label={`Street actuelle : ${curSpot.street||"Preflop"}`}>
-                    {["Preflop","Flop","Turn","River"].map(street=>{
-                      const current=(curSpot.street||"Preflop")===street;
-                      return <span key={street} className={current?"active":""}>{street}</span>;
-                    })}
-                  </div>
-                  <div className="pf-trainer-command-actions">
-                    <button type="button" className={`pf-trainer-command-btn${showSol?" active":""}`} onClick={()=>setShowSol(s=>!s)} aria-pressed={showSol}>
-                      Solution
-                    </button>
-                    <button type="button" className={`pf-trainer-command-btn${collapsed?" active":""}`} onClick={toggleSidebar} aria-pressed={collapsed}>
-                      Focus
-                    </button>
-                    <button type="button" className="pf-trainer-command-btn danger" onClick={stopSession}>
-                      Arrêter
-                    </button>
-                    <button type="button" className="pf-trainer-next-btn" onClick={handleNext} disabled={!allSettled}>
-                      {allSettled?(idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length)?"Voir les résultats":"Main suivante"):"Décision en cours"}
-                    </button>
-                  </div>
-                  <div className="pf-trainer-command-progress" aria-hidden="true"><span style={{width:`${Math.max(3,prog)}%`}}/></div>
-                </div>
-              )}
+              {/* Refonte V2 : dock de commandes 1T retiré — fonctions reprises par
+                 la barre (Solution/Coach/Arrêter), la table (Focus ⊠) et le
+                 panneau V2 (progression + Main suivante). */}
             </div>
           </div>{/* ── fin gridRef (playground) ── */}
           {/* ══ COLONNE DROITE PARTAGÉE — reçoit le VRAI panneau 1T de la table active (portal) ══ */}
-          {ntables>1&&!isMobile&&<div className="pf-mt-sharedcol">{renderMultiPanel()}</div>}
+          {!isMobile&&<div className="pf-mt-sharedcol">{renderMultiPanel()}</div>}
           </div>
         )}
         {/* Reset zoom (pincement) */}
