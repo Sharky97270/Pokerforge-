@@ -5273,7 +5273,8 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"]{max-width:74px!important;gap:0!important;z-index:30!important;contain:none!important;}
   .pf-player-seat[data-mode="1T"] .player-card-1t{min-width:54px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium{
-    width:calc(var(--avatar-size) + 8px)!important;height:calc(var(--avatar-size) + 8px)!important;border-width:1.5px!important;
+    /* Avatars réduits (~ -10px) : dégagent les cartes du board et le bord haut de table. */
+    width:calc(var(--avatar-size) - 2px)!important;height:calc(var(--avatar-size) - 2px)!important;border-width:1.5px!important;
   }
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium::before{inset:-4px!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium::after{inset:3px!important;}
@@ -5288,18 +5289,19 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
   .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:6px!important;padding:1px 5px!important;margin-top:1px!important;}
 
-  .card-1t-hero-mobile{width:34px!important;height:47px!important;border-radius:5px!important;}
-  .card-1t-hero-mobile .card-corner-r{font-size:13px!important;}
-  .card-1t-hero-mobile .card-corner-s{font-size:9px!important;}
-  .card-1t-hero-mobile .card-center{font-size:20px!important;}
-  .t1-left .card-lg{width:38px!important;height:52px!important;border-radius:6px!important;}
-  .t1-left .card-lg .card-corner-r{font-size:14px!important;}
-  .t1-left .card-lg .card-corner-s{font-size:10px!important;}
-  .t1-left .card-lg .card-center{font-size:22px!important;}
-  .t1-left .card-md{width:32px!important;height:44px!important;border-radius:5px!important;}
-  .t1-left .card-md .card-corner-r{font-size:12px!important;}
-  .t1-left .card-md .card-corner-s{font-size:8px!important;}
-  .t1-left .card-md .card-center{font-size:18px!important;}
+  .card-1t-hero-mobile{width:31px!important;height:43px!important;border-radius:5px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:12px!important;}
+  .card-1t-hero-mobile .card-corner-s{font-size:8px!important;}
+  .card-1t-hero-mobile .card-center{font-size:18px!important;}
+  /* Cartes du board réduites (désencombrement mobile : plus d'air autour du board). */
+  .t1-left .card-lg{width:34px!important;height:47px!important;border-radius:6px!important;}
+  .t1-left .card-lg .card-corner-r{font-size:13px!important;}
+  .t1-left .card-lg .card-corner-s{font-size:9px!important;}
+  .t1-left .card-lg .card-center{font-size:20px!important;}
+  .t1-left .card-md{width:29px!important;height:40px!important;border-radius:5px!important;}
+  .t1-left .card-md .card-corner-r{font-size:11px!important;}
+  .t1-left .card-md .card-corner-s{font-size:7px!important;}
+  .t1-left .card-md .card-center{font-size:16px!important;}
   .pf-player-seat[data-mode="1T"][data-seat="UTG"] .pf-hole-cards{transform:translateX(5px)!important;}
   .pf-player-seat[data-mode="1T"][data-seat="BTN"] .pf-hole-cards{transform:translateX(-7px)!important;}
   .pf-villain-backs{filter:drop-shadow(0 3px 8px rgba(0,183,255,.22)) drop-shadow(0 5px 9px rgba(0,0,0,.78))!important;}
@@ -5360,7 +5362,7 @@ export const CSS_TABLE=`
   .hdr-breadcrumb span{font-size:11px!important;}
   /* Reste flexible sur écran étroit (iPhone mini/SE) — pas de hauteur figée qui ferait déborder la table. */
   .t1-left{flex:1 1 0!important;flex-basis:0!important;height:auto!important;min-height:0!important;}
-  .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) + 6px)!important;height:calc(var(--avatar-size) + 6px)!important;}
+  .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) - 2px)!important;height:calc(var(--avatar-size) - 2px)!important;}
   .card-1t-hero-mobile{width:31px!important;height:43px!important;}
   .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.66)!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.68)!important;}

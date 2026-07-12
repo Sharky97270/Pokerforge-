@@ -73,10 +73,10 @@ export const TRAINER_VISUAL_CONFIG = {
              x20..832 / y515..1068). Sièges/ancres convertis en % du conteneur. */
           tableGeometry: { top: 4.7, left: 0.5, right: 0.5, bottom: 4.2, railInset: 6, innerInset: 14 },
           seatPositions: {
-            HJ: { x: 22.4, y: 15.4 },
-            CO: { x: 72.3, y: 15.4 },
-            UTG: { x: 7.4, y: 43.2 },
-            BTN: { x: 92.9, y: 43.2 },
+            HJ: { x: 22.4, y: 22 },
+            CO: { x: 72.3, y: 22 },
+            UTG: { x: 8.2, y: 43.2 },
+            BTN: { x: 91.4, y: 43.2 },
             BB: { x: 24.4, y: 73.6 },
             SB: { x: 73.5, y: 73.6 },
           },
