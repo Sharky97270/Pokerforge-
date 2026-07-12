@@ -3673,7 +3673,14 @@ input:focus,select:focus,textarea:focus{
   .grid1>.mt-slot{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;}
   .grid1>.mt-slot>div{flex:1 1 auto!important;min-height:0!important;}
   /* Felt plus ample en portrait */
-  .t1-left .felt-oval{top:3%!important;left:2.5%!important;right:2.5%!important;bottom:6%!important;}
+  .t1-left .felt-oval{top:4.7%!important;left:.5%!important;right:.5%!important;bottom:4.2%!important;}
+  /* Maquette mobile 1T : feutre VERT sombre texturé + anneau doré + bord bleu-nuit (identité web) */
+  .t1-left .felt-oval{background:radial-gradient(ellipse at 50% 26%,rgba(46,132,79,.80) 0%,rgba(21,86,49,.95) 38%,rgba(9,50,27,.99) 70%,#05160D 100%)!important;border:1px solid rgba(255,214,121,.62)!important;box-shadow:inset 0 0 90px rgba(0,0,0,.55),0 0 0 3px rgba(6,18,32,.95),0 0 0 5px rgba(255,194,71,.42),0 0 0 7px rgba(31,58,102,.5),0 16px 40px rgba(0,0,0,.75)!important;}
+  /* Pot mobile : jetons + texte seulement, aucun socle/ovale gris (spec §6) */
+  .t1-left .pf-pot-readout{background:transparent!important;border:none!important;box-shadow:none!important;backdrop-filter:none!important;}
+  .t1-left .pf-pot-value{font-size:20px!important;}
+  /* Board mobile : cartes plus lisibles, centré (spec §7) */
+  .t1-left .pf-board-zone{gap:5px!important;}
   /* HUD → ruban scrollable une ligne */
   .trainer-hud{
     flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;
@@ -5252,7 +5259,7 @@ export const CSS_TABLE=`
   }
   .tw{border-radius:0!important;}
   .training-table-zone{overflow:hidden!important;}
-  .t1-left .felt-oval{top:3%!important;left:2.5%!important;right:2.5%!important;bottom:6%!important;}
+  .t1-left .felt-oval{top:4.7%!important;left:.5%!important;right:.5%!important;bottom:4.2%!important;}
   .trainer-hud{min-height:30px!important;padding:4px 8px!important;gap:5px!important;}
   .trainer-hud .hud-chip{font-size:8px!important;padding:2px 7px!important;}
 
