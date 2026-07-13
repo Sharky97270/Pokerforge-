@@ -1348,7 +1348,13 @@ function spotMatchFilter(s,f){
     const cats=new Set(f.spotTypes.map(t=>SPOT_TYPE_CAT[t]||t));
     if(!cats.has(s.cat))return false;
   }
-  if(f.nplayers&&POSITIONS_BY_SIZE[f.nplayers]&&!POSITIONS_BY_SIZE[f.nplayers].includes(s.hpos))return false;
+  // Format de table : héros ET vilain doivent tenir dans les N positions (sinon un
+  // siège vilain hors-table casserait le rendu hero-centric).
+  if(f.nplayers&&POSITIONS_BY_SIZE[f.nplayers]){
+    const pos=POSITIONS_BY_SIZE[f.nplayers];
+    if(!pos.includes(s.hpos))return false;
+    if(s.vpos&&s.vpos!=="Tous"&&!pos.includes(s.vpos))return false;
+  }
   if(f.diffLvl){if((s.diff||2)>f.diffLvl)return false;} // niveau pro : accepte la difficulté ≤ sélection
   return true;
 }
@@ -1670,6 +1676,7 @@ function generateDynamicSpots(count=50,f={}){
       if(typeCats&&!typeCats.has(spot.cat))continue;
       if(fmtF&&spot.fmt!==fmtF)continue;
       if(allowedPos&&!allowedPos.has(spot.hpos))continue; // Hero dans une position du format de table
+      if(allowedPos&&spot.vpos&&!allowedPos.has(spot.vpos))continue; // Vilain aussi (sinon siège hors-table)
       if(seen.has(spot.id))continue;
       if(stackOverride){
         spot.stack=stackOverride+"bb";
@@ -1713,7 +1720,13 @@ function generateDynamicSpots(count=50,f={}){
 function buildQ(f,mode,opts={}){
   const rp=icmRiskPremium(f.icm,f.phase);
   // Spots statiques : clonés + ajustés ICM (ne jamais muter le pool partagé SPOTS)
-  const prep=s=>rp>0?applyICMToSpot({...s,acts:[...(s.acts||[])],freq:{...(s.freq||{})},ev:{...(s.ev||{})},detail:[...(s.detail||[])]},rp,f.phase):s;
+  const prep=s=>{
+    // Toujours cloner (jamais muter le pool SPOTS partagé) et propager le nb de joueurs
+    // choisi (sinon les spots statiques rendent avec le layout 6 sièges par défaut).
+    const c=rp>0?applyICMToSpot({...s,acts:[...(s.acts||[])],freq:{...(s.freq||{})},ev:{...(s.ev||{})},detail:[...(s.detail||[])]},rp,f.phase):{...s};
+    if(f.nplayers)c.nplayers=f.nplayers;
+    return c;
+  };
   // Garde-fou : on écarte tout spot statique impossible et on attache le contexte calculé
   const guard=s=>{const v=validateTrainerSpot(s);if(!v.valid){if(typeof console!=="undefined")console.warn("PF Trainer — spot statique invalide ignoré:",v.errors.join(" · "),s.id);return null;}s.ctx=v.ctx;return s;};
   // Filtre street selon le type de session : full/session → préflop (le coup se joue ensuite),
@@ -1760,9 +1773,17 @@ function buildQ(f,mode,opts={}){
     preferFlop:!!opts.preferFlop,
     onlyStreet:opts.onlyStreet||null,
   });
-  if(aiQueue.length)return aiQueue.slice(0,lim);
-  let q=[];while(q.length<lim)q=[...q,...shuffle(pool)];
-  return q.slice(0,lim);
+  // Format de table : ne garder que les spots dont HÉROS et VILAIN tiennent dans les N
+  // positions (l'AI queue peut en produire hors-format), puis stamper nplayers → le rendu
+  // hero-centric affiche le bon nombre de sièges et le héros est toujours présent.
+  const fitsSize=s=>{if(!s)return false;if(!f.nplayers||!POSITIONS_BY_SIZE[f.nplayers])return true;const p=POSITIONS_BY_SIZE[f.nplayers];return p.includes(s.hpos)&&(!s.vpos||p.includes(s.vpos));};
+  const stampNplayers=arr=>{if(f.nplayers)arr.forEach(s=>{if(s)s.nplayers=f.nplayers;});return arr;};
+  const fitAi=aiQueue.filter(fitsSize);
+  if(fitAi.length)return stampNplayers(fitAi.slice(0,lim));
+  const fitPool=pool.filter(fitsSize);
+  const src=fitPool.length?fitPool:pool;
+  let q=[];while(q.length<lim)q=[...q,...shuffle(src)];
+  return stampNplayers(q.slice(0,lim));
 }
 function countQ(f){
   const staticN=SPOTS.filter(s=>spotMatchFilter(s,f)).length;
@@ -4101,7 +4122,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               const potPt=potPointFor(1,hasBoard);
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?15:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?22:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4118,7 +4139,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?34:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?41:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
