@@ -5348,9 +5348,10 @@ export const CSS_TABLE=`
   .mtr-actions .gto-btn .gto-btn-inner{padding:9px 6px 7px!important;}
   .mtr-actions .gto-btn-label{font-size:13px!important;}
   .mtr-actions .gto-btn-sizing{font-size:9px!important;padding:2px 6px!important;}
-  .mtr-actions .sizing-btn{min-height:28px!important;font-size:8.5px!important;border-radius:8px!important;}
-  .mtr-actions .sizing-custom{min-height:30px!important;margin-top:3px!important;}
-  .mtr-actions .sizing-step-btn{width:34px!important;height:28px!important;}
+  .mtr-actions .sizing-btn{min-height:22px!important;font-size:8px!important;border-radius:7px!important;padding:2px 4px!important;}
+  /* Stepper fin (− bb +) masqué sur mobile : les presets MIN/2.5x/3x… suffisent
+     pour le sizing → une rangée entière récupérée pour la table (flex:1). */
+  .mtr-actions .sizing-custom{display:none!important;}
   .mtr-actions .ab{min-height:46px!important;border-radius:10px!important;font-size:12px!important;}
   .mtr-actions kbd{display:none!important;}
   .pf-fab{right:12px!important;bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;padding:10px 14px!important;font-size:11px!important;}

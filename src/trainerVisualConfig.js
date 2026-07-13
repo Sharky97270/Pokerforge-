@@ -76,12 +76,12 @@ export const TRAINER_VISUAL_CONFIG = {
           tableGeometry: { top: 6, left: 8, right: 8, bottom: 6, railInset: 6, innerInset: 14 },
           /* Sièges posés sur l'anneau (ellipse du feutre), répartition hexagonale symétrique. */
           seatPositions: {
-            HJ: { x: 25, y: 21.5 },
-            CO: { x: 75, y: 21.5 },
-            UTG: { x: 10, y: 49 },
-            BTN: { x: 90, y: 49 },
-            BB: { x: 25, y: 74.5 },
-            SB: { x: 75, y: 74.5 },
+            HJ: { x: 23, y: 16 },
+            CO: { x: 77, y: 16 },
+            UTG: { x: 9, y: 49 },
+            BTN: { x: 91, y: 49 },
+            BB: { x: 23, y: 81 },
+            SB: { x: 77, y: 81 },
           },
           /* Vide : mises/blindes/dealer/labels se dérivent automatiquement des
              nouvelles positions de sièges (pointTowardCenter + push). */
