@@ -86,6 +86,12 @@ export const TRAINER_VISUAL_CONFIG = {
           /* Vide : mises/blindes/dealer/labels se dérivent automatiquement des
              nouvelles positions de sièges (pointTowardCenter + push). */
           anchorOverrides: {},
+          /* Push généreux (§14/15) : jetons/mises poussés nettement vers le centre,
+             hors des avatars (table hero-centric compacte). */
+          actionPush: { top: 0.30, bottom: 0.36, left: 0.34, right: 0.34, default: 0.34 },
+          blindPush: { SB: 0.32, BB: 0.32, default: 0.30 },
+          dealerPush: { BTN: 0.16, default: 0.16 },
+          actionLabelPush: { top: 0.40, bottom: 0.44, left: 0.44, right: 0.44, default: 0.44 },
         },
       },
       actionPush: { top: 0.16, bottom: 0.24, left: 0.24, right: 0.24, default: 0.24 },

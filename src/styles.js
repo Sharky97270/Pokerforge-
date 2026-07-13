@@ -5324,6 +5324,8 @@ export const CSS_TABLE=`
   /* Hero-centric mobile : le héros occupe le bas-centre → on masque les libellés
      de contexte qui y étaient (redondants avec l'en-tête du bandeau de décision). */
   .t1-left .table-action-line{display:none!important;}
+  /* Dealer 1T mobile : plus lisible (§17), rattaché au siège BTN via son ancre auto-dérivée. */
+  .t1-left .dealer-btn{width:22px!important;height:22px!important;font-size:10px!important;z-index:25!important;}
   /* Libellé « Face à … · À payer » : redondant avec l'en-tête du bandeau et il
      chevauchait la plaque du héros (héros en bas-centre) → masqué sur mobile. */
   .t1-left .pf-facing-label{display:none!important;}
