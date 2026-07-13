@@ -3673,7 +3673,7 @@ input:focus,select:focus,textarea:focus{
   .grid1>.mt-slot{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;}
   .grid1>.mt-slot>div{flex:1 1 auto!important;min-height:0!important;}
   /* Felt plus ample en portrait */
-  .t1-left .felt-oval{top:6%!important;left:8%!important;right:8%!important;bottom:8%!important;}
+  .t1-left .felt-oval{top:6%!important;left:12%!important;right:12%!important;bottom:5%!important;}
   /* Maquette mobile 1T : feutre VERT sombre texturé + anneau doré + bord bleu-nuit (identité web) */
   .t1-left .felt-oval{background:radial-gradient(ellipse at 50% 26%,rgba(46,132,79,.80) 0%,rgba(21,86,49,.95) 38%,rgba(9,50,27,.99) 70%,#05160D 100%)!important;border:1px solid rgba(255,214,121,.62)!important;box-shadow:inset 0 0 90px rgba(0,0,0,.55),0 0 0 3px rgba(6,18,32,.95),0 0 0 5px rgba(255,194,71,.42),0 0 0 7px rgba(31,58,102,.5),0 16px 40px rgba(0,0,0,.75)!important;}
   /* Pot mobile : jetons + texte seulement, aucun socle/ovale gris (spec §6) */
@@ -5266,7 +5266,7 @@ export const CSS_TABLE=`
   .mtr-kbd-hints{display:none!important;}
   .tw{border-radius:0!important;}
   .training-table-zone{overflow:hidden!important;}
-  .t1-left .felt-oval{top:6%!important;left:8%!important;right:8%!important;bottom:8%!important;}
+  .t1-left .felt-oval{top:6%!important;left:12%!important;right:12%!important;bottom:5%!important;}
   .trainer-hud{min-height:30px!important;padding:4px 8px!important;gap:5px!important;}
   .trainer-hud .hud-chip{font-size:8px!important;padding:2px 7px!important;}
 

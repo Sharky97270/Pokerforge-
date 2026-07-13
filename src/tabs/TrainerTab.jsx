@@ -120,43 +120,45 @@ function createTrainingTableLayout(name,seats,options={}){
   });
   return {name,seats,seatAnchors:anchors,boardSafeZone:safeZone,tableGeometry,boardPosition,potPosition};
 }
-/* ── Placement HERO-CENTRIC dynamique (2 à 9 joueurs) ──
-   Le héros est toujours en bas-centre ; les autres joueurs sont répartis sur
-   l'ellipse du feutre en préservant l'ordre de table (adjacence BTN-SB-BB
-   conservée → blindes/dealer corrects). Renvoie { POS: {x,y} } en % du cadre. */
+/* ── SIÈGES MOBILES 1T : anneau d'ancrage FIXE (architecture SeatSlot) ──
+   Les emplacements physiques ne bougent JAMAIS ; seules les positions poker
+   (labels) tournent à l'intérieur. slot[0] = bas (toujours le héros), puis on
+   tourne dans le sens anti-horaire (bas-gauche → haut → bas-droite) pour
+   préserver l'ordre de table (adjacence BTN-SB-BB → blindes/dealer corrects).
+   Coordonnées en % du canvas. */
+const MOBILE_SEAT_RINGS = {
+  2: [{ x: 50, y: 85 }, { x: 50, y: 16 }],
+  3: [{ x: 50, y: 86 }, { x: 21, y: 34 }, { x: 79, y: 34 }],
+  4: [{ x: 50, y: 87 }, { x: 15, y: 52 }, { x: 50, y: 13 }, { x: 85, y: 52 }],
+  5: [{ x: 50, y: 87 }, { x: 17, y: 62 }, { x: 27, y: 20 }, { x: 73, y: 20 }, { x: 83, y: 62 }],
+  6: [{ x: 50, y: 88 }, { x: 16, y: 70 }, { x: 16, y: 28 }, { x: 50, y: 10 }, { x: 84, y: 28 }, { x: 84, y: 70 }],
+  7: [{ x: 50, y: 88 }, { x: 16, y: 64 }, { x: 18, y: 30 }, { x: 40, y: 11 }, { x: 60, y: 11 }, { x: 82, y: 30 }, { x: 84, y: 64 }],
+  8: [{ x: 50, y: 88 }, { x: 15, y: 64 }, { x: 16, y: 38 }, { x: 34, y: 14 }, { x: 50, y: 9 }, { x: 66, y: 14 }, { x: 84, y: 38 }, { x: 85, y: 64 }],
+  9: [{ x: 50, y: 89 }, { x: 13, y: 69 }, { x: 13, y: 37 }, { x: 27, y: 15 }, { x: 44, y: 9 }, { x: 56, y: 9 }, { x: 73, y: 15 }, { x: 87, y: 37 }, { x: 87, y: 69 }],
+};
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
-  const g = geometry || { top: 6, left: 8, right: 8, bottom: 8 };
-  const cx = (g.left + (100 - g.right)) / 2;
-  const cy = (g.top + (100 - g.bottom)) / 2;
-  const rx = (100 - g.left - g.right) / 2;
-  const ry = (100 - g.top - g.bottom) / 2;
   const n = positions.length;
   const seats = {};
   if (!n) return seats;
   const heroIdx = Math.max(0, positions.indexOf(heroPos));
   const ordered = [];
   for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
-  const fx = opts.fx ?? 0.88;      // rayon horizontal (fraction de l'anneau)
-  const fy = opts.fy ?? 0.84;      // rayon vertical
-  const heroFy = opts.heroFy ?? 0.64; // héros un peu remonté (place cartes + label)
-  // Héros en bas-centre
-  seats[ordered[0]] = { x: +cx.toFixed(2), y: +(cy + heroFy * ry).toFixed(2) };
+  const ring = MOBILE_SEAT_RINGS[n];
+  if (ring) {
+    for (let i = 0; i < n; i++) seats[ordered[i]] = { ...ring[i] };
+    return seats;
+  }
+  // Repli (tailles hors table) : ancien calcul par arc sur l'ellipse du feutre.
+  const g = geometry || { top: 6, left: 8, right: 8, bottom: 8 };
+  const cx = (g.left + (100 - g.right)) / 2, cy = (g.top + (100 - g.bottom)) / 2;
+  const rx = (100 - g.left - g.right) / 2, ry = (100 - g.top - g.bottom) / 2;
+  const fx = 0.88, fy = 0.84;
+  seats[ordered[0]] = { x: +cx.toFixed(2), y: +(cy + 0.64 * ry).toFixed(2) };
   const m = n - 1;
-  if (m === 1) {
-    // Heads-up : adversaire en haut-centre
-    seats[ordered[1]] = { x: +cx.toFixed(2), y: +(cy - fy * ry).toFixed(2) };
-  } else if (m > 1) {
-    // Les autres répartis sur l'arc supérieur, en laissant un espace en bas autour du héros
-    const gap = opts.bottomGapDeg ?? 118;
-    const start = 90 + gap / 2;     // 90° = bas (y vers le bas) ; on démarre à gauche du héros
-    const span = 360 - gap;
-    for (let k = 0; k < m; k++) {
-      const ang = (start + k * (span / (m - 1))) * Math.PI / 180;
-      seats[ordered[k + 1]] = {
-        x: +(cx + fx * rx * Math.cos(ang)).toFixed(2),
-        y: +(cy + fy * ry * Math.sin(ang)).toFixed(2),
-      };
-    }
+  const gap = 118, start = 90 + gap / 2, span = 360 - gap;
+  for (let k = 0; k < m; k++) {
+    const ang = (start + k * (span / (m - 1))) * Math.PI / 180;
+    seats[ordered[k + 1]] = { x: +(cx + fx * rx * Math.cos(ang)).toFixed(2), y: +(cy + fy * ry * Math.sin(ang)).toFixed(2) };
   }
   return seats;
 }
@@ -4122,7 +4124,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               const potPt=potPointFor(1,hasBoard);
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?22:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?30:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4139,7 +4141,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?41:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?48:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -4217,7 +4219,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             // Densité : sur les grandes tables mobiles (7-9 joueurs) on réduit les avatars pour les désengorger.
             const nSeats=seatOrder.length;
             const denseScale=!isMobile||nSeats<=6?1:nSeats===7?0.9:nSeats===8?0.82:0.76;
-            const avSz=isMobile?Math.round((isH?46:40)*denseScale):(isH?70:64);
+            const avSz=isMobile?Math.round((isH?41:35)*denseScale):(isH?70:64);
             const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
             const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
             const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
@@ -4266,7 +4268,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                       )}
                     </div>
                   )}
-                  {!isH&&!isV&&(
+                  {!isH&&!isV&&denseScale>=1&&(
                     <div style={{marginBottom:3}}>
                       <VillainBackCards size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
                     </div>
