@@ -120,6 +120,46 @@ function createTrainingTableLayout(name,seats,options={}){
   });
   return {name,seats,seatAnchors:anchors,boardSafeZone:safeZone,tableGeometry,boardPosition,potPosition};
 }
+/* ── Placement HERO-CENTRIC dynamique (2 à 9 joueurs) ──
+   Le héros est toujours en bas-centre ; les autres joueurs sont répartis sur
+   l'ellipse du feutre en préservant l'ordre de table (adjacence BTN-SB-BB
+   conservée → blindes/dealer corrects). Renvoie { POS: {x,y} } en % du cadre. */
+function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
+  const g = geometry || { top: 6, left: 8, right: 8, bottom: 8 };
+  const cx = (g.left + (100 - g.right)) / 2;
+  const cy = (g.top + (100 - g.bottom)) / 2;
+  const rx = (100 - g.left - g.right) / 2;
+  const ry = (100 - g.top - g.bottom) / 2;
+  const n = positions.length;
+  const seats = {};
+  if (!n) return seats;
+  const heroIdx = Math.max(0, positions.indexOf(heroPos));
+  const ordered = [];
+  for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
+  const fx = opts.fx ?? 0.88;      // rayon horizontal (fraction de l'anneau)
+  const fy = opts.fy ?? 0.84;      // rayon vertical
+  const heroFy = opts.heroFy ?? 0.64; // héros un peu remonté (place cartes + label)
+  // Héros en bas-centre
+  seats[ordered[0]] = { x: +cx.toFixed(2), y: +(cy + heroFy * ry).toFixed(2) };
+  const m = n - 1;
+  if (m === 1) {
+    // Heads-up : adversaire en haut-centre
+    seats[ordered[1]] = { x: +cx.toFixed(2), y: +(cy - fy * ry).toFixed(2) };
+  } else if (m > 1) {
+    // Les autres répartis sur l'arc supérieur, en laissant un espace en bas autour du héros
+    const gap = opts.bottomGapDeg ?? 118;
+    const start = 90 + gap / 2;     // 90° = bas (y vers le bas) ; on démarre à gauche du héros
+    const span = 360 - gap;
+    for (let k = 0; k < m; k++) {
+      const ang = (start + k * (span / (m - 1))) * Math.PI / 180;
+      seats[ordered[k + 1]] = {
+        x: +(cx + fx * rx * Math.cos(ang)).toFixed(2),
+        y: +(cy + fy * ry * Math.sin(ang)).toFixed(2),
+      };
+    }
+  }
+  return seats;
+}
 const TRAINER_VISUAL_1T=getTrainerVisualLayoutConfig(1);
 const TRAINER_VISUAL_2T=getTrainerVisualLayoutConfig(2);
 const TRAINER_VISUAL_3T=getTrainerVisualLayoutConfig(3);
@@ -860,7 +900,7 @@ const RANGE_ACTION_COLORS={
   f:    {bg:"rgba(14,14,30,.85)",    label:"Fold",          col:"#6F81A8"},
 };
 
-export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTables=1,onOpenSolver}){
+export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTables=1,onOpenSolver,modal=false}){
   const[viewMode,setViewMode]=useState("hero");
   const[hov,setHov]=useState(null);
   const[sel,setSel]=useState(null);
@@ -890,34 +930,35 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
   const vProf=viewMode==="villain"&&spot?.vtype?VILLAIN_PROFILES[spot.vtype]:null;
 
   // ── Tailles adaptatives (+5% grille vs version précédente) ──
-  const CP=numTables>=3?12:numTables===2?15:17; // cellule px (+5%)
-  const FP=numTables>=3?3.8:numTables===2?4.7:5.8; // font pairs (+5%)
-  const NP=numTables>=3?0:numTables===2?3.8:4.6;   // font non-pairs (+5%, 0=caché 3T+)
-  const LP=numTables>=3?8:numTables===2?9:10;  // layout font
-  const RF=numTables>=3?5.0:numTables===2?5.5:6.1;  // rank headers (+5%)
-  const showRightPanel=numTables<=2;
-  const panelWidth=numTables===1?148:120; // +9% panel width
+  const modalRange=modal||numTables==="modal"||numTables===0;
+  const CP=modalRange?40:numTables>=3?12:numTables===2?15:17; // cellule px
+  const FP=modalRange?13:numTables>=3?3.8:numTables===2?4.7:5.8; // font pairs
+  const NP=modalRange?10:numTables>=3?0:numTables===2?3.8:4.6;   // font non-pairs
+  const LP=modalRange?13:numTables>=3?8:numTables===2?9:10;  // layout font
+  const RF=modalRange?11:numTables>=3?5.0:numTables===2?5.5:6.1;  // rank headers
+  const showRightPanel=modalRange||numTables<=2;
+  const panelWidth=modalRange?260:numTables===1?148:120;
 
   // ── Background cellule (dégradé vertical selon fréquences) ──
   function cellBg(d){
-    if(!d)return"rgba(14,14,30,.88)";
+    if(!d)return"rgba(7,18,38,.88)";
     const f=d.freq;
-    if(f.r>=95)return"rgba(155,92,255,.82)";
-    if(f.c>=95)return"rgba(46,204,113,.78)";
-    if(f.f>=95)return"rgba(14,14,30,.72)";
+    if(f.r>=95)return"rgba(255,184,0,.86)";
+    if(f.c>=95)return"rgba(32,207,255,.78)";
+    if(f.f>=95)return"rgba(42,16,24,.82)";
     const segs=[];let acc=0;
-    if(f.r>0){segs.push(`rgba(155,92,255,.82) ${acc}%`);acc+=f.r;segs.push(`rgba(155,92,255,.82) ${acc}%`);}
-    if(f.c>0){segs.push(`rgba(46,204,113,.78) ${acc}%`);acc+=f.c;segs.push(`rgba(46,204,113,.78) ${acc}%`);}
-    if(f.f>0){segs.push(`rgba(14,14,30,.72) ${acc}%`);acc+=f.f;segs.push(`rgba(14,14,30,.72) ${acc}%`);}
-    return segs.length>1?`linear-gradient(to bottom,${segs.join(",")})`:segs[0]||"rgba(14,14,30,.72)";
+    if(f.r>0){segs.push(`rgba(255,184,0,.86) ${acc}%`);acc+=f.r;segs.push(`rgba(255,184,0,.86) ${acc}%`);}
+    if(f.c>0){segs.push(`rgba(32,207,255,.78) ${acc}%`);acc+=f.c;segs.push(`rgba(32,207,255,.78) ${acc}%`);}
+    if(f.f>0){segs.push(`rgba(42,16,24,.82) ${acc}%`);acc+=f.f;segs.push(`rgba(42,16,24,.82) ${acc}%`);}
+    return segs.length>1?`linear-gradient(to bottom,${segs.join(",")})`:segs[0]||"rgba(42,16,24,.82)";
   }
 
   // ── Couleur dominante pour action badge ──
   function mainActColor(d){
-    if(!d)return{label:"Fold",col:"#4A6090"};
-    if(d.freq.r>=d.freq.c&&d.freq.r>=d.freq.f)return{label:"Raise",col:"#c090ff"};
-    if(d.freq.c>=d.freq.f)return{label:"Call",col:"#2ECC71"};
-    return{label:"Fold",col:"#4A6090"};
+    if(!d)return{label:"Fold",col:"#E5485D"};
+    if(d.freq.r>=d.freq.c&&d.freq.r>=d.freq.f)return{label:"Raise",col:"#FFB800"};
+    if(d.freq.c>=d.freq.f)return{label:"Call",col:"#20CFFF"};
+    return{label:"Fold",col:"#E5485D"};
   }
 
   // ── Conseil GTO auto-généré ──
@@ -945,16 +986,16 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
   const panelD=selD||hovD;
 
   const LEGEND=[
-    {bg:"rgba(155,92,255,.82)",l:"Raise"},
-    {bg:"rgba(46,204,113,.78)",l:"Call"},
-    {bg:"linear-gradient(to bottom,rgba(155,92,255,.8) 50%,rgba(46,204,113,.75) 50%)",l:"Mix R/C"},
-    {bg:"linear-gradient(to bottom,rgba(155,92,255,.8) 50%,rgba(14,14,30,.7) 50%)",l:"Mix R/F"},
-    {bg:"linear-gradient(to bottom,rgba(46,204,113,.75) 50%,rgba(14,14,30,.7) 50%)",l:"Mix C/F"},
-    {bg:"rgba(14,14,30,.72)",l:"Fold"},
+    {bg:"rgba(255,184,0,.86)",l:"Raise"},
+    {bg:"rgba(32,207,255,.78)",l:"Call"},
+    {bg:"linear-gradient(to bottom,rgba(255,184,0,.86) 50%,rgba(32,207,255,.78) 50%)",l:"Mix R/C"},
+    {bg:"linear-gradient(to bottom,rgba(255,184,0,.86) 50%,rgba(42,16,24,.82) 50%)",l:"Mix R/F"},
+    {bg:"linear-gradient(to bottom,rgba(32,207,255,.78) 50%,rgba(42,16,24,.82) 50%)",l:"Mix C/F"},
+    {bg:"rgba(42,16,24,.82)",l:"Fold"},
   ];
 
   return(
-    <div style={{background:"linear-gradient(145deg,#071B44,#040E25)",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(26,58,128,.8)",marginTop:6,boxShadow:"0 4px 24px rgba(0,0,0,.5)"}}>
+    <div className={modalRange?"range-grid-shell modal":"range-grid-shell"} style={{background:"linear-gradient(145deg,#071B44,#040E25)",borderRadius:modalRange?14:12,padding:modalRange?"16px 18px":"10px 12px",border:"1px solid rgba(26,58,128,.8)",marginTop:6,boxShadow:"0 4px 24px rgba(0,0,0,.5)"}}>
 
       {/* ═══ HEADER ═══ */}
       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
@@ -979,10 +1020,10 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
       </div>
 
       {/* ═══ CORPS : Grille + Panneau droit ═══ */}
-      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+      <div style={{display:"flex",gap:modalRange?18:10,alignItems:"flex-start",flexWrap:modalRange?"wrap":"nowrap"}}>
 
         {/* ──── GRILLE 13×13 ──── */}
-        <div style={{flexShrink:0,position:"relative"}}>
+        <div style={{flexShrink:0,position:"relative",maxWidth:"100%",overflowX:modalRange?"auto":"visible",paddingBottom:modalRange?4:0}}>
           {/* En-têtes colonnes */}
           <div style={{display:"flex",marginBottom:1.5,paddingLeft:CP+2}}>
             {RANKS_GRID.map(r=>(
@@ -1005,9 +1046,14 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
                 const labelStr=isPair?(r1+r1):NP>0?(isSuited?r1+r2+"s":r1+r2+"o"):"";
                 return(
                   <div key={k}
+                    className="range-cell-focus"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${k}: raise ${d?.freq?.r||0}%, call ${d?.freq?.c||0}%, fold ${d?.freq?.f||0}%`}
                     onMouseEnter={()=>setHov(k)}
                     onMouseLeave={()=>setHov(null)}
                     onClick={()=>setSel(sel===k?null:k)}
+                    onKeyDown={(e)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setSel(sel===k?null:k);}}}
                     style={{
                       width:CP,height:CP,flexShrink:0,
                       background:cellBg(d),
@@ -1044,11 +1090,11 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
             <div style={{position:"absolute",top:0,left:"calc(100% + 8px)",background:"#030D2A",border:"1px solid rgba(155,92,255,.4)",borderRadius:9,padding:"8px 10px",zIndex:200,whiteSpace:"nowrap",minWidth:118,boxShadow:"0 6px 28px rgba(0,0,0,.9)",pointerEvents:"none",animation:"vilActIn .15s forwards"}}>
               <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:12,fontWeight:800,color:"#fff",marginBottom:4,letterSpacing:".04em"}}>{hov}</div>
               <div style={{height:5,borderRadius:2.5,overflow:"hidden",display:"flex",marginBottom:5,background:"rgba(255,255,255,.07)"}}>
-                {hovD.freq.r>0&&<div style={{flex:hovD.freq.r,background:"rgba(155,92,255,.85)"}}/>}
-                {hovD.freq.c>0&&<div style={{flex:hovD.freq.c,background:"rgba(46,204,113,.8)"}}/>}
-                {hovD.freq.f>0&&<div style={{flex:hovD.freq.f,background:"rgba(14,14,30,.7)"}}/>}
+                {hovD.freq.r>0&&<div style={{flex:hovD.freq.r,background:"rgba(255,184,0,.88)"}}/>}
+                {hovD.freq.c>0&&<div style={{flex:hovD.freq.c,background:"rgba(32,207,255,.82)"}}/>}
+                {hovD.freq.f>0&&<div style={{flex:hovD.freq.f,background:"rgba(42,16,24,.82)"}}/>}
               </div>
-              {[{l:"Raise",v:hovD.freq.r+"%",c:"#c090ff"},{l:"Call",v:hovD.freq.c+"%",c:"#2ECC71"},{l:"Fold",v:hovD.freq.f+"%",c:"#4A6090"}].filter(x=>parseFloat(x.v)>0).map(({l,v,c})=>(
+              {[{l:"Raise",v:hovD.freq.r+"%",c:"#FFB800"},{l:"Call",v:hovD.freq.c+"%",c:"#20CFFF"},{l:"Fold",v:hovD.freq.f+"%",c:"#E5485D"}].filter(x=>parseFloat(x.v)>0).map(({l,v,c})=>(
                 <div key={l} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:2}}>
                   <span style={{fontSize:7.5,color:T.text4,fontFamily:"'Inter',sans-serif"}}>{l}</span>
                   <span style={{fontSize:8,color:c,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>{v}</span>
@@ -1067,7 +1113,7 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
 
         {/* ──── PANNEAU DROIT (1T et 2T) ──── */}
         {showRightPanel&&(
-          <div style={{width:panelWidth,flexShrink:0,display:"flex",flexDirection:"column",gap:5}}>
+          <div style={{width:panelWidth,flex:modalRange?"1 1 260px":"0 0 auto",minWidth:modalRange?240:panelWidth,display:"flex",flexDirection:"column",gap:modalRange?9:5}}>
 
             {/* Analyse main sélectionnée / survolée */}
             {panelD&&panelHand?(
@@ -1077,7 +1123,7 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
                   <span style={{fontSize:7.5,padding:"1.5px 6px",borderRadius:10,background:mainActColor(panelD).col+"22",color:mainActColor(panelD).col,fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,border:`1px solid ${mainActColor(panelD).col}44`}}>{mainActColor(panelD).label}</span>
                 </div>
                 {/* Fréquences avec barres */}
-                {[{l:"Raise",v:panelD.freq.r,c:"rgba(155,92,255,.9)"},{l:"Call",v:panelD.freq.c,c:"rgba(46,204,113,.9)"},{l:"Fold",v:panelD.freq.f,c:"rgba(74,96,144,.8)"}].filter(x=>x.v>0).map(({l,v,c})=>(
+                {[{l:"Raise",v:panelD.freq.r,c:"rgba(255,184,0,.92)"},{l:"Call",v:panelD.freq.c,c:"rgba(32,207,255,.9)"},{l:"Fold",v:panelD.freq.f,c:"rgba(229,72,93,.82)"}].filter(x=>x.v>0).map(({l,v,c})=>(
                   <div key={l} style={{marginBottom:3}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:1.5}}>
                       <span style={{fontSize:9.5,color:T.text4,fontFamily:"'Inter',sans-serif"}}>{l}</span>
@@ -1112,11 +1158,11 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
               <div style={{fontSize:9,color:T.text4,letterSpacing:".1em",textTransform:"uppercase",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,marginBottom:5}}>Résumé de range</div>
               {/* Barre composite R/C/F */}
               <div style={{height:6,borderRadius:3,overflow:"hidden",display:"flex",marginBottom:5,gap:0}}>
-                {rP>0&&<div style={{flex:rP,background:"rgba(155,92,255,.85)"}}/>}
-                {cP>0&&<div style={{flex:cP,background:"rgba(46,204,113,.78)"}}/>}
-                {fP>0&&<div style={{flex:fP,background:"rgba(14,14,30,.65)"}}/>}
+                {rP>0&&<div style={{flex:rP,background:"rgba(255,184,0,.88)"}}/>}
+                {cP>0&&<div style={{flex:cP,background:"rgba(32,207,255,.78)"}}/>}
+                {fP>0&&<div style={{flex:fP,background:"rgba(42,16,24,.82)"}}/>}
               </div>
-              {[{l:"Raise",v:rP,vs:rP+"%",c:"#c090ff"},{l:"Call",v:cP,vs:cP+"%",c:"#2ECC71"},{l:"Fold",v:fP,vs:fP+"%",c:"#4A6090"}].map(({l,v,vs,c})=>(
+              {[{l:"Raise",v:rP,vs:rP+"%",c:"#FFB800"},{l:"Call",v:cP,vs:cP+"%",c:"#20CFFF"},{l:"Fold",v:fP,vs:fP+"%",c:"#E5485D"}].map(({l,v,vs,c})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
                   <span style={{fontSize:8.5,color:T.text4,fontFamily:"'Inter',sans-serif",width:34,flexShrink:0}}>{l}</span>
                   <div style={{flex:1,height:3,borderRadius:1.5,background:"rgba(255,255,255,.06)",overflow:"hidden"}}>
@@ -1160,11 +1206,11 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
         {!showRightPanel&&(
           <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:2}}>
             <div style={{height:4,borderRadius:2,overflow:"hidden",display:"flex",marginBottom:2}}>
-              {rP>0&&<div style={{flex:rP,background:"rgba(155,92,255,.8)"}}/>}
-              {cP>0&&<div style={{flex:cP,background:"rgba(46,204,113,.75)"}}/>}
-              {fP>0&&<div style={{flex:fP,background:"rgba(14,14,30,.65)"}}/>}
+              {rP>0&&<div style={{flex:rP,background:"rgba(255,184,0,.86)"}}/>}
+              {cP>0&&<div style={{flex:cP,background:"rgba(32,207,255,.78)"}}/>}
+              {fP>0&&<div style={{flex:fP,background:"rgba(42,16,24,.82)"}}/>}
             </div>
-            {[{l:"Raise",v:rP+"%",c:"#c090ff"},{l:"Call",v:cP+"%",c:"#2ECC71"},{l:"Fold",v:fP+"%",c:"#4A6090"},null,{l:"Combos",v:playCombos,c:T.text2},{l:"EV",v:(parseFloat(avgEV)>=0?"+":"")+avgEV,c:T.gold},{l:"Equity",v:avgEQ+"%",c:T.blue},{l:"EQR",v:avgEQR,c:"#FFC247"}].map((s,idx)=>
+            {[{l:"Raise",v:rP+"%",c:"#FFB800"},{l:"Call",v:cP+"%",c:"#20CFFF"},{l:"Fold",v:fP+"%",c:"#E5485D"},null,{l:"Combos",v:playCombos,c:T.text2},{l:"EV",v:(parseFloat(avgEV)>=0?"+":"")+avgEV,c:T.gold},{l:"Equity",v:avgEQ+"%",c:T.blue},{l:"EQR",v:avgEQR,c:"#FFC247"}].map((s,idx)=>
               s===null?<div key={idx} style={{height:1,background:"rgba(255,255,255,.05)",margin:"1px 0"}}/>:
               <div key={s.l} style={{display:"flex",justifyContent:"space-between"}}>
                 <span style={{fontSize:8,color:T.text4,fontFamily:"'Inter',sans-serif"}}>{s.l}</span>
@@ -1218,6 +1264,17 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
 ═══════════════════════════════════════ */
 export function RangePopup({heroPos,vilPos,heroAction,stackBB,onClose}){
   const[activeTab,setActiveTab]=useState("hero");
+  const closeBtnRef=useRef(null);
+  useEffect(()=>{
+    const previous=document.activeElement;
+    const onKey=(e)=>{if(e.key==="Escape")onClose?.();};
+    window.addEventListener("keydown",onKey);
+    closeBtnRef.current?.focus?.();
+    return()=>{
+      window.removeEventListener("keydown",onKey);
+      previous?.focus?.();
+    };
+  },[onClose]);
   // Tabs disponibles
   const tabs=[
     {id:"hero",l:`Hero (${heroPos})`,action:heroAction||"open"},
@@ -1228,18 +1285,18 @@ export function RangePopup({heroPos,vilPos,heroAction,stackBB,onClose}){
   const displayPos=activeTab==="hero"?heroPos:vilPos;
   return(
     <div className="rpop-overlay" onClick={onClose}>
-      <div className="rpop" onClick={e=>e.stopPropagation()}>
+      <div className="rpop" role="dialog" aria-modal="true" aria-label="Ranges GTO" onClick={e=>e.stopPropagation()}>
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div>
             <div style={{fontFamily:T.brand,fontSize:9,color:T.gold,letterSpacing:".1em",fontWeight:900}}>RANGES GTO</div>
             <div style={{fontSize:9,color:T.text3,fontFamily:T.stats,marginTop:1}}>{heroPos} vs {vilPos} · {stackBB}bb · {heroAction||"Open"}</div>
           </div>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.05)",border:"1px solid #1A3A80",color:T.text2,cursor:"pointer",fontSize:14,borderRadius:6,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          <button ref={closeBtnRef} aria-label="Fermer les ranges GTO" onClick={onClose} style={{background:"rgba(255,255,255,.05)",border:"1px solid #1A3A80",color:T.text2,cursor:"pointer",fontSize:16,borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
         {/* Tabs */}
         <div className="rpop-tabs">
-          {tabs.map(t=><div key={t.id} className={`rpop-tab${activeTab===t.id?" on":""}`} onClick={()=>setActiveTab(t.id)}>{t.l}</div>)}
+          {tabs.map(t=><button key={t.id} type="button" className={`rpop-tab${activeTab===t.id?" on":""}`} onClick={()=>setActiveTab(t.id)}>{t.l}</button>)}
         </div>
         {/* Legend couleurs */}
         <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
@@ -1257,7 +1314,7 @@ export function RangePopup({heroPos,vilPos,heroAction,stackBB,onClose}){
           ))}
         </div>
         {/* Range grid */}
-        <RangeGrid pos={displayPos} action={cur.action} stackBB={stackBB||100} label={`${displayPos} — ${cur.action==="open"?"Open RFI":cur.action==="3bet"?"3bet range":cur.action==="call"?"Call range":"Range"} · ${stackBB||100}bb`}/>
+        <RangeGrid pos={displayPos} action={cur.action} stackBB={stackBB||100} label={`${displayPos} — ${cur.action==="open"?"Open RFI":cur.action==="3bet"?"3bet range":cur.action==="call"?"Call range":"Range"} · ${stackBB||100}bb`} numTables="modal" modal/>
         {/* Note pédagogique */}
         <div style={{marginTop:10,padding:"8px 10px",background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,fontSize:9,color:T.text3,fontFamily:T.stats,lineHeight:1.6}}>
           {activeTab==="hero"&&"📌 Range offensive de Hero. En vert = raise/bet optimal, en bleu = call/flat, dégradé = fréquences mixées selon l'équilibre GTO."}
@@ -1821,6 +1878,14 @@ function updateStatsAfterSession(results,mode){
    (≈1.8:1, proche 16:9) via padding-bottom. Combiné aux colonnes minmax(0,1fr) des
    .grid2/.grid3/.grid4, chaque table devient un clone géométrique parfait des autres. */
 const MT_TABLE_PB="55.6%";
+const MT_TABLE_RATIO_FALLBACK=0.556;
+
+function parseCssAspectRatio(value){
+  const nums=String(value||"").match(/\d*\.?\d+/g)?.map(Number).filter(Number.isFinite)||[];
+  if(nums.length>=2&&nums[0]>0&&nums[1]>0)return nums[1]/nums[0];
+  if(nums.length===1&&nums[0]>0)return 1/nums[0];
+  return null;
+}
 
 function parseBbAmount(v){
   if(typeof v==="number")return Number.isFinite(v)?v:0;
@@ -2369,7 +2434,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -2428,6 +2493,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const fhVisBoard=fhStreet==="flop"?fhBoardRef.slice(0,3):fhStreet==="turn"?fhBoardRef.slice(0,4):fhBoardRef.slice(0,5);
   const isSmall=numTables>1;
   const fmt=v=>unit==="BB"?`${v}bb`:`${(v*2).toFixed(0)}$`;
+  const nextLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Main suivante";
+  const nextShortLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Suivante";
+  const callNext=useCallback(()=>{
+    if(nextBusy)return;
+    onNext?.();
+  },[nextBusy,onNext]);
 
   // ── Contexte du spot : historique préflop + action affrontée (open/3-bet/c-bet…) ──
   const spotValidation=useMemo(()=>validateTrainerSpot(spot),[spot]);
@@ -2449,10 +2520,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         snapshot:strictSpotValidation.snapshot,
       });
       if(typeof console!=="undefined")console.warn("PF Trainer — spot impossible détecté à l'affichage, main passée:",spotValidation.errors.join(" · "),spot?.cat,spot?.hpos,"vs",spot?.vpos);
-      const t=setTimeout(()=>{if(!skipRef.current){skipRef.current=true;onNext&&onNext();}},1400);
+      const t=setTimeout(()=>{if(!skipRef.current){skipRef.current=true;callNext();}},1400);
       return()=>clearTimeout(t);
     }
-  },[spot,spotImpossible,spotErrors,strictSpotValidation.snapshot,spotCtx,onNext]);
+  },[spot,spotImpossible,spotErrors,strictSpotValidation.snapshot,spotCtx,callNext]);
 
   useEffect(()=>{
     setAnswered(null);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
@@ -2875,7 +2946,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const fire=(fn,arg)=>{e.preventDefault();fn&&fn(arg);};
     // Entrée → spot suivant (après une décision)
     if(e.key==="Enter"){
-      if(!playingFull&&answered!==null){fire(onNext);}
+      if(!playingFull&&answered!==null){fire(callNext);}
       return;
     }
     // ── Raccourcis F1–F4 : positionnels sur les actions du spot (table active) ──
@@ -2936,7 +3007,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         <div style={{fontFamily:T.stats,fontSize:11,color:T.text3,maxWidth:340,lineHeight:1.5}}>
           Cette situation ne pouvait pas se produire (action précédente manquante ou sizing incohérent). PokerForge la passe automatiquement et charge la main suivante.
         </div>
-        <button className="gto-next-btn" style={{padding:"9px 18px",fontSize:12}} onClick={()=>{skipRef.current=true;onNext&&onNext();}}>Main suivante ▶</button>
+        <button className="gto-next-btn" style={{padding:"9px 18px",fontSize:12}} disabled={nextBusy} onClick={()=>{skipRef.current=true;callNext();}}>{nextLabel} ▶</button>
       </div>
     );
   }
@@ -2951,7 +3022,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const TRAINING_LAYOUT={
     1:{pb:"unused",    board:"2xl", boardGap:8, seat:68, fpos:13,  fstk:12,  actFnt:15, actPad:"15px 12px 13px", heroCard:"3xl", vilCard:"lg",  cardSize:"xs", dbtnSz:22, compact:false, potFntB:14, potFnt:18},
     2:{pb:MT_TABLE_PB, board:"xl",  boardGap:5, seat:48, fpos:10.5, fstk:9.5, actFnt:13, actPad:"12px 10px 10px", heroCard:"lg",  vilCard:"sm",  cardSize:"sm", dbtnSz:17, compact:false, potFntB:13, potFnt:15},
-    3:{pb:MT_TABLE_PB, board:"lg",  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:"md",  vilCard:"xs",  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
+    3:{pb:MT_TABLE_PB, board:"lg",  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:"smp", vilCard:"xs",  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
     4:{pb:MT_TABLE_PB, board:"md",  boardGap:3, seat:30, fpos:7,    fstk:6,   actFnt:10, actPad:"8px 6px 7px",   heroCard:"sm",  vilCard:"xs",  cardSize:"xs", dbtnSz:10, compact:true,  potFntB:12, potFnt:13},
   };
   const baseCfg=TRAINING_LAYOUT[numTables]||TRAINING_LAYOUT[2];
@@ -2963,7 +3034,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       seat:numTables===2?40:numTables===3?32:26,
       fpos:numTables===2?9.5:numTables===3?7.5:6.5,
       fstk:numTables===2?8.5:numTables===3?6.8:6,
-      heroCard:numTables===2?"md":numTables===3?"sm":"xs",
+      heroCard:numTables===2?"md":numTables===3?"smp":"sm",
       vilCard:"xs",
       dbtnSz:numTables===2?15:12,
       compact:true,
@@ -2971,7 +3042,18 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       potFnt:numTables===2?13:12,
     }
     :baseCfg;
-  const trainingLayout=getTrainingLayout(numTables,isMobile);
+  // 1T : layout HERO-CENTRIC dynamique (nb de joueurs = spot.nplayers, héros en bas).
+  // Multi-tables (2T/3T/4T) : layout statique historique (inchangé pour l'instant).
+  // HERO-CENTRIC dynamique : d'abord scopé au 1T MOBILE (desktop/multi-tables inchangés pour l'instant).
+  const heroCentric=numTables===1&&isMobile;
+  const seatOrder=(heroCentric&&spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:TRAINING_SEAT_ORDER;
+  const trainingLayout=useMemo(()=>{
+    if(!heroCentric)return getTrainingLayout(numTables,isMobile);
+    const cfgViz=TRAINER_VISUAL_1T_MOBILE;
+    const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
+    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry);
+    return createTrainingTableLayout("1T-mobile-dyn",seats,cfgViz);
+  },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos]);
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
@@ -3156,8 +3238,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* Footer : rejouer + suivante */}
           <div className="pf-solfull-foot">
             <button className="gto-btn-secondary" style={{padding:"12px 16px",fontSize:15}} title="Rejouer ce spot" onClick={resetSpot}>↺</button>
-            <button className="gto-next-btn" style={{flex:1}} onClick={()=>{vibrate(VIB.next);setSolOpen(false);if(numTables===1)onNext();}}>
-              {numTables===1?(isLast?"🏆 Voir les résultats":"Main suivante ▶"):"✓ Fermer"}
+            <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);setSolOpen(false);if(numTables===1)callNext();}}>
+              {numTables===1?`${nextLabel} ▶`:"✓ Fermer"}
             </button>
           </div>
         </div>
@@ -3223,7 +3305,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             {/* Next zone uniquement */}
             <div className="gto-next-zone">
               {numTables===1
-                ?<button className="gto-next-btn" onClick={onNext}>{isLast?"🏆 Voir les résultats":"Main suivante  ▶"}</button>
+                ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
                 :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
               }
               <button className="gto-btn-secondary" style={{padding:"12px 14px",fontSize:16}} title="Rejouer ce spot"
@@ -3490,7 +3572,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* ── Next zone (collante en bas du panel scrollable) ── */}
           <div className="gto-next-zone" style={{position:"sticky",bottom:0,background:"#030D2A"}}>
             {numTables===1
-              ?<button className="gto-next-btn" onClick={onNext}>{isLast?"🏆 Voir les résultats":"Main suivante  ▶"}</button>
+              ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
               :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
             }
             {spot.hand?.length>=2&&(
@@ -3562,7 +3644,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
           {/* ── Indice raccourcis clavier (1T) — rythme drill type GTO Wizard ── */}
           {numTables===1&&(
-            <div style={{display:"flex",justifyContent:"center",gap:7,marginTop:7,flexWrap:"wrap",fontFamily:T.stats,fontSize:7.5,color:T.text4}}>
+            <div className="mtr-kbd-hints" style={{display:"flex",justifyContent:"center",gap:7,marginTop:7,flexWrap:"wrap",fontFamily:T.stats,fontSize:7.5,color:T.text4}}>
               {[["F","Fold"],["C","Call/Check"],["B","Bet"],["R","Raise"],["A","All-in"],["⏎","Suivant"]].map(([k,l])=>(
                 <span key={k} style={{display:"flex",alignItems:"center",gap:3}}>
                   <kbd style={{display:"inline-flex",alignItems:"center",justifyContent:"center",minWidth:13,height:13,padding:"0 3px",borderRadius:3,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.14)",color:T.text3,fontFamily:T.mono,fontSize:7,fontWeight:700,lineHeight:1}}>{k}</kbd>
@@ -3628,7 +3710,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             <div style={{display:"flex",gap:7,justifyContent:"center"}}>
-              <button className="btn btng" onClick={()=>{setPlayingFull(false);onNext();}}>Main suivante ►</button>
+              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextLabel} ►</button>
               <button className="btn btns" onClick={startFullHand}>↺ Rejouer</button>
             </div>
           </div>
@@ -3655,9 +3737,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div style={{display:"flex",alignItems:"center",gap:4,justifyContent:"center"}}>
             <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Début">⏮</button>
             <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Précédent">⏪</button>
-            <button style={{...tbtn,width:28,height:28,fontSize:12,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 12px rgba(80,120,255,.34)"}} onClick={()=>{if(phase==="done")onNext();}} title={phase==="done"?"Main suivante":"En cours"}>▶</button>
-            <button style={tbtn} onClick={onNext} title="Suivant">⏩</button>
-            <button style={{...tbtn,opacity:isLast?.4:1,cursor:isLast?"not-allowed":"pointer"}} disabled={isLast} onClick={onNext} title="Passer">⏭</button>
+            <button style={{...tbtn,width:28,height:28,fontSize:12,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 12px rgba(80,120,255,.34)",opacity:nextBusy?.65:1,cursor:nextBusy?"wait":"pointer"}} disabled={nextBusy} onClick={()=>{if(phase==="done")callNext();}} title={phase==="done"?nextLabel:"En cours"}>▶</button>
+            <button style={{...tbtn,opacity:nextBusy?.65:1,cursor:nextBusy?"wait":"pointer"}} disabled={nextBusy} onClick={callNext} title={nextLabel}>⏩</button>
+            <button style={{...tbtn,opacity:(isLast||nextBusy)?.4:1,cursor:(isLast||nextBusy)?"not-allowed":"pointer"}} disabled={isLast||nextBusy} onClick={callNext} title="Passer">⏭</button>
             <span style={{marginLeft:5,fontFamily:"'JetBrains Mono',monospace",fontSize:7.5,color:T.text4,border:"1px solid #16305f",borderRadius:5,padding:"2px 6px"}}>1×</span>
             <button style={{...tbtn,marginLeft:1}} onClick={onFocusToggle} title="Focus / plein écran">⛶</button>
           </div>
@@ -4019,14 +4101,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               const potPt=potPointFor(1,hasBoard);
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?15:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
                 </div>
               ):(
                 /* Pot centré quand pas de board */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?32:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4036,7 +4118,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?34:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -4087,7 +4169,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
 
           {/* ══ SIÈGES 1T — Seat cards concept premium ══ */}
-          {TRAINING_SEAT_ORDER.map(pos=>{
+          {seatOrder.map(pos=>{
             const coord=seats1T[pos];
             if(!coord)return null;
             const isH=pos===spot.hpos, isV=pos===spot.vpos;
@@ -4366,7 +4448,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   </div>
                 </div>
                 <div style={{display:"flex",gap:6}}>
-                  <button className="gto-next-btn" style={{flex:1}} onClick={()=>{vibrate(VIB.next);onNext();}}>{isLast?"🏆 Voir les résultats":"Main suivante ▶"}</button>
+                  <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);callNext();}}>{nextLabel} ▶</button>
                   {spot.hand?.length>=2&&<button className="gto-btn-secondary" style={{padding:"12px 13px",fontSize:13}} title="Jouer jusqu'à la river" onClick={startFullHand}>▶R</button>}
                   <button className="gto-btn-secondary" style={{padding:"12px 13px",fontSize:15}} title="Rejouer" onClick={resetSpot}>↺</button>
                 </div>
@@ -4600,7 +4682,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const mtSeatTransform=isMobile
             ?(isTopSeatMt?"translate(-50%,-27%)":isBottomSeatMt?"translate(-50%,-55%)":"translate(-50%,-50%)")
             :isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
-          const mtHeroCardSize=isTopSeatMt?(numTables===2?"sm":"xs"):cfg.heroCard;
+          const mtHeroCardSize=isTopSeatMt?(numTables===2?"md":numTables===3?"smp":"sm"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
           return(
@@ -4828,7 +4910,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                     onClick={()=>{vibrate(VIB.tap);setSolOpen(true);}}>{showSol?"💡 Solution":"🔒"}</button>
                 )}
                 {numTables===1
-                  ?<button className="btn btng" style={{fontSize:10,padding:"5px 12px"}} onClick={onNext}>{isLast?"Résultats →":"Suivante ▶"}</button>
+                  ?<button className="btn btng" style={{fontSize:10,padding:"5px 12px"}} disabled={nextBusy} onClick={callNext}>{nextShortLabel} ▶</button>
                   :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ OK</span>
                 }
                 <button className="btn btns" style={{fontSize:11,padding:"5px 8px"}}
@@ -4911,7 +4993,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div style={{padding:"0 8px 8px"}}><RangeGrid pos={spot.hpos} action={spot.acts[spot.ok]?.id?.toLowerCase()||"open"} stackBB={parseFloat(spot.stack)||100} label={`RANGE ${spot.hpos} — ${spot.acts[spot.ok]?.l||"Optimal"}`}/></div>
           {!playingFull&&<div className="nextrow">
             {numTables===1
-              ?<button className="btn btng" style={{flex:1,fontSize:10}} onClick={onNext}>{isLast?"Résultats →":"Suivante ►"}</button>
+              ?<button className="btn btng" style={{flex:1,fontSize:10}} disabled={nextBusy} onClick={callNext}>{nextShortLabel} ►</button>
               :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ OK</span>
             }
             {spot.hand?.length>=2&&numTables===1&&<button className="btn btnx" style={{fontSize:9}} onClick={startFullHand}>▶ River</button>}
@@ -4962,7 +5044,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               </div>
               <div style={{display:"flex",gap:6,justifyContent:"center",alignItems:"center"}}>
                 {numTables===1
-                  ?<button className="btn btng" style={{fontSize:10}} onClick={()=>{setPlayingFull(false);onNext();}}>Suivante ►</button>
+                  ?<button className="btn btng" style={{fontSize:10}} disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextShortLabel} ►</button>
                   :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ Main réglée</span>}
                 <button className="btn btns" style={{fontSize:10}} onClick={startFullHand}>↺</button>
               </div>
@@ -5477,6 +5559,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[results,setResults]=useState([]);
   const[tableAns,setTableAns]=useState({});
   const[tableSettled,setTableSettled]=useState({});
+  const[nextTransitioning,setNextTransitioning]=useState(false);
+  const[nextError,setNextError]=useState(null);
+  const nextTransitionRef=useRef(false);
+  const nextTransitionTimer=useRef(null);
+  useEffect(()=>()=>{if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);},[]);
   const[history,setHistory]=useState(()=>loadHistory());
   /* ══ MOBILE v9 — états ══ */
   const isMobile=useIsMobile();
@@ -5654,24 +5741,21 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setZoomed(false);
   }
 
-  /* ══ CONTRÔLE AUTOMATIQUE — toutes les tables (2T/3T/4T) doivent rester
-     des clones géométriques parfaits (même largeur/hauteur/rayon au pixel près) au
-     sein d'une même rangée, et TOUTES respectent le ratio unique MT_TABLE_PB
-     (la table 3 en 3T occupe 2 colonnes par design : même ratio, taille double — normal).
-     Avertissement console (dev) si un écart apparaît après un futur changement. ══ */
+  /* Multi-table geometry guard: tables in the same row stay symmetric, and each
+     table must respect the CSS aspect-ratio declared for its current layout mode. */
   useEffect(()=>{
     const el=gridRef.current;
     if(!el||ntables<2||!started||done)return;
-    const expectedRatio=parseFloat(MT_TABLE_PB)/100;
     const check=()=>{
       const zones=[...el.querySelectorAll(".training-table-zone")];
       if(zones.length<2)return;
       const rects=zones.map(z=>z.getBoundingClientRect());
       rects.forEach((r,i)=>{
         if(r.width<=0)return;
+        const expectedRatio=parseCssAspectRatio(getComputedStyle(zones[i]).aspectRatio)??MT_TABLE_RATIO_FALLBACK;
         const ratio=r.height/r.width;
         if(Math.abs(ratio-expectedRatio)>0.01){
-          console.warn(`[PokerForge] Table ${i+1} ne respecte pas le ratio verrouillé (${(ratio*100).toFixed(1)}% vs ${MT_TABLE_PB}) en mode ${ntables}T.`);
+          console.warn(`[PokerForge] Table ${i+1} ne respecte pas son aspect-ratio declare (${(ratio*100).toFixed(1)}% vs ${(expectedRatio*100).toFixed(1)}%) en mode ${ntables}T.`);
         }
       });
       const rows={};
@@ -5854,11 +5938,27 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTableSettled(s=>({...s,[tid]:true}));
   }
   function handleNext(){
-    setExpandedT(null); // referme la table agrandie (mobile)
-    spotStartRef.current=Date.now(); // chrono du spot suivant
-    const next=idx+ntables;
-    if(next>=Math.min(smode===999?queue.length:smode,queue.length)){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
-    else{setIdx(next);setTableAns({});setTableSettled({});}
+    if(nextTransitionRef.current)return;
+    nextTransitionRef.current=true;
+    setNextTransitioning(true);
+    setNextError(null);
+    try{
+      setExpandedT(null); // referme la table agrandie (mobile)
+      spotStartRef.current=Date.now(); // chrono du spot suivant
+      const next=idx+ntables;
+      if(next>=Math.min(smode===999?queue.length:smode,queue.length)){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
+      else{setIdx(next);setTableAns({});setTableSettled({});}
+      if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
+      nextTransitionTimer.current=setTimeout(()=>{
+        nextTransitionRef.current=false;
+        setNextTransitioning(false);
+      },260);
+    }catch(err){
+      nextTransitionRef.current=false;
+      setNextTransitioning(false);
+      setNextError("Generation impossible. Reessayez.");
+      if(typeof console!=="undefined")console.error("PF Trainer next hand failed",err);
+    }
   }
   function handleSave(sess){
     const h=[{...sess,id:Date.now()},...history];
@@ -5896,7 +5996,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const isGto=trainerMode==="gto";
     // Barre GTO : freq + EV par action
     const actRows=acts.map((a,i)=>({a,i,freq:Math.round(Number(s.freq?.[a.id]||0)),ev:Number(s.ev?.[a.id]||0),best:i===s.ok,chosen:ans&&i===ans.ua}));
-    const barCol=(a)=>{const t=trainerActionType(a);return t==="FOLD"||t==="ALLIN"?"#FF4560":t==="CALL"?"#1F8BFF":t==="CHECK"||t==="CHECK_BACK"?"#8fa2c4":"#00E889";};
+    const barCol=(a)=>{const t=trainerActionType(a);return t==="FOLD"?"#E5485D":t==="ALLIN"?"#FF4D6D":t==="CALL"?"#20CFFF":t==="CHECK"||t==="CHECK_BACK"?"#25D487":"#FFB800";};
+    const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+    const batchNextLabel=nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Main suivante";
     return(
       <div className="pf-p2">
         {/* Bandeau chips : contexte */}
@@ -5994,8 +6096,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div className="pf-p2-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
           <div className="pf-p2-tl-row">
             <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
-            <button className="pf-p2-next" disabled={!allSettled} onClick={handleNext}>
-              {allSettled?(idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length)?"🏆 Résultats":"Main suivante ▶"):"Décision en cours…"}
+            <button className="pf-p2-next" disabled={!allSettled||nextTransitioning} onClick={handleNext}>
+              {allSettled?`${batchNextLabel} ▶`:"Decision en cours..."}
             </button>
           </div>
         </section>
@@ -6602,7 +6704,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -6610,7 +6712,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                         <div style={{position:"sticky",bottom:0,display:"flex",gap:8,padding:"10px 6px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,rgba(3,7,18,0),#030712 35%)",zIndex:5,marginTop:8}}>
                           <button className="btn btns" style={{fontSize:11}} onClick={()=>setExpandedT(null)}>⛶ Réduire</button>
                           {allSettled
-                            ?<button className="btn btng" style={{flex:1,fontSize:12}} onClick={handleNext}>{isLastBatch?"🏆 Voir les résultats":"► Tables suivantes"}</button>
+                            ?<button className="btn btng" style={{flex:1,fontSize:12}} disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
                             :<span style={{flex:1,alignSelf:"center",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.text3}}>{Object.keys(tableAns).length}/{ntables} répondues</span>}
                         </div>
                       );
@@ -6666,7 +6768,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         )}
         {started&&!done&&ntables>1&&allSettled&&(()=>{const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);return(
           <div style={{textAlign:"center",padding:"8px 0"}}>
-            <button className="btn btng" onClick={handleNext}>{isLastBatch?"🏆 Voir les résultats":"► Tables suivantes"}</button>
+            <button className="btn btng" disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
           </div>
         );})()}
       </div>

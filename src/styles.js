@@ -5321,6 +5321,10 @@ export const CSS_TABLE=`
   .pf-action-chip-piles>.pf-chip-stack{margin-left:-12px!important;}
   .pf-action-chip-copy strong{font-size:6.6px!important;max-width:42px!important;}
   .pf-action-chip-copy em{font-size:7px!important;}
+  /* Hero-centric mobile : le héros occupe le bas-centre → on masque les libellés
+     de contexte qui y étaient (redondants avec l'en-tête du bandeau de décision). */
+  .t1-left .table-action-line{display:none!important;}
+  .t1-left>div[style*="bottom: 1%"],.t1-left>div[style*='bottom:"1%"']{display:none!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.74)!important;z-index:24!important;}
   .pf-blind-art{width:24px!important;height:21px!important;border-radius:8px!important;}
   .pf-blind-art img{width:34px!important;transform:translate(-5px,-1px)!important;}
