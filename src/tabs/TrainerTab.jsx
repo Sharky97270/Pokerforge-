@@ -4193,7 +4193,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               lastAct.id==="ALLIN"?"action-allin":"action-bet":"";
             const vp=isV?(VILLAIN_PROFILES[spot.vtype]||{vpip:22,pfr:18}):SEAT_DEFAULT_STATS[pos]||{vpip:22,pfr:18};
             const displayStack=isH?parseFloat(spot.stack)||100:60;
-            const avSz=isMobile?(isH?46:40):(isH?70:64);
+            // Densité : sur les grandes tables mobiles (7-9 joueurs) on réduit les avatars pour les désengorger.
+            const nSeats=seatOrder.length;
+            const denseScale=!isMobile||nSeats<=6?1:nSeats===7?0.9:nSeats===8?0.82:0.76;
+            const avSz=isMobile?Math.round((isH?46:40)*denseScale):(isH?70:64);
             const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
             const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
             const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
@@ -4264,7 +4267,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   )}
 
                   {/* Player card */}
-                  <div className={`player-card-1t${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
+                  <div className={`player-card-1t${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-dense={denseScale<1?"1":undefined} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
                     <PlayerAvatarPremium isHero={isH} isVillain={isV} profile={isV?spot.vtype:isH?"Hero":seatState.profile||trainerSeatAvatarProfile(pos)} size={avSz} active={isActive||seatMultiway}/>
                     {isH&&<span className="pf-seat-hero-chip">HERO</span>}
                     <div className="pf-seat-nameplate">
