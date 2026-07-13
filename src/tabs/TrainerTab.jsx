@@ -4417,7 +4417,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {compactActionLine()&&<div className="table-action-line"><strong>{spot.street}</strong> {compactActionLine()}</div>}
 
           {spot.toCall>0&&(
-            <div style={{position:"absolute",bottom:"1%",left:"50%",transform:"translateX(-50%)",fontSize:9,color:T.amber,fontFamily:T.mono,whiteSpace:"nowrap",zIndex:31,fontWeight:700,background:"rgba(255,138,0,.12)",padding:"1px 8px",borderRadius:10,border:"1px solid rgba(255,138,0,.25)",display:"flex",gap:6,alignItems:"center"}}>
+            <div className="pf-facing-label" style={{position:"absolute",bottom:"1%",left:"50%",transform:"translateX(-50%)",fontSize:9,color:T.amber,fontFamily:T.mono,whiteSpace:"nowrap",zIndex:31,fontWeight:700,background:"rgba(255,138,0,.12)",padding:"1px 8px",borderRadius:10,border:"1px solid rgba(255,138,0,.25)",display:"flex",gap:6,alignItems:"center"}}>
               {answered===null&&!vact&&spotCtx.facing&&<span style={{color:"#c090ff"}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}</span>}
               <span>À payer : {fmt(spot.toCall)}</span>
             </div>

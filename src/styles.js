@@ -5324,7 +5324,9 @@ export const CSS_TABLE=`
   /* Hero-centric mobile : le héros occupe le bas-centre → on masque les libellés
      de contexte qui y étaient (redondants avec l'en-tête du bandeau de décision). */
   .t1-left .table-action-line{display:none!important;}
-  .t1-left>div[style*="bottom: 1%"],.t1-left>div[style*='bottom:"1%"']{display:none!important;}
+  /* Libellé « Face à … · À payer » : redondant avec l'en-tête du bandeau et il
+     chevauchait la plaque du héros (héros en bas-centre) → masqué sur mobile. */
+  .t1-left .pf-facing-label{display:none!important;}
   /* Grandes tables (7-9 joueurs) : plaque nom/stack resserrée sous l'avatar déjà réduit
      → moins de chevauchement entre sièges voisins. */
   .player-card-1t[data-dense="1"]{min-width:0!important;gap:0!important;}
@@ -5350,13 +5352,13 @@ export const CSS_TABLE=`
   .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:0!important;flex:1 1 auto!important;min-height:0!important;}
 
   .mtr-actions{
-    padding:7px 10px calc(9px + env(safe-area-inset-bottom,0px))!important;
+    padding:5px 10px calc(6px + env(safe-area-inset-bottom,0px))!important;
     border-top-color:rgba(31,139,255,.32)!important;
   }
-  .mtr-actions .gto-btn{min-height:46px!important;border-radius:10px!important;}
-  .mtr-actions .gto-btn .gto-btn-inner{padding:9px 6px 7px!important;}
-  .mtr-actions .gto-btn-label{font-size:13px!important;}
-  .mtr-actions .gto-btn-sizing{font-size:9px!important;padding:2px 6px!important;}
+  .mtr-actions .gto-btn{min-height:38px!important;border-radius:9px!important;}
+  .mtr-actions .gto-btn .gto-btn-inner{padding:4px 6px 3px!important;gap:0!important;}
+  .mtr-actions .gto-btn-label{font-size:12.5px!important;line-height:1.05!important;}
+  .mtr-actions .gto-btn-sizing{font-size:8.5px!important;padding:1px 5px!important;}
   .mtr-actions .sizing-btn{min-height:22px!important;font-size:8px!important;border-radius:7px!important;padding:2px 4px!important;}
   /* Stepper fin (− bb +) masqué sur mobile : les presets MIN/2.5x/3x… suffisent
      pour le sizing → une rangée entière récupérée pour la table (flex:1). */
