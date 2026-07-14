@@ -4066,8 +4066,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           )}
         </div>
 
-        {/* ── HUD ── */}
-        <div className="trainer-hud">
+        {/* ── HUD ── (mobile : masqué ici, re-rendu sous l'historique — cf. .pf-spot-info-bottom) */}
+        <div className="trainer-hud trainer-hud-top">
           <span className="hud-chip hud-pos">📍 {spot.hpos}</span>
           <span className="hud-chip hud-stack">📊 {spot.stack}</span>
           <span className="hud-chip hud-spr">SPR {spr}</span>
@@ -4136,7 +4136,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               const potPt=potPointFor(1,hasBoard);
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?35:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?31:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4153,7 +4153,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?50:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?46:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>

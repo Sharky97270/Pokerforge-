@@ -5338,10 +5338,12 @@ export const CSS_TABLE=`
   .t1-left .table-action-line{display:none!important;}
   /* Dealer 1T mobile : plus lisible (§17), rattaché au siège BTN via son ancre auto-dérivée. */
   .t1-left .dealer-btn{width:22px!important;height:22px!important;font-size:10px!important;z-index:25!important;}
-  /* Ligne d'infos du spot (BTN · 30bb · SPR · Odds · format · GTO) déplacée SOUS
-     l'historique (§6/7) : elle ne rivalise plus avec la table. Ruban compact scrollable. */
-  .trainer-hud{order:98;border-top:1px solid rgba(31,139,255,.18);}
-  .trainer-hud .hud-chip{min-height:24px!important;font-size:9px!important;padding:2px 8px!important;}
+  /* Ligne d'infos du spot COMPACTE et dé-emphasée (§16) : ruban scrollable, chips
+     plus petits, moins de hauteur — elle ne rivalise plus visuellement avec la table.
+     (Placement « sous l'historique » = refonte cross-composant, non fait ici.) */
+  .trainer-hud.trainer-hud-top{min-height:26px!important;padding:3px 8px!important;opacity:.9;}
+  .trainer-hud.trainer-hud-top .hud-chip{min-height:20px!important;font-size:8.5px!important;padding:2px 7px!important;}
+  .trainer-hud.trainer-hud-top .hud-diff{font-size:8px!important;}
   /* Ancrages de mises réduits ~28% (§1) et blindes ~20% (§2) : la pile de jetons
      reste l'élément principal, montants lisibles, jamais sur le pot/board. */
   .t1-left .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.72)!important;}
@@ -5402,5 +5404,16 @@ export const CSS_TABLE=`
   .card-1t-hero-mobile{width:24px!important;height:33px!important;}
   .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.66)!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.68)!important;}
+}
+/* ── Écran COURT (iPhone SE, barre Safari, petits Android) : la table se
+   comprime → board + cartes héros réduits pour garder l'écart pot/board/hero
+   (§18/19). max-height cible les faibles hauteurs indépendamment de la largeur. */
+@media(max-width:768px) and (max-height:730px){
+  .t1-left .card-1t-board{width:31px!important;height:43px!important;}
+  .t1-left .card-1t-board .card-corner-r{font-size:12px!important;}
+  .t1-left .card-1t-board .card-center{font-size:18px!important;}
+  .card-1t-hero-mobile{width:19px!important;height:26px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:7px!important;}
+  .card-1t-hero-mobile .card-center{font-size:11px!important;}
 }
 `;
