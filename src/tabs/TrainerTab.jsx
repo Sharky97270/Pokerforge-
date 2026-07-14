@@ -131,10 +131,10 @@ const MOBILE_SEAT_RINGS = {
   3: [{ x: 50, y: 86 }, { x: 21, y: 34 }, { x: 79, y: 34 }],
   4: [{ x: 50, y: 87 }, { x: 15, y: 52 }, { x: 50, y: 13 }, { x: 85, y: 52 }],
   5: [{ x: 50, y: 87 }, { x: 17, y: 62 }, { x: 27, y: 20 }, { x: 73, y: 20 }, { x: 83, y: 62 }],
-  6: [{ x: 50, y: 88 }, { x: 16, y: 70 }, { x: 16, y: 28 }, { x: 50, y: 10 }, { x: 84, y: 28 }, { x: 84, y: 70 }],
-  7: [{ x: 50, y: 88 }, { x: 16, y: 64 }, { x: 18, y: 30 }, { x: 40, y: 11 }, { x: 60, y: 11 }, { x: 82, y: 30 }, { x: 84, y: 64 }],
-  8: [{ x: 50, y: 88 }, { x: 15, y: 64 }, { x: 16, y: 38 }, { x: 34, y: 14 }, { x: 50, y: 9 }, { x: 66, y: 14 }, { x: 84, y: 38 }, { x: 85, y: 64 }],
-  9: [{ x: 50, y: 89 }, { x: 13, y: 69 }, { x: 13, y: 37 }, { x: 27, y: 15 }, { x: 44, y: 9 }, { x: 56, y: 9 }, { x: 73, y: 15 }, { x: 87, y: 37 }, { x: 87, y: 69 }],
+  6: [{ x: 50, y: 88 }, { x: 16, y: 70 }, { x: 16, y: 28 }, { x: 50, y: 12 }, { x: 84, y: 28 }, { x: 84, y: 70 }],
+  7: [{ x: 50, y: 88 }, { x: 16, y: 64 }, { x: 18, y: 30 }, { x: 40, y: 12 }, { x: 60, y: 12 }, { x: 82, y: 30 }, { x: 84, y: 64 }],
+  8: [{ x: 50, y: 88 }, { x: 15, y: 64 }, { x: 16, y: 38 }, { x: 34, y: 14 }, { x: 50, y: 11 }, { x: 66, y: 14 }, { x: 84, y: 38 }, { x: 85, y: 64 }],
+  9: [{ x: 50, y: 89 }, { x: 13, y: 69 }, { x: 13, y: 37 }, { x: 27, y: 15 }, { x: 44, y: 11 }, { x: 56, y: 11 }, { x: 73, y: 15 }, { x: 87, y: 37 }, { x: 87, y: 69 }],
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
@@ -3075,7 +3075,19 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const cfgViz=TRAINER_VISUAL_1T_MOBILE;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
     const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry);
-    return createTrainingTableLayout("1T-mobile-dyn",seats,cfgViz);
+    const layout=createTrainingTableLayout("1T-mobile-dyn",seats,cfgViz);
+    // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
+    // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
+    // le pot et la plaque) → plus aucun chevauchement pot/mise/board.
+    Object.entries(layout.seatAnchors).forEach(([p,a])=>{
+      const st=seats[p]; if(!st||st.y>22)return;
+      const bx=st.x<=40?st.x+9:st.x>=60?st.x-9:st.x+14;
+      const bpt={x:bx,y:st.y+16};
+      a.betAnchor={...bpt};a.preflopBetAnchor={...bpt};a.postflopBetAnchor={...bpt};
+      a.blindAnchor={x:bx,y:st.y+14};
+      a.actionLabelAnchor={x:bx+4,y:st.y+22};
+    });
+    return layout;
   },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos]);
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
@@ -4124,7 +4136,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               const potPt=potPointFor(1,hasBoard);
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?30:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?35:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4141,7 +4153,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?48:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?50:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -4257,8 +4269,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 {/* ── SEAT CARD ── */}
                 <PlayerSeat pos={pos} mode="1T" style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
 
-                  {/* Villain cards above seat */}
-                  {isV&&(
+                  {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
+                  {isV&&!seatFolded&&(
                     <div style={{marginBottom:5,position:"relative"}}>
                       <VillainBackCards size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
                       {(thinking||(playingFull&&fhVilThink))&&(
@@ -4268,7 +4280,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                       )}
                     </div>
                   )}
-                  {!isH&&!isV&&denseScale>=1&&(
+                  {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
                     <div style={{marginBottom:3}}>
                       <VillainBackCards size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
                     </div>

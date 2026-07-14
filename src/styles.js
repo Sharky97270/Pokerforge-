@@ -3678,9 +3678,21 @@ input:focus,select:focus,textarea:focus{
   .t1-left .felt-oval{background:radial-gradient(ellipse at 50% 26%,rgba(46,132,79,.80) 0%,rgba(21,86,49,.95) 38%,rgba(9,50,27,.99) 70%,#05160D 100%)!important;border:1px solid rgba(255,214,121,.62)!important;box-shadow:inset 0 0 90px rgba(0,0,0,.55),0 0 0 3px rgba(6,18,32,.95),0 0 0 5px rgba(255,194,71,.42),0 0 0 7px rgba(31,58,102,.5),0 16px 40px rgba(0,0,0,.75)!important;}
   /* Pot mobile : jetons + texte seulement, aucun socle/ovale gris (spec §6) */
   .t1-left .pf-pot-readout{background:transparent!important;border:none!important;box-shadow:none!important;backdrop-filter:none!important;}
-  .t1-left .pf-pot-value{font-size:20px!important;}
+  /* Pot COMPACT HORIZONTAL (mission premium P1/§8) : [jetons] POT 16.5bb sur une
+     ligne -> ~22px de haut, tient entre la plaque du siège haut et le board,
+     zone fixe indépendante des mises. */
+  .t1-left .pf-pot-readout{flex-direction:row!important;align-items:center!important;gap:5px!important;white-space:nowrap!important;}
+  .t1-left .pf-pot-readout .pf-chip-stack,.t1-left .pf-pot-readout>*:first-child{transform:scale(.72);transform-origin:center;}
+  .t1-left .pf-pot-label{font-size:8px!important;}
+  .t1-left .pf-pot-value{font-size:14px!important;}
   /* Board mobile : cartes plus lisibles, centré (spec §7) */
-  .t1-left .pf-board-zone{gap:5px!important;}
+  .t1-left .pf-board-zone{gap:8px!important;}
+  /* Board mobile : cartes réduites (la taille desktop 57px faisait un board de
+     317px, PLUS LARGE que le feutre 306px → débordait sur les sièges latéraux). */
+  .t1-left .card-1t-board{width:38px!important;height:53px!important;border-radius:5px!important;}
+  .t1-left .card-1t-board .card-corner-r{font-size:15px!important;}
+  .t1-left .card-1t-board .card-corner-s{font-size:11px!important;}
+  .t1-left .card-1t-board .card-center{font-size:22px!important;}
   /* HUD → ruban scrollable une ligne */
   .trainer-hud{
     flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;
@@ -5289,10 +5301,10 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
   .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:6px!important;padding:1px 5px!important;margin-top:1px!important;}
 
-  .card-1t-hero-mobile{width:31px!important;height:43px!important;border-radius:5px!important;}
-  .card-1t-hero-mobile .card-corner-r{font-size:12px!important;}
-  .card-1t-hero-mobile .card-corner-s{font-size:8px!important;}
-  .card-1t-hero-mobile .card-center{font-size:18px!important;}
+  .card-1t-hero-mobile{width:26px!important;height:36px!important;border-radius:4px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:10px!important;}
+  .card-1t-hero-mobile .card-corner-s{font-size:7px!important;}
+  .card-1t-hero-mobile .card-center{font-size:15px!important;}
   /* Cartes du board réduites (désencombrement mobile : plus d'air autour du board). */
   .t1-left .card-lg{width:34px!important;height:47px!important;border-radius:6px!important;}
   .t1-left .card-lg .card-corner-r{font-size:13px!important;}
@@ -5377,7 +5389,7 @@ export const CSS_TABLE=`
   /* Reste flexible sur écran étroit (iPhone mini/SE) — pas de hauteur figée qui ferait déborder la table. */
   .t1-left{flex:1 1 0!important;flex-basis:0!important;height:auto!important;min-height:0!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) - 2px)!important;height:calc(var(--avatar-size) - 2px)!important;}
-  .card-1t-hero-mobile{width:31px!important;height:43px!important;}
+  .card-1t-hero-mobile{width:24px!important;height:33px!important;}
   .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.66)!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.68)!important;}
 }
