@@ -4475,15 +4475,18 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const evDiff=myEv-bestEv;
             return(
               <div style={{padding:"9px 10px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,#071B44,#030912)",borderTop:`2px solid ${isBest?"rgba(16,216,122,.5)":"rgba(255,69,96,.45)"}`}}>
-                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}>
-                  <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:isBest?"rgba(16,216,122,.15)":"rgba(255,69,96,.12)",border:`2px solid ${isBest?"rgba(16,216,122,.55)":"rgba(255,69,96,.45)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:isBest?T.green:T.red,boxShadow:`0 0 14px ${isBest?"rgba(16,216,122,.3)":"rgba(255,69,96,.25)"}`}}>{isBest?"✓":"✗"}</div>
-                  <div style={{minWidth:0,flex:1}}>
-                    <div style={{fontFamily:T.stats,fontSize:12,fontWeight:800,color:isBest?T.green:T.red}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
-                    <div style={{fontFamily:T.stats,fontSize:9.5,color:T.text3}}>
-                      Joué : <strong style={{color:T.text}}>{spot.acts[answered]?.l}</strong>
-                      {showSol&&!isBest&&<> · EV perdue <strong style={{color:T.red}}>{evDiff.toFixed(2)}bb</strong></>}
-                    </div>
-                  </div>
+                {/* Hiérarchie (§4) : verdict · EV perdue · action jouée · solution optimale */}
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:6}}>
+                  <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,background:isBest?"rgba(16,216,122,.15)":"rgba(255,69,96,.12)",border:`2px solid ${isBest?"rgba(16,216,122,.55)":"rgba(255,69,96,.45)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:isBest?T.green:T.red,boxShadow:`0 0 14px ${isBest?"rgba(16,216,122,.3)":"rgba(255,69,96,.25)"}`}}>{isBest?"✓":"✗"}</div>
+                  <div style={{fontFamily:T.stats,fontSize:13,fontWeight:800,color:isBest?T.green:T.red,flex:1,minWidth:0}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
+                  {!isBest&&evDiff<0&&<div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:T.stats,fontSize:7.5,color:T.text4,letterSpacing:".04em"}}>EV PERDUE</div>
+                    <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{evDiff.toFixed(2)}bb</div>
+                  </div>}
+                </div>
+                <div style={{display:"flex",gap:12,marginBottom:8,fontFamily:T.stats,fontSize:9.5,flexWrap:"wrap"}}>
+                  <span style={{color:T.text3}}>Joué : <strong style={{color:isBest?T.green:T.text}}>{spot.acts[answered]?.l}</strong></span>
+                  {showSol&&!isBest&&<span style={{color:T.text3}}>Optimal : <strong style={{color:T.green}}>{spot.acts[spot.ok]?.l}</strong></span>}
                 </div>
                 <div style={{display:"flex",gap:6}}>
                   <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);callNext();}}>{nextLabel} ▶</button>
