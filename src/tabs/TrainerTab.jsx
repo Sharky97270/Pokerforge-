@@ -6571,6 +6571,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
             <button className={`mtr-ico-btn${sheetTab?" on":""}`} title="Panneau (Vilain · Stats · Notes)" onClick={()=>{vibrate(VIB.tap);setSheetTab(s=>s?null:"villain");}}>☰</button>
             <button className={`mtr-ico-btn${mobFocus?" on":""}`} title="Mode Focus" onClick={()=>{vibrate(VIB.tap);setMobFocus(v=>!v);}}>⛶</button>
+            {onGoCoach&&<button className="mtr-ico-btn mtr-coach-btn" title="Coach AI" aria-label="Coach AI" onClick={()=>{vibrate(VIB.tap);onGoCoach();}}>🧠</button>}
             <button className="mtr-ico-btn stop" title="Arrêter la session" onClick={stopSession}>⏹</button>
           </div>
         )}

@@ -5338,6 +5338,16 @@ export const CSS_TABLE=`
   .t1-left .table-action-line{display:none!important;}
   /* Dealer 1T mobile : plus lisible (§17), rattaché au siège BTN via son ancre auto-dérivée. */
   .t1-left .dealer-btn{width:22px!important;height:22px!important;font-size:10px!important;z-index:25!important;}
+  /* Ligne d'infos du spot (BTN · 30bb · SPR · Odds · format · GTO) déplacée SOUS
+     l'historique (§6/7) : elle ne rivalise plus avec la table. Ruban compact scrollable. */
+  .trainer-hud{order:98;border-top:1px solid rgba(31,139,255,.18);}
+  .trainer-hud .hud-chip{min-height:24px!important;font-size:9px!important;padding:2px 8px!important;}
+  /* Ancrages de mises réduits ~28% (§1) et blindes ~20% (§2) : la pile de jetons
+     reste l'élément principal, montants lisibles, jamais sur le pot/board. */
+  .t1-left .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.72)!important;}
+  .t1-left .pf-blind-anchor{transform:translate(-50%,-50%) scale(.6)!important;}
+  /* Bouton Coach AI compact dans la barre de contrôle (§4). */
+  .mtr-coach-btn{border-color:rgba(155,92,255,.45)!important;}
   /* Libellé « Face à … · À payer » : redondant avec l'en-tête du bandeau et il
      chevauchait la plaque du héros (héros en bas-centre) → masqué sur mobile. */
   .t1-left .pf-facing-label{display:none!important;}
@@ -5369,11 +5379,11 @@ export const CSS_TABLE=`
     padding:5px 10px calc(6px + env(safe-area-inset-bottom,0px))!important;
     border-top-color:rgba(31,139,255,.32)!important;
   }
-  .mtr-actions .gto-btn{min-height:38px!important;border-radius:9px!important;}
-  .mtr-actions .gto-btn .gto-btn-inner{padding:4px 6px 3px!important;gap:0!important;}
-  .mtr-actions .gto-btn-label{font-size:12.5px!important;line-height:1.05!important;}
-  .mtr-actions .gto-btn-sizing{font-size:8.5px!important;padding:1px 5px!important;}
-  .mtr-actions .sizing-btn{min-height:22px!important;font-size:8px!important;border-radius:7px!important;padding:2px 4px!important;}
+  .mtr-actions .gto-btn{min-height:34px!important;border-radius:8px!important;}
+  .mtr-actions .gto-btn .gto-btn-inner{padding:3px 5px 2px!important;gap:0!important;}
+  .mtr-actions .gto-btn-label{font-size:12px!important;line-height:1.05!important;}
+  .mtr-actions .gto-btn-sizing{font-size:8.5px!important;padding:1px 4px!important;}
+  .mtr-actions .sizing-btn{min-height:20px!important;font-size:8px!important;border-radius:6px!important;padding:1px 4px!important;}
   /* Stepper fin (− bb +) masqué sur mobile : les presets MIN/2.5x/3x… suffisent
      pour le sizing → une rangée entière récupérée pour la table (flex:1). */
   .mtr-actions .sizing-custom{display:none!important;}
