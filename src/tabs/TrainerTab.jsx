@@ -6805,6 +6805,27 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           </div>
         )}
+        {/* ── LIGNE INFOS DU SPOT (mobile 1T) — SOUS l'historique (§6/7), pleine largeur ── */}
+        {isMobile&&ntables===1&&started&&!done&&activeSpot&&(()=>{
+          const s=activeSpot;
+          const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
+          const sprV=potN>0?(stackN/potN).toFixed(1):"—";
+          const toCall=Number(s.toCall)||0;
+          const oddsV=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":null;
+          const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
+          const diffC=s.diff===1?"#00E889":s.diff===2?"#FFC247":s.diff===3?"#FF7A45":s.diff===4?"#B85CFF":"#FFC247";
+          return(
+            <div className="pf-spot-info-bottom">
+              <span className="hud-chip">📍 {s.hpos}</span>
+              <span className="hud-chip">📊 {s.stack}</span>
+              <span className="hud-chip">SPR {sprV}</span>
+              {oddsV&&<span className="hud-chip">Odds {oddsV}</span>}
+              <span className="hud-chip" style={{color:"#9B5CFF",borderColor:"rgba(155,92,255,.28)",background:"rgba(155,92,255,.08)"}}>🃏 {s.fmt}</span>
+              <span className="hud-chip" style={{color:trainerMode==="gto"?"#34D8FF":"#FF8A3D",borderColor:trainerMode==="gto"?"rgba(52,216,255,.28)":"rgba(255,138,61,.28)",background:trainerMode==="gto"?"rgba(52,216,255,.08)":"rgba(255,138,61,.08)"}}>{trainerMode==="gto"?"GTO":PLATFORM_PROFILES[platform]?.flag||"🦈"}</span>
+              <span className="hud-chip" style={{gap:5}}><span style={{width:6,height:6,borderRadius:"50%",background:diffC,flexShrink:0,display:"inline-block"}}/>{diffLbl}</span>
+            </div>
+          );
+        })()}
         {started&&!done&&ntables>1&&allSettled&&(()=>{const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);return(
           <div style={{textAlign:"center",padding:"8px 0"}}>
             <button className="btn btng" disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>

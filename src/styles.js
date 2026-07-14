@@ -5338,12 +5338,16 @@ export const CSS_TABLE=`
   .t1-left .table-action-line{display:none!important;}
   /* Dealer 1T mobile : plus lisible (§17), rattaché au siège BTN via son ancre auto-dérivée. */
   .t1-left .dealer-btn{width:22px!important;height:22px!important;font-size:10px!important;z-index:25!important;}
-  /* Ligne d'infos du spot COMPACTE et dé-emphasée (§16) : ruban scrollable, chips
-     plus petits, moins de hauteur — elle ne rivalise plus visuellement avec la table.
-     (Placement « sous l'historique » = refonte cross-composant, non fait ici.) */
-  .trainer-hud.trainer-hud-top{min-height:26px!important;padding:3px 8px!important;opacity:.9;}
-  .trainer-hud.trainer-hud-top .hud-chip{min-height:20px!important;font-size:8.5px!important;padding:2px 7px!important;}
-  .trainer-hud.trainer-hud-top .hud-diff{font-size:8px!important;}
+  /* Ligne d'infos du spot déplacée SOUS l'historique (§6/7) : le HUD du haut est
+     masqué sur mobile, la version basse (.pf-spot-info-bottom) est rendue par le
+     composant PARENT après l'historique (elle a accès à activeSpot). */
+  .trainer-hud.trainer-hud-top{display:none!important;}
+  .pf-spot-info-bottom{width:100%!important;max-width:100vw!important;box-sizing:border-box!important;
+    display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;
+    gap:6px!important;align-items:center!important;padding:5px 12px calc(4px + env(safe-area-inset-bottom,0px))!important;
+    background:linear-gradient(90deg,#040B22,#030912)!important;border-top:1px solid rgba(31,139,255,.16)!important;flex-shrink:0!important;}
+  .pf-spot-info-bottom::-webkit-scrollbar{display:none;}
+  .pf-spot-info-bottom .hud-chip{flex-shrink:0!important;min-height:26px!important;font-size:10px!important;padding:3px 9px!important;white-space:nowrap!important;border-radius:8px;background:rgba(31,139,255,.06);border:1px solid rgba(31,139,255,.14);color:#8FB4E8;font-family:'Space Grotesk',sans-serif;font-weight:700;display:inline-flex;align-items:center;}
   /* Ancrages de mises réduits ~28% (§1) et blindes ~20% (§2) : la pile de jetons
      reste l'élément principal, montants lisibles, jamais sur le pot/board. */
   .t1-left .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.72)!important;}
