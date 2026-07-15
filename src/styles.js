@@ -3168,7 +3168,10 @@ body{font-size:13px!important;}
   .gto-masked-panel{padding-bottom:8px!important;}
 
   /* ── FIX 4 : Multi-table — padding bottom global pour la nav ── */
-  .trainer-scroll-area{padding-bottom:80px!important;}
+  /* Gold Master §1 : la nav est déjà réservée par .app{padding-bottom:60px}.
+     On ne garde qu'une marge de sécurité minimale ici → ~60px de hauteur rendus
+     au playrow (table + bloc bas remontent contre la nav). */
+  .trainer-scroll-area{padding-bottom:16px!important;}
   .grid2,.grid3,.grid4,.grid6,.grid8{padding-bottom:10px!important;}
 
   /* ── FIX 5 : Trainer — zone action multi-table ── */
@@ -5268,7 +5271,9 @@ export const CSS_TABLE=`
     flex:1 1 0!important;
     height:auto!important;
     min-height:0!important;
-    max-height:360px!important;
+    /* Gold Master §2 : plafond relevé (360→400) pour absorber la hauteur rendue
+       par §1 → table ~+15-18% (élément principal). Sièges/felt en % scalent avec. */
+    max-height:400px!important;
     overflow:hidden!important;
     /* Écart anti-collision : dégage l'avatar du siège HERO (qui déborde sous le feutre) du bandeau. */
     padding-bottom:14px!important;
