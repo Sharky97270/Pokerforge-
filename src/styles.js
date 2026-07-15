@@ -5271,12 +5271,14 @@ export const CSS_TABLE=`
     flex:1 1 0!important;
     height:auto!important;
     min-height:0!important;
-    /* Gold Master §2 : plafond relevé (360→400) pour absorber la hauteur rendue
-       par §1 → table ~+15-18% (élément principal). Sièges/felt en % scalent avec. */
-    max-height:400px!important;
+    /* Calibration §5 : plafond relevé (400→520) pour absorber l'espace rendu par le
+       bandeau de décision compacté (§4) → le feutre devient l'élément dominant.
+       Sièges/felt en % scalent avec la hauteur. */
+    max-height:520px!important;
     overflow:hidden!important;
-    /* Écart anti-collision : dégage l'avatar du siège HERO (qui déborde sous le feutre) du bandeau. */
-    padding-bottom:14px!important;
+    /* Zone de sécurité basse (§1) : marge constante entre le bloc HERO (qui vit dans
+       le bas du feutre) et le bandeau de décision → HERO jamais rogné. */
+    padding-bottom:18px!important;
     box-sizing:border-box!important;
   }
   /* Raccourcis clavier inutiles sur mobile (pas de clavier) → hauteur récupérée pour le feutre. */
@@ -5306,10 +5308,12 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
   .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:6px!important;padding:1px 5px!important;margin-top:1px!important;}
 
-  .card-1t-hero-mobile{width:26px!important;height:36px!important;border-radius:4px!important;}
-  .card-1t-hero-mobile .card-corner-r{font-size:10px!important;}
-  .card-1t-hero-mobile .card-corner-s{font-size:7px!important;}
-  .card-1t-hero-mobile .card-center{font-size:15px!important;}
+  /* Cartes HERO agrandies ~+50% (26×36 → 40×56) : lisibles, dominantes vs board/villains (§3). */
+  .card-1t-hero-mobile{width:40px!important;height:56px!important;border-radius:6px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:16px!important;}
+  .card-1t-hero-mobile .card-corner-s{font-size:11px!important;}
+  .card-1t-hero-mobile .card-center{font-size:24px!important;}
+  .card-1t-hero-mobile .card-corner{top:3px!important;left:3px!important;}
   /* Cartes du board réduites (désencombrement mobile : plus d'air autour du board). */
   .t1-left .card-lg{width:34px!important;height:47px!important;border-radius:6px!important;}
   .t1-left .card-lg .card-corner-r{font-size:13px!important;}
@@ -5386,15 +5390,35 @@ export const CSS_TABLE=`
   /* Multi-table (maquette V1) : la zone de table remplit le viewport (plus d'aspect-ratio figé). */
   .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:0!important;flex:1 1 auto!important;min-height:0!important;}
 
+  /* Bandeau de décision COMPACT (§4/§5) : on supprime les espaces vides entre les
+     lignes (marges 7/7/5 → 3/3/0) et on rabote les paddings, SANS réduire les zones
+     tactiles (boutons principaux 34px, sizings 20px restent cliquables au doigt).
+     Hauteur ~102px → ~72px → espace rendu au feutre (flex:1). */
   .mtr-actions{
-    padding:5px 10px calc(6px + env(safe-area-inset-bottom,0px))!important;
+    padding:3px 10px calc(4px + env(safe-area-inset-bottom,0px))!important;
     border-top-color:rgba(31,139,255,.32)!important;
   }
+  /* Écrasement des marges inter-lignes (context / boutons / sizings) rendues en inline. */
+  .t1-mob .mtr-actions>div{margin-bottom:3px!important;}
+  .t1-mob .mtr-actions>div:last-child{margin-bottom:0!important;}
   .mtr-actions .gto-btn{min-height:34px!important;border-radius:8px!important;}
   .mtr-actions .gto-btn .gto-btn-inner{padding:3px 5px 2px!important;gap:0!important;}
   .mtr-actions .gto-btn-label{font-size:12px!important;line-height:1.05!important;}
   .mtr-actions .gto-btn-sizing{font-size:8.5px!important;padding:1px 4px!important;}
   .mtr-actions .sizing-btn{min-height:20px!important;font-size:8px!important;border-radius:6px!important;padding:1px 4px!important;}
+  /* STABILITÉ DU VIEWPORT (§10/§11) : la zone basse réserve une hauteur constante
+     quelle que soit la phase (action hero ↔ panneau résultat ↔ vilain réfléchit).
+     Le contenu est collé en bas (justify-content:flex-end) → aucune resize du feutre
+     entre deux mains, et le surplus éventuel sert de zone de sécurité au-dessus du
+     bandeau. La valeur couvre le panneau résultat compacté (~106px). */
+  /* Réserve = hauteur du contenu le plus haut de la zone basse (panneau résultat
+     ~100px, bandeau d'action 4 boutons ~99px) → TOUTES les phases tiennent dans la
+     même hauteur : zéro resize du feutre entre les mains (§10/§11). */
+  .t1-mob{min-height:100px!important;justify-content:flex-end!important;}
+  /* Bouton « Main suivante » : reste la CTA dominante mais rabotée pour aligner la
+     hauteur du panneau résultat sur celle du bandeau d'action (viewport stable). */
+  .t1-mob .gto-next-btn{min-height:38px!important;padding:8px 12px!important;}
+  .t1-mob .gto-btn-secondary{padding:8px 12px!important;}
   /* Stepper fin (− bb +) masqué sur mobile : les presets MIN/2.5x/3x… suffisent
      pour le sizing → une rangée entière récupérée pour la table (flex:1). */
   .mtr-actions .sizing-custom{display:none!important;}
@@ -5410,7 +5434,9 @@ export const CSS_TABLE=`
   /* Reste flexible sur écran étroit (iPhone mini/SE) — pas de hauteur figée qui ferait déborder la table. */
   .t1-left{flex:1 1 0!important;flex-basis:0!important;height:auto!important;min-height:0!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) - 2px)!important;height:calc(var(--avatar-size) - 2px)!important;}
-  .card-1t-hero-mobile{width:24px!important;height:33px!important;}
+  .card-1t-hero-mobile{width:38px!important;height:53px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:15px!important;}
+  .card-1t-hero-mobile .card-center{font-size:23px!important;}
   .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.66)!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.68)!important;}
 }
@@ -5421,8 +5447,9 @@ export const CSS_TABLE=`
   .t1-left .card-1t-board{width:31px!important;height:43px!important;}
   .t1-left .card-1t-board .card-corner-r{font-size:12px!important;}
   .t1-left .card-1t-board .card-center{font-size:18px!important;}
-  .card-1t-hero-mobile{width:19px!important;height:26px!important;}
-  .card-1t-hero-mobile .card-corner-r{font-size:7px!important;}
-  .card-1t-hero-mobile .card-center{font-size:11px!important;}
+  .card-1t-hero-mobile{width:29px!important;height:40px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:11px!important;}
+  .card-1t-hero-mobile .card-corner-s{font-size:8px!important;}
+  .card-1t-hero-mobile .card-center{font-size:17px!important;}
 }
 `;

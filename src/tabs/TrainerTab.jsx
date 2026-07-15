@@ -126,15 +126,23 @@ function createTrainingTableLayout(name,seats,options={}){
    tourne dans le sens anti-horaire (bas-gauche → haut → bas-droite) pour
    préserver l'ordre de table (adjacence BTN-SB-BB → blindes/dealer corrects).
    Coordonnées en % du canvas. */
+/* ── ANCRAGE CENTRALISÉ DES SIÈGES (hero-centric mobile, §6/§14) ──
+   Index 0 = HERO (bas-centre). Une seule source de vérité pour TOUTES les tailles
+   de table et TOUS les spots. Calibration §1/§2 :
+   - HERO remonté (~81%) : laisse une ZONE DE SÉCURITÉ BASSE constante sous le bloc
+     hero (avatar+badge+plaque) ET absorbe les cartes hero agrandies (+50%) sans
+     déborder le feutre ni le bandeau de décision.
+   - Sièges du HAUT descendus (~+3%) : marge constante avec le bord supérieur du
+     feutre → avatars/cartes des joueurs du haut jamais rognés (§2/§7). */
 const MOBILE_SEAT_RINGS = {
-  2: [{ x: 50, y: 85 }, { x: 50, y: 16 }],
-  3: [{ x: 50, y: 86 }, { x: 21, y: 34 }, { x: 79, y: 34 }],
-  4: [{ x: 50, y: 87 }, { x: 15, y: 52 }, { x: 50, y: 13 }, { x: 85, y: 52 }],
-  5: [{ x: 50, y: 87 }, { x: 17, y: 62 }, { x: 27, y: 20 }, { x: 73, y: 20 }, { x: 83, y: 62 }],
-  6: [{ x: 50, y: 88 }, { x: 16, y: 70 }, { x: 16, y: 28 }, { x: 50, y: 12 }, { x: 84, y: 28 }, { x: 84, y: 70 }],
-  7: [{ x: 50, y: 88 }, { x: 16, y: 64 }, { x: 18, y: 30 }, { x: 40, y: 12 }, { x: 60, y: 12 }, { x: 82, y: 30 }, { x: 84, y: 64 }],
-  8: [{ x: 50, y: 88 }, { x: 15, y: 64 }, { x: 16, y: 38 }, { x: 34, y: 14 }, { x: 50, y: 11 }, { x: 66, y: 14 }, { x: 84, y: 38 }, { x: 85, y: 64 }],
-  9: [{ x: 50, y: 89 }, { x: 13, y: 69 }, { x: 13, y: 37 }, { x: 27, y: 15 }, { x: 44, y: 11 }, { x: 56, y: 11 }, { x: 73, y: 15 }, { x: 87, y: 37 }, { x: 87, y: 69 }],
+  2: [{ x: 50, y: 80 }, { x: 50, y: 17 }],
+  3: [{ x: 50, y: 80 }, { x: 21, y: 35 }, { x: 79, y: 35 }],
+  4: [{ x: 50, y: 80 }, { x: 15, y: 54 }, { x: 50, y: 15 }, { x: 85, y: 54 }],
+  5: [{ x: 50, y: 80 }, { x: 17, y: 63 }, { x: 27, y: 23 }, { x: 73, y: 23 }, { x: 83, y: 63 }],
+  6: [{ x: 50, y: 80 }, { x: 16, y: 71 }, { x: 16, y: 31 }, { x: 50, y: 15 }, { x: 84, y: 31 }, { x: 84, y: 71 }],
+  7: [{ x: 50, y: 80 }, { x: 16, y: 65 }, { x: 18, y: 33 }, { x: 40, y: 15 }, { x: 60, y: 15 }, { x: 82, y: 33 }, { x: 84, y: 65 }],
+  8: [{ x: 50, y: 80 }, { x: 15, y: 65 }, { x: 16, y: 41 }, { x: 34, y: 17 }, { x: 50, y: 14 }, { x: 66, y: 17 }, { x: 84, y: 41 }, { x: 85, y: 65 }],
+  9: [{ x: 50, y: 81 }, { x: 13, y: 70 }, { x: 13, y: 40 }, { x: 27, y: 17 }, { x: 44, y: 14 }, { x: 56, y: 14 }, { x: 73, y: 17 }, { x: 87, y: 40 }, { x: 87, y: 70 }],
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
@@ -4142,8 +4150,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   <span className="pf-pot-value">{fmt(potVal)}</span>
                 </div>
               ):(
-                /* Pot centré quand pas de board */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?32:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
+                   (le pot non-compact est plus haut → à 32% il chevauchait la plaque
+                   du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4474,17 +4484,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const myEv=spot.ev[spot.acts[answered]?.id]||0;
             const evDiff=myEv-bestEv;
             return(
-              <div style={{padding:"9px 10px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,#071B44,#030912)",borderTop:`2px solid ${isBest?"rgba(16,216,122,.5)":"rgba(255,69,96,.45)"}`}}>
+              <div style={{padding:"6px 10px calc(8px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,#071B44,#030912)",borderTop:`2px solid ${isBest?"rgba(16,216,122,.5)":"rgba(255,69,96,.45)"}`}}>
                 {/* Hiérarchie (§4) : verdict · EV perdue · action jouée · solution optimale */}
-                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:6}}>
-                  <div style={{width:30,height:30,borderRadius:"50%",flexShrink:0,background:isBest?"rgba(16,216,122,.15)":"rgba(255,69,96,.12)",border:`2px solid ${isBest?"rgba(16,216,122,.55)":"rgba(255,69,96,.45)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:isBest?T.green:T.red,boxShadow:`0 0 14px ${isBest?"rgba(16,216,122,.3)":"rgba(255,69,96,.25)"}`}}>{isBest?"✓":"✗"}</div>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:4}}>
+                  <div style={{width:26,height:26,borderRadius:"50%",flexShrink:0,background:isBest?"rgba(16,216,122,.15)":"rgba(255,69,96,.12)",border:`2px solid ${isBest?"rgba(16,216,122,.55)":"rgba(255,69,96,.45)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:isBest?T.green:T.red,boxShadow:`0 0 14px ${isBest?"rgba(16,216,122,.3)":"rgba(255,69,96,.25)"}`}}>{isBest?"✓":"✗"}</div>
                   <div style={{fontFamily:T.stats,fontSize:13,fontWeight:800,color:isBest?T.green:T.red,flex:1,minWidth:0}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
                   {!isBest&&evDiff<0&&<div style={{textAlign:"right",flexShrink:0}}>
                     <div style={{fontFamily:T.stats,fontSize:7.5,color:T.text4,letterSpacing:".04em"}}>EV PERDUE</div>
                     <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{evDiff.toFixed(2)}bb</div>
                   </div>}
                 </div>
-                <div style={{display:"flex",gap:12,marginBottom:8,fontFamily:T.stats,fontSize:9.5,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:12,marginBottom:5,fontFamily:T.stats,fontSize:9.5,flexWrap:"wrap"}}>
                   <span style={{color:T.text3}}>Joué : <strong style={{color:isBest?T.green:T.text}}>{spot.acts[answered]?.l}</strong></span>
                   {showSol&&!isBest&&<span style={{color:T.text3}}>Optimal : <strong style={{color:T.green}}>{spot.acts[spot.ok]?.l}</strong></span>}
                 </div>
