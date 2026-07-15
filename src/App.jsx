@@ -283,7 +283,8 @@ function SettingsPanel({deckType,setDeckType,chipTheme="neon_modern",setChipThem
           chipTheme={chipTheme}
           chipColor={chipColor}
           chipSizeMode={chipSizeMode}
-          onThemeChange={setChipTheme}
+          lockedThemeId="trainer_v2"
+          lockedThemeNote="Le skin Trainer V2 est forcé pendant la refonte des tables. Les réglages ci-dessous gardent un impact sur l'échelle et le halo des jetons."
           onColorChange={setChipColor}
           onSizeModeChange={setChipSizeMode}
         />

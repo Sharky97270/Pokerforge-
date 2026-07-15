@@ -13,20 +13,23 @@ export default function ChipThemeSelector({
   chipTheme = "neon_modern",
   chipColor = "blue",
   chipSizeMode = "auto",
+  lockedThemeId = null,
+  lockedThemeNote = "",
   onThemeChange,
   onColorChange,
   onSizeModeChange,
 }) {
-  const activeTheme = normalizeChipTheme(chipTheme);
+  const activeTheme = normalizeChipTheme(lockedThemeId || chipTheme);
   const activeColor = normalizeChipColor(chipColor);
   const activeSize = normalizeChipSizeMode(chipSizeMode);
+  const themeLocked = Boolean(lockedThemeId);
 
   return (
     <div className="pf-chip-settings">
       <div className="pf-chip-settings-head">
         <div>
           <div className="pf-chip-settings-kicker">Style de jetons</div>
-          <p>Rendu global des jetons du Trainer : mises, blinds, pot et all-in.</p>
+          <p>{themeLocked ? "Le Trainer utilise le skin V2 officiel pour garder les tables stables et lisibles." : "Rendu global des jetons du Trainer : mises, blinds, pot et all-in."}</p>
         </div>
         <div className="pf-chip-settings-live">
           <img src={chipThemePreviewAsset(activeTheme.id)} alt="" draggable="false" />
@@ -35,25 +38,34 @@ export default function ChipThemeSelector({
         </div>
       </div>
 
-      <div className="pf-chip-section-label">Style de jetons</div>
-      <div className="chip-theme-grid chip-theme-grid-v2">
-        {chipThemeOptions().map((theme) => {
-          const isActive = activeTheme.id === theme.id;
-          const preview = chipThemePreviewAsset(theme.id);
-          return (
-            <button key={theme.id} type="button" className={`chip-theme-card chip-theme-card-v2${isActive ? " active" : ""}`} onClick={() => onThemeChange?.(theme.id)}>
-              <span className="chip-theme-preview-v2">
-                {preview ? <img src={preview} alt="" draggable="false" /> : <span />}
-              </span>
-              <strong>{theme.name}</strong>
-              <small>{theme.desc}</small>
-              {isActive && <em>Actif</em>}
-            </button>
-          );
-        })}
-      </div>
+      {themeLocked ? (
+        <div className="pf-chip-locked-note">
+          <strong>{activeTheme.name} verrouillé</strong>
+          <span>{lockedThemeNote || "Le choix de thème a été retiré du Trainer tant que le skin V2 est forcé."}</span>
+        </div>
+      ) : (
+        <>
+          <div className="pf-chip-section-label">Style de jetons</div>
+          <div className="chip-theme-grid chip-theme-grid-v2">
+            {chipThemeOptions().map((theme) => {
+              const isActive = activeTheme.id === theme.id;
+              const preview = chipThemePreviewAsset(theme.id);
+              return (
+                <button key={theme.id} type="button" className={`chip-theme-card chip-theme-card-v2${isActive ? " active" : ""}`} onClick={() => onThemeChange?.(theme.id)}>
+                  <span className="chip-theme-preview-v2">
+                    {preview ? <img src={preview} alt="" draggable="false" /> : <span />}
+                  </span>
+                  <strong>{theme.name}</strong>
+                  <small>{theme.desc}</small>
+                  {isActive && <em>Actif</em>}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
-      <div className="pf-chip-section-label">Couleur principale</div>
+      <div className="pf-chip-section-label">{themeLocked ? "Halo principal" : "Couleur principale"}</div>
       <div className="pf-chip-color-row">
         {Object.values(CHIP_COLOR_OPTIONS).map((color) => (
           <button
