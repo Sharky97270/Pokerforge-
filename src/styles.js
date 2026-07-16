@@ -5484,6 +5484,15 @@ export const CSS_TABLE=`
 .t1-actions-under .sizing-custom{margin-top:3px!important;}
 .t1-actions-under .sizing-step-btn{height:27px!important;}
 
+/* ═══ 7-MAX — CARTES HERO -5% (§2) ═══
+   Scopé via [data-nplayers="7"] : les autres structures gardent leur taille.
+   Ratio, style, arrondis, ombres conservés (seules les dimensions baissent de
+   ~5% : 48x66 -> 46x63) pour dégager l'écart board -> cartes Hero (§3). */
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom{width:46px!important;height:63px!important;}
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-r{font-size:17px!important;}
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-s{font-size:12px!important;}
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-center{font-size:27px!important;}
+
 /* ═══ DESKTOP ÉCRAN COURT (≤820px de haut : 1366×768, fenêtre réduite) — §24 ═══
    La zone de table tombe à ~395px alors que le bloc HERO (cartes+avatar+plaque)
    fait 208px FIXES, soit 53% de la hauteur → il débordait sous la table (7px) et
