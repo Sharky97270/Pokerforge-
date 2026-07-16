@@ -5452,4 +5452,55 @@ export const CSS_TABLE=`
   .card-1t-hero-mobile .card-corner-s{font-size:8px!important;}
   .card-1t-hero-mobile .card-center{font-size:17px!important;}
 }
+
+/* ═══ TABLE 1T — ANTI-CHEVAUCHEMENT AUTOUR DU HERO (§3.1) ═══
+   Le bloc HERO vit en bas-centre de la table. Or deux libellés étaient rendus
+   EN ABSOLU au même endroit :
+     · .table-action-line  (« Preflop BB décision ») → chevauchait la plaque BB ;
+     · .pf-facing-label    (« Face à Open 2.5bb → à payer 1.5bb ») → coincé à
+       3px de la plaque et 5px du bandeau d'actions.
+   Les deux sont REDONDANTS : l'en-tête du bandeau d'actions affiche déjà
+   « HJ vs UTG · Face à Open 2.5bb · à payer 2.5bb », c'est-à-dire exactement le
+   texte d'information « juste au-dessus de la zone d'actions » attendu.
+   On les masque donc dans la table → zéro chevauchement, zéro perte d'info.
+   (Le mobile les masquait déjà pour la même raison.) */
+.t1-left .pf-facing-label{display:none!important;}
+.t1-left .table-action-line{display:none!important;}
+
+/* ═══ ZONE D'ACTIONS DESKTOP — COMPACTION (§3.2) ═══
+   Objectif : rendre de la hauteur verticale sous le stack du Hero, sans toucher
+   à la largeur des boutons ni à la hiérarchie visuelle. Hauteur des boutons
+   ~-14% (72→62), polices et paddings verticaux légèrement réduits, ligne des
+   multiplicateurs resserrée. Desktop uniquement (.t1-actions-under est masqué
+   sur mobile, qui garde son propre bandeau déjà compacté). */
+.t1-actions-under .mtr-actions{padding:6px 10px 7px!important;}
+.t1-actions-under .mtr-actions>div{margin-bottom:5px!important;}
+.t1-actions-under .gto-btn{min-height:62px!important;}
+.t1-actions-under .gto-btn .gto-btn-inner{padding:8px 8px 6px!important;}
+.t1-actions-under .gto-btn-label{font-size:14px!important;}
+.t1-actions-under .gto-btn-sizing{font-size:9.5px!important;}
+.t1-actions-under .gto-btn-hint{font-size:7.5px!important;}
+.t1-actions-under .sizing-btn{min-height:19px!important;}
+.t1-actions-under .sizing-custom{margin-top:3px!important;}
+.t1-actions-under .sizing-step-btn{height:27px!important;}
+
+/* ═══ DESKTOP ÉCRAN COURT (≤820px de haut : 1366×768, fenêtre réduite) — §24 ═══
+   La zone de table tombe à ~395px alors que le bloc HERO (cartes+avatar+plaque)
+   fait 208px FIXES, soit 53% de la hauteur → il débordait sous la table (7px) et
+   touchait le bandeau d'actions. Règle du §24 : on réduit le scale AVANT de
+   rogner. On rabote donc les cartes Hero et les boutons d'action sur ces
+   hauteurs uniquement — le 1440×900 et au-delà restent inchangés. */
+@media (min-width:769px) and (max-height:820px){
+  .t1-left .card-1t-hero-bottom{width:40px!important;height:55px!important;}
+  .t1-left .card-1t-hero-bottom .card-corner-r{font-size:15px!important;}
+  .t1-left .card-1t-hero-bottom .card-corner-s{font-size:11px!important;}
+  .t1-left .card-1t-hero-bottom .card-center{font-size:23px!important;}
+  .t1-left .pf-player-seat[data-mode="1T"] .pf-avatar-premium{
+    width:calc(var(--avatar-size) - 10px)!important;height:calc(var(--avatar-size) - 10px)!important;
+  }
+  .t1-actions-under .gto-btn{min-height:54px!important;}
+  .t1-actions-under .gto-btn .gto-btn-inner{padding:6px 8px 5px!important;}
+  .t1-actions-under .mtr-actions{padding:5px 10px 6px!important;}
+  .t1-actions-under .mtr-actions>div{margin-bottom:4px!important;}
+}
 `;
