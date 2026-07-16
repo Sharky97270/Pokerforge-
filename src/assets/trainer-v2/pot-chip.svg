@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Jeton Pot">
+  <defs>
+    <radialGradient id="potCore" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#FFE9A8"/>
+      <stop offset="55%" stop-color="#FF9E1B"/>
+      <stop offset="100%" stop-color="#C8560E"/>
+    </radialGradient>
+    <linearGradient id="potRim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFD873"/><stop offset="100%" stop-color="#B36A00"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#potRim)"/>
+  <!-- encoches de bord -->
+  <g fill="#0B1626">
+    <g id="notch"><rect x="30" y="1.5" width="4" height="7" rx="1.5"/></g>
+    <use href="#notch" transform="rotate(45 32 32)"/>
+    <use href="#notch" transform="rotate(90 32 32)"/>
+    <use href="#notch" transform="rotate(135 32 32)"/>
+    <use href="#notch" transform="rotate(180 32 32)"/>
+    <use href="#notch" transform="rotate(225 32 32)"/>
+    <use href="#notch" transform="rotate(270 32 32)"/>
+    <use href="#notch" transform="rotate(315 32 32)"/>
+  </g>
+  <circle cx="32" cy="32" r="22" fill="url(#potCore)" stroke="#8A3A00" stroke-width="1"/>
+  <!-- rayons soleil -->
+  <g stroke="#FFE9A8" stroke-width="1.4" opacity=".85">
+    <line x1="32" y1="16" x2="32" y2="24"/><line x1="32" y1="40" x2="32" y2="48"/>
+    <line x1="16" y1="32" x2="24" y2="32"/><line x1="40" y1="32" x2="48" y2="32"/>
+    <line x1="21" y1="21" x2="26.5" y2="26.5"/><line x1="37.5" y1="37.5" x2="43" y2="43"/>
+    <line x1="43" y1="21" x2="37.5" y2="26.5"/><line x1="26.5" y1="37.5" x2="21" y2="43"/>
+  </g>
+  <circle cx="32" cy="32" r="8" fill="#FFC34A" stroke="#8A3A00" stroke-width="1"/>
+</svg>

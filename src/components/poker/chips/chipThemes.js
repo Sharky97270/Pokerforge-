@@ -3,6 +3,12 @@ const chipAssetModules = import.meta.glob("../../../assets/chips/png/**/*.png", 
   query: "?url",
   import: "default",
 });
+// Jetons vectoriels Trainer V2 (design system — planche officielle)
+const chipSvgModules = import.meta.glob("../../../assets/chips/svg/**/*.svg", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
 
 export const CHIP_DENOMINATIONS = [
   { key: "0_5bb", label: "0.5", value: 0.5 },
@@ -101,6 +107,20 @@ export const CHIP_THEMES = {
     cols: ["#1f8bff", "#34d8ff", "#071b44", "#dce8ff"],
     minimal: true,
   },
+  // Trainer V2 — jetons SVG vectoriels (planche « Assets Trainer V2 »).
+  // Forcé dans le Trainer (skin V2) ; volontairement absent du sélecteur.
+  trainer_v2: {
+    id: "trainer_v2",
+    name: "Trainer V2",
+    desc: "Design system V2 — jetons vectoriels",
+    style: "v2",
+    folder: "trainer_v2",
+    svg: true,
+    edge: "#20CFFF",
+    glow: "rgba(32,207,255,.5)",
+    textColor: "#ffffff",
+    cols: ["#20CFFF", "#FFB800", "#17C964", "#E53935", "#A855F7"],
+  },
   // Legacy aliases kept so old localStorage values do not break the Trainer.
   blue: null,
   gold: null,
@@ -157,6 +177,10 @@ export function chipAssetUrl(themeKey = "neon_modern", amount = 1) {
   const theme = normalizeChipTheme(themeKey);
   if (theme.minimal) return null;
   const denom = chipDenominationForAmount(amount);
+  if (theme.svg) {
+    const svgPath = `../../../assets/chips/svg/${theme.folder}/chip_${denom.key}.svg`;
+    return chipSvgModules[svgPath] || null;
+  }
   const path = `../../../assets/chips/png/${theme.folder}/chip_${denom.key}.png`;
   return chipAssetModules[path] || null;
 }

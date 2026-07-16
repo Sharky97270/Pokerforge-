@@ -1,0 +1,8 @@
+/* PokerForge Trainer V2 — point d'entrée des tokens.
+   Importer CE fichier une fois. Les tokens sont exposés sur :root ET .trainer-v2 ;
+   en cas de régression globale, retirer :root des autres fichiers et ne garder
+   que le scope .trainer-v2. */
+@import "./colors.css";
+@import "./typography.css";
+@import "./effects.css";
+@import "./spacing.css";

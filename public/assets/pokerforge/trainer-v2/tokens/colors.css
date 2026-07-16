@@ -1,0 +1,35 @@
+/* PokerForge Trainer V2 — Tokens couleurs (planche officielle §09)
+   Palette DARK BLUE / METALLIC. Reconstruite proprement, pas extraite du raster.
+   Scoper via .trainer-v2 pour éviter toute régression globale. */
+:root,
+.trainer-v2 {
+  /* Fonds */
+  --pf-bg-900: #0B1626; /* app / fond profond */
+  --pf-bg-800: #0F1F3A; /* panneaux */
+  --pf-blue-700: #132B4D; /* surfaces / bordures douces */
+  --pf-blue-600: #1E3A66; /* surfaces actives / rails */
+
+  /* Accents */
+  --pf-cyan: #20CFFF;   /* halo actif, focus */
+  --pf-gold: #FFB800;   /* anneau doré, dealer, valeur */
+  --pf-orange: #FF6B00; /* bet / raise */
+  --pf-green: #17C964;  /* check / correct / call */
+  --pf-red: #E53935;    /* fold / erreur / all-in */
+  --pf-purple: #A855F7; /* SPR / exploit / mixé */
+
+  /* Neutres */
+  --pf-gray: #8B949E;   /* texte secondaire */
+  --pf-white: #E6E6E6;  /* texte principal */
+
+  /* Dérivés surfaces (transparences réutilisables) */
+  --pf-surface: rgba(15, 31, 58, .72);
+  --pf-surface-glass: rgba(19, 43, 77, .42);
+  --pf-border: rgba(30, 58, 102, .9);
+  --pf-border-soft: rgba(19, 43, 77, .7);
+  --pf-border-active: var(--pf-cyan);
+
+  /* Dérivés texte */
+  --pf-text: var(--pf-white);
+  --pf-text-2: #A9B7C9;
+  --pf-text-muted: var(--pf-gray);
+}

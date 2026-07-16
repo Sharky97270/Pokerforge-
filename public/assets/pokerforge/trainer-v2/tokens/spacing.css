@@ -1,0 +1,32 @@
+/* PokerForge Trainer V2 — Tokens espacement & échelles multi-table */
+:root,
+.trainer-v2 {
+  --pf-space-1: 4px;
+  --pf-space-2: 6px;
+  --pf-space-3: 8px;
+  --pf-space-4: 12px;
+  --pf-space-5: 16px;
+  --pf-space-6: 24px;
+
+  /* Échelles par mode (planche §12 + calibrage V1) */
+  --pf-scale-1t: 1;
+  --pf-scale-2t: .78;
+  --pf-scale-3t-top: .66;
+  --pf-scale-3t-bottom: .61;
+  --pf-scale-4t: .58;
+
+  /* Ratios d'ovale cibles (script multi-table V1) */
+  --pf-oval-2t: 400 / 310;
+  --pf-oval-3t-top: 398 / 205;
+  --pf-oval-3t-bottom: 500 / 164;
+  --pf-oval-4t: 398 / 176;
+
+  /* Cartes board — base + variante +10% (planche §02 / §12) */
+  --pf-board-card-w: 48px;
+  --pf-board-card-h: 68px;
+  --pf-board-card-w-10: 53px; /* +10% */
+  --pf-board-card-h-10: 75px;
+  --pf-board-gap: 3px;
+  --pf-hero-card-w: 38px;
+  --pf-hero-card-h: 54px;
+}

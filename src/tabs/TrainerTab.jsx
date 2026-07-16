@@ -1,5 +1,6 @@
 // PokerForge — Entraineur GTO : layouts, IA vilain, generation de spots, table, session (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { T } from "../theme.js";
 import { useIsMobile, vibrate, VIB } from "../utils/ui.js";
 import { roundBb, shuffle } from "../utils/format.js";
@@ -9,6 +10,7 @@ import { Card, CardBack, HeroHoleCards, VillainBackCards } from "../components/t
 import { CHIP_THEMES, BlindChipStack, TrainingPotStack, SeatActionZone, PlayerSeat } from "../components/table/Chips.jsx";
 import { trainerAvatarKey, trainerSeatAvatarProfile, PlayerAvatarPremium } from "../components/table/Avatars.jsx";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
+import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
@@ -118,6 +120,56 @@ function createTrainingTableLayout(name,seats,options={}){
   });
   return {name,seats,seatAnchors:anchors,boardSafeZone:safeZone,tableGeometry,boardPosition,potPosition};
 }
+/* ── SIÈGES MOBILES 1T : anneau d'ancrage FIXE (architecture SeatSlot) ──
+   Les emplacements physiques ne bougent JAMAIS ; seules les positions poker
+   (labels) tournent à l'intérieur. slot[0] = bas (toujours le héros), puis on
+   tourne dans le sens anti-horaire (bas-gauche → haut → bas-droite) pour
+   préserver l'ordre de table (adjacence BTN-SB-BB → blindes/dealer corrects).
+   Coordonnées en % du canvas. */
+/* ── ANCRAGE CENTRALISÉ DES SIÈGES (hero-centric mobile, §6/§14) ──
+   Index 0 = HERO (bas-centre). Une seule source de vérité pour TOUTES les tailles
+   de table et TOUS les spots. Calibration §1/§2 :
+   - HERO remonté (~81%) : laisse une ZONE DE SÉCURITÉ BASSE constante sous le bloc
+     hero (avatar+badge+plaque) ET absorbe les cartes hero agrandies (+50%) sans
+     déborder le feutre ni le bandeau de décision.
+   - Sièges du HAUT descendus (~+3%) : marge constante avec le bord supérieur du
+     feutre → avatars/cartes des joueurs du haut jamais rognés (§2/§7). */
+const MOBILE_SEAT_RINGS = {
+  2: [{ x: 50, y: 80 }, { x: 50, y: 17 }],
+  3: [{ x: 50, y: 80 }, { x: 21, y: 35 }, { x: 79, y: 35 }],
+  4: [{ x: 50, y: 80 }, { x: 15, y: 54 }, { x: 50, y: 15 }, { x: 85, y: 54 }],
+  5: [{ x: 50, y: 80 }, { x: 17, y: 63 }, { x: 27, y: 23 }, { x: 73, y: 23 }, { x: 83, y: 63 }],
+  6: [{ x: 50, y: 80 }, { x: 16, y: 71 }, { x: 16, y: 31 }, { x: 50, y: 15 }, { x: 84, y: 31 }, { x: 84, y: 71 }],
+  7: [{ x: 50, y: 80 }, { x: 16, y: 65 }, { x: 18, y: 33 }, { x: 40, y: 15 }, { x: 60, y: 15 }, { x: 82, y: 33 }, { x: 84, y: 65 }],
+  8: [{ x: 50, y: 80 }, { x: 15, y: 65 }, { x: 16, y: 41 }, { x: 34, y: 17 }, { x: 50, y: 14 }, { x: 66, y: 17 }, { x: 84, y: 41 }, { x: 85, y: 65 }],
+  9: [{ x: 50, y: 81 }, { x: 13, y: 70 }, { x: 13, y: 40 }, { x: 27, y: 17 }, { x: 44, y: 14 }, { x: 56, y: 14 }, { x: 73, y: 17 }, { x: 87, y: 40 }, { x: 87, y: 70 }],
+};
+function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
+  const n = positions.length;
+  const seats = {};
+  if (!n) return seats;
+  const heroIdx = Math.max(0, positions.indexOf(heroPos));
+  const ordered = [];
+  for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
+  const ring = MOBILE_SEAT_RINGS[n];
+  if (ring) {
+    for (let i = 0; i < n; i++) seats[ordered[i]] = { ...ring[i] };
+    return seats;
+  }
+  // Repli (tailles hors table) : ancien calcul par arc sur l'ellipse du feutre.
+  const g = geometry || { top: 6, left: 8, right: 8, bottom: 8 };
+  const cx = (g.left + (100 - g.right)) / 2, cy = (g.top + (100 - g.bottom)) / 2;
+  const rx = (100 - g.left - g.right) / 2, ry = (100 - g.top - g.bottom) / 2;
+  const fx = 0.88, fy = 0.84;
+  seats[ordered[0]] = { x: +cx.toFixed(2), y: +(cy + 0.64 * ry).toFixed(2) };
+  const m = n - 1;
+  const gap = 118, start = 90 + gap / 2, span = 360 - gap;
+  for (let k = 0; k < m; k++) {
+    const ang = (start + k * (span / (m - 1))) * Math.PI / 180;
+    seats[ordered[k + 1]] = { x: +(cx + fx * rx * Math.cos(ang)).toFixed(2), y: +(cy + fy * ry * Math.sin(ang)).toFixed(2) };
+  }
+  return seats;
+}
 const TRAINER_VISUAL_1T=getTrainerVisualLayoutConfig(1);
 const TRAINER_VISUAL_2T=getTrainerVisualLayoutConfig(2);
 const TRAINER_VISUAL_3T=getTrainerVisualLayoutConfig(3);
@@ -218,10 +270,12 @@ function blindAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"blindAnchor");
 }
 function dealerAnchorPoint(layout){
-  // Jeton D toujours en bas-gauche du siège BTN, dérivé de la position réelle
-  // du siège (suit les retouches de layout ; l'ancre fixe dealerAnchor était périmée).
+  // Jeton D dérivé de la position réelle du siège BTN.
+  // 1T (figé) : bas-gauche. Multi : à GAUCHE du siège à hauteur d'avatar —
+  // le bas-gauche chevauchait la nameplate (badge position/stack sous l'avatar)
+  // sur les zones compactes ; vérifié sans collision (nameplate/cartes/mises).
   const seat=layout.seats?.BTN||{x:50,y:50};
-  const off={"1T":{x:7,y:9},"2T":{x:6.5,y:8},"3T":{x:6,y:7.5},"4T":{x:6,y:7.5}}[layout.name]||{x:6.5,y:8};
+  const off={"1T":{x:7,y:9},"2T":{x:9,y:0},"3T":{x:8,y:0},"4T":{x:8,y:0}}[layout.name]||{x:9,y:0};
   return {x:Math.max(4,seat.x-off.x),y:Math.min(90,seat.y+off.y)};
 }
 function actionLabelAnchorPoint(layout,pos){
@@ -856,7 +910,7 @@ const RANGE_ACTION_COLORS={
   f:    {bg:"rgba(14,14,30,.85)",    label:"Fold",          col:"#6F81A8"},
 };
 
-export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTables=1,onOpenSolver}){
+export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTables=1,onOpenSolver,modal=false}){
   const[viewMode,setViewMode]=useState("hero");
   const[hov,setHov]=useState(null);
   const[sel,setSel]=useState(null);
@@ -886,34 +940,35 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
   const vProf=viewMode==="villain"&&spot?.vtype?VILLAIN_PROFILES[spot.vtype]:null;
 
   // ── Tailles adaptatives (+5% grille vs version précédente) ──
-  const CP=numTables>=3?12:numTables===2?15:17; // cellule px (+5%)
-  const FP=numTables>=3?3.8:numTables===2?4.7:5.8; // font pairs (+5%)
-  const NP=numTables>=3?0:numTables===2?3.8:4.6;   // font non-pairs (+5%, 0=caché 3T+)
-  const LP=numTables>=3?8:numTables===2?9:10;  // layout font
-  const RF=numTables>=3?5.0:numTables===2?5.5:6.1;  // rank headers (+5%)
-  const showRightPanel=numTables<=2;
-  const panelWidth=numTables===1?148:120; // +9% panel width
+  const modalRange=modal||numTables==="modal"||numTables===0;
+  const CP=modalRange?40:numTables>=3?12:numTables===2?15:17; // cellule px
+  const FP=modalRange?13:numTables>=3?3.8:numTables===2?4.7:5.8; // font pairs
+  const NP=modalRange?10:numTables>=3?0:numTables===2?3.8:4.6;   // font non-pairs
+  const LP=modalRange?13:numTables>=3?8:numTables===2?9:10;  // layout font
+  const RF=modalRange?11:numTables>=3?5.0:numTables===2?5.5:6.1;  // rank headers
+  const showRightPanel=modalRange||numTables<=2;
+  const panelWidth=modalRange?260:numTables===1?148:120;
 
   // ── Background cellule (dégradé vertical selon fréquences) ──
   function cellBg(d){
-    if(!d)return"rgba(14,14,30,.88)";
+    if(!d)return"rgba(7,18,38,.88)";
     const f=d.freq;
-    if(f.r>=95)return"rgba(155,92,255,.82)";
-    if(f.c>=95)return"rgba(46,204,113,.78)";
-    if(f.f>=95)return"rgba(14,14,30,.72)";
+    if(f.r>=95)return"rgba(255,184,0,.86)";
+    if(f.c>=95)return"rgba(32,207,255,.78)";
+    if(f.f>=95)return"rgba(42,16,24,.82)";
     const segs=[];let acc=0;
-    if(f.r>0){segs.push(`rgba(155,92,255,.82) ${acc}%`);acc+=f.r;segs.push(`rgba(155,92,255,.82) ${acc}%`);}
-    if(f.c>0){segs.push(`rgba(46,204,113,.78) ${acc}%`);acc+=f.c;segs.push(`rgba(46,204,113,.78) ${acc}%`);}
-    if(f.f>0){segs.push(`rgba(14,14,30,.72) ${acc}%`);acc+=f.f;segs.push(`rgba(14,14,30,.72) ${acc}%`);}
-    return segs.length>1?`linear-gradient(to bottom,${segs.join(",")})`:segs[0]||"rgba(14,14,30,.72)";
+    if(f.r>0){segs.push(`rgba(255,184,0,.86) ${acc}%`);acc+=f.r;segs.push(`rgba(255,184,0,.86) ${acc}%`);}
+    if(f.c>0){segs.push(`rgba(32,207,255,.78) ${acc}%`);acc+=f.c;segs.push(`rgba(32,207,255,.78) ${acc}%`);}
+    if(f.f>0){segs.push(`rgba(42,16,24,.82) ${acc}%`);acc+=f.f;segs.push(`rgba(42,16,24,.82) ${acc}%`);}
+    return segs.length>1?`linear-gradient(to bottom,${segs.join(",")})`:segs[0]||"rgba(42,16,24,.82)";
   }
 
   // ── Couleur dominante pour action badge ──
   function mainActColor(d){
-    if(!d)return{label:"Fold",col:"#4A6090"};
-    if(d.freq.r>=d.freq.c&&d.freq.r>=d.freq.f)return{label:"Raise",col:"#c090ff"};
-    if(d.freq.c>=d.freq.f)return{label:"Call",col:"#2ECC71"};
-    return{label:"Fold",col:"#4A6090"};
+    if(!d)return{label:"Fold",col:"#E5485D"};
+    if(d.freq.r>=d.freq.c&&d.freq.r>=d.freq.f)return{label:"Raise",col:"#FFB800"};
+    if(d.freq.c>=d.freq.f)return{label:"Call",col:"#20CFFF"};
+    return{label:"Fold",col:"#E5485D"};
   }
 
   // ── Conseil GTO auto-généré ──
@@ -941,16 +996,16 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
   const panelD=selD||hovD;
 
   const LEGEND=[
-    {bg:"rgba(155,92,255,.82)",l:"Raise"},
-    {bg:"rgba(46,204,113,.78)",l:"Call"},
-    {bg:"linear-gradient(to bottom,rgba(155,92,255,.8) 50%,rgba(46,204,113,.75) 50%)",l:"Mix R/C"},
-    {bg:"linear-gradient(to bottom,rgba(155,92,255,.8) 50%,rgba(14,14,30,.7) 50%)",l:"Mix R/F"},
-    {bg:"linear-gradient(to bottom,rgba(46,204,113,.75) 50%,rgba(14,14,30,.7) 50%)",l:"Mix C/F"},
-    {bg:"rgba(14,14,30,.72)",l:"Fold"},
+    {bg:"rgba(255,184,0,.86)",l:"Raise"},
+    {bg:"rgba(32,207,255,.78)",l:"Call"},
+    {bg:"linear-gradient(to bottom,rgba(255,184,0,.86) 50%,rgba(32,207,255,.78) 50%)",l:"Mix R/C"},
+    {bg:"linear-gradient(to bottom,rgba(255,184,0,.86) 50%,rgba(42,16,24,.82) 50%)",l:"Mix R/F"},
+    {bg:"linear-gradient(to bottom,rgba(32,207,255,.78) 50%,rgba(42,16,24,.82) 50%)",l:"Mix C/F"},
+    {bg:"rgba(42,16,24,.82)",l:"Fold"},
   ];
 
   return(
-    <div style={{background:"linear-gradient(145deg,#071B44,#040E25)",borderRadius:12,padding:"10px 12px",border:"1px solid rgba(26,58,128,.8)",marginTop:6,boxShadow:"0 4px 24px rgba(0,0,0,.5)"}}>
+    <div className={modalRange?"range-grid-shell modal":"range-grid-shell"} style={{background:"linear-gradient(145deg,#071B44,#040E25)",borderRadius:modalRange?14:12,padding:modalRange?"16px 18px":"10px 12px",border:"1px solid rgba(26,58,128,.8)",marginTop:6,boxShadow:"0 4px 24px rgba(0,0,0,.5)"}}>
 
       {/* ═══ HEADER ═══ */}
       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
@@ -975,10 +1030,10 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
       </div>
 
       {/* ═══ CORPS : Grille + Panneau droit ═══ */}
-      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+      <div style={{display:"flex",gap:modalRange?18:10,alignItems:"flex-start",flexWrap:modalRange?"wrap":"nowrap"}}>
 
         {/* ──── GRILLE 13×13 ──── */}
-        <div style={{flexShrink:0,position:"relative"}}>
+        <div style={{flexShrink:0,position:"relative",maxWidth:"100%",overflowX:modalRange?"auto":"visible",paddingBottom:modalRange?4:0}}>
           {/* En-têtes colonnes */}
           <div style={{display:"flex",marginBottom:1.5,paddingLeft:CP+2}}>
             {RANKS_GRID.map(r=>(
@@ -1001,9 +1056,14 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
                 const labelStr=isPair?(r1+r1):NP>0?(isSuited?r1+r2+"s":r1+r2+"o"):"";
                 return(
                   <div key={k}
+                    className="range-cell-focus"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${k}: raise ${d?.freq?.r||0}%, call ${d?.freq?.c||0}%, fold ${d?.freq?.f||0}%`}
                     onMouseEnter={()=>setHov(k)}
                     onMouseLeave={()=>setHov(null)}
                     onClick={()=>setSel(sel===k?null:k)}
+                    onKeyDown={(e)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setSel(sel===k?null:k);}}}
                     style={{
                       width:CP,height:CP,flexShrink:0,
                       background:cellBg(d),
@@ -1040,11 +1100,11 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
             <div style={{position:"absolute",top:0,left:"calc(100% + 8px)",background:"#030D2A",border:"1px solid rgba(155,92,255,.4)",borderRadius:9,padding:"8px 10px",zIndex:200,whiteSpace:"nowrap",minWidth:118,boxShadow:"0 6px 28px rgba(0,0,0,.9)",pointerEvents:"none",animation:"vilActIn .15s forwards"}}>
               <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:12,fontWeight:800,color:"#fff",marginBottom:4,letterSpacing:".04em"}}>{hov}</div>
               <div style={{height:5,borderRadius:2.5,overflow:"hidden",display:"flex",marginBottom:5,background:"rgba(255,255,255,.07)"}}>
-                {hovD.freq.r>0&&<div style={{flex:hovD.freq.r,background:"rgba(155,92,255,.85)"}}/>}
-                {hovD.freq.c>0&&<div style={{flex:hovD.freq.c,background:"rgba(46,204,113,.8)"}}/>}
-                {hovD.freq.f>0&&<div style={{flex:hovD.freq.f,background:"rgba(14,14,30,.7)"}}/>}
+                {hovD.freq.r>0&&<div style={{flex:hovD.freq.r,background:"rgba(255,184,0,.88)"}}/>}
+                {hovD.freq.c>0&&<div style={{flex:hovD.freq.c,background:"rgba(32,207,255,.82)"}}/>}
+                {hovD.freq.f>0&&<div style={{flex:hovD.freq.f,background:"rgba(42,16,24,.82)"}}/>}
               </div>
-              {[{l:"Raise",v:hovD.freq.r+"%",c:"#c090ff"},{l:"Call",v:hovD.freq.c+"%",c:"#2ECC71"},{l:"Fold",v:hovD.freq.f+"%",c:"#4A6090"}].filter(x=>parseFloat(x.v)>0).map(({l,v,c})=>(
+              {[{l:"Raise",v:hovD.freq.r+"%",c:"#FFB800"},{l:"Call",v:hovD.freq.c+"%",c:"#20CFFF"},{l:"Fold",v:hovD.freq.f+"%",c:"#E5485D"}].filter(x=>parseFloat(x.v)>0).map(({l,v,c})=>(
                 <div key={l} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:2}}>
                   <span style={{fontSize:7.5,color:T.text4,fontFamily:"'Inter',sans-serif"}}>{l}</span>
                   <span style={{fontSize:8,color:c,fontFamily:"'JetBrains Mono',monospace",fontWeight:700}}>{v}</span>
@@ -1063,7 +1123,7 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
 
         {/* ──── PANNEAU DROIT (1T et 2T) ──── */}
         {showRightPanel&&(
-          <div style={{width:panelWidth,flexShrink:0,display:"flex",flexDirection:"column",gap:5}}>
+          <div style={{width:panelWidth,flex:modalRange?"1 1 260px":"0 0 auto",minWidth:modalRange?240:panelWidth,display:"flex",flexDirection:"column",gap:modalRange?9:5}}>
 
             {/* Analyse main sélectionnée / survolée */}
             {panelD&&panelHand?(
@@ -1073,7 +1133,7 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
                   <span style={{fontSize:7.5,padding:"1.5px 6px",borderRadius:10,background:mainActColor(panelD).col+"22",color:mainActColor(panelD).col,fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,border:`1px solid ${mainActColor(panelD).col}44`}}>{mainActColor(panelD).label}</span>
                 </div>
                 {/* Fréquences avec barres */}
-                {[{l:"Raise",v:panelD.freq.r,c:"rgba(155,92,255,.9)"},{l:"Call",v:panelD.freq.c,c:"rgba(46,204,113,.9)"},{l:"Fold",v:panelD.freq.f,c:"rgba(74,96,144,.8)"}].filter(x=>x.v>0).map(({l,v,c})=>(
+                {[{l:"Raise",v:panelD.freq.r,c:"rgba(255,184,0,.92)"},{l:"Call",v:panelD.freq.c,c:"rgba(32,207,255,.9)"},{l:"Fold",v:panelD.freq.f,c:"rgba(229,72,93,.82)"}].filter(x=>x.v>0).map(({l,v,c})=>(
                   <div key={l} style={{marginBottom:3}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:1.5}}>
                       <span style={{fontSize:9.5,color:T.text4,fontFamily:"'Inter',sans-serif"}}>{l}</span>
@@ -1108,11 +1168,11 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
               <div style={{fontSize:9,color:T.text4,letterSpacing:".1em",textTransform:"uppercase",fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,marginBottom:5}}>Résumé de range</div>
               {/* Barre composite R/C/F */}
               <div style={{height:6,borderRadius:3,overflow:"hidden",display:"flex",marginBottom:5,gap:0}}>
-                {rP>0&&<div style={{flex:rP,background:"rgba(155,92,255,.85)"}}/>}
-                {cP>0&&<div style={{flex:cP,background:"rgba(46,204,113,.78)"}}/>}
-                {fP>0&&<div style={{flex:fP,background:"rgba(14,14,30,.65)"}}/>}
+                {rP>0&&<div style={{flex:rP,background:"rgba(255,184,0,.88)"}}/>}
+                {cP>0&&<div style={{flex:cP,background:"rgba(32,207,255,.78)"}}/>}
+                {fP>0&&<div style={{flex:fP,background:"rgba(42,16,24,.82)"}}/>}
               </div>
-              {[{l:"Raise",v:rP,vs:rP+"%",c:"#c090ff"},{l:"Call",v:cP,vs:cP+"%",c:"#2ECC71"},{l:"Fold",v:fP,vs:fP+"%",c:"#4A6090"}].map(({l,v,vs,c})=>(
+              {[{l:"Raise",v:rP,vs:rP+"%",c:"#FFB800"},{l:"Call",v:cP,vs:cP+"%",c:"#20CFFF"},{l:"Fold",v:fP,vs:fP+"%",c:"#E5485D"}].map(({l,v,vs,c})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
                   <span style={{fontSize:8.5,color:T.text4,fontFamily:"'Inter',sans-serif",width:34,flexShrink:0}}>{l}</span>
                   <div style={{flex:1,height:3,borderRadius:1.5,background:"rgba(255,255,255,.06)",overflow:"hidden"}}>
@@ -1156,11 +1216,11 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
         {!showRightPanel&&(
           <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:2}}>
             <div style={{height:4,borderRadius:2,overflow:"hidden",display:"flex",marginBottom:2}}>
-              {rP>0&&<div style={{flex:rP,background:"rgba(155,92,255,.8)"}}/>}
-              {cP>0&&<div style={{flex:cP,background:"rgba(46,204,113,.75)"}}/>}
-              {fP>0&&<div style={{flex:fP,background:"rgba(14,14,30,.65)"}}/>}
+              {rP>0&&<div style={{flex:rP,background:"rgba(255,184,0,.86)"}}/>}
+              {cP>0&&<div style={{flex:cP,background:"rgba(32,207,255,.78)"}}/>}
+              {fP>0&&<div style={{flex:fP,background:"rgba(42,16,24,.82)"}}/>}
             </div>
-            {[{l:"Raise",v:rP+"%",c:"#c090ff"},{l:"Call",v:cP+"%",c:"#2ECC71"},{l:"Fold",v:fP+"%",c:"#4A6090"},null,{l:"Combos",v:playCombos,c:T.text2},{l:"EV",v:(parseFloat(avgEV)>=0?"+":"")+avgEV,c:T.gold},{l:"Equity",v:avgEQ+"%",c:T.blue},{l:"EQR",v:avgEQR,c:"#FFC247"}].map((s,idx)=>
+            {[{l:"Raise",v:rP+"%",c:"#FFB800"},{l:"Call",v:cP+"%",c:"#20CFFF"},{l:"Fold",v:fP+"%",c:"#E5485D"},null,{l:"Combos",v:playCombos,c:T.text2},{l:"EV",v:(parseFloat(avgEV)>=0?"+":"")+avgEV,c:T.gold},{l:"Equity",v:avgEQ+"%",c:T.blue},{l:"EQR",v:avgEQR,c:"#FFC247"}].map((s,idx)=>
               s===null?<div key={idx} style={{height:1,background:"rgba(255,255,255,.05)",margin:"1px 0"}}/>:
               <div key={s.l} style={{display:"flex",justifyContent:"space-between"}}>
                 <span style={{fontSize:8,color:T.text4,fontFamily:"'Inter',sans-serif"}}>{s.l}</span>
@@ -1214,6 +1274,17 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
 ═══════════════════════════════════════ */
 export function RangePopup({heroPos,vilPos,heroAction,stackBB,onClose}){
   const[activeTab,setActiveTab]=useState("hero");
+  const closeBtnRef=useRef(null);
+  useEffect(()=>{
+    const previous=document.activeElement;
+    const onKey=(e)=>{if(e.key==="Escape")onClose?.();};
+    window.addEventListener("keydown",onKey);
+    closeBtnRef.current?.focus?.();
+    return()=>{
+      window.removeEventListener("keydown",onKey);
+      previous?.focus?.();
+    };
+  },[onClose]);
   // Tabs disponibles
   const tabs=[
     {id:"hero",l:`Hero (${heroPos})`,action:heroAction||"open"},
@@ -1224,18 +1295,18 @@ export function RangePopup({heroPos,vilPos,heroAction,stackBB,onClose}){
   const displayPos=activeTab==="hero"?heroPos:vilPos;
   return(
     <div className="rpop-overlay" onClick={onClose}>
-      <div className="rpop" onClick={e=>e.stopPropagation()}>
+      <div className="rpop" role="dialog" aria-modal="true" aria-label="Ranges GTO" onClick={e=>e.stopPropagation()}>
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div>
             <div style={{fontFamily:T.brand,fontSize:9,color:T.gold,letterSpacing:".1em",fontWeight:900}}>RANGES GTO</div>
             <div style={{fontSize:9,color:T.text3,fontFamily:T.stats,marginTop:1}}>{heroPos} vs {vilPos} · {stackBB}bb · {heroAction||"Open"}</div>
           </div>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,.05)",border:"1px solid #1A3A80",color:T.text2,cursor:"pointer",fontSize:14,borderRadius:6,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          <button ref={closeBtnRef} aria-label="Fermer les ranges GTO" onClick={onClose} style={{background:"rgba(255,255,255,.05)",border:"1px solid #1A3A80",color:T.text2,cursor:"pointer",fontSize:16,borderRadius:8,width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
         {/* Tabs */}
         <div className="rpop-tabs">
-          {tabs.map(t=><div key={t.id} className={`rpop-tab${activeTab===t.id?" on":""}`} onClick={()=>setActiveTab(t.id)}>{t.l}</div>)}
+          {tabs.map(t=><button key={t.id} type="button" className={`rpop-tab${activeTab===t.id?" on":""}`} onClick={()=>setActiveTab(t.id)}>{t.l}</button>)}
         </div>
         {/* Legend couleurs */}
         <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
@@ -1253,7 +1324,7 @@ export function RangePopup({heroPos,vilPos,heroAction,stackBB,onClose}){
           ))}
         </div>
         {/* Range grid */}
-        <RangeGrid pos={displayPos} action={cur.action} stackBB={stackBB||100} label={`${displayPos} — ${cur.action==="open"?"Open RFI":cur.action==="3bet"?"3bet range":cur.action==="call"?"Call range":"Range"} · ${stackBB||100}bb`}/>
+        <RangeGrid pos={displayPos} action={cur.action} stackBB={stackBB||100} label={`${displayPos} — ${cur.action==="open"?"Open RFI":cur.action==="3bet"?"3bet range":cur.action==="call"?"Call range":"Range"} · ${stackBB||100}bb`} numTables="modal" modal/>
         {/* Note pédagogique */}
         <div style={{marginTop:10,padding:"8px 10px",background:T.surface,borderRadius:8,border:`1px solid ${T.border}`,fontSize:9,color:T.text3,fontFamily:T.stats,lineHeight:1.6}}>
           {activeTab==="hero"&&"📌 Range offensive de Hero. En vert = raise/bet optimal, en bleu = call/flat, dégradé = fréquences mixées selon l'équilibre GTO."}
@@ -1287,7 +1358,13 @@ function spotMatchFilter(s,f){
     const cats=new Set(f.spotTypes.map(t=>SPOT_TYPE_CAT[t]||t));
     if(!cats.has(s.cat))return false;
   }
-  if(f.nplayers&&POSITIONS_BY_SIZE[f.nplayers]&&!POSITIONS_BY_SIZE[f.nplayers].includes(s.hpos))return false;
+  // Format de table : héros ET vilain doivent tenir dans les N positions (sinon un
+  // siège vilain hors-table casserait le rendu hero-centric).
+  if(f.nplayers&&POSITIONS_BY_SIZE[f.nplayers]){
+    const pos=POSITIONS_BY_SIZE[f.nplayers];
+    if(!pos.includes(s.hpos))return false;
+    if(s.vpos&&s.vpos!=="Tous"&&!pos.includes(s.vpos))return false;
+  }
   if(f.diffLvl){if((s.diff||2)>f.diffLvl)return false;} // niveau pro : accepte la difficulté ≤ sélection
   return true;
 }
@@ -1609,6 +1686,7 @@ function generateDynamicSpots(count=50,f={}){
       if(typeCats&&!typeCats.has(spot.cat))continue;
       if(fmtF&&spot.fmt!==fmtF)continue;
       if(allowedPos&&!allowedPos.has(spot.hpos))continue; // Hero dans une position du format de table
+      if(allowedPos&&spot.vpos&&!allowedPos.has(spot.vpos))continue; // Vilain aussi (sinon siège hors-table)
       if(seen.has(spot.id))continue;
       if(stackOverride){
         spot.stack=stackOverride+"bb";
@@ -1652,7 +1730,13 @@ function generateDynamicSpots(count=50,f={}){
 function buildQ(f,mode,opts={}){
   const rp=icmRiskPremium(f.icm,f.phase);
   // Spots statiques : clonés + ajustés ICM (ne jamais muter le pool partagé SPOTS)
-  const prep=s=>rp>0?applyICMToSpot({...s,acts:[...(s.acts||[])],freq:{...(s.freq||{})},ev:{...(s.ev||{})},detail:[...(s.detail||[])]},rp,f.phase):s;
+  const prep=s=>{
+    // Toujours cloner (jamais muter le pool SPOTS partagé) et propager le nb de joueurs
+    // choisi (sinon les spots statiques rendent avec le layout 6 sièges par défaut).
+    const c=rp>0?applyICMToSpot({...s,acts:[...(s.acts||[])],freq:{...(s.freq||{})},ev:{...(s.ev||{})},detail:[...(s.detail||[])]},rp,f.phase):{...s};
+    if(f.nplayers)c.nplayers=f.nplayers;
+    return c;
+  };
   // Garde-fou : on écarte tout spot statique impossible et on attache le contexte calculé
   const guard=s=>{const v=validateTrainerSpot(s);if(!v.valid){if(typeof console!=="undefined")console.warn("PF Trainer — spot statique invalide ignoré:",v.errors.join(" · "),s.id);return null;}s.ctx=v.ctx;return s;};
   // Filtre street selon le type de session : full/session → préflop (le coup se joue ensuite),
@@ -1699,9 +1783,17 @@ function buildQ(f,mode,opts={}){
     preferFlop:!!opts.preferFlop,
     onlyStreet:opts.onlyStreet||null,
   });
-  if(aiQueue.length)return aiQueue.slice(0,lim);
-  let q=[];while(q.length<lim)q=[...q,...shuffle(pool)];
-  return q.slice(0,lim);
+  // Format de table : ne garder que les spots dont HÉROS et VILAIN tiennent dans les N
+  // positions (l'AI queue peut en produire hors-format), puis stamper nplayers → le rendu
+  // hero-centric affiche le bon nombre de sièges et le héros est toujours présent.
+  const fitsSize=s=>{if(!s)return false;if(!f.nplayers||!POSITIONS_BY_SIZE[f.nplayers])return true;const p=POSITIONS_BY_SIZE[f.nplayers];return p.includes(s.hpos)&&(!s.vpos||p.includes(s.vpos));};
+  const stampNplayers=arr=>{if(f.nplayers)arr.forEach(s=>{if(s)s.nplayers=f.nplayers;});return arr;};
+  const fitAi=aiQueue.filter(fitsSize);
+  if(fitAi.length)return stampNplayers(fitAi.slice(0,lim));
+  const fitPool=pool.filter(fitsSize);
+  const src=fitPool.length?fitPool:pool;
+  let q=[];while(q.length<lim)q=[...q,...shuffle(src)];
+  return stampNplayers(q.slice(0,lim));
 }
 function countQ(f){
   const staticN=SPOTS.filter(s=>spotMatchFilter(s,f)).length;
@@ -1817,6 +1909,14 @@ function updateStatsAfterSession(results,mode){
    (≈1.8:1, proche 16:9) via padding-bottom. Combiné aux colonnes minmax(0,1fr) des
    .grid2/.grid3/.grid4, chaque table devient un clone géométrique parfait des autres. */
 const MT_TABLE_PB="55.6%";
+const MT_TABLE_RATIO_FALLBACK=0.556;
+
+function parseCssAspectRatio(value){
+  const nums=String(value||"").match(/\d*\.?\d+/g)?.map(Number).filter(Number.isFinite)||[];
+  if(nums.length>=2&&nums[0]>0&&nums[1]>0)return nums[1]/nums[0];
+  if(nums.length===1&&nums[0]>0)return 1/nums[0];
+  return null;
+}
 
 function parseBbAmount(v){
   if(typeof v==="number")return Number.isFinite(v)?v:0;
@@ -2365,7 +2465,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -2404,6 +2504,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
     ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
     :null;
+  // Skin Trainer V2 : jetons vectoriels forcés dans TOUT le Trainer (refonte 1T
+  // défigée — même logique que le multi ; le sélecteur de thème reste pour les
+  // autres surfaces éventuelles).
+  const effChipTheme="trainer_v2";
   const[solOpen,setSolOpen]=useState(false);
   const solRef=useRef(null);
   const solTouch=useRef({y:0,dy:0});
@@ -2420,6 +2524,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const fhVisBoard=fhStreet==="flop"?fhBoardRef.slice(0,3):fhStreet==="turn"?fhBoardRef.slice(0,4):fhBoardRef.slice(0,5);
   const isSmall=numTables>1;
   const fmt=v=>unit==="BB"?`${v}bb`:`${(v*2).toFixed(0)}$`;
+  const nextLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Main suivante";
+  const nextShortLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Suivante";
+  const callNext=useCallback(()=>{
+    if(nextBusy)return;
+    onNext?.();
+  },[nextBusy,onNext]);
 
   // ── Contexte du spot : historique préflop + action affrontée (open/3-bet/c-bet…) ──
   const spotValidation=useMemo(()=>validateTrainerSpot(spot),[spot]);
@@ -2441,10 +2551,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         snapshot:strictSpotValidation.snapshot,
       });
       if(typeof console!=="undefined")console.warn("PF Trainer — spot impossible détecté à l'affichage, main passée:",spotValidation.errors.join(" · "),spot?.cat,spot?.hpos,"vs",spot?.vpos);
-      const t=setTimeout(()=>{if(!skipRef.current){skipRef.current=true;onNext&&onNext();}},1400);
+      const t=setTimeout(()=>{if(!skipRef.current){skipRef.current=true;callNext();}},1400);
       return()=>clearTimeout(t);
     }
-  },[spot,spotImpossible,spotErrors,strictSpotValidation.snapshot,spotCtx,onNext]);
+  },[spot,spotImpossible,spotErrors,strictSpotValidation.snapshot,spotCtx,callNext]);
 
   useEffect(()=>{
     setAnswered(null);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
@@ -2867,7 +2977,18 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const fire=(fn,arg)=>{e.preventDefault();fn&&fn(arg);};
     // Entrée → spot suivant (après une décision)
     if(e.key==="Enter"){
-      if(!playingFull&&answered!==null){fire(onNext);}
+      if(!playingFull&&answered!==null){fire(callNext);}
+      return;
+    }
+    // ── Raccourcis F1–F4 : positionnels sur les actions du spot (table active) ──
+    const fk={F1:0,F2:1,F3:2,F4:3}[e.key];
+    if(fk!==undefined){
+      if(!playingFull&&phase==="hero_reply"&&vact){
+        return fire(handleHeroReply,["FOLD","CALL","RAISE","RAISE"][fk]);
+      }
+      if(!playingFull&&phase==="hero"&&answered===null&&Array.isArray(spot?.acts)&&spot.acts[fk]){
+        return fire(handleHeroAct,fk);
+      }
       return;
     }
     const k=(e.key||"").toLowerCase();
@@ -2901,11 +3022,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     }
   };
   useEffect(()=>{
-    if(numTables!==1)return;
+    // 1T : toujours. Multi-table : seule la table ACTIVE écoute (raccourcis F1–F4).
+    if(numTables!==1&&!isActive)return;
     const h=(e)=>keyHandlerRef.current&&keyHandlerRef.current(e);
     window.addEventListener("keydown",h);
     return()=>window.removeEventListener("keydown",h);
-  },[numTables]);
+  },[numTables,isActive]);
 
   // ── Spot impossible : la main s'arrête, message clair, passage automatique ──
   if(spotImpossible){
@@ -2916,7 +3038,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         <div style={{fontFamily:T.stats,fontSize:11,color:T.text3,maxWidth:340,lineHeight:1.5}}>
           Cette situation ne pouvait pas se produire (action précédente manquante ou sizing incohérent). PokerForge la passe automatiquement et charge la main suivante.
         </div>
-        <button className="gto-next-btn" style={{padding:"9px 18px",fontSize:12}} onClick={()=>{skipRef.current=true;onNext&&onNext();}}>Main suivante ▶</button>
+        <button className="gto-next-btn" style={{padding:"9px 18px",fontSize:12}} disabled={nextBusy} onClick={()=>{skipRef.current=true;callNext();}}>{nextLabel} ▶</button>
       </div>
     );
   }
@@ -2931,7 +3053,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const TRAINING_LAYOUT={
     1:{pb:"unused",    board:"2xl", boardGap:8, seat:68, fpos:13,  fstk:12,  actFnt:15, actPad:"15px 12px 13px", heroCard:"3xl", vilCard:"lg",  cardSize:"xs", dbtnSz:22, compact:false, potFntB:14, potFnt:18},
     2:{pb:MT_TABLE_PB, board:"xl",  boardGap:5, seat:48, fpos:10.5, fstk:9.5, actFnt:13, actPad:"12px 10px 10px", heroCard:"lg",  vilCard:"sm",  cardSize:"sm", dbtnSz:17, compact:false, potFntB:13, potFnt:15},
-    3:{pb:MT_TABLE_PB, board:"lg",  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:"md",  vilCard:"xs",  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
+    3:{pb:MT_TABLE_PB, board:"lg",  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:"smp", vilCard:"xs",  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
     4:{pb:MT_TABLE_PB, board:"md",  boardGap:3, seat:30, fpos:7,    fstk:6,   actFnt:10, actPad:"8px 6px 7px",   heroCard:"sm",  vilCard:"xs",  cardSize:"xs", dbtnSz:10, compact:true,  potFntB:12, potFnt:13},
   };
   const baseCfg=TRAINING_LAYOUT[numTables]||TRAINING_LAYOUT[2];
@@ -2943,7 +3065,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       seat:numTables===2?40:numTables===3?32:26,
       fpos:numTables===2?9.5:numTables===3?7.5:6.5,
       fstk:numTables===2?8.5:numTables===3?6.8:6,
-      heroCard:numTables===2?"md":numTables===3?"sm":"xs",
+      heroCard:numTables===2?"md":numTables===3?"smp":"sm",
       vilCard:"xs",
       dbtnSz:numTables===2?15:12,
       compact:true,
@@ -2951,7 +3073,30 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       potFnt:numTables===2?13:12,
     }
     :baseCfg;
-  const trainingLayout=getTrainingLayout(numTables,isMobile);
+  // 1T : layout HERO-CENTRIC dynamique (nb de joueurs = spot.nplayers, héros en bas).
+  // Multi-tables (2T/3T/4T) : layout statique historique (inchangé pour l'instant).
+  // HERO-CENTRIC dynamique : d'abord scopé au 1T MOBILE (desktop/multi-tables inchangés pour l'instant).
+  const heroCentric=numTables===1&&isMobile;
+  const seatOrder=(heroCentric&&spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:TRAINING_SEAT_ORDER;
+  const trainingLayout=useMemo(()=>{
+    if(!heroCentric)return getTrainingLayout(numTables,isMobile);
+    const cfgViz=TRAINER_VISUAL_1T_MOBILE;
+    const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
+    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry);
+    const layout=createTrainingTableLayout("1T-mobile-dyn",seats,cfgViz);
+    // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
+    // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
+    // le pot et la plaque) → plus aucun chevauchement pot/mise/board.
+    Object.entries(layout.seatAnchors).forEach(([p,a])=>{
+      const st=seats[p]; if(!st||st.y>22)return;
+      const bx=st.x<=40?st.x+9:st.x>=60?st.x-9:st.x+14;
+      const bpt={x:bx,y:st.y+16};
+      a.betAnchor={...bpt};a.preflopBetAnchor={...bpt};a.postflopBetAnchor={...bpt};
+      a.blindAnchor={x:bx,y:st.y+14};
+      a.actionLabelAnchor={x:bx+4,y:st.y+22};
+    });
+    return layout;
+  },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos]);
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
@@ -3136,8 +3281,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* Footer : rejouer + suivante */}
           <div className="pf-solfull-foot">
             <button className="gto-btn-secondary" style={{padding:"12px 16px",fontSize:15}} title="Rejouer ce spot" onClick={resetSpot}>↺</button>
-            <button className="gto-next-btn" style={{flex:1}} onClick={()=>{vibrate(VIB.next);setSolOpen(false);if(numTables===1)onNext();}}>
-              {numTables===1?(isLast?"🏆 Voir les résultats":"Main suivante ▶"):"✓ Fermer"}
+            <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);setSolOpen(false);if(numTables===1)callNext();}}>
+              {numTables===1?`${nextLabel} ▶`:"✓ Fermer"}
             </button>
           </div>
         </div>
@@ -3148,7 +3293,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   /* ══════════════════════════════════════════════════
      MODE 1 TABLE — layout immersif style GTO Wizard
   ══════════════════════════════════════════════════ */
-  if(is1T){
+  // ── Helpers de rendu (définis inconditionnellement : le panneau droit 1T est
+  //    réutilisé tel quel par les tables multi via portal — cf. renderRightPanel) ──
     // Positions des sièges autour de la table (% du conteneur externe)
     // Positions recalibrées : HJ/CO poussés à y:12 pour dégager le HUD (+9% vs avant)
     // Positions recalibrées avec safe-area : sièges du haut descendus (y:19) pour que
@@ -3202,7 +3348,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             {/* Next zone uniquement */}
             <div className="gto-next-zone">
               {numTables===1
-                ?<button className="gto-next-btn" onClick={onNext}>{isLast?"🏆 Voir les résultats":"Main suivante  ▶"}</button>
+                ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
                 :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
               }
               <button className="gto-btn-secondary" style={{padding:"12px 14px",fontSize:16}} title="Rejouer ce spot"
@@ -3469,7 +3615,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* ── Next zone (collante en bas du panel scrollable) ── */}
           <div className="gto-next-zone" style={{position:"sticky",bottom:0,background:"#030D2A"}}>
             {numTables===1
-              ?<button className="gto-next-btn" onClick={onNext}>{isLast?"🏆 Voir les résultats":"Main suivante  ▶"}</button>
+              ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
               :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
             }
             {spot.hand?.length>=2&&(
@@ -3541,7 +3687,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
           {/* ── Indice raccourcis clavier (1T) — rythme drill type GTO Wizard ── */}
           {numTables===1&&(
-            <div style={{display:"flex",justifyContent:"center",gap:7,marginTop:7,flexWrap:"wrap",fontFamily:T.stats,fontSize:7.5,color:T.text4}}>
+            <div className="mtr-kbd-hints" style={{display:"flex",justifyContent:"center",gap:7,marginTop:7,flexWrap:"wrap",fontFamily:T.stats,fontSize:7.5,color:T.text4}}>
               {[["F","Fold"],["C","Call/Check"],["B","Bet"],["R","Raise"],["A","All-in"],["⏎","Suivant"]].map(([k,l])=>(
                 <span key={k} style={{display:"flex",alignItems:"center",gap:3}}>
                   <kbd style={{display:"inline-flex",alignItems:"center",justifyContent:"center",minWidth:13,height:13,padding:"0 3px",borderRadius:3,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.14)",color:T.text3,fontFamily:T.mono,fontSize:7,fontWeight:700,lineHeight:1}}>{k}</kbd>
@@ -3607,7 +3753,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             <div style={{display:"flex",gap:7,justifyContent:"center"}}>
-              <button className="btn btng" onClick={()=>{setPlayingFull(false);onNext();}}>Main suivante ►</button>
+              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextLabel} ►</button>
               <button className="btn btns" onClick={startFullHand}>↺ Rejouer</button>
             </div>
           </div>
@@ -3634,9 +3780,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div style={{display:"flex",alignItems:"center",gap:4,justifyContent:"center"}}>
             <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Début">⏮</button>
             <button style={{...tbtn,opacity:.4,cursor:"not-allowed"}} disabled title="Précédent">⏪</button>
-            <button style={{...tbtn,width:28,height:28,fontSize:12,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 12px rgba(80,120,255,.34)"}} onClick={()=>{if(phase==="done")onNext();}} title={phase==="done"?"Main suivante":"En cours"}>▶</button>
-            <button style={tbtn} onClick={onNext} title="Suivant">⏩</button>
-            <button style={{...tbtn,opacity:isLast?.4:1,cursor:isLast?"not-allowed":"pointer"}} disabled={isLast} onClick={onNext} title="Passer">⏭</button>
+            <button style={{...tbtn,width:28,height:28,fontSize:12,background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",border:"none",color:"#fff",boxShadow:"0 0 12px rgba(80,120,255,.34)",opacity:nextBusy?.65:1,cursor:nextBusy?"wait":"pointer"}} disabled={nextBusy} onClick={()=>{if(phase==="done")callNext();}} title={phase==="done"?nextLabel:"En cours"}>▶</button>
+            <button style={{...tbtn,opacity:nextBusy?.65:1,cursor:nextBusy?"wait":"pointer"}} disabled={nextBusy} onClick={callNext} title={nextLabel}>⏩</button>
+            <button style={{...tbtn,opacity:(isLast||nextBusy)?.4:1,cursor:(isLast||nextBusy)?"not-allowed":"pointer"}} disabled={isLast||nextBusy} onClick={callNext} title="Passer">⏭</button>
             <span style={{marginLeft:5,fontFamily:"'JetBrains Mono',monospace",fontSize:7.5,color:T.text4,border:"1px solid #16305f",borderRadius:5,padding:"2px 6px"}}>1×</span>
             <button style={{...tbtn,marginLeft:1}} onClick={onFocusToggle} title="Focus / plein écran">⛶</button>
           </div>
@@ -3644,441 +3790,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       );
     };
 
-    return(
-      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden",...(oneTableStableShellStyle||{})}}>
-
-        {/* ── BARRE TOP : streets + timeline (desktop) ── */}
-        <div className="trainer-topstrip" style={{flexShrink:0,background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",minHeight:34}}>
-          {/* Streets pills */}
-          {STREETS.map(s=>{
-            const done=STREETS.indexOf(s)<STREETS.indexOf(spot.street);
-            const cur=s===spot.street;
-            return <span key={s} style={{
-              padding:"2px 10px",borderRadius:20,fontSize:9.5,fontFamily:T.stats,fontWeight:700,letterSpacing:".05em",
-              background:cur?"rgba(255,194,71,.14)":done?"rgba(16,216,122,.08)":"rgba(255,255,255,.03)",
-              color:cur?T.gold:done?T.green:T.text4,
-              border:`1px solid ${cur?"rgba(255,194,71,.35)":done?"rgba(16,216,122,.18)":"transparent"}`,
-              boxShadow:cur?"0 0 10px rgba(255,194,71,.15)":"none",
-            }}>{s}</span>;
-          })}
-          <span style={{width:1,height:14,background:"#152D6E",margin:"0 3px"}}/>
-          {/* Timeline actions */}
-          {tl.map((t,i)=>(
-            <span key={i} style={{display:"flex",alignItems:"center",gap:3}}>
-              <span style={{fontSize:9,color:T.text4,fontFamily:T.stats,fontWeight:700}}>{t.pos}</span>
-              <span className={`tlact ${tlCls(t.act)}`} style={{fontSize:9}}>{t.lbl}</span>
-              {i<tl.length-1&&<span style={{color:T.text4,fontSize:9}}>›</span>}
-            </span>
-          ))}
-          {thinking&&<span className="think" style={{marginLeft:4}}><span>·</span><span>·</span><span>·</span></span>}
-          {/* Timer */}
-          {phase==="hero"&&answered===null&&(
-            <span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontFamily:T.mono,fontSize:9,color:timerPct<25?T.red:T.text4,fontWeight:timerPct<25?700:400}}>{timerSec>0?Math.ceil(timerPct/100*timerSec)+"s":"∞"}</span>
-              <div className="action-timer" style={{width:64,borderRadius:2}}>
-                <div className={`action-timer-bar${timerPct<20?" urgent":""}`} style={{width:timerPct+"%"}}/>
-              </div>
-            </span>
-          )}
-        </div>
-
-        {/* ── MOBILE : streets + timer compacts (sous la barre Zone 1) ── */}
-        <div className="mtr-spothead">
-          {STREETS.map(s=>{
-            const done=STREETS.indexOf(s)<STREETS.indexOf(spot.street);
-            const cur=s===spot.street;
-            return <span key={s} className={`mtr-street${cur?" cur":done?" done":""}`}>{s.slice(0,4)}</span>;
-          })}
-          {phase==="hero"&&answered===null&&(
-            <span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
-              <span style={{fontFamily:T.mono,fontSize:10,fontWeight:700,color:timerPct<25?T.red:T.text3}}>{timerSec>0?Math.ceil(timerPct/100*timerSec)+"s":"∞"}</span>
-              <span className="mtr-timer-track"><span className="mtr-timer-fill" style={{width:timerPct+"%",background:timerPct<25?"#FF4560":"linear-gradient(90deg,#FFC247,#FF9800)"}}/></span>
-            </span>
-          )}
-          {phase!=="hero"&&tl.length>0&&(
-            <span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
-              <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontWeight:700}}>{tl[tl.length-1].pos}</span>
-              <span className={`tlact ${tlCls(tl[tl.length-1].act)}`} style={{fontSize:8,padding:"1px 6px"}}>{tl[tl.length-1].lbl}</span>
-            </span>
-          )}
-        </div>
-
-        {/* ── HUD ── */}
-        <div className="trainer-hud">
-          <span className="hud-chip hud-pos">📍 {spot.hpos}</span>
-          <span className="hud-chip hud-stack">📊 {spot.stack}</span>
-          <span className="hud-chip hud-spr">SPR {spr}</span>
-          {potOddsStr&&<span className="hud-chip hud-odds">Pot Odds {potOddsStr}</span>}
-          <span className="hud-chip hud-eff" style={{background:"rgba(155,92,255,.08)",color:"#9B5CFF",border:"1px solid rgba(155,92,255,.15)"}}>🃏 {spot.fmt}</span>
-          {/* Mode badge dans le HUD */}
-          <span style={{
-            padding:"2px 7px",borderRadius:5,
-            fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:700,
-            background:trainerMode==="gto"?"rgba(52,216,255,.08)":"rgba(255,138,61,.08)",
-            color:trainerMode==="gto"?"#34D8FF":"#FF8A3D",
-            border:`1px solid ${trainerMode==="gto"?"rgba(52,216,255,.2)":"rgba(255,138,61,.2)"}`,
-          }}>{trainerMode==="gto"?"GTO":PLATFORM_PROFILES[platform]?.flag||"🦈"}</span>
-          <div className="hud-diff">
-            <span style={{width:6,height:6,borderRadius:"50%",background:diffCol,flexShrink:0}}/>
-            {diffLabel}
-          </div>
-        </div>
-
-        {/* ── TOAST ── */}
-        {showToast&&<div className="error-toast"><span className="error-toast-icon">⚠</span>{showToast}</div>}
-
-        {/* ── ZONE PRINCIPALE : 2 COLONNES desktop / pile verticale mobile ── */}
-        <div className="t1-row" style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
-
-        {/* ══ COLONNE GAUCHE : TABLE (68% desktop · plein écran mobile) ══ */}
-        <div className="t1-left" style={{flex:"0 0 68%",display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
-
-         <div className="t1-table-area" style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
-
-          {/* Focus Mode button */}
-          {onFocusToggle&&<div className={`focus-mode-btn${focusMode?" on":""}`} title={focusMode?"Quitter le focus":"Mode focus"} onClick={onFocusToggle}>{focusMode?"⊡":"⊠"}</div>}
-
-          {/* ── Post-Decision Feedback overlay ── */}
-          {phase==="done"&&answered!==null&&(()=>{
-            const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
-            const myEv=spot.ev[spot.acts[answered]?.id]||0;
-            const evDiff=myEv-bestEv;
-            const isBest=answered===spot.ok;
-            const ico=isBest?"✔":evDiff>=-0.3?"≈":"✖";
-            const col=isBest?"#10D87A":evDiff>=-0.3?"#FFC247":"#FF4560";
-            const glw=isBest?"rgba(16,216,122,.4)":evDiff>=-0.3?"rgba(255,194,71,.4)":"rgba(255,69,96,.4)";
-            return(
-              <div className="post-decision-feedback" key={answered} style={{top:"50%",left:"50%"}}>
-                <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw},0 0 40px ${glw.replace(".4",".2")}`}}>
-                  <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
-                </div>
-                {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{evDiff.toFixed(2)} bb EV</span>}
-              </div>
-            );
-          })()}
-
-          {/* ── FEUTRE OVALE PREMIUM ── */}
-          <div className="felt-oval" style={trainerFeltStyle(1,{phase,errorFlash,geometry:trainingLayout.tableGeometry})}>
-            {/* Rail intérieur — double ring premium */}
-            <div style={feltRailStyle(1,"outer",trainingLayout.tableGeometry)}/>
-            <div style={feltRailStyle(1,"inner",trainingLayout.tableGeometry)}/>
-
-            {/* POT */}
-            {(()=>{
-              const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
-              const potVal=mainPotBb;
-              const potPt=potPointFor(1,hasBoard);
-              return hasBoard?(
-                /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                  <TrainingPotStack value={potVal} compact themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
-                  <span className="pf-pot-label">POT</span>
-                  <span className="pf-pot-value">{fmt(potVal)}</span>
-                </div>
-              ):(
-                /* Pot centré quand pas de board */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                  <TrainingPotStack value={potVal} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
-                  <span className="pf-pot-label">POT</span>
-                  <span className="pf-pot-value">{fmt(potVal)}</span>
-                </div>
-              );
-            })()}
-
-            {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
-            {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
-                filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
-                {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
-                  <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
-                    <Card r={c.r} s={c.s} size={boardSize} delay={0}/>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* ── JETONS CASINO POT — pile 3D stacking vertical ── */}
-            {false&&(()=>{
-              const potVal=mainPotBb;
-              const stackH=Math.min(9,Math.max(1,Math.ceil(potVal/5)));
-              const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
-              if((Number(potVal)||0)>=0||!hasBoard)return null;
-              const theme=CHIP_THEMES[chipTheme]||CHIP_THEMES.blue;
-              const sz=18;
-              return(
-                <div style={{position:"absolute",top:"30%",left:"50%",transform:"translate(-50%,-50%)",zIndex:7,display:"flex",flexDirection:"column",alignItems:"center",gap:3,filter:`drop-shadow(0 4px 12px ${theme.glow})`}}>
-                  <div style={{position:"relative",width:sz,height:sz+(stackH-1)*4}}>
-                    {[...Array(stackH)].map((_,i)=>(
-                      <div key={i} style={{
-                        position:"absolute",bottom:i*4,left:0,
-                        width:sz,height:sz,borderRadius:"50%",
-                        background:theme.cols[i%theme.cols.length],
-                        border:`1.5px solid ${theme.edge}`,
-                        boxShadow:`inset 0 -2px 4px rgba(0,0,0,.55),inset 0 2px 3px rgba(255,255,255,.22),0 ${i===stackH-1?3:1}px ${i===stackH-1?7:2}px rgba(0,0,0,.7)`,
-                        overflow:"hidden",
-                      }}>
-                        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at 35% 28%,rgba(255,255,255,.4) 0%,transparent 58%)",pointerEvents:"none"}}/>
-                        <div style={{position:"absolute",inset:4,borderRadius:"50%",border:"1px solid rgba(255,255,255,.1)",pointerEvents:"none"}}/>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Phase flash overlay */}
-            {phaseFlash&&<div className="phase-flash"/>}
-            {potDelta&&<div className="pot-delta" style={{top:((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))?"22%":"42%"}}>+{fmt(potDelta.amount)}</div>}
-            <ChipAnimation event={chipMove} compact={false}/>
-            {/* CHIP HERO → POT */}
-            {heroChip&&<div className="chip-hero-fly"><span>{heroChip}</span></div>}
-            {/* CHIP VILLAIN → POT */}
-            {vilChip&&<div className="chip-vil-fly"><span>{vilChip}</span></div>}
-            {/* CHIP ANIMATION legacy */}
-            {chipAnim&&<div className="chip-fly"><span>{chipAnim}</span></div>}
-          </div>
-
-          {/* ══ SIÈGES 1T — Seat cards concept premium ══ */}
-          {TRAINING_SEAT_ORDER.map(pos=>{
-            const coord=seats1T[pos];
-            if(!coord)return null;
-            const isH=pos===spot.hpos, isV=pos===spot.vpos;
-            const seatState=seatStates[pos]||{};
-            const seatFolded=!!seatState.folded;
-            const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
-            const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV);
-            const isDone=answered!==null;
-            const col=isH?T.gold:isV?"#c090ff":T.text3;
-            const seatLiveAction=tableAction?.position===pos?tableAction:null;
-            const seatLoggedAction=[...handLog].reverse().find(a=>a.position===pos);
-            const seatActionSource=seatLiveAction||seatLoggedAction||null;
-            const lastAct=isH&&isDone
-              ?{...spot.acts[answered],id:seatActionSource?.actionType||spot.acts[answered]?.id,l:seatActionSource?.displayLabel||spot.acts[answered]?.l}
-              :isV&&vact?{id:seatActionSource?.actionType||vact.action,l:seatActionSource?.displayLabel||vact.label}:null;
-            const actCls=lastAct?
-              lastAct.id==="FOLD"?"action-fold":
-              lastAct.id==="CALL"?"action-call":
-              lastAct.id==="CHECK"||lastAct.id==="CHECK_BACK"?"action-check":
-              lastAct.id==="RAISE"||lastAct.id==="3BET"||lastAct.id==="4BET"||lastAct.id==="5BET"?"action-raise":
-              lastAct.id==="ALLIN"?"action-allin":"action-bet":"";
-            const vp=isV?(VILLAIN_PROFILES[spot.vtype]||{vpip:22,pfr:18}):SEAT_DEFAULT_STATS[pos]||{vpip:22,pfr:18};
-            const displayStack=isH?parseFloat(spot.stack)||100:60;
-            const avSz=isMobile?(isH?46:40):(isH?70:64);
-            const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
-            const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
-            const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
-            const heroBetAmt=hasBet?eventAmount:0;
-            const vilBetAmt=hasVilBet?eventAmount:0;
-            // ── Jetons « pré-décision » : ce que chacun a engagé AVANT que Hero agisse ──
-            // (open/3-bet/c-bet du vilain + open déjà investi par Hero) — indispensable
-            // pour comprendre pourquoi Hero doit call/3-bet/defend.
-            const activeStreetBetsVisible=!isDone&&!vact&&!playingFull;
-            const preDecision=activeStreetBetsVisible;
-            let preChipAmt=0,preChipLabel=null;
-            if(preDecision){
-              if(isV&&spotCtx.facing&&spotCtx.facing.position===pos){preChipAmt=spotCtx.facing.amount;preChipLabel=spotCtx.facing.label;}
-              else if(isH&&spotCtx.heroCommitted>(TRAINER_BLINDS[pos]||0)){preChipAmt=spotCtx.heroCommitted;}
-              else if(!isH&&!isV&&seatState.invested>0){preChipAmt=seatState.invested;preChipLabel=seatState.lastLabel||"Call";}
-            }
-            const betAmt=hasBet?heroBetAmt:hasVilBet?vilBetAmt:preChipAmt;
-            const chipLabel=(hasBet||hasVilBet)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):preChipLabel;
-            const chipLabelCol=hasBet?T.gold:hasVilBet?(vact.color||T.purple):"#9B5CFF";
-            const chipCount=betAmt>0?Math.min(6,Math.max(1,Math.ceil(betAmt/4))):0;
-            const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard});
-            const cpx=actionPt.x;
-            const cpy=actionPt.y;
-            const isTopSeat1T=coord.y<=24;
-            const isBottomSeat1T=coord.y>=68;
-            const seatTransform1T=isMobile
-              ?(isTopSeat1T?"translate(-50%,-35%)":isBottomSeat1T?"translate(-50%,-58%)":"translate(-50%,-50%)")
-              :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
-            const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
-            const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
-            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?5:6);
-            return(
-              <React.Fragment key={pos}>
-
-                {/* ── SEAT CARD ── */}
-                <PlayerSeat pos={pos} mode="1T" style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
-
-                  {/* Villain cards above seat */}
-                  {isV&&(
-                    <div style={{marginBottom:5,position:"relative"}}>
-                      <VillainBackCards size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
-                      {(thinking||(playingFull&&fhVilThink))&&(
-                        <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
-                          <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!isH&&!isV&&(
-                    <div style={{marginBottom:3}}>
-                      <VillainBackCards size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
-                    </div>
-                  )}
-
-                  {/* ── Cartes Hero ABOVE seat — hero en position basse (SB/BB, y>50) ── */}
-                  {isH&&(
-                    <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{marginBottom:heroCardMarginForSeat1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
-                  )}
-
-                  {isV&&isActive&&(
-                    <div style={{
-                      marginBottom:3,padding:"2px 10px",borderRadius:20,
-                      background:"rgba(155,92,255,.16)",border:"1px solid rgba(155,92,255,.42)",
-                      fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
-                      color:"#c090ff",letterSpacing:".06em",
-                      boxShadow:"0 0 10px rgba(155,92,255,.28)",
-                    }}>Vilain reflechit...</div>
-                  )}
-
-                  {/* Player card */}
-                  <div className={`player-card-1t${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
-                    <PlayerAvatarPremium isHero={isH} isVillain={isV} profile={isV?spot.vtype:isH?"Hero":seatState.profile||trainerSeatAvatarProfile(pos)} size={avSz} active={isActive||seatMultiway}/>
-                    {isH&&<span className="pf-seat-hero-chip">HERO</span>}
-                    <div className="pf-seat-nameplate">
-                      <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{pos}</span>
-                      <span className="seat-card-stack" style={{fontSize:isH?11:9.5,color:isH?T.gold:T.text3}}>{fmt(displayStack)}</span>
-                    </div>
-                    <div className="seat-card-stats">
-                      <span>VPIP {vp.vpip}</span>
-                      <span style={{color:"rgba(111,129,168,.4)"}}>·</span>
-                      <span>PFR {vp.pfr}</span>
-                    </div>
-                    {/* Range button */}
-                    {(isH||isV)&&(
-                      <div className={`seat-range-btn${isV?" vil":""}`}
-                        title={isH?"Voir ma range":"Voir range Villain"}
-                        onClick={()=>setRangePopup({heroPos:spot.hpos,vilPos:spot.vpos,heroAction:spot.acts[spot.ok]?.id?.toLowerCase()||"open",stackBB:parseFloat(spot.stack)||100})}>
-                        R
-                      </div>
-                    )}
-                  </div>
-                  {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip">Fold</span>}
-                  {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
-
-                  {/* ── Cartes Hero BELOW seat — hero en position haute/côté (HJ/CO/BTN/UTG, y≤50) ── */}
-                  {false&&isH&&coord.y<=50&&!playingFull&&(
-                    <div style={{display:"flex",gap:8,marginTop:5,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.9)) drop-shadow(0 0 14px rgba(31,139,255,.25))"}}>
-                      {spot.hand.map((c,i)=>(
-                        <div key={i} className="deal-hero" style={{animationDelay:`${i*.1}s`,outline:"2px solid rgba(31,139,255,.38)",outlineOffset:2,borderRadius:4,boxShadow:"0 0 20px rgba(31,139,255,.3)"}}>
-                          <Card r={c.r} s={c.s} size={heroCardSize1T} delay={0}/>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Action badge */}
-                  {lastAct&&!playingFull&&!(betAmt>0)&&(
-                    <span className={`seat-action-badge ${actCls}`} style={{marginTop:4,fontSize:9,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>
-                  )}
-                  {playingFull&&isV&&fhVilAct&&(
-                    <span className={`seat-action-badge ${trainerActionCssClass(fhVilAct.action)}`} style={{marginTop:4}}>
-                      {fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action,fhVilAct)}
-                    </span>
-                  )}
-                  {/* Badge action Hero en main complète (street courante) — symétrie avec le vilain */}
-                  {playingFull&&isH&&(()=>{
-                    const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet);
-                    if(!ha)return null;
-                    return(
-                      <span className={`seat-action-badge ${trainerActionCssClass(ha.action)}`} style={{marginTop:4}}>
-                        {trainerActionDisplayVerb(ha.action)}
-                      </span>
-                    );
-                  })()}
-                </PlayerSeat>
-
-                {/* ── CHIP PILE — between seat and oval center ── */}
-                {false&&chipCount>0&&!playingFull&&(()=>{
-                  const theme=CHIP_THEMES[isH?chipTheme:"blue"]||CHIP_THEMES.blue;
-                  const vilCols=seatMultiway?["#00E6B8","#00A88E","#036B62","#C0FFF2","#1F8BFF"]:["#9B5CFF","#7D3DCC","#5E2E99","#3F1F66","#C080FF"];
-                  const chipCols=isH?theme.cols:vilCols;
-                  const edgeCol=isH?theme.edge:seatMultiway?"#00A88E":"#8030C0";
-                  const glw=isH?theme.glow:seatMultiway?"rgba(0,230,184,.42)":"rgba(155,92,255,.4)";
-                  const csz=15;
-                  return(
-                    <div style={{position:"absolute",left:`${cpx}%`,top:`${cpy}%`,transform:"translate(-50%,-50%)",zIndex:18,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                      <div style={{position:"relative",width:csz,height:csz+(chipCount-1)*4,filter:`drop-shadow(0 4px 8px ${glw})`}}>
-                        {[...Array(chipCount)].map((_,ci)=>(
-                          <div key={ci} style={{
-                            position:"absolute",bottom:ci*4,left:0,
-                            width:csz,height:csz,borderRadius:"50%",
-                            background:chipCols[ci%chipCols.length],
-                            border:`1.5px solid ${edgeCol}`,
-                            boxShadow:`inset 0 -2px 3px rgba(0,0,0,.55),inset 0 2px 2px rgba(255,255,255,.22),0 1px 3px rgba(0,0,0,.7)`,
-                            overflow:"hidden",
-                          }}>
-                            <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at 35% 28%,rgba(255,255,255,.38) 0%,transparent 56%)",pointerEvents:"none"}}/>
-                            <div style={{position:"absolute",inset:3,borderRadius:"50%",border:"1px solid rgba(255,255,255,.1)",pointerEvents:"none"}}/>
-                          </div>
-                        ))}
-                      </div>
-                      <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:isH?T.gold:T.purple,textShadow:`0 0 8px ${glw}`}}>{fmt(betAmt)}</span>
-                      {chipLabel&&(
-                        <span style={{
-                          fontSize:8,fontFamily:"'Space Grotesk',sans-serif",fontWeight:800,
-                          color:chipLabelCol,background:`${chipLabelCol}22`,
-                          padding:"1px 6px",borderRadius:5,border:`1px solid ${chipLabelCol}55`,
-                          marginTop:2,letterSpacing:".04em",whiteSpace:"nowrap",
-                        }}>{chipLabel}</span>
-                      )}
-                    </div>
-                  );
-                })()}
-                <SeatActionZone
-                  x={cpx}
-                  y={cpy}
-                  amount={!playingFull?betAmt:0}
-                  label={chipLabel||trainerActionVerb(trainerActionType(lastAct?.id||"BET"))}
-                  type={trainerVisualActionType(chipLabel||lastAct?.id||"BET")}
-                  compact={isMobile}
-                  kind={isH?"hero":seatMultiway?"multiway":"villain"}
-                  themeKey={chipTheme}
-                  colorKey={chipColor}
-                  sizeMode={chipSizeMode}
-                  tableMode={1}
-                />
-
-              </React.Fragment>
-            );
-          })}
-
-          {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
-          {showStaticBlindMarkers&&["SB","BB"].map(bp=>{
-            const p=resolveTrainerBlindPoint(trainingLayout,bp);
-            return(
-              <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-                <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
-              </div>
-            );
-          })}
-
-          {(()=>{
-            const d=dealerAnchorPoint(trainingLayout);
-            return <div className="dealer-btn" style={{left:`${d.x}%`,top:`${d.y}%`}}>D</div>;
-          })()}
-
-          {compactActionLine()&&<div className="table-action-line"><strong>{spot.street}</strong> {compactActionLine()}</div>}
-
-          {spot.toCall>0&&(
-            <div style={{position:"absolute",bottom:"1%",left:"50%",transform:"translateX(-50%)",fontSize:9,color:T.amber,fontFamily:T.mono,whiteSpace:"nowrap",zIndex:31,fontWeight:700,background:"rgba(255,138,0,.12)",padding:"1px 8px",borderRadius:10,border:"1px solid rgba(255,138,0,.25)",display:"flex",gap:6,alignItems:"center"}}>
-              {answered===null&&!vact&&spotCtx.facing&&<span style={{color:"#c090ff"}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}</span>}
-              <span>À payer : {fmt(spot.toCall)}</span>
-            </div>
-          )}
-
-         </div>{/* ── fin ZONE TABLE ── */}
-
-          {/* ══ ACTIONS HÉRO — centrées sous la table (maquette v2 : actions puis sizings) ══ */}
-          <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
-            {phase==="hero_reply"&&vact&&renderHeroReply()}
-            {phase==="hero"&&renderActionZone()}
-          </div>
-
-        </div>{/* ── fin COLONNE GAUCHE ── */}
-
-        {/* ══ COLONNE DROITE : CONTRÔLES (desktop — masquée mobile, contenu → bottom sheet) ══ */}
+      const renderRightPanel=()=>(
         <div className="t1-right" style={{flex:"0 0 32%",display:"flex",flexDirection:"column",background:"linear-gradient(180deg,#030D2A,#020810)",borderLeft:"1px solid #152D6E",overflow:"hidden",minWidth:0}}>
 
           {/* HUD compact */}
@@ -4265,13 +3977,488 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             {/* FULL-HAND : actions accessibles même solution masquée */}
             {renderFhActions()}
 
+            {/* ══ AIDE MULTI-TABLE — contenu de l'ex-bandeau bas, intégré ici quand
+               la solution est affichée (numTables>1). Piloté par le spot de la table active. ══ */}
+            {numTables>1&&showSol&&(()=>{
+              const acts=Array.isArray(spot?.acts)?spot.acts:[];
+              const sk=(i,f)=>acts[i]?.l||f;
+              return(
+                <div className="pf-mtp-help">
+                  <div className="pf-mtp-title" style={{color:"#54b8ff"}}>INSTRUCTIONS</div>
+                  <div className="pf-mtp-help-instr">
+                    <strong>{(spot?.street||"PREFLOP").toUpperCase()} · {spot?.hpos||"Hero"}</strong>
+                    <span>{spot?.desc||"Prends la meilleure décision sur cette table."}</span>
+                  </div>
+                  <div className="pf-mtp-title" style={{color:"#54b8ff",marginTop:8}}>RACCOURCIS</div>
+                  <div className="pf-mtp-help-keys">
+                    {[["F1",sk(0,"Fold")],["F2",sk(1,"Check/Call")],["F3",sk(2,"Bet/Raise")],["F4",sk(3,"Bet Pot/All-in")]].map(([k,l])=>(
+                      <div key={k} className="pf-mtp-help-key"><span className="kk">{k}</span><span className="kl">{l}</span></div>
+                    ))}
+                  </div>
+                  <div className="pf-mtp-title" style={{color:"#54b8ff",marginTop:8}}>RAPPELS · ACTIONS RAPIDES</div>
+                  <ul className="pf-mtp-help-list">
+                    <li>La table active (halo bleu) reçoit les raccourcis F1–F4.</li>
+                    <li>Clique une autre table pour la rendre active.</li>
+                    <li>Min = mise minimale · 2.5x/3x/3.5x/4x = multiplier · All-in = tapis.</li>
+                    <li>+/- = ajuster le montant.</li>
+                  </ul>
+                </div>
+              );
+            })()}
+
           </div>{/* ── fin zone scrollable ── */}
 
           {/* ══ TIMELINE — bas du bandeau droit (maquette v2). Les actions Héro
              sont désormais centrées sous la table : plus aucun chevauchement. ══ */}
           {renderTimeline()}
 
-        </div>{/* ── fin COLONNE DROITE ── */}
+        </div>
+      );
+
+    if(is1T) return(
+      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden",...(oneTableStableShellStyle||{})}}>
+
+        {/* ── BARRE TOP : streets + timeline (desktop) ── */}
+        <div className="trainer-topstrip" style={{flexShrink:0,background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",minHeight:34}}>
+          {/* Streets pills */}
+          {STREETS.map(s=>{
+            const done=STREETS.indexOf(s)<STREETS.indexOf(spot.street);
+            const cur=s===spot.street;
+            return <span key={s} style={{
+              padding:"2px 10px",borderRadius:20,fontSize:9.5,fontFamily:T.stats,fontWeight:700,letterSpacing:".05em",
+              background:cur?"rgba(255,194,71,.14)":done?"rgba(16,216,122,.08)":"rgba(255,255,255,.03)",
+              color:cur?T.gold:done?T.green:T.text4,
+              border:`1px solid ${cur?"rgba(255,194,71,.35)":done?"rgba(16,216,122,.18)":"transparent"}`,
+              boxShadow:cur?"0 0 10px rgba(255,194,71,.15)":"none",
+            }}>{s}</span>;
+          })}
+          <span style={{width:1,height:14,background:"#152D6E",margin:"0 3px"}}/>
+          {/* Timeline actions */}
+          {tl.map((t,i)=>(
+            <span key={i} style={{display:"flex",alignItems:"center",gap:3}}>
+              <span style={{fontSize:9,color:T.text4,fontFamily:T.stats,fontWeight:700}}>{t.pos}</span>
+              <span className={`tlact ${tlCls(t.act)}`} style={{fontSize:9}}>{t.lbl}</span>
+              {i<tl.length-1&&<span style={{color:T.text4,fontSize:9}}>›</span>}
+            </span>
+          ))}
+          {thinking&&<span className="think" style={{marginLeft:4}}><span>·</span><span>·</span><span>·</span></span>}
+          {/* Timer */}
+          {phase==="hero"&&answered===null&&(
+            <span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontFamily:T.mono,fontSize:9,color:timerPct<25?T.red:T.text4,fontWeight:timerPct<25?700:400}}>{timerSec>0?Math.ceil(timerPct/100*timerSec)+"s":"∞"}</span>
+              <div className="action-timer" style={{width:64,borderRadius:2}}>
+                <div className={`action-timer-bar${timerPct<20?" urgent":""}`} style={{width:timerPct+"%"}}/>
+              </div>
+            </span>
+          )}
+        </div>
+
+        {/* ── MOBILE : streets + timer compacts (sous la barre Zone 1) ── */}
+        <div className="mtr-spothead">
+          {STREETS.map(s=>{
+            const done=STREETS.indexOf(s)<STREETS.indexOf(spot.street);
+            const cur=s===spot.street;
+            return <span key={s} className={`mtr-street${cur?" cur":done?" done":""}`}>{s.slice(0,4)}</span>;
+          })}
+          {phase==="hero"&&answered===null&&(
+            <span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+              <span style={{fontFamily:T.mono,fontSize:10,fontWeight:700,color:timerPct<25?T.red:T.text3}}>{timerSec>0?Math.ceil(timerPct/100*timerSec)+"s":"∞"}</span>
+              <span className="mtr-timer-track"><span className="mtr-timer-fill" style={{width:timerPct+"%",background:timerPct<25?"#FF4560":"linear-gradient(90deg,#FFC247,#FF9800)"}}/></span>
+            </span>
+          )}
+          {phase!=="hero"&&tl.length>0&&(
+            <span style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+              <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontWeight:700}}>{tl[tl.length-1].pos}</span>
+              <span className={`tlact ${tlCls(tl[tl.length-1].act)}`} style={{fontSize:8,padding:"1px 6px"}}>{tl[tl.length-1].lbl}</span>
+            </span>
+          )}
+        </div>
+
+        {/* ── HUD ── (mobile : masqué ici, re-rendu sous l'historique — cf. .pf-spot-info-bottom) */}
+        <div className="trainer-hud trainer-hud-top">
+          <span className="hud-chip hud-pos">📍 {spot.hpos}</span>
+          <span className="hud-chip hud-stack">📊 {spot.stack}</span>
+          <span className="hud-chip hud-spr">SPR {spr}</span>
+          {potOddsStr&&<span className="hud-chip hud-odds">Pot Odds {potOddsStr}</span>}
+          <span className="hud-chip hud-eff" style={{background:"rgba(155,92,255,.08)",color:"#9B5CFF",border:"1px solid rgba(155,92,255,.15)"}}>🃏 {spot.fmt}</span>
+          {/* Mode badge dans le HUD */}
+          <span style={{
+            padding:"2px 7px",borderRadius:5,
+            fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:700,
+            background:trainerMode==="gto"?"rgba(52,216,255,.08)":"rgba(255,138,61,.08)",
+            color:trainerMode==="gto"?"#34D8FF":"#FF8A3D",
+            border:`1px solid ${trainerMode==="gto"?"rgba(52,216,255,.2)":"rgba(255,138,61,.2)"}`,
+          }}>{trainerMode==="gto"?"GTO":PLATFORM_PROFILES[platform]?.flag||"🦈"}</span>
+          <div className="hud-diff">
+            <span style={{width:6,height:6,borderRadius:"50%",background:diffCol,flexShrink:0}}/>
+            {diffLabel}
+          </div>
+        </div>
+
+        {/* ── TOAST ── */}
+        {showToast&&<div className="error-toast"><span className="error-toast-icon">⚠</span>{showToast}</div>}
+
+        {/* ── ZONE PRINCIPALE : 2 COLONNES desktop / pile verticale mobile ── */}
+        <div className="t1-row" style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+
+        {/* ══ COLONNE GAUCHE : TABLE (68% desktop · plein écran mobile) ══ */}
+        {/* Refonte V2 : la table occupe toute la largeur — le panneau droit est
+           désormais la colonne partagée V2 rendue par le parent (même logique
+           que le multi). */}
+        <div className="t1-left" style={{flex:"1 1 auto",minWidth:0,display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
+
+         <div className="t1-table-area" style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
+
+          {/* Focus Mode button */}
+          {onFocusToggle&&<div className={`focus-mode-btn${focusMode?" on":""}`} title={focusMode?"Quitter le focus":"Mode focus"} onClick={onFocusToggle}>{focusMode?"⊡":"⊠"}</div>}
+
+          {/* ── Post-Decision Feedback overlay ── */}
+          {phase==="done"&&answered!==null&&(()=>{
+            const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
+            const myEv=spot.ev[spot.acts[answered]?.id]||0;
+            const evDiff=myEv-bestEv;
+            const isBest=answered===spot.ok;
+            const ico=isBest?"✔":evDiff>=-0.3?"≈":"✖";
+            const col=isBest?"#10D87A":evDiff>=-0.3?"#FFC247":"#FF4560";
+            const glw=isBest?"rgba(16,216,122,.4)":evDiff>=-0.3?"rgba(255,194,71,.4)":"rgba(255,69,96,.4)";
+            return(
+              <div className="post-decision-feedback" key={answered} style={{top:"50%",left:"50%"}}>
+                <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw},0 0 40px ${glw.replace(".4",".2")}`}}>
+                  <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
+                </div>
+                {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{evDiff.toFixed(2)} bb EV</span>}
+              </div>
+            );
+          })()}
+
+          {/* ── FEUTRE OVALE PREMIUM ── */}
+          <div className="felt-oval" style={trainerFeltStyle(1,{phase,errorFlash,geometry:trainingLayout.tableGeometry})}>
+            {/* Rail intérieur — double ring premium */}
+            <div style={feltRailStyle(1,"outer",trainingLayout.tableGeometry)}/>
+            <div style={feltRailStyle(1,"inner",trainingLayout.tableGeometry)}/>
+
+            {/* POT */}
+            {(()=>{
+              const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
+              const potVal=mainPotBb;
+              const potPt=potPointFor(1,hasBoard);
+              return hasBoard?(
+                /* Pot compact au-dessus du board */
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?31:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
+                  <span className="pf-pot-label">POT</span>
+                  <span className="pf-pot-value">{fmt(potVal)}</span>
+                </div>
+              ):(
+                /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
+                   (le pot non-compact est plus haut → à 32% il chevauchait la plaque
+                   du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
+                  <span className="pf-pot-label">POT</span>
+                  <span className="pf-pot-value">{fmt(potVal)}</span>
+                </div>
+              );
+            })()}
+
+            {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
+            {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?46:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+                filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
+                {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
+                  <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
+                    <Card r={c.r} s={c.s} size={boardSize} delay={0}/>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* ── JETONS CASINO POT — pile 3D stacking vertical ── */}
+            {false&&(()=>{
+              const potVal=mainPotBb;
+              const stackH=Math.min(9,Math.max(1,Math.ceil(potVal/5)));
+              const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
+              if((Number(potVal)||0)>=0||!hasBoard)return null;
+              const theme=CHIP_THEMES[chipTheme]||CHIP_THEMES.blue;
+              const sz=18;
+              return(
+                <div style={{position:"absolute",top:"30%",left:"50%",transform:"translate(-50%,-50%)",zIndex:7,display:"flex",flexDirection:"column",alignItems:"center",gap:3,filter:`drop-shadow(0 4px 12px ${theme.glow})`}}>
+                  <div style={{position:"relative",width:sz,height:sz+(stackH-1)*4}}>
+                    {[...Array(stackH)].map((_,i)=>(
+                      <div key={i} style={{
+                        position:"absolute",bottom:i*4,left:0,
+                        width:sz,height:sz,borderRadius:"50%",
+                        background:theme.cols[i%theme.cols.length],
+                        border:`1.5px solid ${theme.edge}`,
+                        boxShadow:`inset 0 -2px 4px rgba(0,0,0,.55),inset 0 2px 3px rgba(255,255,255,.22),0 ${i===stackH-1?3:1}px ${i===stackH-1?7:2}px rgba(0,0,0,.7)`,
+                        overflow:"hidden",
+                      }}>
+                        <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at 35% 28%,rgba(255,255,255,.4) 0%,transparent 58%)",pointerEvents:"none"}}/>
+                        <div style={{position:"absolute",inset:4,borderRadius:"50%",border:"1px solid rgba(255,255,255,.1)",pointerEvents:"none"}}/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Phase flash overlay */}
+            {phaseFlash&&<div className="phase-flash"/>}
+            {potDelta&&<div className="pot-delta" style={{top:((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))?"22%":"42%"}}>+{fmt(potDelta.amount)}</div>}
+            <ChipAnimation event={chipMove} compact={false}/>
+            {/* CHIP HERO → POT */}
+            {heroChip&&<div className="chip-hero-fly"><span>{heroChip}</span></div>}
+            {/* CHIP VILLAIN → POT */}
+            {vilChip&&<div className="chip-vil-fly"><span>{vilChip}</span></div>}
+            {/* CHIP ANIMATION legacy */}
+            {chipAnim&&<div className="chip-fly"><span>{chipAnim}</span></div>}
+          </div>
+
+          {/* ══ SIÈGES 1T — Seat cards concept premium ══ */}
+          {seatOrder.map(pos=>{
+            const coord=seats1T[pos];
+            if(!coord)return null;
+            const isH=pos===spot.hpos, isV=pos===spot.vpos;
+            const seatState=seatStates[pos]||{};
+            const seatFolded=!!seatState.folded;
+            const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
+            const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV);
+            const isDone=answered!==null;
+            const col=isH?T.gold:isV?"#c090ff":T.text3;
+            const seatLiveAction=tableAction?.position===pos?tableAction:null;
+            const seatLoggedAction=[...handLog].reverse().find(a=>a.position===pos);
+            const seatActionSource=seatLiveAction||seatLoggedAction||null;
+            const lastAct=isH&&isDone
+              ?{...spot.acts[answered],id:seatActionSource?.actionType||spot.acts[answered]?.id,l:seatActionSource?.displayLabel||spot.acts[answered]?.l}
+              :isV&&vact?{id:seatActionSource?.actionType||vact.action,l:seatActionSource?.displayLabel||vact.label}:null;
+            const actCls=lastAct?
+              lastAct.id==="FOLD"?"action-fold":
+              lastAct.id==="CALL"?"action-call":
+              lastAct.id==="CHECK"||lastAct.id==="CHECK_BACK"?"action-check":
+              lastAct.id==="RAISE"||lastAct.id==="3BET"||lastAct.id==="4BET"||lastAct.id==="5BET"?"action-raise":
+              lastAct.id==="ALLIN"?"action-allin":"action-bet":"";
+            const vp=isV?(VILLAIN_PROFILES[spot.vtype]||{vpip:22,pfr:18}):SEAT_DEFAULT_STATS[pos]||{vpip:22,pfr:18};
+            const displayStack=isH?parseFloat(spot.stack)||100:60;
+            // Densité : sur les grandes tables mobiles (7-9 joueurs) on réduit les avatars pour les désengorger.
+            const nSeats=seatOrder.length;
+            const denseScale=!isMobile||nSeats<=6?1:nSeats===7?0.9:nSeats===8?0.82:0.76;
+            const avSz=isMobile?Math.round((isH?41:35)*denseScale):(isH?70:64);
+            const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
+            const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
+            const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
+            const heroBetAmt=hasBet?eventAmount:0;
+            const vilBetAmt=hasVilBet?eventAmount:0;
+            // ── Jetons « pré-décision » : ce que chacun a engagé AVANT que Hero agisse ──
+            // (open/3-bet/c-bet du vilain + open déjà investi par Hero) — indispensable
+            // pour comprendre pourquoi Hero doit call/3-bet/defend.
+            const activeStreetBetsVisible=!isDone&&!vact&&!playingFull;
+            const preDecision=activeStreetBetsVisible;
+            let preChipAmt=0,preChipLabel=null;
+            if(preDecision){
+              if(isV&&spotCtx.facing&&spotCtx.facing.position===pos){preChipAmt=spotCtx.facing.amount;preChipLabel=spotCtx.facing.label;}
+              else if(isH&&spotCtx.heroCommitted>(TRAINER_BLINDS[pos]||0)){preChipAmt=spotCtx.heroCommitted;}
+              else if(!isH&&!isV&&seatState.invested>0){preChipAmt=seatState.invested;preChipLabel=seatState.lastLabel||"Call";}
+            }
+            const betAmt=hasBet?heroBetAmt:hasVilBet?vilBetAmt:preChipAmt;
+            const chipLabel=(hasBet||hasVilBet)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):preChipLabel;
+            const chipLabelCol=hasBet?T.gold:hasVilBet?(vact.color||T.purple):"#9B5CFF";
+            const chipCount=betAmt>0?Math.min(6,Math.max(1,Math.ceil(betAmt/4))):0;
+            const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard});
+            const cpx=actionPt.x;
+            const cpy=actionPt.y;
+            const isTopSeat1T=coord.y<=24;
+            const isBottomSeat1T=coord.y>=68;
+            const seatTransform1T=isMobile
+              ?(isTopSeat1T?"translate(-50%,-35%)":isBottomSeat1T?"translate(-50%,-58%)":"translate(-50%,-50%)")
+              :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
+            const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
+            const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
+            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?5:6);
+            return(
+              <React.Fragment key={pos}>
+
+                {/* ── SEAT CARD ── */}
+                <PlayerSeat pos={pos} mode="1T" style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
+
+                  {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
+                  {isV&&!seatFolded&&(
+                    <div style={{marginBottom:5,position:"relative"}}>
+                      <VillainBackCards size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
+                      {(thinking||(playingFull&&fhVilThink))&&(
+                        <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
+                          <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
+                    <div style={{marginBottom:3}}>
+                      <VillainBackCards size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
+                    </div>
+                  )}
+
+                  {/* ── Cartes Hero ABOVE seat — hero en position basse (SB/BB, y>50) ── */}
+                  {isH&&(
+                    <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{marginBottom:heroCardMarginForSeat1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
+                  )}
+
+                  {isV&&isActive&&(
+                    <div style={{
+                      marginBottom:3,padding:"2px 10px",borderRadius:20,
+                      background:"rgba(155,92,255,.16)",border:"1px solid rgba(155,92,255,.42)",
+                      fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
+                      color:"#c090ff",letterSpacing:".06em",
+                      boxShadow:"0 0 10px rgba(155,92,255,.28)",
+                    }}>Vilain reflechit...</div>
+                  )}
+
+                  {/* Player card */}
+                  <div className={`player-card-1t${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-dense={denseScale<1?"1":undefined} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
+                    <PlayerAvatarPremium isHero={isH} isVillain={isV} profile={isV?spot.vtype:isH?"Hero":seatState.profile||trainerSeatAvatarProfile(pos)} size={avSz} active={isActive||seatMultiway}/>
+                    {isH&&<span className="pf-seat-hero-chip">HERO</span>}
+                    <div className="pf-seat-nameplate">
+                      <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{pos}</span>
+                      <span className="seat-card-stack" style={{fontSize:isH?11:9.5,color:isH?T.gold:T.text3}}>{fmt(displayStack)}</span>
+                    </div>
+                    <div className="seat-card-stats">
+                      <span>VPIP {vp.vpip}</span>
+                      <span style={{color:"rgba(111,129,168,.4)"}}>·</span>
+                      <span>PFR {vp.pfr}</span>
+                    </div>
+                    {/* Range button */}
+                    {(isH||isV)&&(
+                      <div className={`seat-range-btn${isV?" vil":""}`}
+                        title={isH?"Voir ma range":"Voir range Villain"}
+                        onClick={()=>setRangePopup({heroPos:spot.hpos,vilPos:spot.vpos,heroAction:spot.acts[spot.ok]?.id?.toLowerCase()||"open",stackBB:parseFloat(spot.stack)||100})}>
+                        R
+                      </div>
+                    )}
+                  </div>
+                  {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip">Fold</span>}
+                  {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
+
+                  {/* ── Cartes Hero BELOW seat — hero en position haute/côté (HJ/CO/BTN/UTG, y≤50) ── */}
+                  {false&&isH&&coord.y<=50&&!playingFull&&(
+                    <div style={{display:"flex",gap:8,marginTop:5,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.9)) drop-shadow(0 0 14px rgba(31,139,255,.25))"}}>
+                      {spot.hand.map((c,i)=>(
+                        <div key={i} className="deal-hero" style={{animationDelay:`${i*.1}s`,outline:"2px solid rgba(31,139,255,.38)",outlineOffset:2,borderRadius:4,boxShadow:"0 0 20px rgba(31,139,255,.3)"}}>
+                          <Card r={c.r} s={c.s} size={heroCardSize1T} delay={0}/>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action badge */}
+                  {lastAct&&!playingFull&&!(betAmt>0)&&(
+                    <span className={`seat-action-badge ${actCls}`} style={{marginTop:4,fontSize:9,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>
+                  )}
+                  {playingFull&&isV&&fhVilAct&&(
+                    <span className={`seat-action-badge ${trainerActionCssClass(fhVilAct.action)}`} style={{marginTop:4}}>
+                      {fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action,fhVilAct)}
+                    </span>
+                  )}
+                  {/* Badge action Hero en main complète (street courante) — symétrie avec le vilain */}
+                  {playingFull&&isH&&(()=>{
+                    const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet);
+                    if(!ha)return null;
+                    return(
+                      <span className={`seat-action-badge ${trainerActionCssClass(ha.action)}`} style={{marginTop:4}}>
+                        {trainerActionDisplayVerb(ha.action)}
+                      </span>
+                    );
+                  })()}
+                </PlayerSeat>
+
+                {/* ── CHIP PILE — between seat and oval center ── */}
+                {false&&chipCount>0&&!playingFull&&(()=>{
+                  const theme=CHIP_THEMES[isH?chipTheme:"blue"]||CHIP_THEMES.blue;
+                  const vilCols=seatMultiway?["#00E6B8","#00A88E","#036B62","#C0FFF2","#1F8BFF"]:["#9B5CFF","#7D3DCC","#5E2E99","#3F1F66","#C080FF"];
+                  const chipCols=isH?theme.cols:vilCols;
+                  const edgeCol=isH?theme.edge:seatMultiway?"#00A88E":"#8030C0";
+                  const glw=isH?theme.glow:seatMultiway?"rgba(0,230,184,.42)":"rgba(155,92,255,.4)";
+                  const csz=15;
+                  return(
+                    <div style={{position:"absolute",left:`${cpx}%`,top:`${cpy}%`,transform:"translate(-50%,-50%)",zIndex:18,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                      <div style={{position:"relative",width:csz,height:csz+(chipCount-1)*4,filter:`drop-shadow(0 4px 8px ${glw})`}}>
+                        {[...Array(chipCount)].map((_,ci)=>(
+                          <div key={ci} style={{
+                            position:"absolute",bottom:ci*4,left:0,
+                            width:csz,height:csz,borderRadius:"50%",
+                            background:chipCols[ci%chipCols.length],
+                            border:`1.5px solid ${edgeCol}`,
+                            boxShadow:`inset 0 -2px 3px rgba(0,0,0,.55),inset 0 2px 2px rgba(255,255,255,.22),0 1px 3px rgba(0,0,0,.7)`,
+                            overflow:"hidden",
+                          }}>
+                            <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at 35% 28%,rgba(255,255,255,.38) 0%,transparent 56%)",pointerEvents:"none"}}/>
+                            <div style={{position:"absolute",inset:3,borderRadius:"50%",border:"1px solid rgba(255,255,255,.1)",pointerEvents:"none"}}/>
+                          </div>
+                        ))}
+                      </div>
+                      <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:isH?T.gold:T.purple,textShadow:`0 0 8px ${glw}`}}>{fmt(betAmt)}</span>
+                      {chipLabel&&(
+                        <span style={{
+                          fontSize:8,fontFamily:"'Space Grotesk',sans-serif",fontWeight:800,
+                          color:chipLabelCol,background:`${chipLabelCol}22`,
+                          padding:"1px 6px",borderRadius:5,border:`1px solid ${chipLabelCol}55`,
+                          marginTop:2,letterSpacing:".04em",whiteSpace:"nowrap",
+                        }}>{chipLabel}</span>
+                      )}
+                    </div>
+                  );
+                })()}
+                <SeatActionZone
+                  x={cpx}
+                  y={cpy}
+                  amount={!playingFull?betAmt:0}
+                  label={chipLabel||trainerActionVerb(trainerActionType(lastAct?.id||"BET"))}
+                  type={trainerVisualActionType(chipLabel||lastAct?.id||"BET")}
+                  compact={isMobile}
+                  kind={isH?"hero":seatMultiway?"multiway":"villain"}
+                  themeKey={effChipTheme}
+                  colorKey={chipColor}
+                  sizeMode={chipSizeMode}
+                  tableMode={1}
+                />
+
+              </React.Fragment>
+            );
+          })}
+
+          {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
+          {showStaticBlindMarkers&&["SB","BB"].map(bp=>{
+            const p=resolveTrainerBlindPoint(trainingLayout,bp);
+            return(
+              <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
+                <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
+              </div>
+            );
+          })}
+
+          {(()=>{
+            const d=dealerAnchorPoint(trainingLayout);
+            return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
+          })()}
+
+          {compactActionLine()&&<div className="table-action-line"><strong>{spot.street}</strong> {compactActionLine()}</div>}
+
+          {spot.toCall>0&&(
+            <div className="pf-facing-label" style={{position:"absolute",bottom:"1%",left:"50%",transform:"translateX(-50%)",fontSize:9,color:T.amber,fontFamily:T.mono,whiteSpace:"nowrap",zIndex:31,fontWeight:700,background:"rgba(255,138,0,.12)",padding:"1px 8px",borderRadius:10,border:"1px solid rgba(255,138,0,.25)",display:"flex",gap:6,alignItems:"center"}}>
+              {answered===null&&!vact&&spotCtx.facing&&<span style={{color:"#c090ff"}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}</span>}
+              <span>À payer : {fmt(spot.toCall)}</span>
+            </div>
+          )}
+
+         </div>{/* ── fin ZONE TABLE ── */}
+
+          {/* ══ ACTIONS HÉRO — centrées sous la table (maquette v2 : actions puis sizings) ══ */}
+          <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
+            {phase==="hero_reply"&&vact&&renderHeroReply()}
+            {phase==="hero"&&renderActionZone()}
+          </div>
+
+        </div>{/* ── fin COLONNE GAUCHE ── */}
+
+        {/* Refonte V2 : renderRightPanel() (panneau 1T historique) n'est plus
+           rendu — le panneau droit V2 partagé est rendu par le parent. */}
 
         </div>{/* ── fin ZONE PRINCIPALE 2 COLONNES ── */}
 
@@ -4297,19 +4484,22 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const myEv=spot.ev[spot.acts[answered]?.id]||0;
             const evDiff=myEv-bestEv;
             return(
-              <div style={{padding:"9px 10px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,#071B44,#030912)",borderTop:`2px solid ${isBest?"rgba(16,216,122,.5)":"rgba(255,69,96,.45)"}`}}>
-                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:8}}>
-                  <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:isBest?"rgba(16,216,122,.15)":"rgba(255,69,96,.12)",border:`2px solid ${isBest?"rgba(16,216,122,.55)":"rgba(255,69,96,.45)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:isBest?T.green:T.red,boxShadow:`0 0 14px ${isBest?"rgba(16,216,122,.3)":"rgba(255,69,96,.25)"}`}}>{isBest?"✓":"✗"}</div>
-                  <div style={{minWidth:0,flex:1}}>
-                    <div style={{fontFamily:T.stats,fontSize:12,fontWeight:800,color:isBest?T.green:T.red}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
-                    <div style={{fontFamily:T.stats,fontSize:9.5,color:T.text3}}>
-                      Joué : <strong style={{color:T.text}}>{spot.acts[answered]?.l}</strong>
-                      {showSol&&!isBest&&<> · EV perdue <strong style={{color:T.red}}>{evDiff.toFixed(2)}bb</strong></>}
-                    </div>
-                  </div>
+              <div style={{padding:"6px 10px calc(8px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,#071B44,#030912)",borderTop:`2px solid ${isBest?"rgba(16,216,122,.5)":"rgba(255,69,96,.45)"}`}}>
+                {/* Hiérarchie (§4) : verdict · EV perdue · action jouée · solution optimale */}
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:4}}>
+                  <div style={{width:26,height:26,borderRadius:"50%",flexShrink:0,background:isBest?"rgba(16,216,122,.15)":"rgba(255,69,96,.12)",border:`2px solid ${isBest?"rgba(16,216,122,.55)":"rgba(255,69,96,.45)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:isBest?T.green:T.red,boxShadow:`0 0 14px ${isBest?"rgba(16,216,122,.3)":"rgba(255,69,96,.25)"}`}}>{isBest?"✓":"✗"}</div>
+                  <div style={{fontFamily:T.stats,fontSize:13,fontWeight:800,color:isBest?T.green:T.red,flex:1,minWidth:0}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
+                  {!isBest&&evDiff<0&&<div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:T.stats,fontSize:7.5,color:T.text4,letterSpacing:".04em"}}>EV PERDUE</div>
+                    <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{evDiff.toFixed(2)}bb</div>
+                  </div>}
+                </div>
+                <div style={{display:"flex",gap:12,marginBottom:5,fontFamily:T.stats,fontSize:9.5,flexWrap:"wrap"}}>
+                  <span style={{color:T.text3}}>Joué : <strong style={{color:isBest?T.green:T.text}}>{spot.acts[answered]?.l}</strong></span>
+                  {showSol&&!isBest&&<span style={{color:T.text3}}>Optimal : <strong style={{color:T.green}}>{spot.acts[spot.ok]?.l}</strong></span>}
                 </div>
                 <div style={{display:"flex",gap:6}}>
-                  <button className="gto-next-btn" style={{flex:1}} onClick={()=>{vibrate(VIB.next);onNext();}}>{isLast?"🏆 Voir les résultats":"Main suivante ▶"}</button>
+                  <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);callNext();}}>{nextLabel} ▶</button>
                   {spot.hand?.length>=2&&<button className="gto-btn-secondary" style={{padding:"12px 13px",fontSize:13}} title="Jouer jusqu'à la river" onClick={startFullHand}>▶R</button>}
                   <button className="gto-btn-secondary" style={{padding:"12px 13px",fontSize:15}} title="Rejouer" onClick={resetSpot}>↺</button>
                 </div>
@@ -4336,10 +4526,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
       </div>
     );
-  }
 
   return(
     <div className="tw" style={{background:"#040B1F"}}>
+      {/* Multi-table : la table ACTIVE projette le VRAI panneau 1T dans la colonne partagée */}
+      {/* multi-table : panneau droit rendu par le parent (renderMultiPanel) */}
       {/* ── BARRE TOP compacte : streets + timeline + timer ── */}
       <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"wrap",minHeight:28,flexShrink:0}}>
         {STREETS.map(s=>{
@@ -4371,13 +4562,27 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         )}
       </div>
 
-      {/* ── ZONE TABLE — verrouillée, jamais redimensionnée par le panneau solution ── */}
-      <div className="training-table-zone" style={{paddingBottom:cfg.pb}}>
+      {/* ── ZONE TABLE — calibrée sur les dimensions du script multi-table V1 :
+           ovale 2T 400×310 · 3T haut 398×205 (bas 500×164 via CSS) · 4T 398×176.
+           Hauteur = espace disponible, largeur dérivée du ratio (proportions maquette
+           conservées à toute résolution). Mobile : aspect-ratio en padding (inchangé). ── */}
+      <div className="mt-zone-fit" style={isMobile?undefined:{flex:"0 0 auto",width:"100%",display:"flex",justifyContent:"center",paddingTop:2}}>
+      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:(()=>{
+        // Ratio de zone dérivé du ratio d'OVALE cible (script V1) corrigé des marges
+        // de la géométrie : ovale 2T 400×310 · 3T haut 398×205 · 4T 398×176.
+        const g=trainingLayout.tableGeometry;
+        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/176;
+        const zoneAR=ovalAR*(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
+        // Piloté par la LARGEUR de cellule (stable quel que soit le contenu des
+        // actions) → le ratio d'ovale est identique sur toutes les tables du mode
+        // et à toute résolution (le viewport épouse la hauteur naturelle).
+        return{width:"100%",height:"auto",aspectRatio:String(zoneAR.toFixed(4)),flexShrink:0};
+      })()}>
 
-        {/* FEUTRE OVALE PREMIUM — multi-table */}
+        {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
           position:"absolute",top:`${trainingLayout.tableGeometry.top}%`,left:`${trainingLayout.tableGeometry.left}%`,right:`${trainingLayout.tableGeometry.right}%`,bottom:`${trainingLayout.tableGeometry.bottom}%`,
-          background:"radial-gradient(ellipse at 50% 25%,rgba(60,156,91,.7) 0%,rgba(19,83,46,.94) 36%,rgba(7,44,23,.98) 66%,#03140B 100%)",
+          background:"radial-gradient(ellipse at 50% 25%,rgba(26,62,115,.95) 0%,rgba(13,38,78,.99) 38%,rgba(6,20,46,.998) 70%,#030b1e 100%)",
           border:"1px solid rgba(255,214,121,.58)",
           borderRadius:"50%",
           boxShadow:errorFlash
@@ -4404,24 +4609,29 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
                   <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+                    <TrainingPotStack value={mainPotBb} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 ):(
                   <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+                    <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 )}
-                {/* Board centré — taille cfg.board adaptée par numTables */}
+                {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
                 {hasBoard&&(
-                  <div key={`board-mt-${boardKey}`} style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
+                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
                     {boardCards.map((c,i)=>(
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>
                       </div>
+                    ))}
+                    {/* Largeur du board complet réservée (script §7) : emplacements
+                       turn/river en attente → aucun recentrage brutal des cartes */}
+                    {Array.from({length:Math.max(0,5-boardCards.length)},(_,i)=>(
+                      <span key={`ph${i}`} className={`mt-board-ph card-${cfg.board}`} aria-hidden="true"/>
                     ))}
                   </div>
                 )}
@@ -4444,7 +4654,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         {(()=>{
           const d=dealerAnchorPoint(trainingLayout);
           const sz=cfg.dbtnSz;
-          return <div className="dealer-btn" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz,fontSize:sz<=14?7:9}}>D</div>;
+          return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
         })()}
 
         {/* SIÈGES — tailles 100% basées sur cfg */}
@@ -4458,7 +4668,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const by=y+(50-y)*bp;
           return(
             <div key={`blind-mt-${pos}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
-              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={chipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+              <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
             </div>
           );
         })}
@@ -4523,7 +4733,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const mtSeatTransform=isMobile
             ?(isTopSeatMt?"translate(-50%,-27%)":isBottomSeatMt?"translate(-50%,-55%)":"translate(-50%,-50%)")
             :isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
-          const mtHeroCardSize=isTopSeatMt?(numTables===2?"sm":"xs"):cfg.heroCard;
+          const mtHeroCardSize=isTopSeatMt?(numTables===2?"md":numTables===3?"smp":"sm"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
           return(
@@ -4610,7 +4820,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               type={seatActionType}
               compact={isMobile||numTables>=3}
               kind={isH?"hero":seatMultiway?"multiway":"villain"}
-              themeKey={chipTheme}
+              themeKey={effChipTheme}
               colorKey={chipColor}
               sizeMode={chipSizeMode}
               tableMode={numTables}
@@ -4619,6 +4829,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           );
         })}
       </div>
+      </div>{/* ── fin mt-zone-fit ── */}
 
       {/* ── TOAST ── */}
       {showToast&&<div className="error-toast"><span className="error-toast-icon">⚠</span>{showToast}</div>}
@@ -4750,7 +4961,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                     onClick={()=>{vibrate(VIB.tap);setSolOpen(true);}}>{showSol?"💡 Solution":"🔒"}</button>
                 )}
                 {numTables===1
-                  ?<button className="btn btng" style={{fontSize:10,padding:"5px 12px"}} onClick={onNext}>{isLast?"Résultats →":"Suivante ▶"}</button>
+                  ?<button className="btn btng" style={{fontSize:10,padding:"5px 12px"}} disabled={nextBusy} onClick={callNext}>{nextShortLabel} ▶</button>
                   :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ OK</span>
                 }
                 <button className="btn btns" style={{fontSize:11,padding:"5px 8px"}}
@@ -4833,7 +5044,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div style={{padding:"0 8px 8px"}}><RangeGrid pos={spot.hpos} action={spot.acts[spot.ok]?.id?.toLowerCase()||"open"} stackBB={parseFloat(spot.stack)||100} label={`RANGE ${spot.hpos} — ${spot.acts[spot.ok]?.l||"Optimal"}`}/></div>
           {!playingFull&&<div className="nextrow">
             {numTables===1
-              ?<button className="btn btng" style={{flex:1,fontSize:10}} onClick={onNext}>{isLast?"Résultats →":"Suivante ►"}</button>
+              ?<button className="btn btng" style={{flex:1,fontSize:10}} disabled={nextBusy} onClick={callNext}>{nextShortLabel} ►</button>
               :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ OK</span>
             }
             {spot.hand?.length>=2&&numTables===1&&<button className="btn btnx" style={{fontSize:9}} onClick={startFullHand}>▶ River</button>}
@@ -4884,7 +5095,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               </div>
               <div style={{display:"flex",gap:6,justifyContent:"center",alignItems:"center"}}>
                 {numTables===1
-                  ?<button className="btn btng" style={{fontSize:10}} onClick={()=>{setPlayingFull(false);onNext();}}>Suivante ►</button>
+                  ?<button className="btn btng" style={{fontSize:10}} disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextShortLabel} ►</button>
                   :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ Main réglée</span>}
                 <button className="btn btns" style={{fontSize:10}} onClick={startFullHand}>↺</button>
               </div>
@@ -5362,7 +5573,7 @@ const TRAIN_MODES=[
   {id:"mix",    l:"Mix",       ic:"🔀", col:"#FF8A3D", desc:"Mélange Spot · Street · Full Hand."},
 ];
 const TRAIN_STREETS=["Flop","Turn","River"];
-export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",seed=null,onSeedApplied}){
+export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",seed=null,onSeedApplied,onGoCoach}){
   const[f,setF]=useState(()=>{
     try{const s=JSON.parse(localStorage.getItem("pf_trainer_cfg")||"null");return s?{...TRAINER_CFG_DEFAULT,...s}:TRAINER_CFG_DEFAULT;}
     catch{return TRAINER_CFG_DEFAULT;}
@@ -5399,12 +5610,20 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[results,setResults]=useState([]);
   const[tableAns,setTableAns]=useState({});
   const[tableSettled,setTableSettled]=useState({});
+  const[nextTransitioning,setNextTransitioning]=useState(false);
+  const[nextError,setNextError]=useState(null);
+  const nextTransitionRef=useRef(false);
+  const nextTransitionTimer=useRef(null);
+  useEffect(()=>()=>{if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);},[]);
   const[history,setHistory]=useState(()=>loadHistory());
   /* ══ MOBILE v9 — états ══ */
   const isMobile=useIsMobile();
   const[sheetTab,setSheetTab]=useState(null);          // null | villain | stats | notes | history
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
+  const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
+  const[mtRangePopup,setMtRangePopup]=useState(null);   // multi-table : popup ranges GTO plein écran
+  const[panelEl,setPanelEl]=useState(null);             // conteneur DOM du panneau droit partagé (cible du portal 1T)
   const[zoomed,setZoomed]=useState(false);              // pincement zoom actif
   const sheetRef=useRef(null);
   const sheetTouch=useRef({y:0,dy:0});
@@ -5418,6 +5637,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setExpandedT(null);
     setZoomed(false);
   },[mobileTrainingSingleTableOnly,ntables]);
+  // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
+  useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   // Persiste la config Trainer (réglages pro) entre les sessions
   useEffect(()=>{try{localStorage.setItem("pf_trainer_cfg",JSON.stringify(f));}catch{}},[f]);
@@ -5431,6 +5652,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // État de session : true = session en cours → filtres verrouillés
   const sessionActive=started&&!done;
   const curSpot=queue[idx]||null;
+  // Multi-table : spot de la table active (panneau droit partagé + raccourcis)
+  const activeSpot=queue[idx+(ntables>1?activeTable:0)]||curSpot;
 
   /* ══ Leak Hunter — basé sur les stats persistées (sessions précédentes) ══ */
   const trainerStats=useMemo(()=>loadStats(),[done,started]);
@@ -5569,24 +5792,21 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setZoomed(false);
   }
 
-  /* ══ CONTRÔLE AUTOMATIQUE — toutes les tables (2T/3T/4T) doivent rester
-     des clones géométriques parfaits (même largeur/hauteur/rayon au pixel près) au
-     sein d'une même rangée, et TOUTES respectent le ratio unique MT_TABLE_PB
-     (la table 3 en 3T occupe 2 colonnes par design : même ratio, taille double — normal).
-     Avertissement console (dev) si un écart apparaît après un futur changement. ══ */
+  /* Multi-table geometry guard: tables in the same row stay symmetric, and each
+     table must respect the CSS aspect-ratio declared for its current layout mode. */
   useEffect(()=>{
     const el=gridRef.current;
     if(!el||ntables<2||!started||done)return;
-    const expectedRatio=parseFloat(MT_TABLE_PB)/100;
     const check=()=>{
       const zones=[...el.querySelectorAll(".training-table-zone")];
       if(zones.length<2)return;
       const rects=zones.map(z=>z.getBoundingClientRect());
       rects.forEach((r,i)=>{
         if(r.width<=0)return;
+        const expectedRatio=parseCssAspectRatio(getComputedStyle(zones[i]).aspectRatio)??MT_TABLE_RATIO_FALLBACK;
         const ratio=r.height/r.width;
         if(Math.abs(ratio-expectedRatio)>0.01){
-          console.warn(`[PokerForge] Table ${i+1} ne respecte pas le ratio verrouillé (${(ratio*100).toFixed(1)}% vs ${MT_TABLE_PB}) en mode ${ntables}T.`);
+          console.warn(`[PokerForge] Table ${i+1} ne respecte pas son aspect-ratio declare (${(ratio*100).toFixed(1)}% vs ${(expectedRatio*100).toFixed(1)}%) en mode ${ntables}T.`);
         }
       });
       const rows={};
@@ -5769,11 +5989,27 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTableSettled(s=>({...s,[tid]:true}));
   }
   function handleNext(){
-    setExpandedT(null); // referme la table agrandie (mobile)
-    spotStartRef.current=Date.now(); // chrono du spot suivant
-    const next=idx+ntables;
-    if(next>=Math.min(smode===999?queue.length:smode,queue.length)){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
-    else{setIdx(next);setTableAns({});setTableSettled({});}
+    if(nextTransitionRef.current)return;
+    nextTransitionRef.current=true;
+    setNextTransitioning(true);
+    setNextError(null);
+    try{
+      setExpandedT(null); // referme la table agrandie (mobile)
+      spotStartRef.current=Date.now(); // chrono du spot suivant
+      const next=idx+ntables;
+      if(next>=Math.min(smode===999?queue.length:smode,queue.length)){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
+      else{setIdx(next);setTableAns({});setTableSettled({});}
+      if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
+      nextTransitionTimer.current=setTimeout(()=>{
+        nextTransitionRef.current=false;
+        setNextTransitioning(false);
+      },260);
+    }catch(err){
+      nextTransitionRef.current=false;
+      setNextTransitioning(false);
+      setNextError("Generation impossible. Reessayez.");
+      if(typeof console!=="undefined")console.error("PF Trainer next hand failed",err);
+    }
   }
   function handleSave(sess){
     const h=[{...sess,id:Date.now()},...history];
@@ -5785,6 +6021,141 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const gridClass=ntables===1?"grid1":ntables===2?"grid2":ntables===3?"grid3":ntables===4?"grid4":ntables<=6?"grid6":"grid8";
   // Callback: ouvrir le Shark Solver avec le spot en cours
   const onGoSolverFn=onGoSolverProp||null;
+
+  /* ══════════════════════════════════════════════════════════════════
+     PANNEAU DROIT MULTI-TABLE V2 — refonte lisibilité (retour utilisateur).
+     Typographie confortable, hiérarchie claire, ranges en plein écran.
+     Piloté par activeSpot + tableAns[activeTable] (données parent). Le 1T
+     figé conserve son propre panneau (renderRightPanel), non modifié.
+     ══════════════════════════════════════════════════════════════════ */
+  const renderMultiPanel=()=>{
+    const s=activeSpot; if(!s) return null;
+    const vp=VILLAIN_PROFILES[s.vtype]||null;
+    const ans=tableAns[activeTable]||null;
+    const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
+    const spr=potN>0?(stackN/potN).toFixed(1):"—";
+    const toCall=Number(s.toCall)||0;
+    const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
+    const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
+    const diffCol=s.diff===1?"#00E889":s.diff===2?"#FFC247":s.diff===3?"#FF7A45":s.diff===4?"#B85CFF":"#FFC247";
+    const acts=Array.isArray(s.acts)?s.acts:[];
+    const best=s.ok!=null?s.acts?.[s.ok]:null;
+    const bestEv=best?Number(s.ev?.[best.id]||0):0;
+    const revealed=showSol||!!ans;
+    const chosen=ans?s.acts?.[ans.ua]:null;
+    const chosenEv=chosen?Number(s.ev?.[chosen.id]||0):0;
+    const isGto=trainerMode==="gto";
+    // Barre GTO : freq + EV par action
+    const actRows=acts.map((a,i)=>({a,i,freq:Math.round(Number(s.freq?.[a.id]||0)),ev:Number(s.ev?.[a.id]||0),best:i===s.ok,chosen:ans&&i===ans.ua}));
+    const barCol=(a)=>{const t=trainerActionType(a);return t==="FOLD"?"#E5485D":t==="ALLIN"?"#FF4D6D":t==="CALL"?"#20CFFF":t==="CHECK"||t==="CHECK_BACK"?"#25D487":"#FFB800";};
+    const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+    const batchNextLabel=nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Main suivante";
+    return(
+      <div className="pf-p2">
+        {/* Bandeau chips : contexte */}
+        <div className="pf-p2-chips">
+          <span className="pf-p2-chip"><b>↑</b>{s.hpos}</span>
+          <span className="pf-p2-chip">{roundBb(stackN)}bb</span>
+          <span className="pf-p2-chip">SPR {spr}</span>
+          <span className="pf-p2-chip" style={{color:isGto?"#34D8FF":"#FF8A3D",borderColor:isGto?"#1a4a66":"#5a3a1a"}}>{isGto?"GTO":"Exploit"}</span>
+          <span className="pf-p2-chip" style={{marginLeft:"auto",color:diffCol,borderColor:"transparent",background:"transparent",fontWeight:700}}>● {diffLbl}</span>
+        </div>
+
+        {/* VILLAIN IA */}
+        {vp&&(
+          <section className="pf-p2-sec">
+            <div className="pf-p2-h">VILLAIN IA</div>
+            <div className="pf-p2-vil">
+              <div className="pf-p2-vil-ava" style={{borderColor:vp.col+"88",boxShadow:`0 0 16px ${vp.col}44`,background:`${vp.col}18`}}>{vp.ico||"🤖"}</div>
+              <div style={{minWidth:0,flex:1}}>
+                <div className="pf-p2-vil-name" style={{color:vp.col}}>{s.vtype}</div>
+                <div className="pf-p2-vil-sub">{s.vpos} · {vp.desc}</div>
+              </div>
+            </div>
+            <div className="pf-p2-bars">
+              {[["VPIP",vp.vpip,"#34D8FF",100],["PFR",vp.pfr,"#00E889",100],["AGG",vp.agg,"#FF8A3D",5]].map(([l,v,c,max])=>(
+                <div key={l} className="pf-p2-bar">
+                  <span className="k">{l}</span>
+                  <div className="tr"><i style={{width:`${Math.min(100,v/max*100)}%`,background:c}}/></div>
+                  <span className="v" style={{color:c}}>{l==="AGG"?v:v+"%"}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* SOLUTION / ANALYSE */}
+        <section className="pf-p2-sec">
+          <div className="pf-p2-h">{isGto?"ANALYSE GTO":"ANALYSE"}</div>
+          {!revealed?(
+            <div className="pf-p2-locked">
+              <span>🔒 Solution masquée</span>
+              <button className="pf-p2-reveal" onClick={()=>setShowSol(true)}>Révéler</button>
+            </div>
+          ):(
+            <>
+              {ans&&best&&(
+                <div className={`pf-p2-verdict ${ans.correct?"ok":"ko"}`}>
+                  <strong>{chosen?.l||"—"} {ans.correct?"✓ correct":"✕ à revoir"}</strong>
+                  <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
+                </div>
+              )}
+              <div className="pf-p2-actlist">
+                {actRows.map(r=>(
+                  <div key={r.i} className={`pf-p2-actrow${r.best?" best":""}${r.chosen?" chosen":""}`}>
+                    <span className="lab">{r.best&&<i>✦</i>}{r.a.l}</span>
+                    <div className="tr"><i style={{width:`${r.freq}%`,background:barCol(r.a)}}/></div>
+                    <span className="frq">{r.freq}%</span>
+                    <span className="ev" style={{color:r.ev>=bestEv-0.01?"#00E889":"#8fa2c4"}}>{r.ev>=0?"+":""}{r.ev.toFixed(1)}</span>
+                  </div>
+                ))}
+              </div>
+              {best&&<div className="pf-p2-optimal">EV optimale <b>+{bestEv.toFixed(2)}bb</b></div>}
+              <button className="pf-p2-ranges" onClick={()=>setMtRangePopup({heroPos:s.hpos,vilPos:s.vpos,heroAction:best?.id?.toLowerCase()||"open",stackBB:stackN})}>🃏 Voir les ranges GTO</button>
+            </>
+          )}
+        </section>
+
+        {/* HISTORIQUE */}
+        <section className="pf-p2-sec">
+          <div className="pf-p2-h">HISTORIQUE</div>
+          <div className="pf-p2-histo">
+            {["UTG","HJ","CO","BTN","SB","BB"].map(p=>{
+              let v="—",vc="#6E7E91";
+              if(p==="SB"){v="Petite blind 0.5bb";}
+              else if(p==="BB"){v="Grosse blind 1bb";}
+              else if(s.ctx?.folded?.includes?.(p)){v="Fold";vc="#8792a6";}
+              else if(p===s.hpos){v="À parler";vc="#8FC0FF";}
+              return <div key={p} className={`pf-p2-hrow${p===s.hpos?" hero":""}`}><span className="p">{p}</span><span className="a" style={{color:vc}}>{v}</span></div>;
+            })}
+          </div>
+        </section>
+
+        {/* INFORMATIONS */}
+        <section className="pf-p2-sec">
+          <div className="pf-p2-h">INFORMATIONS</div>
+          <div className="pf-p2-info">
+            {[["Street",s.street||"Preflop","#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+              <div key={k} className="pf-p2-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
+            ))}
+          </div>
+        </section>
+
+        {/* TIMELINE */}
+        <section className="pf-p2-sec pf-p2-tl">
+          <div className="pf-p2-h">TIMELINE</div>
+          <div className="pf-p2-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
+          <div className="pf-p2-tl-row">
+            <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
+            <button className="pf-p2-next" disabled={!allSettled||nextTransitioning} onClick={handleNext}>
+              {allSettled?`${batchNextLabel} ▶`:"Decision en cours..."}
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  };
+
 
   return(
     <div style={{display:"flex",flex:1,overflow:"hidden",flexDirection:"column"}}>
@@ -6213,6 +6584,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
             <button className={`mtr-ico-btn${sheetTab?" on":""}`} title="Panneau (Vilain · Stats · Notes)" onClick={()=>{vibrate(VIB.tap);setSheetTab(s=>s?null:"villain");}}>☰</button>
             <button className={`mtr-ico-btn${mobFocus?" on":""}`} title="Mode Focus" onClick={()=>{vibrate(VIB.tap);setMobFocus(v=>!v);}}>⛶</button>
+            {onGoCoach&&<button className="mtr-ico-btn mtr-coach-btn" title="Coach AI" aria-label="Coach AI" onClick={()=>{vibrate(VIB.tap);onGoCoach();}}>🧠</button>}
             <button className="mtr-ico-btn stop" title="Arrêter la session" onClick={stopSession}>⏹</button>
           </div>
         )}
@@ -6269,9 +6641,18 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:T.text4}}>
               {idx+1}/{smode===999?"∞":smode}
             </div>
+            {/* Coach AI — dans la barre, à gauche d'Arrêter (maquette v2, tous modes) */}
+            {onGoCoach&&(
+              <button onClick={onGoCoach} className="pf-mt-coach-btn" style={{
+                marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:6,padding:"6px 16px",borderRadius:20,fontSize:11,
+                fontFamily:"'Space Grotesk',sans-serif",fontWeight:700,cursor:"pointer",minWidth:118,justifyContent:"center",
+                border:"1px solid rgba(120,90,255,.5)",background:"linear-gradient(135deg,#1F8BFF,#7c3cff)",color:"#fff",
+                boxShadow:"0 2px 12px rgba(80,120,255,.35)",transition:"all .2s",
+              }}>🧠 Coach AI</button>
+            )}
             {/* Bouton Arrêter */}
             <button onClick={stopSession} style={{
-              marginLeft:"auto",padding:"4px 14px",borderRadius:20,fontSize:10,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",
+              marginLeft:onGoCoach?0:"auto",padding:"4px 14px",borderRadius:20,fontSize:10,fontFamily:"'Inter',sans-serif",fontWeight:700,cursor:"pointer",
               border:"1px solid rgba(255,69,96,.45)",background:"rgba(255,69,96,.1)",
               color:T.red,transition:"all .2s",
             }}>⏹ Arrêter</button>
@@ -6342,28 +6723,40 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           </div>
         </div></div>}
         {reviewOpen&&<TrainerReviewPanel onClose={()=>setReviewOpen(false)} onDrill={startErrorDrill} onReplay={replaySpot}/>}
+        {mtRangePopup&&<RangePopup {...mtRangePopup} onClose={()=>setMtRangePopup(null)}/>}
         {started&&!done&&(
-          <div ref={gridRef} style={ntables===1?{flex:1,minHeight:0,display:"flex",flexDirection:"column"}:{}}>
-            <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{}}>
+          <div className="pf-mt-playrow" style={!isMobile?{flex:1,minHeight:0,display:"flex",flexDirection:"row",overflow:"hidden"}:{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+          <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
+            <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
                 const spot=queue[idx+t];if(!spot)return null;
                 const isAns=!!tableAns[t];
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
+                const isActiveT=ntables>1&&activeTable===t;
                 return(
                   <div key={`${idx}-${t}`}
-                    className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}`}
+                    className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}${isActiveT?" mt-slot-focus":""}`}
                     style={ntables>1?{display:"flex",flexDirection:"column"}:undefined}
+                    onMouseDown={ntables>1&&!isMobile?()=>setActiveTable(t):undefined}
                     onTouchStart={isMobile&&ntables>1?slotTouchStart:undefined}
                     onTouchMove={isMobile&&ntables>1?slotTouchMove:undefined}
                     onTouchEnd={isMobile&&ntables>1?()=>slotTouchEnd(t):undefined}>
+                    {/* Titre TABLE n + état (multi-table) */}
+                    {ntables>1&&(
+                      <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
+                        <span>TABLE {t+1}</span>
+                        {isAns&&<i title="Répondue">✓</i>}
+                        {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
+                      </div>
+                    )}
                     {/* Bouton fermer (table agrandie) */}
                     {expanded&&<button className="mt-expand-x" onClick={()=>setExpandedT(null)} title="Réduire">✕</button>}
                     {/* Bouton agrandir (mobile multi) */}
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -6371,7 +6764,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                         <div style={{position:"sticky",bottom:0,display:"flex",gap:8,padding:"10px 6px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,rgba(3,7,18,0),#030712 35%)",zIndex:5,marginTop:8}}>
                           <button className="btn btns" style={{fontSize:11}} onClick={()=>setExpandedT(null)}>⛶ Réduire</button>
                           {allSettled
-                            ?<button className="btn btng" style={{flex:1,fontSize:12}} onClick={handleNext}>{isLastBatch?"🏆 Voir les résultats":"► Tables suivantes"}</button>
+                            ?<button className="btn btng" style={{flex:1,fontSize:12}} disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
                             :<span style={{flex:1,alignSelf:"center",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.text3}}>{Object.keys(tableAns).length}/{ntables} répondues</span>}
                         </div>
                       );
@@ -6379,37 +6772,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   </div>
                 );
               })}
-              {ntables===1&&curSpot&&(
-                <div className="pf-trainer-command-dock" aria-label="Commandes de la table">
-                  <div className="pf-trainer-command-status">
-                    <span className="pf-trainer-command-kicker">TABLE 1T</span>
-                    <strong>{curSpot.hpos||"Hero"} <i>vs</i> {curSpot.vpos||"Vilain"}</strong>
-                    <span>{idx+1}/{smode===999?queue.length:Math.min(smode,queue.length)} spots</span>
-                  </div>
-                  <div className="pf-trainer-street-track" aria-label={`Street actuelle : ${curSpot.street||"Preflop"}`}>
-                    {["Preflop","Flop","Turn","River"].map(street=>{
-                      const current=(curSpot.street||"Preflop")===street;
-                      return <span key={street} className={current?"active":""}>{street}</span>;
-                    })}
-                  </div>
-                  <div className="pf-trainer-command-actions">
-                    <button type="button" className={`pf-trainer-command-btn${showSol?" active":""}`} onClick={()=>setShowSol(s=>!s)} aria-pressed={showSol}>
-                      Solution
-                    </button>
-                    <button type="button" className={`pf-trainer-command-btn${collapsed?" active":""}`} onClick={toggleSidebar} aria-pressed={collapsed}>
-                      Focus
-                    </button>
-                    <button type="button" className="pf-trainer-command-btn danger" onClick={stopSession}>
-                      Arrêter
-                    </button>
-                    <button type="button" className="pf-trainer-next-btn" onClick={handleNext} disabled={!allSettled}>
-                      {allSettled?(idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length)?"Voir les résultats":"Main suivante"):"Décision en cours"}
-                    </button>
-                  </div>
-                  <div className="pf-trainer-command-progress" aria-hidden="true"><span style={{width:`${Math.max(3,prog)}%`}}/></div>
-                </div>
-              )}
+              {/* Refonte V2 : dock de commandes 1T retiré — fonctions reprises par
+                 la barre (Solution/Coach/Arrêter), la table (Focus ⊠) et le
+                 panneau V2 (progression + Main suivante). */}
             </div>
+          </div>{/* ── fin gridRef (playground) ── */}
+          {/* ══ COLONNE DROITE PARTAGÉE — reçoit le VRAI panneau 1T de la table active (portal) ══ */}
+          {!isMobile&&<div className="pf-mt-sharedcol">{renderMultiPanel()}</div>}
           </div>
         )}
         {/* Reset zoom (pincement) */}
@@ -6449,9 +6818,30 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           </div>
         )}
+        {/* ── LIGNE INFOS DU SPOT (mobile 1T) — SOUS l'historique (§6/7), pleine largeur ── */}
+        {isMobile&&ntables===1&&started&&!done&&activeSpot&&(()=>{
+          const s=activeSpot;
+          const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
+          const sprV=potN>0?(stackN/potN).toFixed(1):"—";
+          const toCall=Number(s.toCall)||0;
+          const oddsV=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":null;
+          const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
+          const diffC=s.diff===1?"#00E889":s.diff===2?"#FFC247":s.diff===3?"#FF7A45":s.diff===4?"#B85CFF":"#FFC247";
+          return(
+            <div className="pf-spot-info-bottom">
+              <span className="hud-chip">📍 {s.hpos}</span>
+              <span className="hud-chip">📊 {s.stack}</span>
+              <span className="hud-chip">SPR {sprV}</span>
+              {oddsV&&<span className="hud-chip">Odds {oddsV}</span>}
+              <span className="hud-chip" style={{color:"#9B5CFF",borderColor:"rgba(155,92,255,.28)",background:"rgba(155,92,255,.08)"}}>🃏 {s.fmt}</span>
+              <span className="hud-chip" style={{color:trainerMode==="gto"?"#34D8FF":"#FF8A3D",borderColor:trainerMode==="gto"?"rgba(52,216,255,.28)":"rgba(255,138,61,.28)",background:trainerMode==="gto"?"rgba(52,216,255,.08)":"rgba(255,138,61,.08)"}}>{trainerMode==="gto"?"GTO":PLATFORM_PROFILES[platform]?.flag||"🦈"}</span>
+              <span className="hud-chip" style={{gap:5}}><span style={{width:6,height:6,borderRadius:"50%",background:diffC,flexShrink:0,display:"inline-block"}}/>{diffLbl}</span>
+            </div>
+          );
+        })()}
         {started&&!done&&ntables>1&&allSettled&&(()=>{const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);return(
           <div style={{textAlign:"center",padding:"8px 0"}}>
-            <button className="btn btng" onClick={handleNext}>{isLastBatch?"🏆 Voir les résultats":"► Tables suivantes"}</button>
+            <button className="btn btng" disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
           </div>
         );})()}
       </div>

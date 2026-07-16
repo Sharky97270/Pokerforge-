@@ -283,7 +283,8 @@ function SettingsPanel({deckType,setDeckType,chipTheme="neon_modern",setChipThem
           chipTheme={chipTheme}
           chipColor={chipColor}
           chipSizeMode={chipSizeMode}
-          onThemeChange={setChipTheme}
+          lockedThemeId="trainer_v2"
+          lockedThemeNote="Le skin Trainer V2 est forcé pendant la refonte des tables. Les réglages ci-dessous gardent un impact sur l'échelle et le halo des jetons."
           onColorChange={setChipColor}
           onSizeModeChange={setChipSizeMode}
         />
@@ -1255,7 +1256,7 @@ export default function App(){
             flexDirection:isTrainer?"row":"column",
             overflowY:isFullHeightTool?"hidden":"auto",
           }}>
-          {tab==="trainer"   && <TrainerTab unit={unit} onGoSolver={(params)=>{setSolverScenario(buildScenarioFromTrainerParams(params));setTab("solver");}} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} seed={trainerSeed} onSeedApplied={()=>setTrainerSeed(null)}/>}
+          {tab==="trainer"   && <TrainerTab unit={unit} onGoSolver={(params)=>{setSolverScenario(buildScenarioFromTrainerParams(params));setTab("solver");}} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} seed={trainerSeed} onSeedApplied={()=>setTrainerSeed(null)} onGoCoach={goCoachLive}/>}
           {tab==="solver"    && <SharkSolverTab initialScenario={solverScenario} onInitialApplied={()=>setSolverScenario(null)} onGoTrainer={(seed)=>{setTrainerSeed(seed?{...seed,hpos:seed.hpos||seed.heroPos,vpos:seed.vpos||seed.vsPos}:null);setTab("trainer");}} onGoReplayer={()=>{setReplayerTabSeed("solver");setTab("replayer");}}/>}
           {tab==="dash"      && <DashboardTab NavIcon={NavIcon} onGoTrainer={()=>setTab("trainer")} onGoReplayer={()=>setTab("replayer")} onPrepareEvent={handlePrepareEvent} onGoSolver={()=>{setReplayerTabSeed("ranges");setTab("replayer");}} onGoCoach={()=>setTab("coach")} onGoHands={()=>setTab("pratique")}/>}
           {tab==="library"   && <LibraryTab RangeGrid={RangeGrid} RangePopup={RangePopup}/>}

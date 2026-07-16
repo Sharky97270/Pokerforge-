@@ -1632,6 +1632,9 @@ export function CoachFloatingButton({tab,onGoCoach}){
   const[open,setOpen]=useState(false);
   const visibleTabs=["trainer","pratique","replayer","coach","community"];
   if(!visibleTabs.includes(tab))return null;
+  // Trainer MOBILE : le gros bouton flottant masquait l'historique/le résultat —
+  // remplacé par l'icône 🧠 compacte dans la barre de contrôle du Trainer.
+  if(tab==="trainer"&&typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(max-width:768px)").matches)return null;
   const suggestions=COACH_LIVE_SUGGESTIONS[tab]||COACH_LIVE_SUGGESTIONS.coach;
   return(
     <>

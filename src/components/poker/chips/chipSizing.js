@@ -1,8 +1,10 @@
+// Échelles alignées sur les tokens du script multi-table V1 (§6) :
+// --pf-scale-2t:0.78 · --pf-scale-3t-top:0.66 · --pf-scale-4t:0.58
 export const CHIP_TABLE_MODE_SCALE = {
   "1T": 1,
   "2T": 0.78,
-  "3T": 0.64,
-  "4T": 0.52,
+  "3T": 0.66,
+  "4T": 0.58,
 };
 
 export const CHIP_SIZE_SCALE = {

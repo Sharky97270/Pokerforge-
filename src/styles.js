@@ -235,13 +235,317 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* minmax(0,1fr) au lieu de 1fr : force des colonnes STRICTEMENT égales
    (50/50, 33/33/33...), indépendamment du contenu de chaque table. */
 .grid1{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:14px;}
-.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:10px;align-items:start;}
-.grid3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;padding:6px;align-items:start;}
-.grid3>div:nth-child(3){grid-column:1/-1;}
-.grid4{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;padding:6px;align-items:start;}
+/* Mosaïque multi-table (maquette V1) : remplit tout le playground, lignes étirées,
+   séparation nette entre tables, aucune table fantôme. */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid3>.mt-slot:nth-child(3){grid-column:auto;}
+.grid3>.mt-slot:nth-child(3) .tw{max-width:none;margin:0;width:100%;}
+/* Viewports en hauteur NATURELLE (contenu = titre + streets + table ratio-exacte
+   + actions) : l'ovale garde ses proportions script à toute résolution — plus de
+   caps de hauteur à recalibrer. Largeurs maxi ≈ viewports maquette (réf. 1536). */
+.grid2,.grid3,.grid4{justify-items:stretch;}
+.grid2>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
+.grid3>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
+.grid3>.mt-slot:nth-child(3){max-width:none;}
+.grid4>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
+/* Table 3 (bas) : ovale 500×164 du script. Ratio de zone corrigé des marges de la
+   géométrie 3T (t11 b12.5 l7.4 r7.4) : (500/164)×0.765/0.852 ≈ 2.7375 */
+.grid3>.mt-slot:nth-child(3) .training-table-zone{aspect-ratio:1.7426!important;}
+/* Table basse très plate : clusters de sièges réduits (script §4 : éléments plus
+   petits en bas) — sinon nameplates des sièges hauts et cartes des sièges bas se
+   rejoignent au centre. Compensation héros : .82×.85 ≈ .7 (identique aux tables hautes). */
+.grid3>.mt-slot:nth-child(3) .pf-mt-seat{zoom:1;}
+.grid3>.mt-slot:nth-child(3) .pf-mt-seat .hero-card-wrap{zoom:1;}
+/* Pot réduit sur la table basse : à (50,29) il effleurait le board sur l'ovale plat */
+.grid3>.mt-slot:nth-child(3) .pf-pot-readout{zoom:1;}
+.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+@media(max-width:1280px){
+  .grid3{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));}
+}
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}
 .mt-slot{position:relative;min-width:0;}
+/* Chaque table remplit sa cellule de mosaïque */
+.grid2>.mt-slot,.grid3>.mt-slot,.grid4>.mt-slot{min-height:0;display:flex;flex-direction:column;}
+.grid2>.mt-slot>.tw,.grid3>.mt-slot>.tw,.grid4>.mt-slot>.tw{flex:1;min-height:0;display:flex;flex-direction:column;}
+/* Viewport de table : bordure/halo maquette (tokens §13), séparation nette */
+.grid2>.mt-slot,.grid3>.mt-slot,.grid4>.mt-slot{
+  border:1px solid var(--pf-mt-border,#12304C);border-radius:6px;
+  background:linear-gradient(180deg,var(--pf-mt-bg-panel,#061426) 0%,var(--pf-mt-bg-app,#020914) 100%);
+  box-sizing:border-box;overflow:hidden;transition:border-color .18s,box-shadow .18s;
+}
+.grid2>.mt-slot.mt-slot-focus,.grid3>.mt-slot.mt-slot-focus,.grid4>.mt-slot.mt-slot-focus{
+  border-color:var(--pf-mt-border-active,#1769FF);box-shadow:0 0 14px var(--pf-mt-glow-blue,rgba(0,120,255,.22));
+}
+.grid2>.mt-slot.table-slot-answered,.grid3>.mt-slot.table-slot-answered,.grid4>.mt-slot.table-slot-answered{
+  border-color:rgba(0,232,137,.45);
+}
+/* Titre TABLE n (maquette) */
+.mt-table-title{
+  display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  height:22px;margin:5px auto 1px;padding:0 12px;border-radius:6px;
+  font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;
+  color:#A9B7C9;background:rgba(8,26,45,.75);border:1px solid #12304C;
+}
+.mt-table-title.active{color:#DCEBFF;border-color:#1769FF;background:rgba(23,105,255,.14);}
+.mt-table-title.answered{color:#00E889;border-color:rgba(0,232,137,.4);}
+.mt-table-title i{font-style:normal;color:#00E889;font-size:10px;}
+.mt-table-title em{font-style:normal;color:#00D9FF;font-size:8px;line-height:1;}
+/* Multi-table : la zone d'action ne doit pas dupliquer l'aperçu des cartes Hero
+   (déjà sur la table) — on le masque pour compacter et éviter le rognage. */
+.grid2 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
+.grid3 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap),
+.grid4 .tw>.mt-zone-fit~div>div:has(.hero-card-wrap){display:none!important;}
+/* Skin V2 — boutons d'action de la mosaïque (planche §06) : corps navy sombre,
+   bordure + libellé colorés par type, hover lumineux. */
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn{
+  --c:var(--pf-gray);
+  border-radius:var(--pf-radius-sm)!important;
+  border:1px solid color-mix(in srgb,var(--c) 45%,transparent)!important;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 14%,#0B1626),color-mix(in srgb,var(--c) 6%,#0B1626))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 2px 8px rgba(0,0,0,.45)!important;
+  transition:transform .12s,box-shadow .15s,border-color .15s!important;
+}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn:hover:not(:disabled){
+  transform:translateY(-1px)!important;border-color:var(--c)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 14px rgba(0,0,0,.5),0 0 14px color-mix(in srgb,var(--c) 40%,transparent)!important;
+}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn:active:not(:disabled){transform:translateY(0) scale(.98)!important;filter:brightness(.94);}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn:disabled{opacity:.42;filter:grayscale(.3);}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn-CHECK{--c:#25D487;}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn-CALL{--c:#20CFFF;}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn-FOLD{--c:var(--pf-red);}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) :is(.gto-btn-RAISE,.gto-btn-OPEN,.gto-btn-BET,.gto-btn-BET33,.gto-btn-BET50,.gto-btn-BET75,.gto-btn-BET100,[class*="gto-btn-3BET"],[class*="gto-btn-4BET"],[class*="gto-btn-5BET"]){--c:#FFB800;}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn-ALLIN{--c:var(--pf-red);}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn .gto-btn-label{color:color-mix(in srgb,var(--c) 78%,#fff)!important;}
+:is(.grid2,.grid3,.grid4,.t1-actions-under,.t1-mob .mtr-actions) .gto-btn .gto-btn-sizing{color:color-mix(in srgb,var(--c) 62%,#fff)!important;}
+/* Dealer V2 : SVG vectoriel — on neutralise le disque CSS d'origine */
+.dealer-btn.dealer-btn-v2{background:none!important;border:none!important;box-shadow:none!important;animation:none!important;padding:0!important;color:transparent!important;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));}
+
+/* ══ Tokens TRAINER V2 (planche Assets Trainer V2 §09/§10/§11) ══
+   Source de vérité : public/assets/pokerforge/trainer-v2/tokens/*.css
+   (inlinés ici car le build standalone n'embarque pas les <link> runtime). */
+:root{
+  --pf-bg-900:#0B1626;--pf-bg-800:#0F1F3A;--pf-blue-700:#132B4D;--pf-blue-600:#1E3A66;
+  --pf-cyan:#20CFFF;--pf-gold:#FFB800;--pf-orange:#FF6B00;--pf-green:#17C964;
+  --pf-red:#E53935;--pf-purple:#A855F7;--pf-gray:#8B949E;--pf-white:#E6E6E6;
+  --pf-radius-sm:8px;--pf-radius-md:12px;--pf-radius-lg:18px;
+  --pf-glow-cyan:0 0 18px rgba(32,207,255,.45);--pf-glow-gold:0 0 18px rgba(255,184,0,.38);
+  --pf-glow-green:0 0 16px rgba(23,201,100,.40);--pf-glow-red:0 0 16px rgba(229,57,53,.42);
+  --pf-glow-purple:0 0 16px rgba(168,85,247,.42);
+  --pf-shadow-card:0 6px 14px rgba(0,0,0,.7);
+  --pf-font-title:'Orbitron','Space Grotesk',sans-serif;
+  --pf-font-main:'Montserrat','Inter',sans-serif;
+  --pf-font-stats:'DIN Condensed','JetBrains Mono',monospace;
+}
+
+/* ══ Tokens palette multi-table (script V1 §13 + §6) ══ */
+:root{
+  --pf-mt-bg-app:#020914;--pf-mt-bg-panel:#061426;--pf-mt-bg-panel-alt:#081A2D;
+  --pf-mt-felt:#06264A;--pf-mt-felt-deep:#031A35;
+  --pf-mt-border:#12304C;--pf-mt-border-soft:#0B2238;--pf-mt-border-active:#1769FF;--pf-mt-border-gold:#C8953E;
+  --pf-mt-text:#F4F7FB;--pf-mt-text-2:#A9B7C9;--pf-mt-text-muted:#6E7E91;
+  --pf-mt-cyan:#00D9FF;--pf-mt-blue:#0878FF;--pf-mt-green:#00E889;--pf-mt-red:#FF3B35;
+  --pf-mt-gold-light:#F4C56A;--pf-mt-gold:#C8953E;--pf-mt-gold-dark:#6F4518;
+  --pf-mt-glow-blue:rgba(0,120,255,.25);--pf-mt-glow-cyan:rgba(0,217,255,.20);--pf-mt-glow-gold:rgba(200,149,62,.22);
+  --pf-scale-1t:1;--pf-scale-2t:.78;--pf-scale-3t-top:.66;--pf-scale-3t-bottom:.61;--pf-scale-4t:.58;
+}
+/* Emplacement de carte en attente (turn/river) — pastille dorée maquette */
+.mt-board-ph{
+  display:block;box-sizing:border-box;flex-shrink:0;
+  border:1px dashed var(--pf-mt-glow-gold);
+  background:rgba(200,149,62,.05);
+  box-shadow:inset 0 0 8px rgba(0,0,0,.35);
+}
+/* Calibrage cartes multi-table (retour utilisateur) : héros ×0.7, board ×0.5.
+   Scopé .pf-mt-seat / .mt-board-zone → le 1T figé n'est pas affecté. */
+.grid2 .pf-mt-seat .hero-card-wrap,
+.grid3 .pf-mt-seat .hero-card-wrap,
+.grid4 .pf-mt-seat .hero-card-wrap{zoom:1;}
+.mt-board-zone{zoom:.72;}/* minimum readable board across 2T/3T/4T */
+/* Badges de mise 2T : jetons AU-DESSUS du libellé (vertical, comme la maquette)
+   → badge étroit qui tient dans le couloir board ↔ nameplate. 3T/4T restent
+   horizontaux (zones plus petites : un badge haut y percute blindes/pot). */
+.grid2 .pf-seat-action-zone .pf-action-chip-badge{
+  flex-direction:column!important;gap:1px!important;align-items:center!important;
+}
+.grid2 .pf-seat-action-zone .pf-action-chip-copy{
+  display:flex;flex-direction:row;gap:3px;align-items:baseline;line-height:1.1;text-align:center;
+}
+/* Pot multi-table : aucun cadre/fond — jetons + texte posés sur le feutre */
+.grid2 .pf-pot-readout,.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
+  background:transparent!important;border:none!important;box-shadow:none!important;
+  outline:none!important;backdrop-filter:none!important;
+}
+/* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
+.grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
+.grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
+.grid4 .training-table-zone{aspect-ratio:2.58!important;}
+.grid4 .mtr-actions{padding:5px 6px 6px!important;}
+.grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
+.grid4 .gto-btn-label{font-size:11px!important;}
+.grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}
+.grid4 .gto-btn-hint{display:none!important;}
+/* Colonne droite partagée multi-table : panneau V2 lisible (renderMultiPanel) */
+.pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
+.pf-mt-sharedcol>.t1-right{flex:1 1 auto!important;width:100%!important;}
+
+/* ══ PANNEAU DROIT MULTI-TABLE V2 — refonte lisibilité ══ */
+.pf-p2{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overflow-x:hidden;
+  padding:12px 13px 14px;background:linear-gradient(180deg,var(--pf-mt-bg-panel-alt,#081A2D),var(--pf-mt-bg-app,#020914));
+  border-left:1px solid var(--pf-mt-border,#12304C);box-sizing:border-box;}
+.pf-p2::-webkit-scrollbar{width:7px;}
+.pf-p2::-webkit-scrollbar-thumb{background:#173257;border-radius:5px;}
+.pf-p2-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.pf-p2-chip{display:inline-flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;
+  color:#cfe0ff;background:#0c1e3a;border:1px solid #17345c;border-radius:7px;padding:4px 9px;}
+.pf-p2-chip b{color:#54b8ff;font-weight:800;}
+.pf-p2-sec{display:flex;flex-direction:column;gap:8px;padding-bottom:12px;border-bottom:1px solid rgba(18,48,76,.6);}
+.pf-p2-sec:last-child{border-bottom:none;padding-bottom:0;}
+.pf-p2-h{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;letter-spacing:.13em;color:#54b8ff;}
+/* Villain */
+.pf-p2-vil{display:flex;gap:11px;align-items:center;}
+.pf-p2-vil-ava{width:46px;height:46px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:23px;border:2px solid;}
+.pf-p2-vil-name{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:800;line-height:1.1;}
+.pf-p2-vil-sub{font-family:'Inter',sans-serif;font-size:11px;color:#8fa2c4;margin-top:2px;line-height:1.3;}
+.pf-p2-bars{display:flex;flex-direction:column;gap:7px;}
+.pf-p2-bar{display:flex;align-items:center;gap:9px;}
+.pf-p2-bar .k{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;width:38px;flex-shrink:0;}
+.pf-p2-bar .tr{flex:1;height:7px;border-radius:20px;background:#0b2238;overflow:hidden;}
+.pf-p2-bar .tr i{display:block;height:100%;border-radius:20px;}
+.pf-p2-bar .v{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;min-width:34px;text-align:right;}
+/* Solution masquée */
+.pf-p2-locked{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;background:#0b2238;border:1px solid #14304f;}
+.pf-p2-locked span{font-family:'Inter',sans-serif;font-size:12px;color:#a9b7c9;}
+.pf-p2-reveal{margin-left:auto;padding:6px 16px;border-radius:8px;border:1px solid #1769FF;background:rgba(23,105,255,.16);color:#9fc8ff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+.pf-p2-reveal:hover{background:rgba(23,105,255,.32);color:#fff;}
+/* Verdict */
+.pf-p2-verdict{display:flex;flex-direction:column;gap:2px;padding:9px 12px;border-radius:10px;border:1px solid;}
+.pf-p2-verdict.ok{background:rgba(0,232,137,.08);border-color:rgba(0,232,137,.35);}
+.pf-p2-verdict.ko{background:rgba(255,69,96,.08);border-color:rgba(255,69,96,.35);}
+.pf-p2-verdict strong{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;color:#f4f7fb;}
+.pf-p2-verdict span{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;}
+/* Analyse GTO — lignes d'action */
+.pf-p2-actlist{display:flex;flex-direction:column;gap:6px;}
+.pf-p2-actrow{display:flex;align-items:center;gap:8px;padding:4px 7px;border-radius:8px;background:rgba(11,34,56,.5);}
+.pf-p2-actrow.best{background:rgba(0,232,137,.08);}
+.pf-p2-actrow.chosen{outline:1px solid rgba(120,160,255,.5);}
+.pf-p2-actrow .lab{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;color:#e6eefc;width:78px;flex-shrink:0;display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pf-p2-actrow .lab i{font-style:normal;color:#00E889;font-size:11px;}
+.pf-p2-actrow .tr{flex:1;height:7px;border-radius:20px;background:#0a1a30;overflow:hidden;}
+.pf-p2-actrow .tr i{display:block;height:100%;border-radius:20px;}
+.pf-p2-actrow .frq{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#dbe7ff;min-width:34px;text-align:right;}
+.pf-p2-actrow .ev{font-family:'JetBrains Mono',monospace;font-size:11px;min-width:34px;text-align:right;}
+.pf-p2-optimal{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;text-align:right;}
+.pf-p2-optimal b{color:#00E889;}
+.pf-p2-ranges{margin-top:2px;padding:9px;border-radius:9px;border:1px solid #17345c;background:#0c1e3a;color:#cfe0ff;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;}
+.pf-p2-ranges:hover{border-color:#1769FF;background:rgba(23,105,255,.16);color:#fff;}
+/* Historique */
+.pf-p2-histo{display:flex;flex-direction:column;gap:3px;}
+.pf-p2-hrow{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:6px;}
+.pf-p2-hrow.hero{background:rgba(23,105,255,.12);}
+.pf-p2-hrow .p{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#7f8ca3;}
+.pf-p2-hrow.hero .p{color:#8FC0FF;}
+.pf-p2-hrow .a{font-family:'Inter',sans-serif;font-size:11.5px;}
+/* Informations */
+.pf-p2-info{display:flex;flex-direction:column;gap:5px;}
+.pf-p2-irow{display:flex;align-items:center;justify-content:space-between;}
+.pf-p2-irow .k{font-family:'Inter',sans-serif;font-size:12px;color:#8090a5;}
+.pf-p2-irow .v{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;}
+/* Timeline */
+.pf-p2-tl{
+  margin-top:auto;gap:8px;position:sticky;bottom:0;z-index:5;
+  padding-top:10px!important;padding-bottom:8px!important;
+  background:linear-gradient(180deg,rgba(3,13,42,.72),#030D2A 38%);
+  border-top:1px solid rgba(18,48,76,.8)!important;
+}
+.pf-p2-tl-track{height:6px;border-radius:20px;background:#0b2238;overflow:hidden;}
+.pf-p2-tl-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#0878FF,#00D9FF);box-shadow:0 0 8px rgba(0,217,255,.4);}
+.pf-p2-tl-row{display:flex;align-items:center;gap:10px;}
+.pf-p2-tl-row .cnt{font-family:'JetBrains Mono',monospace;font-size:11px;color:#a9b7c9;}
+.pf-p2-next{flex:1;padding:10px;border-radius:9px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:800;color:#fff;background:linear-gradient(135deg,#0878FF,#00D9FF);box-shadow:0 3px 14px rgba(8,120,255,.36);}
+.pf-p2-next:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;background:#12304C;}
+/* Aide multi-table intégrée au panneau droit (ex-bandeau bas) */
+.pf-mtp-help{flex-shrink:0;padding:9px 11px;margin-top:2px;border-top:1px solid #152D6E;background:rgba(6,20,38,.5);}
+.pf-mtp-help .pf-mtp-title{font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:800;letter-spacing:.13em;margin-bottom:5px;}
+.pf-mtp-help-instr{display:flex;flex-direction:column;gap:2px;margin-bottom:2px;}
+.pf-mtp-help-instr strong{font-family:'Space Grotesk',sans-serif;font-size:9.5px;font-weight:800;color:#DCEBFF;letter-spacing:.04em;}
+.pf-mtp-help-instr span{font-family:'Inter',sans-serif;font-size:9.5px;color:#A9B7C9;line-height:1.35;}
+.pf-mtp-help-keys{display:flex;flex-direction:column;gap:4px;}
+.pf-mtp-help-key{display:flex;align-items:center;gap:7px;}
+.pf-mtp-help-key .kk{font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:800;color:#F4F7FB;background:#0B2238;border:1px solid #16305f;border-radius:5px;padding:1px 6px;flex-shrink:0;}
+.pf-mtp-help-key .kl{font-family:'Inter',sans-serif;font-size:9.5px;color:#A9B7C9;}
+.pf-mtp-help-list{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:3px;}
+.pf-mtp-help-list li{font-family:'Inter',sans-serif;font-size:9px;color:#8FA2C4;line-height:1.3;padding-left:11px;position:relative;}
+.pf-mtp-help-list li::before{content:"•";position:absolute;left:1px;color:#0878FF;}
+
+/* ══ MULTI-TABLE — panneau droit partagé (maquette V1) ══ */
+.pf-mt-rightpanel{
+  flex:0 0 300px;width:300px;min-width:0;align-self:stretch;overflow-y:auto;overflow-x:hidden;
+  background:linear-gradient(180deg,#081A2D 0%,#04101D 100%);
+  border-left:1px solid #12304C;padding:10px 12px 14px;
+  display:flex;flex-direction:column;gap:12px;box-sizing:border-box;
+}
+.pf-mt-rightpanel::-webkit-scrollbar{width:6px;}
+.pf-mt-rightpanel::-webkit-scrollbar-thumb{background:#12304C;border-radius:4px;}
+.pf-mtp-sec{display:flex;flex-direction:column;gap:7px;}
+.pf-mtp-title{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.14em;color:#00D9FF;}
+.pf-mtp-empty{font-family:'Inter',sans-serif;font-size:10px;color:#6E7E91;padding:8px 0;}
+.pf-mtp-bars{display:flex;flex-direction:column;gap:5px;margin-top:6px;}
+.pf-mtp-bar{display:flex;align-items:center;gap:7px;}
+.pf-mtp-bar .k{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:#A9B7C9;width:34px;flex-shrink:0;}
+.pf-mtp-bar .tr{flex:1;height:5px;border-radius:20px;background:#0B2238;overflow:hidden;}
+.pf-mtp-bar .tr i{display:block;height:100%;border-radius:20px;}
+.pf-mtp-bar .v{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;min-width:30px;text-align:right;}
+.pf-mtp-sol{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:#0B2238;border:1px solid #12304C;}
+.pf-mtp-sol.reveal{border-color:rgba(0,232,137,.35);background:rgba(0,232,137,.06);}
+.pf-mtp-sol .lbl{font-family:'Inter',sans-serif;font-size:10px;color:#A9B7C9;}
+.pf-mtp-sol strong{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;}
+.pf-mtp-sol .frq{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:#00E889;}
+.pf-mtp-reveal{margin-left:auto;padding:3px 12px;border-radius:6px;border:1px solid #1769FF;background:rgba(23,105,255,.14);color:#8FC0FF;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer;}
+.pf-mtp-reveal:hover{background:rgba(23,105,255,.28);color:#fff;}
+.pf-mtp-histo{display:flex;flex-direction:column;gap:2px;}
+.pf-mtp-hrow{display:flex;align-items:center;justify-content:space-between;padding:2px 2px;border-bottom:1px solid rgba(11,34,56,.6);}
+.pf-mtp-hrow .p{font-family:'JetBrains Mono',monospace;font-size:9px;color:#6E7E91;font-weight:700;}
+.pf-mtp-hrow .a{font-family:'Inter',sans-serif;font-size:9.5px;color:#A9B7C9;}
+.pf-mtp-hrow.hero{background:rgba(23,105,255,.1);border-radius:5px;}
+.pf-mtp-hrow.hero .p,.pf-mtp-hrow.hero .a{color:#8FC0FF;}
+.pf-mtp-info{display:flex;flex-direction:column;gap:3px;}
+.pf-mtp-irow{display:flex;align-items:center;justify-content:space-between;padding:2px 0;}
+.pf-mtp-irow .k{font-family:'Inter',sans-serif;font-size:10px;color:#6E7E91;}
+.pf-mtp-irow .v{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;}
+.pf-mtp-timeline{margin-top:auto;gap:6px;}
+.pf-mtp-tl-track{height:5px;border-radius:20px;background:#0B2238;overflow:hidden;}
+.pf-mtp-tl-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#0878FF,#00D9FF);box-shadow:0 0 8px rgba(0,217,255,.4);}
+.pf-mtp-tl-ctrls{display:flex;align-items:center;gap:8px;}
+.pf-mtp-tl-ctrls .cnt{font-family:'JetBrains Mono',monospace;font-size:9px;color:#A9B7C9;}
+.pf-mtp-tl-next{flex:1;padding:8px;border-radius:8px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,#0878FF,#00D9FF);box-shadow:0 3px 12px rgba(8,120,255,.34);}
+.pf-mtp-tl-next:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;background:#12304C;}
+
+/* ══ MULTI-TABLE — bandeau explicatif du bas (maquette V1) ══ */
+.pf-mt-footer{
+  flex-shrink:0;display:grid;grid-template-columns:1.15fr 1fr 1fr 0.95fr 0.95fr;gap:18px;
+  padding:12px 18px 14px;background:#020914;border-top:1px solid #12304C;
+}
+.pf-mtf-col{min-width:0;}
+.pf-mtf-h{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.14em;color:#6E7E91;margin-bottom:7px;}
+.pf-mtf-instr{display:flex;flex-direction:column;gap:3px;}
+.pf-mtf-instr strong{font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;color:#00D9FF;letter-spacing:.05em;}
+.pf-mtf-instr span{font-family:'Inter',sans-serif;font-size:10px;color:#A9B7C9;line-height:1.4;}
+.pf-mtf-instr em{font-style:normal;font-family:'Inter',sans-serif;font-size:10px;color:#F4C56A;font-weight:600;}
+.pf-mtf-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+.pf-mtf-list li{font-family:'Inter',sans-serif;font-size:10px;color:#A9B7C9;line-height:1.35;padding-left:15px;position:relative;}
+.pf-mtf-list.ok li::before{content:"✓";position:absolute;left:0;color:#00E889;font-weight:700;}
+.pf-mtf-list.dot li::before{content:"•";position:absolute;left:2px;color:#0878FF;font-weight:700;}
+.pf-mtf-keys{display:flex;flex-direction:column;gap:5px;}
+.pf-mtf-key{display:flex;align-items:center;gap:8px;}
+.pf-mtf-key .kk{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:800;color:#F4F7FB;background:#0B2238;border:1px solid #12304C;border-radius:5px;padding:2px 7px;flex-shrink:0;}
+.pf-mtf-key .kl{font-family:'Inter',sans-serif;font-size:10px;color:#A9B7C9;}
+@media(max-width:1279px){
+  .pf-mt-rightpanel{flex-basis:250px;width:250px;}
+  .pf-mt-footer{gap:12px;grid-template-columns:1.1fr 1fr 1fr 0.9fr 0.9fr;}
+}
 /* Seat fold visual */
 .seat-folded,.pf-mt-seat-folded{
   opacity:.7!important;
@@ -426,10 +730,10 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .card-1t-hero .card-corner-r{font-size:20px;}
 .card-1t-hero .card-corner-s{font-size:15px;}
 .card-1t-hero .card-center{font-size:31px;}
-.card-1t-board{width:52px;height:72px;border-radius:7px;}
-.card-1t-board .card-corner-r{font-size:20px;}
-.card-1t-board .card-corner-s{font-size:15px;}
-.card-1t-board .card-center{font-size:31px;}
+.card-1t-board{width:57px;height:79px;border-radius:7px;}/* +10% (script V2) */
+.card-1t-board .card-corner-r{font-size:22px;}
+.card-1t-board .card-corner-s{font-size:16px;}
+.card-1t-board .card-center{font-size:34px;}
 .card-1t-board .card-corner{top:4px;left:4px;}
 .card-1t-hero-top{width:44px;height:61px;border-radius:6px;}
 .card-1t-hero-top .card-corner-r{font-size:17px;}
@@ -607,12 +911,12 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .range-grid{display:grid;grid-template-columns:repeat(13,1fr);gap:1px;border-radius:8px;overflow:hidden;margin-top:6px;}
 .rg-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;font-size:7px;font-weight:700;cursor:default;letter-spacing:-.02em;position:relative;transition:transform .1s;}
 .rg-cell:hover{transform:scale(1.5);z-index:10;border-radius:2px;}
-.rg-raise{background:rgba(155,92,255,.78);}
-.rg-call{background:rgba(46,204,113,.72);}
-.rg-fold{background:rgba(14,14,30,.75);}
-.rg-mix-rc{background:linear-gradient(135deg,rgba(155,92,255,.75) 50%,rgba(46,204,113,.7) 50%);}
-.rg-mix-rf{background:linear-gradient(135deg,rgba(155,92,255,.75) 50%,rgba(14,14,30,.75) 50%);}
-.rg-mix-cf{background:linear-gradient(135deg,rgba(46,204,113,.7) 50%,rgba(14,14,30,.75) 50%);}
+.rg-raise{background:rgba(255,184,0,.86);}
+.rg-call{background:rgba(32,207,255,.78);}
+.rg-fold{background:rgba(42,16,24,.82);}
+.rg-mix-rc{background:linear-gradient(135deg,rgba(255,184,0,.86) 50%,rgba(32,207,255,.78) 50%);}
+.rg-mix-rf{background:linear-gradient(135deg,rgba(255,184,0,.86) 50%,rgba(42,16,24,.82) 50%);}
+.rg-mix-cf{background:linear-gradient(135deg,rgba(32,207,255,.78) 50%,rgba(42,16,24,.82) 50%);}
 .rg-header{display:flex;gap:8px;align-items:center;margin-bottom:5px;}
 .rg-legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .rg-leg{display:flex;align-items:center;gap:4px;font-size:8.5px;color:#9FB0CC;font-family:'Inter',sans-serif;}
@@ -934,6 +1238,9 @@ body::before{
 .cai-hist-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;}
 
 .cai-fab{position:fixed;bottom:22px;right:24px;z-index:90;display:flex;align-items:center;gap:8px;padding:13px 20px;border-radius:30px;font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,#1F8BFF,#9B5CFF);box-shadow:0 8px 24px rgba(91,60,255,.35);cursor:pointer;transition:transform .15s;}
+/* Multi-table : Coach AI est dans la barre (à gauche d'Arrêter) → le FAB flottant
+   ne doit plus chevaucher la timeline. On le masque quand la mosaïque est active. */
+body:has(.pf-mt-sharedcol) .cai-fab,body:has(.pf-mt-sharedcol) .cai-fab-panel{display:none!important;}
 .cai-fab:hover{transform:translateY(-2px) scale(1.03);}
 .cai-fab-panel{position:fixed;bottom:84px;right:24px;z-index:90;width:340px;max-height:min(60vh,440px);display:flex;flex-direction:column;background:#0A1530;border:1px solid #1A3A80;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.5);overflow:hidden;}
 .cai-fab-head{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid #152D6E;background:rgba(31,139,255,.06);}
@@ -1585,12 +1892,12 @@ body::before{
 .repctrl.on{background:rgba(31,139,255,.12)!important;color:#1F8BFF!important;border-color:rgba(31,139,255,.35)!important;}
 
 /* ─── RANGE GRID ─────────────────────────────────────── */
-.rg-raise{background:rgba(16,216,122,.65)!important;}
-.rg-call{background:rgba(31,139,255,.6)!important;}
-.rg-fold{background:rgba(7,27,68,.8)!important;}
-.rg-mix-rc{background:linear-gradient(135deg,rgba(16,216,122,.6) 50%,rgba(31,139,255,.6) 50%)!important;}
-.rg-mix-rf{background:linear-gradient(135deg,rgba(16,216,122,.6) 50%,rgba(7,27,68,.8) 50%)!important;}
-.rg-mix-cf{background:linear-gradient(135deg,rgba(31,139,255,.6) 50%,rgba(7,27,68,.8) 50%)!important;}
+.rg-raise{background:rgba(255,184,0,.86)!important;}
+.rg-call{background:rgba(32,207,255,.78)!important;}
+.rg-fold{background:rgba(42,16,24,.82)!important;}
+.rg-mix-rc{background:linear-gradient(135deg,rgba(255,184,0,.86) 50%,rgba(32,207,255,.78) 50%)!important;}
+.rg-mix-rf{background:linear-gradient(135deg,rgba(255,184,0,.86) 50%,rgba(42,16,24,.82) 50%)!important;}
+.rg-mix-cf{background:linear-gradient(135deg,rgba(32,207,255,.78) 50%,rgba(42,16,24,.82) 50%)!important;}
 
 /* ─── COACH ──────────────────────────────────────────── */
 .coach{background:#030712!important;}
@@ -2861,7 +3168,10 @@ body{font-size:13px!important;}
   .gto-masked-panel{padding-bottom:8px!important;}
 
   /* ── FIX 4 : Multi-table — padding bottom global pour la nav ── */
-  .trainer-scroll-area{padding-bottom:80px!important;}
+  /* Gold Master §1 : la nav est déjà réservée par .app{padding-bottom:60px}.
+     On ne garde qu'une marge de sécurité minimale ici → ~60px de hauteur rendus
+     au playrow (table + bloc bas remontent contre la nav). */
+  .trainer-scroll-area{padding-bottom:16px!important;}
   .grid2,.grid3,.grid4,.grid6,.grid8{padding-bottom:10px!important;}
 
   /* ── FIX 5 : Trainer — zone action multi-table ── */
@@ -3359,13 +3669,33 @@ input:focus,select:focus,textarea:focus{
   .t1-row{flex-direction:column!important;}
   .t1-left{flex:1 1 auto!important;min-height:0;}
   .t1-right{display:none!important;}            /* panneau droit desktop → bottom sheet */
+  .t1-actions-under{display:none!important;}    /* REFONTE MOBILE : actions gérées par .t1-mob (sinon double bandeau de décision) */
   .t1-mob{display:flex!important;flex-direction:column;flex-shrink:0;}
   /* FIX mobile 1T : la table doit remplir la hauteur dispo (sinon felt à 0px) */
   .grid1{grid-auto-rows:minmax(0,1fr)!important;}
   .grid1>.mt-slot{height:100%!important;min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;}
   .grid1>.mt-slot>div{flex:1 1 auto!important;min-height:0!important;}
   /* Felt plus ample en portrait */
-  .t1-left .felt-oval{top:3%!important;left:2.5%!important;right:2.5%!important;bottom:6%!important;}
+  .t1-left .felt-oval{top:6%!important;left:12%!important;right:12%!important;bottom:5%!important;}
+  /* Maquette mobile 1T : feutre VERT sombre texturé + anneau doré + bord bleu-nuit (identité web) */
+  .t1-left .felt-oval{background:radial-gradient(ellipse at 50% 26%,rgba(46,132,79,.80) 0%,rgba(21,86,49,.95) 38%,rgba(9,50,27,.99) 70%,#05160D 100%)!important;border:1px solid rgba(255,214,121,.62)!important;box-shadow:inset 0 0 90px rgba(0,0,0,.55),0 0 0 3px rgba(6,18,32,.95),0 0 0 5px rgba(255,194,71,.42),0 0 0 7px rgba(31,58,102,.5),0 16px 40px rgba(0,0,0,.75)!important;}
+  /* Pot mobile : jetons + texte seulement, aucun socle/ovale gris (spec §6) */
+  .t1-left .pf-pot-readout{background:transparent!important;border:none!important;box-shadow:none!important;backdrop-filter:none!important;}
+  /* Pot COMPACT HORIZONTAL (mission premium P1/§8) : [jetons] POT 16.5bb sur une
+     ligne -> ~22px de haut, tient entre la plaque du siège haut et le board,
+     zone fixe indépendante des mises. */
+  .t1-left .pf-pot-readout{flex-direction:row!important;align-items:center!important;gap:5px!important;white-space:nowrap!important;}
+  .t1-left .pf-pot-readout .pf-chip-stack,.t1-left .pf-pot-readout>*:first-child{transform:scale(.72);transform-origin:center;}
+  .t1-left .pf-pot-label{font-size:8px!important;}
+  .t1-left .pf-pot-value{font-size:14px!important;}
+  /* Board mobile : cartes plus lisibles, centré (spec §7) */
+  .t1-left .pf-board-zone{gap:8px!important;}
+  /* Board mobile : cartes réduites (la taille desktop 57px faisait un board de
+     317px, PLUS LARGE que le feutre 306px → débordait sur les sièges latéraux). */
+  .t1-left .card-1t-board{width:38px!important;height:53px!important;border-radius:5px!important;}
+  .t1-left .card-1t-board .card-corner-r{font-size:15px!important;}
+  .t1-left .card-1t-board .card-corner-s{font-size:11px!important;}
+  .t1-left .card-1t-board .card-center{font-size:22px!important;}
   /* HUD → ruban scrollable une ligne */
   .trainer-hud{
     flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;
@@ -4322,11 +4652,11 @@ body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin
 .pf-hole-cards .card:nth-child(2){transform:rotate(4deg) translateX(-1px)!important;}
 .pf-villain-backs{filter:drop-shadow(0 7px 15px rgba(0,183,255,.34)) drop-shadow(0 8px 16px rgba(0,0,0,.88))!important;}
 
-.pf-pot-chip-stack{position:relative!important;display:flex!important;justify-content:center!important;align-items:flex-end!important;width:auto!important;height:44px!important;overflow:visible!important;margin:0 0 2px!important;border-radius:0!important;}
-.pf-pot-readout{gap:1px!important;padding:2px 11px 6px!important;background:radial-gradient(ellipse at 50% 45%,rgba(1,8,22,.28),transparent 70%)!important;}
+.pf-pot-chip-stack{position:relative!important;display:flex!important;justify-content:center!important;align-items:flex-end!important;width:auto!important;height:50px!important;overflow:visible!important;margin:0 0 2px!important;border-radius:0!important;}
+.pf-pot-readout{gap:1px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;backdrop-filter:none!important;}
 .pf-pot-label{font-size:10px!important;color:#e7ecf3!important;letter-spacing:.08em!important;}
 .pf-pot-value{font-size:27px!important;color:#fff!important;text-shadow:0 2px 2px rgba(0,0,0,.88),0 0 14px rgba(0,191,255,.32)!important;}
-.pf-pot-readout.compact .pf-pot-chip-stack{width:auto!important;height:24px!important;transform:none!important;margin-bottom:1px!important;}
+.pf-pot-readout.compact .pf-pot-chip-stack{width:auto!important;height:28px!important;transform:none!important;margin-bottom:1px!important;}
 .pf-pot-readout.compact .pf-pot-value{font-size:14px!important;}
 .pf-pot-readout.compact .pf-pot-label{font-size:7.5px!important;}
 
@@ -4547,15 +4877,15 @@ export const CSS_TABLE=`
 }
 @keyframes fadein{from{opacity:0;}to{opacity:1;}}
 .rpop{
-  background:linear-gradient(145deg,#13131e,#071B44);
-  border:1px solid #1A3A80;border-radius:14px;
-  padding:16px 18px;max-width:540px;width:94vw;
-  box-shadow:0 20px 60px rgba(0,0,0,.7),0 0 0 1px rgba(255,194,71,.06);
-  max-height:90vh;overflow-y:auto;
+  background:linear-gradient(145deg,#10182E,#071B44 56%,#041126);
+  border:1px solid rgba(32,207,255,.42);border-radius:14px;
+  padding:22px 24px;max-width:1220px;width:min(90vw,1220px);
+  box-shadow:0 24px 80px rgba(0,0,0,.78),0 0 0 1px rgba(255,184,0,.08),0 0 38px rgba(32,207,255,.14);
+  max-height:90vh;overflow:auto;
 }
-.rpop-tabs{display:flex;gap:4px;margin-bottom:12px;}
+.rpop-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .rpop-tab{
-  padding:4px 12px;border-radius:20px;font-size:9.5px;font-weight:700;cursor:pointer;
+  padding:9px 16px;border-radius:20px;font-size:12px;font-weight:800;cursor:pointer;
   font-family:'Inter',sans-serif;letter-spacing:.05em;border:1px solid transparent;
   transition:all .15s;color:#6F81A8;background:#071B44;
 }
@@ -4572,6 +4902,52 @@ export const CSS_TABLE=`
 .seat-range-btn:hover{background:rgba(255,194,71,.3);transform:scale(1.15);}
 .seat-range-btn.vil{background:rgba(155,92,255,.15);border-color:rgba(155,92,255,.35);color:#9B5CFF;}
 .seat-range-btn.vil:hover{background:rgba(155,92,255,.3);}
+
+/* Trainer action palette - PokerForge identity */
+:is(.gto-btn,.ab):focus-visible,
+.pf-p2-next:focus-visible,
+.rpop-tab:focus-visible,
+.range-cell-focus:focus-visible{
+  outline:2px solid rgba(32,207,255,.9)!important;
+  outline-offset:2px!important;
+}
+.gto-btn-FOLD,.ab-FOLD{
+  background:linear-gradient(180deg,#2A1018,#12070C)!important;
+  border:1px solid rgba(229,72,93,.55)!important;
+  color:#FFE3E8!important;
+}
+.gto-btn-FOLD .gto-btn-label,.gto-btn-FOLD .gto-btn-sizing{color:#FF6E82!important;}
+.gto-btn-CALL,.ab-CALL{
+  background:linear-gradient(180deg,#08283A,#04141F)!important;
+  border:1px solid rgba(32,207,255,.55)!important;
+  color:#CFF7FF!important;
+}
+.gto-btn-CALL .gto-btn-label,.gto-btn-CALL .gto-btn-sizing{color:#20CFFF!important;}
+.gto-btn-CHECK,.ab-CHECK{
+  background:linear-gradient(180deg,#09291F,#04150F)!important;
+  border:1px solid rgba(37,212,135,.48)!important;
+  color:#D8FFEF!important;
+}
+.gto-btn-CHECK .gto-btn-label,.gto-btn-CHECK .gto-btn-sizing{color:#25D487!important;}
+.gto-btn-RAISE,.gto-btn-OPEN,.gto-btn-BET,.gto-btn-3BET,.gto-btn-4BET,.gto-btn-5BET,
+.gto-btn-BET33,.gto-btn-BET50,.gto-btn-BET75,.gto-btn-BET100,.ab-RAISE,.ab-3BET,
+.ab-BET33,.ab-BET50,.ab-BET75,.ab-BET100{
+  background:linear-gradient(180deg,#352100,#140C00)!important;
+  border:1px solid rgba(255,184,0,.58)!important;
+  color:#FFF2C2!important;
+}
+.gto-btn-RAISE .gto-btn-label,.gto-btn-OPEN .gto-btn-label,.gto-btn-BET .gto-btn-label,
+.gto-btn-3BET .gto-btn-label,.gto-btn-4BET .gto-btn-label,.gto-btn-5BET .gto-btn-label,
+.gto-btn-BET33 .gto-btn-label,.gto-btn-BET50 .gto-btn-label,.gto-btn-BET75 .gto-btn-label,.gto-btn-BET100 .gto-btn-label,
+.gto-btn-RAISE .gto-btn-sizing,.gto-btn-OPEN .gto-btn-sizing,.gto-btn-BET .gto-btn-sizing,
+.gto-btn-3BET .gto-btn-sizing,.gto-btn-4BET .gto-btn-sizing,.gto-btn-5BET .gto-btn-sizing,
+.gto-btn-BET33 .gto-btn-sizing,.gto-btn-BET50 .gto-btn-sizing,.gto-btn-BET75 .gto-btn-sizing,.gto-btn-BET100 .gto-btn-sizing{color:#FFB800!important;}
+.gto-btn-ALLIN,.ab-ALLIN{
+  background:linear-gradient(180deg,#321018,#17060B)!important;
+  border:1px solid rgba(255,77,109,.62)!important;
+  color:#FFE1E8!important;
+}
+.gto-btn-ALLIN .gto-btn-label,.gto-btn-ALLIN .gto-btn-sizing{color:#FF4D6D!important;}
 
 /* ─── BET CHIPS on felt ──────────────────────────── */
 @keyframes chipIn{0%{transform:translate(-50%,-50%) scale(.2);opacity:0;}60%{transform:translate(-50%,-50%) scale(1.15);opacity:1;}100%{transform:translate(-50%,-50%) scale(1);opacity:1;}}
@@ -4890,22 +5266,34 @@ export const CSS_TABLE=`
   .grid1>.mt-slot>div{height:auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;}
   .t1-row{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:visible!important;}
   .t1-left{
-    flex:0 0 clamp(285px,42dvh,360px)!important;
-    height:clamp(285px,42dvh,360px)!important;
-    min-height:285px!important;
-    max-height:360px!important;
+    /* La table REMPLIT la hauteur disponible au lieu d'une hauteur figée :
+       sur écran court (barre Safari) elle ne déborde plus sur le bandeau d'actions. */
+    flex:1 1 0!important;
+    height:auto!important;
+    min-height:0!important;
+    /* Calibration §5 : plafond relevé (400→520) pour absorber l'espace rendu par le
+       bandeau de décision compacté (§4) → le feutre devient l'élément dominant.
+       Sièges/felt en % scalent avec la hauteur. */
+    max-height:520px!important;
     overflow:hidden!important;
+    /* Zone de sécurité basse (§1) : marge constante entre le bloc HERO (qui vit dans
+       le bas du feutre) et le bandeau de décision → HERO jamais rogné. */
+    padding-bottom:18px!important;
+    box-sizing:border-box!important;
   }
+  /* Raccourcis clavier inutiles sur mobile (pas de clavier) → hauteur récupérée pour le feutre. */
+  .mtr-kbd-hints{display:none!important;}
   .tw{border-radius:0!important;}
   .training-table-zone{overflow:hidden!important;}
-  .t1-left .felt-oval{top:3%!important;left:2.5%!important;right:2.5%!important;bottom:6%!important;}
+  .t1-left .felt-oval{top:6%!important;left:12%!important;right:12%!important;bottom:5%!important;}
   .trainer-hud{min-height:30px!important;padding:4px 8px!important;gap:5px!important;}
   .trainer-hud .hud-chip{font-size:8px!important;padding:2px 7px!important;}
 
   .pf-player-seat[data-mode="1T"]{max-width:74px!important;gap:0!important;z-index:30!important;contain:none!important;}
   .pf-player-seat[data-mode="1T"] .player-card-1t{min-width:54px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium{
-    width:calc(var(--avatar-size) + 8px)!important;height:calc(var(--avatar-size) + 8px)!important;border-width:1.5px!important;
+    /* Avatars réduits (~ -10px) : dégagent les cartes du board et le bord haut de table. */
+    width:calc(var(--avatar-size) - 2px)!important;height:calc(var(--avatar-size) - 2px)!important;border-width:1.5px!important;
   }
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium::before{inset:-4px!important;}
   .pf-player-seat[data-mode="1T"] .pf-avatar-premium::after{inset:3px!important;}
@@ -4920,18 +5308,21 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
   .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:6px!important;padding:1px 5px!important;margin-top:1px!important;}
 
-  .card-1t-hero-mobile{width:34px!important;height:47px!important;border-radius:5px!important;}
-  .card-1t-hero-mobile .card-corner-r{font-size:13px!important;}
-  .card-1t-hero-mobile .card-corner-s{font-size:9px!important;}
-  .card-1t-hero-mobile .card-center{font-size:20px!important;}
-  .t1-left .card-lg{width:38px!important;height:52px!important;border-radius:6px!important;}
-  .t1-left .card-lg .card-corner-r{font-size:14px!important;}
-  .t1-left .card-lg .card-corner-s{font-size:10px!important;}
-  .t1-left .card-lg .card-center{font-size:22px!important;}
-  .t1-left .card-md{width:32px!important;height:44px!important;border-radius:5px!important;}
-  .t1-left .card-md .card-corner-r{font-size:12px!important;}
-  .t1-left .card-md .card-corner-s{font-size:8px!important;}
-  .t1-left .card-md .card-center{font-size:18px!important;}
+  /* Cartes HERO agrandies ~+50% (26×36 → 40×56) : lisibles, dominantes vs board/villains (§3). */
+  .card-1t-hero-mobile{width:40px!important;height:56px!important;border-radius:6px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:16px!important;}
+  .card-1t-hero-mobile .card-corner-s{font-size:11px!important;}
+  .card-1t-hero-mobile .card-center{font-size:24px!important;}
+  .card-1t-hero-mobile .card-corner{top:3px!important;left:3px!important;}
+  /* Cartes du board réduites (désencombrement mobile : plus d'air autour du board). */
+  .t1-left .card-lg{width:34px!important;height:47px!important;border-radius:6px!important;}
+  .t1-left .card-lg .card-corner-r{font-size:13px!important;}
+  .t1-left .card-lg .card-corner-s{font-size:9px!important;}
+  .t1-left .card-lg .card-center{font-size:20px!important;}
+  .t1-left .card-md{width:29px!important;height:40px!important;border-radius:5px!important;}
+  .t1-left .card-md .card-corner-r{font-size:11px!important;}
+  .t1-left .card-md .card-corner-s{font-size:7px!important;}
+  .t1-left .card-md .card-center{font-size:16px!important;}
   .pf-player-seat[data-mode="1T"][data-seat="UTG"] .pf-hole-cards{transform:translateX(5px)!important;}
   .pf-player-seat[data-mode="1T"][data-seat="BTN"] .pf-hole-cards{transform:translateX(-7px)!important;}
   .pf-villain-backs{filter:drop-shadow(0 3px 8px rgba(0,183,255,.22)) drop-shadow(0 5px 9px rgba(0,0,0,.78))!important;}
@@ -4951,6 +5342,35 @@ export const CSS_TABLE=`
   .pf-action-chip-piles>.pf-chip-stack{margin-left:-12px!important;}
   .pf-action-chip-copy strong{font-size:6.6px!important;max-width:42px!important;}
   .pf-action-chip-copy em{font-size:7px!important;}
+  /* Hero-centric mobile : le héros occupe le bas-centre → on masque les libellés
+     de contexte qui y étaient (redondants avec l'en-tête du bandeau de décision). */
+  .t1-left .table-action-line{display:none!important;}
+  /* Dealer 1T mobile : plus lisible (§17), rattaché au siège BTN via son ancre auto-dérivée. */
+  .t1-left .dealer-btn{width:22px!important;height:22px!important;font-size:10px!important;z-index:25!important;}
+  /* Ligne d'infos du spot déplacée SOUS l'historique (§6/7) : le HUD du haut est
+     masqué sur mobile, la version basse (.pf-spot-info-bottom) est rendue par le
+     composant PARENT après l'historique (elle a accès à activeSpot). */
+  .trainer-hud.trainer-hud-top{display:none!important;}
+  .pf-spot-info-bottom{width:100%!important;max-width:100vw!important;box-sizing:border-box!important;
+    display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;scrollbar-width:none!important;
+    gap:6px!important;align-items:center!important;padding:5px 12px calc(4px + env(safe-area-inset-bottom,0px))!important;
+    background:linear-gradient(90deg,#040B22,#030912)!important;border-top:1px solid rgba(31,139,255,.16)!important;flex-shrink:0!important;}
+  .pf-spot-info-bottom::-webkit-scrollbar{display:none;}
+  .pf-spot-info-bottom .hud-chip{flex-shrink:0!important;min-height:26px!important;font-size:10px!important;padding:3px 9px!important;white-space:nowrap!important;border-radius:8px;background:rgba(31,139,255,.06);border:1px solid rgba(31,139,255,.14);color:#8FB4E8;font-family:'Space Grotesk',sans-serif;font-weight:700;display:inline-flex;align-items:center;}
+  /* Ancrages de mises réduits ~28% (§1) et blindes ~20% (§2) : la pile de jetons
+     reste l'élément principal, montants lisibles, jamais sur le pot/board. */
+  .t1-left .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.72)!important;}
+  .t1-left .pf-blind-anchor{transform:translate(-50%,-50%) scale(.6)!important;}
+  /* Bouton Coach AI compact dans la barre de contrôle (§4). */
+  .mtr-coach-btn{border-color:rgba(155,92,255,.45)!important;}
+  /* Libellé « Face à … · À payer » : redondant avec l'en-tête du bandeau et il
+     chevauchait la plaque du héros (héros en bas-centre) → masqué sur mobile. */
+  .t1-left .pf-facing-label{display:none!important;}
+  /* Grandes tables (7-9 joueurs) : plaque nom/stack resserrée sous l'avatar déjà réduit
+     → moins de chevauchement entre sièges voisins. */
+  .player-card-1t[data-dense="1"]{min-width:0!important;gap:0!important;}
+  .player-card-1t[data-dense="1"] .pf-seat-nameplate{transform:scale(.8);transform-origin:top center;}
+  .player-card-1t[data-dense="1"] .seat-card-stats{font-size:6px!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.74)!important;z-index:24!important;}
   .pf-blind-art{width:24px!important;height:21px!important;border-radius:8px!important;}
   .pf-blind-art img{width:34px!important;transform:translate(-5px,-1px)!important;}
@@ -4967,19 +5387,41 @@ export const CSS_TABLE=`
   .pf-mt-seat .pf-avatar-art{inset:3px!important;}
   .pf-mt-nameplate{padding:2px 5px!important;border-radius:7px!important;margin-top:0!important;min-width:40px!important;}
   .pf-mt-nameplate .pf-seat-hero-chip{font-size:5px!important;padding:1px 4px!important;}
-  .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:58%!important;}
+  /* Multi-table (maquette V1) : la zone de table remplit le viewport (plus d'aspect-ratio figé). */
+  .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:0!important;flex:1 1 auto!important;min-height:0!important;}
 
+  /* Bandeau de décision COMPACT (§4/§5) : on supprime les espaces vides entre les
+     lignes (marges 7/7/5 → 3/3/0) et on rabote les paddings, SANS réduire les zones
+     tactiles (boutons principaux 34px, sizings 20px restent cliquables au doigt).
+     Hauteur ~102px → ~72px → espace rendu au feutre (flex:1). */
   .mtr-actions{
-    padding:7px 10px calc(9px + env(safe-area-inset-bottom,0px))!important;
+    padding:3px 10px calc(4px + env(safe-area-inset-bottom,0px))!important;
     border-top-color:rgba(31,139,255,.32)!important;
   }
-  .mtr-actions .gto-btn{min-height:46px!important;border-radius:10px!important;}
-  .mtr-actions .gto-btn .gto-btn-inner{padding:9px 6px 7px!important;}
-  .mtr-actions .gto-btn-label{font-size:13px!important;}
-  .mtr-actions .gto-btn-sizing{font-size:9px!important;padding:2px 6px!important;}
-  .mtr-actions .sizing-btn{min-height:28px!important;font-size:8.5px!important;border-radius:8px!important;}
-  .mtr-actions .sizing-custom{min-height:30px!important;margin-top:3px!important;}
-  .mtr-actions .sizing-step-btn{width:34px!important;height:28px!important;}
+  /* Écrasement des marges inter-lignes (context / boutons / sizings) rendues en inline. */
+  .t1-mob .mtr-actions>div{margin-bottom:3px!important;}
+  .t1-mob .mtr-actions>div:last-child{margin-bottom:0!important;}
+  .mtr-actions .gto-btn{min-height:34px!important;border-radius:8px!important;}
+  .mtr-actions .gto-btn .gto-btn-inner{padding:3px 5px 2px!important;gap:0!important;}
+  .mtr-actions .gto-btn-label{font-size:12px!important;line-height:1.05!important;}
+  .mtr-actions .gto-btn-sizing{font-size:8.5px!important;padding:1px 4px!important;}
+  .mtr-actions .sizing-btn{min-height:20px!important;font-size:8px!important;border-radius:6px!important;padding:1px 4px!important;}
+  /* STABILITÉ DU VIEWPORT (§10/§11) : la zone basse réserve une hauteur constante
+     quelle que soit la phase (action hero ↔ panneau résultat ↔ vilain réfléchit).
+     Le contenu est collé en bas (justify-content:flex-end) → aucune resize du feutre
+     entre deux mains, et le surplus éventuel sert de zone de sécurité au-dessus du
+     bandeau. La valeur couvre le panneau résultat compacté (~106px). */
+  /* Réserve = hauteur du contenu le plus haut de la zone basse (panneau résultat
+     ~100px, bandeau d'action 4 boutons ~99px) → TOUTES les phases tiennent dans la
+     même hauteur : zéro resize du feutre entre les mains (§10/§11). */
+  .t1-mob{min-height:100px!important;justify-content:flex-end!important;}
+  /* Bouton « Main suivante » : reste la CTA dominante mais rabotée pour aligner la
+     hauteur du panneau résultat sur celle du bandeau d'action (viewport stable). */
+  .t1-mob .gto-next-btn{min-height:38px!important;padding:8px 12px!important;}
+  .t1-mob .gto-btn-secondary{padding:8px 12px!important;}
+  /* Stepper fin (− bb +) masqué sur mobile : les presets MIN/2.5x/3x… suffisent
+     pour le sizing → une rangée entière récupérée pour la table (flex:1). */
+  .mtr-actions .sizing-custom{display:none!important;}
   .mtr-actions .ab{min-height:46px!important;border-radius:10px!important;font-size:12px!important;}
   .mtr-actions kbd{display:none!important;}
   .pf-fab{right:12px!important;bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;padding:10px 14px!important;font-size:11px!important;}
@@ -4989,10 +5431,25 @@ export const CSS_TABLE=`
   .logo-wrapper,.logo-full-wrap{max-width:42vw!important;}
   .logo-full-wrap img.pf-header-logo{height:34px!important;max-width:42vw!important;}
   .hdr-breadcrumb span{font-size:11px!important;}
-  .t1-left{flex-basis:300px!important;height:300px!important;min-height:300px!important;}
-  .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) + 6px)!important;height:calc(var(--avatar-size) + 6px)!important;}
-  .card-1t-hero-mobile{width:31px!important;height:43px!important;}
+  /* Reste flexible sur écran étroit (iPhone mini/SE) — pas de hauteur figée qui ferait déborder la table. */
+  .t1-left{flex:1 1 0!important;flex-basis:0!important;height:auto!important;min-height:0!important;}
+  .pf-player-seat[data-mode="1T"] .pf-avatar-premium{width:calc(var(--avatar-size) - 2px)!important;height:calc(var(--avatar-size) - 2px)!important;}
+  .card-1t-hero-mobile{width:38px!important;height:53px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:15px!important;}
+  .card-1t-hero-mobile .card-center{font-size:23px!important;}
   .pf-seat-action-zone{transform:translate(-50%,-50%) scale(.66)!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.68)!important;}
+}
+/* ── Écran COURT (iPhone SE, barre Safari, petits Android) : la table se
+   comprime → board + cartes héros réduits pour garder l'écart pot/board/hero
+   (§18/19). max-height cible les faibles hauteurs indépendamment de la largeur. */
+@media(max-width:768px) and (max-height:730px){
+  .t1-left .card-1t-board{width:31px!important;height:43px!important;}
+  .t1-left .card-1t-board .card-corner-r{font-size:12px!important;}
+  .t1-left .card-1t-board .card-center{font-size:18px!important;}
+  .card-1t-hero-mobile{width:29px!important;height:40px!important;}
+  .card-1t-hero-mobile .card-corner-r{font-size:11px!important;}
+  .card-1t-hero-mobile .card-corner-s{font-size:8px!important;}
+  .card-1t-hero-mobile .card-center{font-size:17px!important;}
 }
 `;
