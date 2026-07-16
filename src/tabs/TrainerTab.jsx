@@ -172,6 +172,16 @@ const WEB_SEAT_RINGS = {
 const WEB_GEOMETRY_BY_COUNT = {
   7: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
 };
+/* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
+   Pour ces structures, on n'utilise PLUS de coordonnées saisies à la main : les
+   sièges sont posés sur l'ellipse de l'anneau doré (rayon constant `ringFactor`),
+   répartis uniformément, Hero à 90° (bas-centre) puis l'ordre poker autour.
+   -> fini les joueurs « enfoncés » dans le tapis (HJ/CO étaient à 0.58 du rayon).
+   `heroDrop` : le Hero seul garde un retrait vertical — son bloc (cartes+avatar+
+   plaque) est haut et doit préserver la zone de sécurité sous lui (§12). */
+const WEB_ELLIPSE_BY_COUNT = {
+  7: { ringFactor: 0.9, heroDrop: 0.64 },
+};
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
   const seats = {};
@@ -194,6 +204,23 @@ function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const heroIdx = Math.max(0, positions.indexOf(heroPos));
   const ordered = [];
   for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
+  // ── Sièges posés sur l'anneau doré (§6) : rayon constant, répartition uniforme.
+  if (opts.ellipse) {
+    const g = geometry || { top: 6, left: 4, right: 4, bottom: 10 };
+    const cx = (g.left + (100 - g.right)) / 2, cy = (g.top + (100 - g.bottom)) / 2;
+    const rx = (100 - g.left - g.right) / 2, ry = (100 - g.top - g.bottom) / 2;
+    const f = opts.ellipse.ringFactor ?? 0.9;
+    for (let i = 0; i < n; i++) {
+      const ang = (90 + i * (360 / n)) * Math.PI / 180;
+      seats[ordered[i]] = {
+        x: +(cx + f * rx * Math.cos(ang)).toFixed(2),
+        y: +(cy + f * ry * Math.sin(ang)).toFixed(2),
+      };
+    }
+    // Hero : même colonne (bas-centre) mais remonté — son bloc est haut (§12).
+    seats[ordered[0]] = { x: +cx.toFixed(2), y: +(cy + (opts.ellipse.heroDrop ?? 0.64) * ry).toFixed(2) };
+    return seats;
+  }
   const ring = (opts.web ? WEB_SEAT_RINGS : MOBILE_SEAT_RINGS)[n];
   if (ring) {
     for (let i = 0; i < n; i++) seats[ordered[i]] = { ...ring[i] };
@@ -3139,7 +3166,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const cfgViz=geoByCount?{...cfgVizBase,tableGeometry:geoByCount}:cfgVizBase;
     // "table" = vue canonique (Hero à sa position) ; "hero" = hero-centric (bas-centre).
     const canonical=heroLayout==="table";
-    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical});
+    // Structures dont les sièges sont calculés sur l'anneau (ex. 7-max) — web only.
+    const ellipse=(!isMobile&&!canonical)?WEB_ELLIPSE_BY_COUNT[positions.length]:null;
+    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical,ellipse});
     const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":`${numTables}T-web-dyn`,seats,cfgViz);
     // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
     // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
