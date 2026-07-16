@@ -3091,16 +3091,23 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // 1T : layout HERO-CENTRIC dynamique (nb de joueurs = spot.nplayers, héros en bas).
   // Multi-tables (2T/3T/4T) : layout statique historique (inchangé pour l'instant).
   // HERO-CENTRIC dynamique : d'abord scopé au 1T MOBILE (desktop/multi-tables inchangés pour l'instant).
-  // HERO-CENTRIC dynamique : 1T web ET mobile (le nb de joueurs = spot.nplayers
-  // pilote réellement les sièges). Multi-tables : voir plus bas.
-  const heroCentric=numTables===1;
+  // HERO-CENTRIC dynamique : le nb de joueurs (spot.nplayers) pilote réellement
+  // les sièges. Actif sur : 1T (web + mobile) ET tout le WEB multi (2T/3T/4T).
+  // Le MOBILE multi reste statique (hors périmètre : mobile = 1T uniquement).
+  const heroCentric=numTables===1||!isMobile;
   const seatOrder=(heroCentric&&spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:TRAINING_SEAT_ORDER;
   const trainingLayout=useMemo(()=>{
     if(!heroCentric)return getTrainingLayout(numTables,isMobile);
-    const cfgViz=isMobile?TRAINER_VISUAL_1T_MOBILE:TRAINER_VISUAL_1T;
+    // Sièges = rings hero-centric (% du conteneur → même source pour 1T et multi web) ;
+    // géométrie du feutre = celle du mode courant (le multi a un feutre plus plat).
+    const cfgViz=isMobile?TRAINER_VISUAL_1T_MOBILE
+      :numTables===1?TRAINER_VISUAL_1T
+      :numTables===2?TRAINER_VISUAL_2T
+      :numTables===3?TRAINER_VISUAL_3T
+      :TRAINER_VISUAL_4T;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
     const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile});
-    const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":"1T-web-dyn",seats,cfgViz);
+    const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":`${numTables}T-web-dyn`,seats,cfgViz);
     // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
     // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
     // le pot et la plaque) → plus aucun chevauchement pot/mise/board.
@@ -4690,7 +4697,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           );
         })}
 
-        {TRAINING_SEAT_ORDER.map(pos=>{
+        {seatOrder.map(pos=>{
           const coord=trainingLayout.seats[pos];
           if(!coord)return null;
           const {x,y}=coord;
