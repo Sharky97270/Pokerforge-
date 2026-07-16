@@ -144,6 +144,21 @@ const MOBILE_SEAT_RINGS = {
   8: [{ x: 50, y: 80 }, { x: 15, y: 65 }, { x: 16, y: 41 }, { x: 34, y: 17 }, { x: 50, y: 14 }, { x: 66, y: 17 }, { x: 84, y: 41 }, { x: 85, y: 65 }],
   9: [{ x: 50, y: 81 }, { x: 13, y: 70 }, { x: 13, y: 40 }, { x: 27, y: 17 }, { x: 44, y: 14 }, { x: 56, y: 14 }, { x: 73, y: 17 }, { x: 87, y: 40 }, { x: 87, y: 70 }],
 };
+/* ── ANCRAGE CENTRALISÉ DES SIÈGES — WEB (desktop, table large paysage) ──
+   Même principe hero-centric que le mobile (index 0 = HERO bas-centre) mais
+   calibré pour l'ellipse LARGE du web : x plus étalé (≈8→92), plage verticale
+   compacte (≈14→80). Une seule source pour toutes les tailles 2→9, réutilisée
+   par le 1T web et (mise à l'échelle) par le multi-table. */
+const WEB_SEAT_RINGS = {
+  2: [{ x: 50, y: 79 }, { x: 50, y: 17 }],
+  3: [{ x: 50, y: 79 }, { x: 17, y: 31 }, { x: 83, y: 31 }],
+  4: [{ x: 50, y: 79 }, { x: 11, y: 47 }, { x: 50, y: 15 }, { x: 89, y: 47 }],
+  5: [{ x: 50, y: 79 }, { x: 12, y: 56 }, { x: 26, y: 20 }, { x: 74, y: 20 }, { x: 88, y: 56 }],
+  6: [{ x: 50, y: 79 }, { x: 9, y: 63 }, { x: 15, y: 26 }, { x: 50, y: 15 }, { x: 85, y: 26 }, { x: 91, y: 63 }],
+  7: [{ x: 50, y: 79 }, { x: 9, y: 60 }, { x: 15, y: 27 }, { x: 37, y: 16 }, { x: 63, y: 16 }, { x: 85, y: 27 }, { x: 91, y: 60 }],
+  8: [{ x: 50, y: 79 }, { x: 8, y: 61 }, { x: 12, y: 35 }, { x: 31, y: 18 }, { x: 50, y: 14 }, { x: 69, y: 18 }, { x: 88, y: 35 }, { x: 92, y: 61 }],
+  9: [{ x: 50, y: 79 }, { x: 8, y: 64 }, { x: 10, y: 40 }, { x: 25, y: 21 }, { x: 42, y: 14 }, { x: 58, y: 14 }, { x: 75, y: 21 }, { x: 90, y: 40 }, { x: 92, y: 64 }],
+};
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
   const seats = {};
@@ -151,7 +166,7 @@ function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const heroIdx = Math.max(0, positions.indexOf(heroPos));
   const ordered = [];
   for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
-  const ring = MOBILE_SEAT_RINGS[n];
+  const ring = (opts.web ? WEB_SEAT_RINGS : MOBILE_SEAT_RINGS)[n];
   if (ring) {
     for (let i = 0; i < n; i++) seats[ordered[i]] = { ...ring[i] };
     return seats;
@@ -3076,14 +3091,16 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // 1T : layout HERO-CENTRIC dynamique (nb de joueurs = spot.nplayers, héros en bas).
   // Multi-tables (2T/3T/4T) : layout statique historique (inchangé pour l'instant).
   // HERO-CENTRIC dynamique : d'abord scopé au 1T MOBILE (desktop/multi-tables inchangés pour l'instant).
-  const heroCentric=numTables===1&&isMobile;
+  // HERO-CENTRIC dynamique : 1T web ET mobile (le nb de joueurs = spot.nplayers
+  // pilote réellement les sièges). Multi-tables : voir plus bas.
+  const heroCentric=numTables===1;
   const seatOrder=(heroCentric&&spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:TRAINING_SEAT_ORDER;
   const trainingLayout=useMemo(()=>{
     if(!heroCentric)return getTrainingLayout(numTables,isMobile);
-    const cfgViz=TRAINER_VISUAL_1T_MOBILE;
+    const cfgViz=isMobile?TRAINER_VISUAL_1T_MOBILE:TRAINER_VISUAL_1T;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
-    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry);
-    const layout=createTrainingTableLayout("1T-mobile-dyn",seats,cfgViz);
+    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile});
+    const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":"1T-web-dyn",seats,cfgViz);
     // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
     // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
     // le pot et la plaque) → plus aucun chevauchement pot/mise/board.
