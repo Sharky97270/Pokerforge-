@@ -170,6 +170,7 @@ const WEB_SEAT_RINGS = {
    même géométrie s'applique en 1T/2T/3T/4T (mise à l'échelle par conteneur).
    Les autres structures ne sont PAS modifiées (aucune clé = comportement actuel). */
 const WEB_GEOMETRY_BY_COUNT = {
+  6: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
   7: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
 };
 /* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
@@ -186,6 +187,7 @@ const WEB_ELLIPSE_BY_COUNT = {
      conserver des marges de sécurité pour UTG/LJ/HJ.
      heroDrop : le Hero descend un peu pour ouvrir l'écart board -> cartes Hero (§3)
      sans perdre sa zone de sécurité sous lui (§12). */
+  6: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
   7: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
 };
 /* ── CALAGE VERTICAL DU BOARD PAR STRUCTURE (web, §1/§3) ──
@@ -194,12 +196,14 @@ const WEB_ELLIPSE_BY_COUNT = {
    consommer le vide sous le pot et rendre l'espace aux cartes Hero.
    Clé = nombre de joueurs → les autres structures gardent leur position. */
 const WEB_BOARD_Y_BY_COUNT = {
+  6: 45,
   7: 45,
 };
 /* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
    supérieur ») : les 2 sièges hauts du 7-max sont à x≈32 et x≈68, la colonne
    centrale (x50) est donc libre — remonter le pot ne touche pas leurs cartes. */
 const WEB_POT_Y_BY_COUNT = {
+  6: 25,
   7: 25,
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
@@ -4379,8 +4383,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
             const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
             const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
-            // Écart cartes Hero -> avatar Hero : cible 6-8px (§3). Le 7-max passe à 7.
-            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?(seatOrder.length===7?7:5):6);
+            // Écart cartes Hero -> avatar Hero : cible 6-8px. 6-max et 7-max calibrés à 7.
+            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?((seatOrder.length===7||seatOrder.length===6)?7:5):6);
             return(
               <React.Fragment key={pos}>
 
