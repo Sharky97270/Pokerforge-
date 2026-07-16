@@ -163,6 +163,21 @@ function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
   const seats = {};
   if (!n) return seats;
+  // ── MODE « VUE TABLE » (canonique) ──
+  // Pas de rotation vers le héros : chaque position occupe sa place naturelle,
+  // répartie uniformément sur l'ellipse (départ à gauche = 180°, sens horaire).
+  // Reproduit le hexagone 6-max historique et se généralise à 2→9 joueurs.
+  if (opts.canonical) {
+    const g = geometry || { top: 8, left: 6, right: 6, bottom: 8 };
+    const cx = (g.left + (100 - g.right)) / 2, cy = (g.top + (100 - g.bottom)) / 2;
+    const rx = (100 - g.left - g.right) / 2, ry = (100 - g.top - g.bottom) / 2;
+    const fx = opts.web ? 0.92 : 0.9, fy = opts.web ? 0.9 : 0.92;
+    for (let i = 0; i < n; i++) {
+      const ang = (180 + i * (360 / n)) * Math.PI / 180;
+      seats[positions[i]] = { x: +(cx + fx * rx * Math.cos(ang)).toFixed(2), y: +(cy + fy * ry * Math.sin(ang)).toFixed(2) };
+    }
+    return seats;
+  }
   const heroIdx = Math.max(0, positions.indexOf(heroPos));
   const ordered = [];
   for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
@@ -2480,7 +2495,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero"}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -3106,7 +3121,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       :numTables===3?TRAINER_VISUAL_3T
       :TRAINER_VISUAL_4T;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
-    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile});
+    // "table" = vue canonique (Hero à sa position) ; "hero" = hero-centric (bas-centre).
+    const canonical=heroLayout==="table";
+    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical});
     const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":`${numTables}T-web-dyn`,seats,cfgViz);
     // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
     // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
@@ -3120,7 +3137,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       a.actionLabelAnchor={x:bx+4,y:st.y+22};
     });
     return layout;
-  },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos]);
+  },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos,heroLayout]);
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
@@ -5586,6 +5603,7 @@ const TRAINER_CFG_DEFAULT={
   nplayers:6,stackEff:"",spotTypes:[],phase:"Toutes",icm:"Désactivée",
   fmtDetail:"Tous",vilainAdv:"Tous",field:"Standard",heroStyle:"GTO",
   adaptiveMode:"balanced",
+  heroLayout:"hero",/* placement Hero : "hero" = bas-centre (rotation) · "table" = vue canonique */
   diffLvl:0,objectives:[],objective:null,timer:0,coachLevel:"Intermédiaire",
 };
 /* ── Types de session d'entraînement (indépendant de GTO/Exploit) ── */
@@ -6330,6 +6348,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               // recadre les positions si hors du format
               const pos=POSITIONS_BY_SIZE[v]||[];if(f.hp!=="Tous"&&!pos.includes(f.hp))upd("hp","Tous");if(f.vp!=="Tous"&&!pos.includes(f.vp))upd("vp","Tous");}}
             hint={`Positions ${f.nplayers}J : ${(POSITIONS_BY_SIZE[f.nplayers]||[]).join(" · ")}`}/>
+          <PillGroup label="Placement Hero" color="#34D8FF" disabled={sessionActive}
+            options={[{id:"hero",l:"Hero en bas"},{id:"table",l:"Vue table"}]}
+            value={f.heroLayout||"hero"} onChange={v=>upd("heroLayout",v)}
+            hint={(f.heroLayout||"hero")==="hero"?"Hero toujours au siège du bas (rotation) — cartes Hero mises en avant.":"Chaque position à sa place canonique autour de la table — le Hero peut être en haut."}/>
           <div className="sbsep"/>
 
           {/* ── STACK EFFECTIF ── */}
@@ -6780,7 +6802,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
