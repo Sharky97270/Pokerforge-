@@ -170,7 +170,10 @@ const WEB_SEAT_RINGS = {
    même géométrie s'applique en 1T/2T/3T/4T (mise à l'échelle par conteneur).
    Les autres structures ne sont PAS modifiées (aucune clé = comportement actuel). */
 const WEB_GEOMETRY_BY_COUNT = {
-  6: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
+  /* 6-max (§1) : ellipse PLUS VERTICALE — on resserre en X (4→7) et on ouvre en Y
+     (top 6→5, bottom 10→9) → ratio ~1.57 → ~1.43, ovale horizontal conservé
+     (jamais rond), anneau doré visible et équilibré. */
+  6: { top: 5, left: 7, right: 7, bottom: 9, railInset: 7, innerInset: 16 },
   7: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
 };
 /* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
@@ -187,7 +190,11 @@ const WEB_ELLIPSE_BY_COUNT = {
      conserver des marges de sécurité pour UTG/LJ/HJ.
      heroDrop : le Hero descend un peu pour ouvrir l'écart board -> cartes Hero (§3)
      sans perdre sa zone de sécurité sous lui (§12). */
-  6: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
+  /* 6-max (§2) : « réduire l'écart entre chaque avatar et l'anneau » → ringFactor
+     0.9 → 0.94 (avatars plus près du rail). ringFactorY reste plus bas : le siège
+     du haut (θ=270°) rend ses cartes AU-DESSUS de lui, les coller au rail les
+     ferait sortir du conteneur (§8 « aucun chevauchement / aucun rognage »). */
+  6: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
   7: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
 };
 /* ── CALAGE VERTICAL DU BOARD PAR STRUCTURE (web, §1/§3) ──
@@ -196,14 +203,17 @@ const WEB_ELLIPSE_BY_COUNT = {
    consommer le vide sous le pot et rendre l'espace aux cartes Hero.
    Clé = nombre de joueurs → les autres structures gardent leur position. */
 const WEB_BOARD_Y_BY_COUNT = {
-  6: 45,
+  /* 6-max : l'ellipse plus verticale (§1) a libéré de la hauteur → les écarts
+     dépassaient les fourchettes du §6 (Pot→Board et Board→Hero visés à 12-16px).
+     On redescend board et pot pour recaler dans la cible. */
+  6: 46,
   7: 45,
 };
 /* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
    supérieur ») : les 2 sièges hauts du 7-max sont à x≈32 et x≈68, la colonne
    centrale (x50) est donc libre — remonter le pot ne touche pas leurs cartes. */
 const WEB_POT_Y_BY_COUNT = {
-  6: 25,
+  6: 27,
   7: 25,
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
