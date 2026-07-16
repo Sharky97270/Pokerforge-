@@ -206,15 +206,29 @@ const WEB_BOARD_Y_BY_COUNT = {
   /* 6-max : l'ellipse plus verticale (§1) a libéré de la hauteur → les écarts
      dépassaient les fourchettes du §6 (Pot→Board et Board→Hero visés à 12-16px).
      On redescend board et pot pour recaler dans la cible. */
-  6: 46,
+  6: 50,
   7: 45,
 };
 /* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
    supérieur ») : les 2 sièges hauts du 7-max sont à x≈32 et x≈68, la colonne
    centrale (x50) est donc libre — remonter le pot ne touche pas leurs cartes. */
+/* ATTENTION — différence structurelle entre 6-max et 7-max :
+   en 7-max les deux sièges hauts sont à x≈32 et x≈68, la colonne centrale (x50)
+   est libre → le pot peut être remonté sans risque.
+   En 6-max un siège tombe PILE en haut-centre (x50), dans la colonne du pot :
+   remonter le pot le fait chevaucher sa plaque (mesuré : recouvrement de 8px).
+   Le pot doit donc rester SOUS ce siège. */
 const WEB_POT_Y_BY_COUNT = {
-  6: 27,
+  6: 31,
   7: 25,
+};
+/* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
+   centre exact de la table — là où remontent les cartes du Hero, qui masquaient
+   la valeur du pot (vu à l'image). Sans board, la place du board est libre : on
+   y descend le pot, entre le siège du haut et les cartes du Hero. */
+const WEB_POT_Y_PREFLOP_BY_COUNT = {
+  6: 40,
+  7: 40,
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
@@ -4274,7 +4288,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
                    (le pot non-compact est plus haut → à 32% il chevauchait la plaque
                    du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:(WEB_POT_Y_PREFLOP_BY_COUNT[seatOrder.length]??potPt.y)}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
