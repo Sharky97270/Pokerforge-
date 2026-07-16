@@ -155,9 +155,22 @@ const WEB_SEAT_RINGS = {
   4: [{ x: 50, y: 79 }, { x: 11, y: 47 }, { x: 50, y: 15 }, { x: 89, y: 47 }],
   5: [{ x: 50, y: 79 }, { x: 12, y: 56 }, { x: 26, y: 20 }, { x: 74, y: 20 }, { x: 88, y: 56 }],
   6: [{ x: 50, y: 79 }, { x: 9, y: 63 }, { x: 15, y: 26 }, { x: 50, y: 15 }, { x: 85, y: 26 }, { x: 91, y: 63 }],
-  7: [{ x: 50, y: 79 }, { x: 9, y: 60 }, { x: 15, y: 27 }, { x: 37, y: 16 }, { x: 63, y: 16 }, { x: 85, y: 27 }, { x: 91, y: 60 }],
+  /* 7-max : hero remonté (79→75) → zone de sécurité réelle sous le bloc Hero,
+     fini le contact avec le bandeau de décision (§12). Sièges hauts descendus
+     (16→18 / 27→28) → marge avec la bordure haute pour les cartes de HJ/CO (§7). */
+  7: [{ x: 50, y: 75 }, { x: 9, y: 60 }, { x: 15, y: 28 }, { x: 37, y: 18 }, { x: 63, y: 18 }, { x: 85, y: 28 }, { x: 91, y: 60 }],
   8: [{ x: 50, y: 79 }, { x: 8, y: 61 }, { x: 12, y: 35 }, { x: 31, y: 18 }, { x: 50, y: 14 }, { x: 69, y: 18 }, { x: 88, y: 35 }, { x: 92, y: 61 }],
   9: [{ x: 50, y: 79 }, { x: 8, y: 64 }, { x: 10, y: 40 }, { x: 25, y: 21 }, { x: 42, y: 14 }, { x: 58, y: 14 }, { x: 75, y: 21 }, { x: 90, y: 40 }, { x: 92, y: 64 }],
+};
+/* ── GÉOMÉTRIE DU FEUTRE PAR STRUCTURE (web) ──
+   Par défaut le feutre suit la géométrie du mode (1T..4T). Certaines structures
+   méritent une ellipse dédiée : le 7-max paraissait trop APLATI (ratio ~1.71).
+   Ici on rend ~+10% de hauteur (et un poil moins de largeur) → ovale horizontal
+   plus généreux, sans jamais devenir rond. Clé = nombre de joueurs, donc la
+   même géométrie s'applique en 1T/2T/3T/4T (mise à l'échelle par conteneur).
+   Les autres structures ne sont PAS modifiées (aucune clé = comportement actuel). */
+const WEB_GEOMETRY_BY_COUNT = {
+  7: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
@@ -3115,12 +3128,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     if(!heroCentric)return getTrainingLayout(numTables,isMobile);
     // Sièges = rings hero-centric (% du conteneur → même source pour 1T et multi web) ;
     // géométrie du feutre = celle du mode courant (le multi a un feutre plus plat).
-    const cfgViz=isMobile?TRAINER_VISUAL_1T_MOBILE
+    const cfgVizBase=isMobile?TRAINER_VISUAL_1T_MOBILE
       :numTables===1?TRAINER_VISUAL_1T
       :numTables===2?TRAINER_VISUAL_2T
       :numTables===3?TRAINER_VISUAL_3T
       :TRAINER_VISUAL_4T;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
+    // Géométrie dédiée à la structure (ex. 7-max moins aplati) — web uniquement.
+    const geoByCount=!isMobile?WEB_GEOMETRY_BY_COUNT[positions.length]:null;
+    const cfgViz=geoByCount?{...cfgVizBase,tableGeometry:geoByCount}:cfgVizBase;
     // "table" = vue canonique (Hero à sa position) ; "hero" = hero-centric (bas-centre).
     const canonical=heroLayout==="table";
     const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical});
