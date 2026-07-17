@@ -409,7 +409,10 @@ function dealerAnchorPoint(layout){
   // 1T (figé) : bas-gauche. Multi : à GAUCHE du siège à hauteur d'avatar —
   // le bas-gauche chevauchait la nameplate (badge position/stack sous l'avatar)
   // sur les zones compactes ; vérifié sans collision (nameplate/cartes/mises).
-  const seat=layout.seats?.BTN||{x:50,y:50};
+  // Le bouton est sur BTN (3+ joueurs) ; en HEADS-UP il n'y a pas de BTN → le
+  // bouton est sur la SB (règle BTN=SB). Sinon on retombait sur le centre (50,50)
+  // et le jeton D flottait au milieu de la table.
+  const seat=layout.seats?.BTN||layout.seats?.SB||{x:50,y:50};
   const off={"1T":{x:7,y:9},"2T":{x:9,y:0},"3T":{x:8,y:0},"4T":{x:8,y:0}}[layout.name]||{x:9,y:0};
   return {x:Math.max(4,seat.x-off.x),y:Math.min(90,seat.y+off.y)};
 }
@@ -3228,7 +3231,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
     // Géométrie dédiée à la structure (ex. 7-max moins aplati) — web uniquement.
     const geoByCount=!isMobile?WEB_GEOMETRY_BY_COUNT[positions.length]:null;
-    const cfgViz=geoByCount?{...cfgVizBase,tableGeometry:geoByCount}:cfgVizBase;
+    // anchorOverrides FORCÉ VIDE : les configs desktop (TRAINER_VISUAL_1T..4T)
+    // portent des ancres SB/BB/dealer/mises CODÉES EN DUR pour le layout STATIQUE
+    // à 6 sièges. En hero-centric dynamique, SB/BB ne sont plus à ces places →
+    // les blinds/mises doivent être DÉRIVÉES du siège réel (pointTowardCenter),
+    // pas prises dans ces overrides. Le mobile a toujours anchorOverrides:{}, d'où
+    // ses blinds correctes ; on aligne le web dessus.
+    const cfgViz={...cfgVizBase,...(geoByCount?{tableGeometry:geoByCount}:{}),anchorOverrides:{}};
     // "table" = vue canonique (Hero à sa position) ; "hero" = hero-centric (bas-centre).
     const canonical=heroLayout==="table";
     // Structures dont les sièges sont calculés sur l'anneau (ex. 7-max) — web only.
