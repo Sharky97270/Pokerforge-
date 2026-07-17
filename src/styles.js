@@ -5498,17 +5498,17 @@ export const CSS_TABLE=`
    Solution : compacter le pot sur UNE ligne — [jetons] POT 12bb — comme le fait
    déjà le mobile. ~53px → ~26px : les ~27px rendus couvrent le déficit sans
    toucher aux sièges ni au board. Pot toujours centré (x50) et lisible. */
-.t1-left[data-nplayers="6"] .pf-pot-readout{
+/* Appliqué aux structures dont un siège tombe au HAUT-CENTRE (colonne du pot) :
+   2 / 4 / 6 / 8 / 9. Ces structures avaient le pot posé sur la plaque du siège du
+   haut (audit visuel). Le pot compact + hauteur fixe (+ WEB_POT_Y bas) le dégage.
+   3 / 5 / 7 n'ont pas de siège au haut-centre → pot standard conservé. */
+:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-readout{
   flex-direction:row!important;align-items:center!important;
-  gap:7px!important;white-space:nowrap!important;
+  gap:7px!important;white-space:nowrap!important;height:30px!important;
 }
-.t1-left[data-nplayers="6"] .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
-.t1-left[data-nplayers="6"] .pf-pot-label{font-size:9px!important;}
-.t1-left[data-nplayers="6"] .pf-pot-value{font-size:17px!important;}
-/* Hauteur du bloc pot FIXE quelle que soit la valeur : sinon la pile de jetons
-   grandit avec le pot et le bas du pot descend vers le board (écart pot/board
-   mesuré variant de 0 à 29px). On fige la hauteur -> écarts stables. */
-.t1-left[data-nplayers="6"] .pf-pot-readout{height:30px!important;}
+:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
+:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-label{font-size:9px!important;}
+:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-value{font-size:17px!important;}
 
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom{width:46px!important;height:63px!important;}
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-r{font-size:17px!important;}

@@ -175,6 +175,12 @@ const WEB_GEOMETRY_BY_COUNT = {
      (jamais rond), anneau doré visible et équilibré. */
   6: { top: 5, left: 7, right: 7, bottom: 9, railInset: 7, innerInset: 16 },
   7: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
+  /* 2/4/8/9 : mêmes structures « à siège haut-centre ». Feutre plus haut (top bas,
+     bottom haut) → marge verticale pour que le pot passe sous ce siège même actif. */
+  2: { top: 5, left: 8, right: 8, bottom: 11, railInset: 7, innerInset: 16 },
+  4: { top: 5, left: 8, right: 8, bottom: 11, railInset: 7, innerInset: 16 },
+  8: { top: 5, left: 6, right: 6, bottom: 11, railInset: 7, innerInset: 16 },
+  9: { top: 5, left: 5, right: 5, bottom: 11, railInset: 7, innerInset: 16 },
 };
 /* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
    Pour ces structures, on n'utilise PLUS de coordonnées saisies à la main : les
@@ -215,11 +221,14 @@ const WEB_ELLIPSE_BY_COUNT = {
    consommer le vide sous le pot et rendre l'espace aux cartes Hero.
    Clé = nombre de joueurs → les autres structures gardent leur position. */
 const WEB_BOARD_Y_BY_COUNT = {
-  /* 6-max : l'ellipse plus verticale (§1) a libéré de la hauteur → les écarts
-     dépassaient les fourchettes du §6 (Pot→Board et Board→Hero visés à 12-16px).
-     On redescend board et pot pour recaler dans la cible. */
+  /* Board suit le pot descendu pour les structures à siège haut-centre (2/4/6/8/9)
+     tout en restant assez haut pour ne pas toucher les cartes du Hero. */
+  2: 49,
+  4: 49,
   6: 49,
   7: 45,
+  8: 49,
+  9: 49,
 };
 /* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
    supérieur ») : les 2 sièges hauts du 7-max sont à x≈32 et x≈68, la colonne
@@ -231,20 +240,31 @@ const WEB_BOARD_Y_BY_COUNT = {
    remonter le pot le fait chevaucher sa plaque (mesuré : recouvrement de 8px).
    Le pot doit donc rester SOUS ce siège. */
 const WEB_POT_Y_BY_COUNT = {
-  /* 6-max : pot descendu à 35 pour passer SOUS le siège haut-centre même quand
-     c'est un villain ACTIF (cartes au-dessus de l'avatar → bloc plus bas). Le pot
-     compact (CSS) a rendu la hauteur nécessaire ; le board reste haut (49) pour
-     ne pas toucher les cartes du Hero. */
+  /* Structures avec un siège au HAUT-CENTRE (2/4/6/8/9) : pot descendu à 35 pour
+     passer SOUS ce siège même quand c'est un villain ACTIF (cartes au-dessus →
+     bloc plus bas). Le pot compact (CSS) rend la hauteur ; le board reste haut
+     (WEB_BOARD_Y) pour ne pas toucher les cartes du Hero. 3/5 : pas de siège au
+     haut-centre → pot par défaut. 7 : ellipse dédiée (y=25). */
+  2: 35,
+  4: 35,
   6: 35,
   7: 25,
+  8: 35,
+  9: 35,
 };
 /* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
    centre exact de la table — là où remontent les cartes du Hero, qui masquaient
    la valeur du pot (vu à l'image). Sans board, la place du board est libre : on
    y descend le pot, entre le siège du haut et les cartes du Hero. */
 const WEB_POT_Y_PREFLOP_BY_COUNT = {
+  2: 40,
+  3: 40,
+  4: 40,
+  5: 40,
   6: 40,
   7: 40,
+  8: 40,
+  9: 40,
 };
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
