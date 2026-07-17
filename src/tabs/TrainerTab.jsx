@@ -3252,8 +3252,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       :numTables===3?TRAINER_VISUAL_3T
       :TRAINER_VISUAL_4T;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
-    // Géométrie dédiée à la structure (ex. 7-max moins aplati) — web uniquement.
-    const geoByCount=!isMobile?WEB_GEOMETRY_BY_COUNT[positions.length]:null;
+    // Géométrie STANDARD (feutre étroit) : 1T WEB uniquement. En multi le
+    // conteneur de chaque table est déjà petit → on garde la géométrie multi
+    // (TRAINER_VISUAL_2T/3T/4T, plus large, qui remplit le conteneur) sinon
+    // l'anneau devient minuscule et les avatars se chevauchent. Les sièges
+    // restent calculés sur l'ellipse de CETTE géométrie (répartis, sur l'anneau).
+    const geoByCount=(!isMobile&&numTables===1)?WEB_GEOMETRY_BY_COUNT[positions.length]:null;
     // anchorOverrides FORCÉ VIDE : les configs desktop (TRAINER_VISUAL_1T..4T)
     // portent des ancres SB/BB/dealer/mises CODÉES EN DUR pour le layout STATIQUE
     // à 6 sièges. En hero-centric dynamique, SB/BB ne sont plus à ces places →
@@ -4788,17 +4792,23 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const boardCards=!playingFull?spot.board:fhVisBoard;
             const potPt=potPointFor(numTables,hasBoard);
             const boardPt=boardPointFor(numTables);
+            // STANDARD 1T propagé au multi : pot sous le siège du haut, board dessous,
+            // pot préflop dégagé — mêmes ancres % que le 1T (calées sur l'ellipse).
+            const n=seatOrder.length;
+            const potYboard=WEB_POT_Y_BY_COUNT[n]??potPt.y;
+            const potYpre=WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y;
+            const boardY=WEB_BOARD_Y_BY_COUNT[n]??boardPt.y;
             return(
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
-                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                     <TrainingPotStack value={mainPotBb} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 ):(
-                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                     <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
@@ -4806,7 +4816,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 )}
                 {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
                 {hasBoard&&(
-                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
+                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardY}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
                     {boardCards.map((c,i)=>(
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>
