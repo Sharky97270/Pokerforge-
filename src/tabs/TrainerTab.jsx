@@ -249,7 +249,11 @@ const WEB_POT_Y_BY_COUNT = {
   /* STANDARD 1T : pot descendu (~34%) pour passer SOUS le siège du haut même
      lorsqu'il est actif (cartes au-dessus → bloc plus bas). Pot compact (CSS) +
      hauteur fixe rendent la place. Board juste dessous (WEB_BOARD_Y=49). */
-  2: 34, 3: 34, 4: 34, 5: 34, 6: 35, 7: 34, 8: 35, 9: 35,
+  /* 2/4/8/9 : pot descendu à 38 — dans ces structures le siège haut-centre est
+     souvent le villain ACTIF (nameplate + stats + bouton R → bloc plus bas, ~348px)
+     que le pot effleurait. 6 : top-seat rarement actif → 35 suffit. 3/5/7 : pas de
+     siège au haut-centre → 34. */
+  2: 41, 3: 34, 4: 41, 5: 34, 6: 35, 7: 34, 8: 38, 9: 38,
 };
 /* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
    centre exact de la table — là où remontent les cartes du Hero, qui masquaient
