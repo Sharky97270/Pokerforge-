@@ -253,7 +253,7 @@ const WEB_POT_Y_BY_COUNT = {
      souvent le villain ACTIF (nameplate + stats + bouton R → bloc plus bas, ~348px)
      que le pot effleurait. 6 : top-seat rarement actif → 35 suffit. 3/5/7 : pas de
      siège au haut-centre → 34. */
-  2: 41, 3: 34, 4: 41, 5: 34, 6: 35, 7: 34, 8: 38, 9: 38,
+  2: 41, 3: 34, 4: 41, 5: 34, 6: 35, 7: 34, 8: 40, 9: 40,
 };
 /* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
    centre exact de la table — là où remontent les cartes du Hero, qui masquaient
