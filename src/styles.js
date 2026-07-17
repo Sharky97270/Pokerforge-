@@ -5473,6 +5473,15 @@ export const CSS_TABLE=`
    ~-14% (72→62), polices et paddings verticaux légèrement réduits, ligne des
    multiplicateurs resserrée. Desktop uniquement (.t1-actions-under est masqué
    sur mobile, qui garde son propre bandeau déjà compacté). */
+/* ═══ DIMENSIONS FIXES DE LA TABLE 1T (§9) ═══
+   La zone d'actions desktop fait ~204px en phase « hero » (boutons visibles) mais
+   se vide en phase « done » (le résultat vit dans le panneau droit) → sans réserve,
+   .t1-table-area (flex:1) reprend l'espace et le feutre BONDIT de ~150px à chaque
+   main. On réserve la hauteur → le feutre garde EXACTEMENT la même taille et
+   position quels que soient le spot, la street, la phase (§9). Contenu aligné en
+   haut : les boutons restent collés sous la table, l'espace libre en phase done
+   reste sous eux. (.t1-actions-under est masqué sur mobile → sans effet.) */
+.t1-actions-under{min-height:206px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;}
 .t1-actions-under .mtr-actions{padding:6px 10px 7px!important;}
 .t1-actions-under .mtr-actions>div{margin-bottom:5px!important;}
 .t1-actions-under .gto-btn{min-height:62px!important;}
