@@ -169,18 +169,21 @@ const WEB_SEAT_RINGS = {
    plus généreux, sans jamais devenir rond. Clé = nombre de joueurs, donc la
    même géométrie s'applique en 1T/2T/3T/4T (mise à l'échelle par conteneur).
    Les autres structures ne sont PAS modifiées (aucune clé = comportement actuel). */
+/* STANDARD 1T (maquette validée) — géométrie de feutre UNIQUE et cohérente pour
+   toutes les structures : feutre plus ÉTROIT (marges de sécurité sur les 4 côtés,
+   « davantage d'espace autour »), ovale conservé, anneau doré visible. Les sièges
+   sont TOUJOURS calculés depuis cette ellipse (WEB_ELLIPSE_BY_COUNT) → posés sur
+   l'anneau, jamais « dans le tapis ». Les tables denses (8/9) gardent un feutre un
+   peu plus large pour loger tous les sièges sans chevauchement. */
 const WEB_GEOMETRY_BY_COUNT = {
-  /* 6-max (§1) : ellipse PLUS VERTICALE — on resserre en X (4→7) et on ouvre en Y
-     (top 6→5, bottom 10→9) → ratio ~1.57 → ~1.43, ovale horizontal conservé
-     (jamais rond), anneau doré visible et équilibré. */
-  6: { top: 5, left: 7, right: 7, bottom: 9, railInset: 7, innerInset: 16 },
-  7: { top: 6, left: 4, right: 4, bottom: 10, railInset: 7, innerInset: 16 },
-  /* 2/4/8/9 : mêmes structures « à siège haut-centre ». Feutre plus haut (top bas,
-     bottom haut) → marge verticale pour que le pot passe sous ce siège même actif. */
-  2: { top: 5, left: 8, right: 8, bottom: 11, railInset: 7, innerInset: 16 },
-  4: { top: 5, left: 8, right: 8, bottom: 11, railInset: 7, innerInset: 16 },
-  8: { top: 5, left: 6, right: 6, bottom: 11, railInset: 7, innerInset: 16 },
-  9: { top: 5, left: 5, right: 5, bottom: 11, railInset: 7, innerInset: 16 },
+  2: { top: 8, left: 16, right: 16, bottom: 13, railInset: 7, innerInset: 16 },
+  3: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  4: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  5: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  6: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  7: { top: 7, left: 12, right: 12, bottom: 12, railInset: 7, innerInset: 16 },
+  8: { top: 7, left: 10, right: 10, bottom: 12, railInset: 7, innerInset: 16 },
+  9: { top: 7, left: 8, right: 8, bottom: 12, railInset: 7, innerInset: 16 },
 };
 /* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
    Pour ces structures, on n'utilise PLUS de coordonnées saisies à la main : les
@@ -214,6 +217,15 @@ const WEB_ELLIPSE_BY_COUNT = {
      .t1-left[data-nplayers="6"] .pf-pot-readout). */
   6: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
   7: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
+  /* Toutes les structures posent leurs sièges sur l'anneau (STANDARD 1T).
+     ringFactor ~0.94 : avatar sur le rail. ringFactorY < ringFactor : compression
+     verticale légère pour que les cartes du siège du haut ne touchent pas le bord. */
+  2: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.62 },
+  3: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  4: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  5: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  8: { ringFactor: 0.95, ringFactorY: 0.85, heroDrop: 0.665 },
+  9: { ringFactor: 0.96, ringFactorY: 0.86, heroDrop: 0.665 },
 };
 /* ── CALAGE VERTICAL DU BOARD PAR STRUCTURE (web, §1/§3) ──
    Mesuré en 7-max : Pot→Board = 44px (cible 16-24) et Board→Cartes Hero = -17px
@@ -221,14 +233,8 @@ const WEB_ELLIPSE_BY_COUNT = {
    consommer le vide sous le pot et rendre l'espace aux cartes Hero.
    Clé = nombre de joueurs → les autres structures gardent leur position. */
 const WEB_BOARD_Y_BY_COUNT = {
-  /* Board suit le pot descendu pour les structures à siège haut-centre (2/4/6/8/9)
-     tout en restant assez haut pour ne pas toucher les cartes du Hero. */
-  2: 49,
-  4: 49,
-  6: 49,
-  7: 45,
-  8: 49,
-  9: 49,
+  /* STANDARD 1T : board centré, juste sous le pot, pour toutes les structures. */
+  2: 49, 3: 49, 4: 49, 5: 49, 6: 49, 7: 49, 8: 49, 9: 49,
 };
 /* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
    supérieur ») : les 2 sièges hauts du 7-max sont à x≈32 et x≈68, la colonne
@@ -240,17 +246,10 @@ const WEB_BOARD_Y_BY_COUNT = {
    remonter le pot le fait chevaucher sa plaque (mesuré : recouvrement de 8px).
    Le pot doit donc rester SOUS ce siège. */
 const WEB_POT_Y_BY_COUNT = {
-  /* Structures avec un siège au HAUT-CENTRE (2/4/6/8/9) : pot descendu à 35 pour
-     passer SOUS ce siège même quand c'est un villain ACTIF (cartes au-dessus →
-     bloc plus bas). Le pot compact (CSS) rend la hauteur ; le board reste haut
-     (WEB_BOARD_Y) pour ne pas toucher les cartes du Hero. 3/5 : pas de siège au
-     haut-centre → pot par défaut. 7 : ellipse dédiée (y=25). */
-  2: 35,
-  4: 35,
-  6: 35,
-  7: 25,
-  8: 35,
-  9: 35,
+  /* STANDARD 1T : pot descendu (~34%) pour passer SOUS le siège du haut même
+     lorsqu'il est actif (cartes au-dessus → bloc plus bas). Pot compact (CSS) +
+     hauteur fixe rendent la place. Board juste dessous (WEB_BOARD_Y=49). */
+  2: 34, 3: 34, 4: 34, 5: 34, 6: 35, 7: 34, 8: 35, 9: 35,
 };
 /* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
    centre exact de la table — là où remontent les cartes du Hero, qui masquaient

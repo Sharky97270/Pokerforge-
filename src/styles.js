@@ -5498,17 +5498,17 @@ export const CSS_TABLE=`
    Solution : compacter le pot sur UNE ligne — [jetons] POT 12bb — comme le fait
    déjà le mobile. ~53px → ~26px : les ~27px rendus couvrent le déficit sans
    toucher aux sièges ni au board. Pot toujours centré (x50) et lisible. */
-/* Appliqué aux structures dont un siège tombe au HAUT-CENTRE (colonne du pot) :
-   2 / 4 / 6 / 8 / 9. Ces structures avaient le pot posé sur la plaque du siège du
-   haut (audit visuel). Le pot compact + hauteur fixe (+ WEB_POT_Y bas) le dégage.
-   3 / 5 / 7 n'ont pas de siège au haut-centre → pot standard conservé. */
-:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-readout{
+/* STANDARD 1T — pot compact horizontal ([jetons] POT xx bb sur une ligne) +
+   hauteur fixe, pour TOUTES les structures 1T web. Uniforme, lisible, et rend la
+   hauteur nécessaire pour que le pot passe sous le siège du haut. .t1-left ne
+   cible que le 1T web (le multi et le mobile ont leur propre pot). */
+.t1-left[data-nplayers] .pf-pot-readout{
   flex-direction:row!important;align-items:center!important;
   gap:7px!important;white-space:nowrap!important;height:30px!important;
 }
-:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
-:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-label{font-size:9px!important;}
-:is(.t1-left[data-nplayers="2"],.t1-left[data-nplayers="4"],.t1-left[data-nplayers="6"],.t1-left[data-nplayers="8"],.t1-left[data-nplayers="9"]) .pf-pot-value{font-size:17px!important;}
+.t1-left[data-nplayers] .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
+.t1-left[data-nplayers] .pf-pot-label{font-size:9px!important;}
+.t1-left[data-nplayers] .pf-pot-value{font-size:17px!important;}
 
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom{width:46px!important;height:63px!important;}
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-r{font-size:17px!important;}
