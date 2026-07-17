@@ -5488,6 +5488,28 @@ export const CSS_TABLE=`
    Scopé via [data-nplayers="7"] : les autres structures gardent leur taille.
    Ratio, style, arrondis, ombres conservés (seules les dimensions baissent de
    ~5% : 48x66 -> 46x63) pour dégager l'écart board -> cartes Hero (§3). */
+/* ═══ 6-MAX — POT COMPACT HORIZONTAL ═══
+   Le 6-max hero-centric place un siège PILE en haut-centre (x50), dans la colonne
+   du pot. Mesuré : entre le bas de son bloc et les cartes du Hero il n'y a que
+   ~134px, alors que pot(53) + board(79) + les écarts mini (8+12) en réclament
+   152 → déficit de 18px, d'où le pot posé sur sa plaque.
+   Remonter le siège ne résout pas : au-delà de ~0.87 son avatar est rogné par le
+   bord, et le budget dépend de la rotation (un siège AVEC cartes est plus haut).
+   Solution : compacter le pot sur UNE ligne — [jetons] POT 12bb — comme le fait
+   déjà le mobile. ~53px → ~26px : les ~27px rendus couvrent le déficit sans
+   toucher aux sièges ni au board. Pot toujours centré (x50) et lisible. */
+.t1-left[data-nplayers="6"] .pf-pot-readout{
+  flex-direction:row!important;align-items:center!important;
+  gap:7px!important;white-space:nowrap!important;
+}
+.t1-left[data-nplayers="6"] .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
+.t1-left[data-nplayers="6"] .pf-pot-label{font-size:9px!important;}
+.t1-left[data-nplayers="6"] .pf-pot-value{font-size:17px!important;}
+/* Hauteur du bloc pot FIXE quelle que soit la valeur : sinon la pile de jetons
+   grandit avec le pot et le bas du pot descend vers le board (écart pot/board
+   mesuré variant de 0 à 29px). On fige la hauteur -> écarts stables. */
+.t1-left[data-nplayers="6"] .pf-pot-readout{height:30px!important;}
+
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom{width:46px!important;height:63px!important;}
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-r{font-size:17px!important;}
 .t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-s{font-size:12px!important;}

@@ -194,6 +194,18 @@ const WEB_ELLIPSE_BY_COUNT = {
      0.9 → 0.94 (avatars plus près du rail). ringFactorY reste plus bas : le siège
      du haut (θ=270°) rend ses cartes AU-DESSUS de lui, les coller au rail les
      ferait sortir du conteneur (§8 « aucun chevauchement / aucun rognage »). */
+  /* 6-max : ringFactorY 0.84 -> 0.92 remonte les sièges vers le rail. Ça sert
+     DEUX besoins d'un coup :
+       · §2/§3 « rapprocher chaque avatar de l'anneau » ;
+       · le budget vertical. Mesuré : entre le bas du bloc du siège haut-centre
+         et les cartes Hero il n'y avait que 134px, alors que pot(53) + board(79)
+         + les écarts mini (8+12) en réclament 152 → déficit de 18px, d'où le pot
+         posé sur la plaque du joueur du haut. Remonter ce siège de ~18px rend
+         exactement le budget manquant, sans rogner ses cartes (marge vérifiée). */
+  /* ringFactorY 0.84 : valeur prouvée sans rognage de l'avatar du siège haut-centre
+     (au-delà de ~0.87 il est coupé par le bord). Le budget vertical n'est PAS
+     récupéré en remontant ce siège — il l'est en compactant le pot (voir CSS
+     .t1-left[data-nplayers="6"] .pf-pot-readout). */
   6: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
   7: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
 };
@@ -206,7 +218,7 @@ const WEB_BOARD_Y_BY_COUNT = {
   /* 6-max : l'ellipse plus verticale (§1) a libéré de la hauteur → les écarts
      dépassaient les fourchettes du §6 (Pot→Board et Board→Hero visés à 12-16px).
      On redescend board et pot pour recaler dans la cible. */
-  6: 50,
+  6: 49,
   7: 45,
 };
 /* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
@@ -219,7 +231,11 @@ const WEB_BOARD_Y_BY_COUNT = {
    remonter le pot le fait chevaucher sa plaque (mesuré : recouvrement de 8px).
    Le pot doit donc rester SOUS ce siège. */
 const WEB_POT_Y_BY_COUNT = {
-  6: 31,
+  /* 6-max : pot descendu à 35 pour passer SOUS le siège haut-centre même quand
+     c'est un villain ACTIF (cartes au-dessus de l'avatar → bloc plus bas). Le pot
+     compact (CSS) a rendu la hauteur nécessaire ; le board reste haut (49) pour
+     ne pas toucher les cartes du Hero. */
+  6: 35,
   7: 25,
 };
 /* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
