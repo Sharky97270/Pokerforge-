@@ -16,7 +16,8 @@
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "db:reset": "prisma migrate reset",
-    "build:standalone": "vite build && node build-standalone.mjs"
+    "build:standalone": "vite build && node build-standalone.mjs",
+    "shot": "node scripts/trainer-shot.mjs"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@types/node": "25.9.2",
     "@vitejs/plugin-react": "4.7.0",
+    "puppeteer-core": "^25.3.0",
     "ts-node": "10.9.2",
     "typescript": "6.0.3",
     "vite": "5.4.21"
