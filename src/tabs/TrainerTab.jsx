@@ -4759,7 +4759,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         // Ratio de zone dérivé du ratio d'OVALE cible (script V1) corrigé des marges
         // de la géométrie : ovale 2T 400×310 · 3T haut 398×205 · 4T 398×176.
         const g=trainingLayout.tableGeometry;
-        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/176;
+        // 4T dé-aplati : 398/176 (≈2.26, trop plat) → 398/210 (≈1.9), même famille
+        // de ratio que le 3T. La place vient des actions compactées (1 ligne) et du
+        // doublon "main Hero" retiré ci-dessous.
+        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/210;
         const zoneAR=ovalAR*(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
         // Piloté par la LARGEUR de cellule (stable quel que soit le contenu des
         // actions) → le ratio d'ovale est identique sur toutes les tables du mode
@@ -5093,10 +5096,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             {/* SPR compact */}
             <span style={{fontSize:cfg.actFnt-5,color:"rgba(155,92,255,.7)",fontFamily:T.mono}}>SPR {spr}</span>
           </div>
-          {/* Main Hero dans la zone d'action — 4T uniquement : en mosaïque 3T les
-             tables sont plus grandes et les cartes Hero sont lisibles SUR la table,
-             ce doublon poussait les boutons hors du conteneur (§15/§19). */}
-          {numTables>=4&&spot.hand.length>=2&&(
+          {/* Main Hero dans la zone d'action : retirée (le feutre dé-aplati rend les
+             cartes Hero lisibles SUR la table ; ce doublon volait la hauteur qui
+             sert à dé-aplatir la table). */}
+          {false&&spot.hand.length>=2&&(
             <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginBottom:5,padding:"3px 6px",background:"rgba(255,194,71,.05)",borderRadius:7,border:"1px solid rgba(255,194,71,.14)"}}>
               <div className="hero-card-wrap" style={{display:"flex",gap:3}}>
                 {spot.hand.map((c,ci)=><Card key={ci} r={c.r} s={c.s} size={cfg.heroCard} delay={0}/>)}
@@ -5107,7 +5110,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* Boutons — sizing neutre avant réponse. Mosaïque 3T : UNE seule ligne
              (comme la maquette) → hauteur constante quel que soit le nb de boutons,
              plus de 2e rangée qui débordait le conteneur (§15). */}
-          <div style={{display:"grid",gridTemplateColumns:numTables===3?`repeat(${spot.acts.length},minmax(0,1fr))`:(spot.acts.length>=3?"repeat(3,1fr)":"repeat(2,1fr)"),gap:cfg.compact?3:5}}>
+          <div style={{display:"grid",gridTemplateColumns:numTables>=3?`repeat(${spot.acts.length},minmax(0,1fr))`:(spot.acts.length>=3?"repeat(3,1fr)":"repeat(2,1fr)"),gap:cfg.compact?3:5}}>
             {spot.acts.map((a,i)=>{
               const sIsAmount=/^\d|bb$|\$/.test(a.s||"");
               return(

@@ -391,7 +391,9 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
 .grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
-.grid4 .training-table-zone{aspect-ratio:2.58!important;}
+/* 4T dé-aplati : zone 2.58 (feutre ~2.87, trop plat) → 1.71 (feutre ~1.9), même
+   famille que le 3T. La place vient des actions sur 1 ligne + doublon Hero retiré. */
+.grid4 .training-table-zone{aspect-ratio:1.71!important;}
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
