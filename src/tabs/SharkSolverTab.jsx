@@ -1592,9 +1592,30 @@ function SolverModeBar({scenario,onUpdateScenario,mode,setMode,exploitProfileId,
 }
 
 /* ── Colonne gauche : scénario actuel + 15 scénarios + custom ── */
-function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpots,showCustomForm,setShowCustomForm,newSpot,setNewSpot,format}){
+/* ── Mini-carte (rang + couleur) pour Board / Hero dans la colonne gauche ── */
+function SsCardPill({c}){
+  const lab=cardLabel(c);const red=lab.includes("♥")||lab.includes("♦");
+  return <span className="ss-cardpill" style={{color:red?"#ff7d9c":"#e6f0ff",borderColor:red?"rgba(255,125,156,.4)":"rgba(120,170,255,.4)"}}>{lab}</span>;
+}
+/* ── COLONNE GAUCHE (§36-§39) : SCÉNARIO · RANGE SOURCE · FILTRES & BLOCKERS ·
+   SOLVER ENGINE. Lecture seule + bouton « Modifier » qui révèle le sélecteur de
+   scénarios (préchargés + custom), qui ne monopolise plus la colonne (§54). ── */
+function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpots,showCustomForm,setShowCustomForm,newSpot,setNewSpot,format,
+  effective,math,board,heroParse,heroMode,villainMode,heroCombosN,villainCombosN,antes}){
   const selStyle={width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,fontFamily:T.stats,fontSize:10,padding:"5px 7px",outline:"none"};
   const newSpotValidation=useMemo(()=>validateSpot({heroPos:newSpot.hero,vsPos:newSpot.vs,action:newSpot.action,stack:newSpot.stack}),[newSpot]);
+  const editing=showCustomForm;
+  // Provenance réelle des ranges (§37) : main saisie = utilisateur, sinon heuristique.
+  const heroRangeSrc=heroMode==="hand"?RangeSource.USER_DEFINED:RangeSource.HEURISTIC;
+  const vilRangeSrc=villainMode==="hand"?RangeSource.USER_DEFINED:RangeSource.HEURISTIC;
+  const heroCards=heroMode==="hand"&&heroParse?.valid&&heroParse.suits?exactComboList(heroParse)?.[0]?.cards:null;
+  const deadCards=[...(board||[]),...(heroCards||[])];
+  const structure=antes>0?"Ante":"No Ante";
+  const rake=format==="Cash"?"5% (Cap 3bb)":"0% (tournoi)";
+  // Action précédente déduite de l'action du scénario.
+  const prevAction={rfi:["Premier à parler (RFI)"],vs_open:[`${scenario.vsPos} raise`],
+    vs_3bet:[`${scenario.heroPos} raise`,`${scenario.vsPos} 3-bet`],
+    cbet_ip:["Raise / call préflop","Flop checké au Hero"],vs_bet:["Raise / call préflop",`${scenario.vsPos} bet`]}[scenario.action]||["—"];
 
   function applyNewSpot(){
     if(!newSpotValidation.ok)return;
@@ -1612,53 +1633,72 @@ function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpot
     setNewSpot({title:"",hero:"BTN",vs:"BB",action:"rfi",stack:100,note:""});
     setShowCustomForm(false);
   }
+  const InfoRow=({label,children,strong})=>(
+    <div className="ss-inforow"><span className="ss-inforow-k">{label}</span><span className="ss-inforow-v" style={strong?{color:"#dceaff",fontWeight:800}:undefined}>{children}</span></div>
+  );
 
   return(
-    <div className="shark-left-col" style={{width:230,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,overflowY:"auto",display:"flex",flexDirection:"column"}}>
-      <div style={{padding:"12px 12px 6px"}}>
-        <div className="cai-card" style={{padding:"10px 12px",marginBottom:12,border:`1px solid rgba(52,216,255,.25)`,background:"rgba(52,216,255,.04)"}}>
-          <div style={{fontSize:8.5,color:T.cyan,letterSpacing:".2em",fontFamily:T.stats,fontWeight:700,marginBottom:6}}>SCÉNARIO ACTUEL</div>
-          <div style={{fontFamily:T.brand,fontSize:13,fontWeight:900,color:T.text,marginBottom:2}}>{scenario.label}</div>
-          <div style={{fontSize:9.5,color:T.text3,fontFamily:T.stats}}>{scenario.heroPos} vs {scenario.vsPos} · {ACTION_LABELS[scenario.action]||scenario.action}</div>
-          <div style={{fontSize:9.5,color:T.text3,fontFamily:T.stats,marginTop:2}}>{scenario.stack||100}bb · {scenario.street||"Preflop"} · {format}</div>
+    <div className="shark-left-col" style={{width:238,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"12px 12px 10px",display:"flex",flexDirection:"column",gap:11}}>
+
+        {/* ── SCÉNARIO ── */}
+        <div className="ss-scen-card">
+          <div className="ss-scen-head">
+            <span className="ss-panel-title">SCÉNARIO</span>
+            <button className="ss-modif-btn" onClick={()=>setShowCustomForm(v=>!v)}>{editing?"✕ Fermer":"Modifier"}</button>
+          </div>
+          {!editing&&<>
+            <div style={{fontFamily:T.brand,fontSize:12.5,fontWeight:900,color:T.text,margin:"2px 0 8px"}}>{scenario.label}</div>
+            <div className="ss-inforow" style={{alignItems:"flex-start"}}>
+              <span className="ss-inforow-k">Positions</span>
+              <span className="ss-inforow-v" style={{textAlign:"right"}}>
+                <span style={{color:T.cyan,fontWeight:800}}>Hero ({scenario.heroPos})</span><br/>
+                <span style={{color:T.purple,fontWeight:800}}>Villain ({scenario.vsPos})</span>
+              </span>
+            </div>
+            <InfoRow label="Stack effectif" strong>{effective} bb</InfoRow>
+            <InfoRow label="Pot" strong>{math?.pot??"—"} bb</InfoRow>
+            <div className="ss-inforow"><span className="ss-inforow-k">Board</span>
+              <span className="ss-inforow-v">{board&&board.length?<span className="ss-cardrow">{board.map((c,i)=><SsCardPill key={i} c={c}/>)}</span>:<span style={{color:T.text4}}>préflop</span>}</span></div>
+            <div className="ss-inforow"><span className="ss-inforow-k">Hero</span>
+              <span className="ss-inforow-v">{heroCards?<span className="ss-cardrow">{heroCards.map((c,i)=><SsCardPill key={i} c={c}/>)}</span>:<span style={{color:T.text4}}>range</span>}</span></div>
+            <div className="ss-inforow" style={{alignItems:"flex-start"}}><span className="ss-inforow-k">Action préc.</span>
+              <span className="ss-inforow-v" style={{textAlign:"right",lineHeight:1.4}}>{prevAction.map((a,i)=><React.Fragment key={i}>{a}{i<prevAction.length-1&&<br/>}</React.Fragment>)}</span></div>
+            <InfoRow label="Structure">{structure}</InfoRow>
+            <InfoRow label="Rake">{rake}</InfoRow>
+            <InfoRow label="Ranges">Définies</InfoRow>
+          </>}
         </div>
 
-        <div style={{fontSize:8.5,color:T.text3,letterSpacing:".2em",fontFamily:T.stats,fontWeight:700,marginBottom:8}}>SCÉNARIOS PRÉCHARGÉS</div>
-        {SOLVER_SCENARIOS.map(sc=>(
-          <div key={sc.id} onClick={()=>{setScenario(sc);onResetCell();}}
-            style={{padding:"7px 10px",borderRadius:7,marginBottom:3,cursor:"pointer",transition:"all .12s",
-              background:scenario.id===sc.id?"rgba(52,216,255,.12)":T.bg,
-              border:`1px solid ${scenario.id===sc.id?"rgba(52,216,255,.4)":T.border}`,
-              borderLeft:`3px solid ${scenario.id===sc.id?T.cyan:"transparent"}`}}>
-            <div style={{fontSize:10.5,fontWeight:700,color:scenario.id===sc.id?T.cyan:T.text,fontFamily:T.stats}}>{sc.label}</div>
-            <div style={{fontSize:8.5,color:T.text3,fontFamily:T.stats,marginTop:1}}>{sc.street} · {sc.stack}bb{sc.icmParams?" · ICM":sc.pkoParams?" · PKO":""}</div>
-          </div>
-        ))}
-
-        {savedSpots.length>0&&<>
-          <div style={{fontSize:8.5,color:T.text3,letterSpacing:".2em",fontFamily:T.stats,fontWeight:700,margin:"12px 0 8px"}}>MES SPOTS CUSTOM</div>
-          {savedSpots.map(sp=>(
-            <div key={sp.id} style={{padding:"7px 10px",borderRadius:7,marginBottom:3,cursor:"pointer",transition:"all .12s",
-              background:scenario.id===sp.id?"rgba(255,194,71,.1)":T.bg,
-              border:`1px solid ${scenario.id===sp.id?"rgba(255,194,71,.3)":T.border}`,
-              display:"flex",alignItems:"center",gap:6}}
-              onClick={()=>{setScenario(sp);onResetCell();}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:10,fontWeight:700,color:T.gold,fontFamily:T.stats}}>{sp.label}</div>
-                <div style={{fontSize:8,color:T.text3,fontFamily:T.stats}}>{sp.heroPos} vs {sp.vsPos} · {sp.stack}bb</div>
-              </div>
-              <div onClick={e=>{e.stopPropagation();const u=savedSpots.filter(s=>s.id!==sp.id);setSavedSpots(u);localStorage.setItem("pf_custom_spots",JSON.stringify(u));}}
-                style={{fontSize:10,color:T.red,cursor:"pointer",opacity:.6,padding:2}}>✕</div>
+        {/* ── Sélecteur (préchargés + custom) révélé par « Modifier » ── */}
+        {editing&&(
+          <div className="ss-picker">
+            <div className="ss-panel-title" style={{marginBottom:6}}>SCÉNARIOS PRÉCHARGÉS</div>
+            <div style={{maxHeight:220,overflowY:"auto",marginBottom:8}}>
+              {SOLVER_SCENARIOS.map(sc=>(
+                <div key={sc.id} onClick={()=>{setScenario(sc);onResetCell();setShowCustomForm(false);}}
+                  style={{padding:"6px 9px",borderRadius:6,marginBottom:3,cursor:"pointer",
+                    background:scenario.id===sc.id?"rgba(52,216,255,.12)":T.bg,
+                    border:`1px solid ${scenario.id===sc.id?"rgba(52,216,255,.4)":T.border}`,
+                    borderLeft:`3px solid ${scenario.id===sc.id?T.cyan:"transparent"}`}}>
+                  <div style={{fontSize:10,fontWeight:700,color:scenario.id===sc.id?T.cyan:T.text,fontFamily:T.stats}}>{sc.label}</div>
+                  <div style={{fontSize:8,color:T.text3,fontFamily:T.stats,marginTop:1}}>{sc.street} · {sc.stack}bb{sc.icmParams?" · ICM":sc.pkoParams?" · PKO":""}</div>
+                </div>
+              ))}
+              {savedSpots.map(sp=>(
+                <div key={sp.id} style={{padding:"6px 9px",borderRadius:6,marginBottom:3,cursor:"pointer",
+                  background:scenario.id===sp.id?"rgba(255,194,71,.1)":T.bg,border:`1px solid ${scenario.id===sp.id?"rgba(255,194,71,.3)":T.border}`,
+                  display:"flex",alignItems:"center",gap:6}} onClick={()=>{setScenario(sp);onResetCell();setShowCustomForm(false);}}>
+                  <div style={{flex:1}}><div style={{fontSize:9.5,fontWeight:700,color:T.gold,fontFamily:T.stats}}>{sp.label}</div>
+                    <div style={{fontSize:8,color:T.text3,fontFamily:T.stats}}>{sp.heroPos} vs {sp.vsPos} · {sp.stack}bb</div></div>
+                  <div onClick={e=>{e.stopPropagation();const u=savedSpots.filter(s=>s.id!==sp.id);setSavedSpots(u);localStorage.setItem("pf_custom_spots",JSON.stringify(u));}} style={{fontSize:10,color:T.red,cursor:"pointer",opacity:.6,padding:2}}>✕</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </>}
-
-        <button onClick={()=>setShowCustomForm(v=>!v)} style={{width:"100%",marginTop:12,padding:"8px 10px",borderRadius:8,fontSize:10.5,fontWeight:700,cursor:"pointer",border:"none",fontFamily:T.stats,
-          background:showCustomForm?"rgba(255,69,96,.15)":"linear-gradient(135deg,#9B5CFF,#34D8FF)",color:showCustomForm?T.red:"#0a0814"}}>
-          {showCustomForm?"✕ Annuler":"+ Nouveau scénario"}
-        </button>
-
-        {showCustomForm&&(
+            <div className="ss-panel-title" style={{marginBottom:6}}>NOUVEAU SCÉNARIO</div>
+          </div>
+        )}
+        {editing&&(
           <div style={{marginTop:10,background:T.bg,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 10px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <div>
@@ -1698,6 +1738,34 @@ function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpot
             </button>
           </div>
         )}
+
+        {/* ── RANGES SOURCE (§37) — provenance réelle des ranges ── */}
+        <div className="ss-panel">
+          <div className="ss-panel-title">RANGES SOURCE</div>
+          <div className="ss-src-row"><span className="ss-inforow-k">Hero</span>
+            <span className="ss-src-tag" style={{color:rangeMeta(heroRangeSrc).color,borderColor:rangeMeta(heroRangeSrc).color}}>{rangeMeta(heroRangeSrc).label}</span></div>
+          <div className="ss-src-row"><span className="ss-inforow-k">Villain</span>
+            <span className="ss-src-tag" style={{color:rangeMeta(vilRangeSrc).color,borderColor:rangeMeta(vilRangeSrc).color}}>{rangeMeta(vilRangeSrc).label}</span></div>
+        </div>
+
+        {/* ── FILTRES & BLOCKERS (§38) — infos issues du Combo Engine ── */}
+        <div className="ss-panel">
+          <div className="ss-panel-title">FILTRES &amp; BLOCKERS</div>
+          <div className="ss-inforow" style={{alignItems:"flex-start"}}><span className="ss-inforow-k">Dead cards</span>
+            <span className="ss-inforow-v">{deadCards.length?<span className="ss-cardrow">{deadCards.map((c,i)=><SsCardPill key={i} c={c}/>)}</span>:<span style={{color:T.text4}}>aucune</span>}</span></div>
+          <div className="ss-inforow"><span className="ss-inforow-k">Cartes connues retirées</span>
+            <span className="ss-toggle on" title="Le moteur retire toujours les cartes connues (card removal)"><span/></span></div>
+          <div className="ss-panel-sub">Combos restants</div>
+          <InfoRow label="Hero"><b style={{color:T.cyan}}>{heroCombosN??"—"}</b> / 1326</InfoRow>
+          <InfoRow label="Villain"><b style={{color:T.purple}}>{villainCombosN??"—"}</b> / 1326</InfoRow>
+        </div>
+
+        {/* ── SOLVER ENGINE — état du moteur ── */}
+        <div className="ss-engine-card">
+          <div className="ss-eng-name"><span className="ss-eng-dot"/>SOLVER ENGINE</div>
+          <div className="ss-eng-ver">CORE V1.0.0</div>
+          <div className="ss-eng-status">Status : <b>Idle</b></div>
+        </div>
       </div>
     </div>
   );
@@ -2949,6 +3017,10 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           showCustomForm={showCustomForm} setShowCustomForm={setShowCustomForm}
           newSpot={newSpot} setNewSpot={setNewSpot}
           format={format}
+          effective={effective} math={math} board={board}
+          heroParse={heroParse} heroMode={heroMode} villainMode={villainMode}
+          heroCombosN={heroComboList.length} villainCombosN={villainComboList.length}
+          antes={antes}
         />
 
         <div className="ss-main">
