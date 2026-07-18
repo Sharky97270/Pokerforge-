@@ -1,6 +1,7 @@
 // PokerForge — Shark Solver : moteur CFR+, equite, exploit/ICM/PKO + UI (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useMemo } from "react";
 import { T } from "../theme.js";
+import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta } from "../solver/provenance.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2515,6 +2516,82 @@ function SolverFooterBar({mode,validation}){
   );
 }
 
+/* ── SolveID déterministe (reproductibilité minimale, §15) ──
+   Même spot (positions, action, mode, stack, board) → même ID. */
+function makeSolveId(scenario,board,mode,effective){
+  const raw=`${scenario.heroPos}|${scenario.vsPos}|${scenario.action}|${mode}|${effective}|${(board||[]).join(",")}|${scenario.street||""}`;
+  let h=0;for(let i=0;i<raw.length;i++){h=(h*31+raw.charCodeAt(i))>>>0;}
+  return "SHK-"+h.toString(16).toUpperCase().padStart(8,"0").slice(0,8);
+}
+function fmtIters(n){
+  if(!n||n<1000)return String(n||0);
+  if(n<1e6)return (n/1e3).toFixed(n<1e4?1:0)+"K";
+  if(n<1e9)return (n/1e6).toFixed(n<1e7?1:0)+"M";
+  return (n/1e9).toFixed(1)+"Md";
+}
+/* Type de pot depuis l'action (§34 "Spot"). */
+function spotPotType(action){
+  if(action==="rfi")return"RFI";
+  if(action==="vs_open")return"SRP";
+  if(action==="vs_3bet")return"3BP";
+  if(action==="cbet_ip"||action==="vs_bet")return"SRP";
+  return"SRP";
+}
+/* ── BARRE DE CONTEXTE SUPÉRIEURE (§34) — HONNÊTE.
+   Tant qu'aucun CFR n'a tourné, on n'invente PAS d'itérations / NashConv :
+   la provenance par défaut est HEURISTIQUE (§2, §58). ── */
+function SolverTopBar({mode,format,scenario,effective,solveId,cfrResult,resultSource}){
+  const meta=resultMeta(resultSource);
+  const solved=!!cfrResult;
+  const modeLabel={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
+  const iterN=solved?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
+  const cell=(label,value,valueColor)=>(
+    <div className="ss-tb-cell">
+      <span className="ss-tb-label">{label}</span>
+      <span className="ss-tb-value" style={valueColor?{color:valueColor}:undefined}>{value}</span>
+    </div>
+  );
+  return(
+    <div className="ss-topbar">
+      <div className="ss-tb-brand">SHARK SOLVER <span className="ss-tb-core">CORE V1</span></div>
+      {cell("Mode",modeLabel)}
+      {cell("Format",format==="Cash"?"Cash 6Max":format)}
+      {cell("Street",scenario.street||"Preflop")}
+      {cell("Spot",spotPotType(scenario.action))}
+      {cell("Stacks (eff.)",effective+"bb")}
+      <div className="ss-tb-sep"/>
+      {cell("Solve ID",solveId)}
+      {/* Provenance globale — badge honnête (heuristique par défaut) */}
+      <div className="ss-tb-cell">
+        <span className="ss-tb-label">Confiance</span>
+        <span className="ss-tb-badge" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{solved?"CFR":meta.short}</span>
+      </div>
+      {cell("Itérations",solved?fmtIters(iterN):"—")}
+      {/* NashConv : non calculé tant que le Convergence Engine (§14) n'existe pas → honnête. */}
+      {cell("NashConv",solved?"n/d":"—",solved?"#8ea4c7":undefined)}
+    </div>
+  );
+}
+/* ── LÉGENDE DE PROVENANCE (§52) — nature de l'info, PAS les actions poker.
+   Code couleur distinct du code couleur d'action (§58). ── */
+function SolverProvenanceLegend({activeSource,precision,modeLabel}){
+  return(
+    <div className="ss-footer ss-prov-legend">
+      {RESULT_SOURCE_LEGEND.map(src=>{
+        const m=resultMeta(src);const on=src===activeSource;
+        return(
+          <span key={src} className="ss-prov-item" style={on?{opacity:1}:{opacity:.55}}>
+            <span className="ss-prov-dot" style={{background:m.color,boxShadow:on?`0 0 7px ${m.color}`:"none"}}/>
+            <b style={{color:on?m.color:"#c9dcf5"}}>{m.label}</b>
+          </span>
+        );
+      })}
+      <span style={{marginLeft:"auto"}}>Précision : <b>{precision}</b></span>
+      <span>Mode : <b>{modeLabel}</b></span>
+    </div>
+  );
+}
+
 export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,onGoReplayer=null,onInitialApplied=null}={}){
   const[scenario,setScenarioRaw]=useState(initialScenario||SOLVER_SCENARIOS[0]);
   const[mode,setMode]=useState(scenario.icmParams?"icm":scenario.pkoParams?"pko":"gto");
@@ -2843,13 +2920,15 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     return sz?sz.sizes[0]:"";
   })();
 
+  const solveId=makeSolveId(scenario,board,mode,effective);
+  const resultSourceTop=cfrResult?ResultSource.CFR_SOLVE:ResultSource.HEURISTIC_ESTIMATE;
+  const modeLabelTop={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
   return(
     <div className="ss-page">
-      <div className="ss-head">
-        <span className="ss-head-title">🦈 SHARK SOLVER</span>
-        <span className="ss-head-sub">GTO · Exploit · ICM · PKO · ChipEV</span>
-        <span className="ss-head-honesty">Estimations heuristiques — pas un calcul solver exact</span>
-      </div>
+      <SolverTopBar
+        mode={mode} format={format} scenario={scenario} effective={effective}
+        solveId={solveId} cfrResult={cfrResult} resultSource={resultSourceTop}
+      />
 
       <SolverModeBar
         scenario={scenario} onUpdateScenario={onUpdateScenario}
@@ -2983,7 +3062,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
         </div>
       </div>
 
-      <SolverFooterBar mode={mode} validation={validation}/>
+      <SolverProvenanceLegend
+        activeSource={resultSourceTop}
+        precision={validation&&!validation.ok?"spot à corriger":cfrResult?"CFR · 1-street":"estimation"}
+        modeLabel={modeLabelTop}
+      />
     </div>
   );
 }
