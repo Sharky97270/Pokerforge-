@@ -1266,15 +1266,13 @@ function SolverStatsBar(props){
   );
   return(
     <div className="cai-card" style={{marginBottom:12,padding:"12px 14px"}}>
-      <div className="cai-card-h" style={{marginBottom:10}}>📊 STATS DU SPOT <span style={{fontSize:8,color:T.text4,fontWeight:400,fontStyle:"italic",marginLeft:6}}>équité = calcul réel (énumération) · fréquences/EV GTO = heuristiques (voir Solveur CFR)</span></div>
+      {/* Équité/EV/SPR vivent dans RÉSULTAT DU SPOT + RÉSUMÉ (colonne droite) → ici
+          uniquement les métriques de décision NON dupliquées (§39). */}
+      <div className="cai-card-h" style={{marginBottom:10}}>📊 MÉTRIQUES DE DÉCISION <span style={{fontSize:8,color:T.text4,fontWeight:400,fontStyle:"italic",marginLeft:6}}>pot odds / défense / combos — calcul réel</span></div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        {chip("EQUITY HERO",`${equityHero}%`,T.cyan)}
-        {chip("EQUITY VILAIN",`${equityVillain}%`,T.purple)}
-        {chip("FOLD EQUITY",`${foldEquity}%`,T.green,"Vilain fold")}
         {chip("POT ODDS",`${math.potOdds}%`,T.gold,`à payer ${math.facingBet}bb`)}
         {chip("MDF",`${math.mdf}%`,T.blue,"défense mini")}
         {chip("SPR",math.spr,T.green)}
-        {chip("STACK EFFECTIF",`${effective}bb`,T.text)}
         {chip("COMBOS DISPO",combosAvail,T.cyan,"continuation Hero")}
         {chip("COMBOS BLOQUÉS",combosBlocked==null?"—":combosBlocked,T.text3,"premiums bloqués")}
         {mode==="icm"&&chip("RISK PREMIUM",`${Math.round((riskPremium||0)*100)}%`,T.red,"prime ICM")}
