@@ -2726,6 +2726,49 @@ function SolverSolveStatus({source,cfrResult}){
   );
 }
 
+/* ── SOURCE DU RÉSULTAT (§46) — panneau critique : la provenance de CHAQUE
+   valeur affichée, sans ambiguïté. Utilise le module provenance central. ── */
+function SolverResultSourcePanel({strategySource,equitySource}){
+  const s=resultMeta(strategySource),e=resultMeta(equitySource);
+  const rows=[{k:"Stratégie / Fréquences",m:s},{k:"Équité (vs range)",m:e},{k:"EV par action",m:s}];
+  return(
+    <div className="ss-card ss-resultsrc">
+      <div className="ss-panel-title" style={{marginBottom:9}}>⬡ SOURCE DU RÉSULTAT</div>
+      {rows.map((r,i)=>(
+        <div key={i} className="ss-rsrc-row">
+          <span className="ss-rsrc-k">{r.k}</span>
+          <span className="ss-src-tag" style={{color:r.m.color,borderColor:r.m.color,boxShadow:`0 0 8px ${r.m.glow}`}}>{r.m.label}</span>
+        </div>
+      ))}
+      <div className="ss-rsrc-desc" style={{borderColor:s.color+"55",background:s.color+"0d"}}>
+        <b style={{color:s.color}}>{s.label}</b> — {s.desc}
+      </div>
+    </div>
+  );
+}
+/* ── RÉSULTAT DU SPOT (§45) — distingue clairement ÉQUITÉ (part du pot à
+   l'abattage) et EV (gain espéré de l'action). Ce ne sont PAS la même chose. ── */
+function SolverSpotResultPanel({equityHero,equityVillain,foldEquity,math,evTotal,strategySource}){
+  const meta=resultMeta(strategySource);
+  const cell=(label,value,color)=>(
+    <div className="ss-res-cell"><span>{label}</span><b style={color?{color}:undefined}>{value}</b></div>
+  );
+  return(
+    <div className="ss-card">
+      <div className="ss-panel-title" style={{marginBottom:9}}>🎯 RÉSULTAT DU SPOT</div>
+      <div className="ss-res-grid">
+        {cell("Equity Hero",equityHero+"%","#34B4FF")}
+        {cell("Equity Villain",equityVillain+"%","#9B5CFF")}
+        {cell("Fold Equity",Math.round(foldEquity)+"%","#FFB020")}
+        {cell(`EV Hero (${meta.short})`,(evTotal>=0?"+":"")+evTotal+" bb",evTotal>=0?"#10D87A":"#FF5D6C")}
+        {cell("Pot actuel",(math?.pot??"—")+" bb")}
+        {cell("Pot après action","—","#7f97ba")}
+      </div>
+      <div className="ss-res-note"><b>Équité</b> = part du pot à l'abattage · <b>EV</b> = gain espéré de l'action. Ce ne sont pas la même chose.</div>
+    </div>
+  );
+}
+
 export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,onGoReplayer=null,onInitialApplied=null}={}){
   const[scenario,setScenarioRaw]=useState(initialScenario||SOLVER_SCENARIOS[0]);
   const[mode,setMode]=useState(scenario.icmParams?"icm":scenario.pkoParams?"pko":"gto");
@@ -3212,6 +3255,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             effective={effective} math={math} equityHero={equityHero}
             villainActionEff={villainActionEff} onReset={onReset}
           />
+          <SolverSpotResultPanel
+            equityHero={equityHero} equityVillain={equityVillain} foldEquity={foldEquity}
+            math={math} evTotal={evTotalWeighted} strategySource={strategySource}
+          />
+          <SolverResultSourcePanel strategySource={strategySource} equitySource={ResultSource.NUMERICAL_APPROXIMATION}/>
           <SolverEVChart
             scenario={scenario} mode={mode} pac={pac} evByBucket={evByBucket}
             selectedCell={selectedCell} heroFreqs={heroFreqs} villainFreqs={villainFreqs}

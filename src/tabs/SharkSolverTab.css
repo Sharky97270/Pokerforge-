@@ -185,3 +185,17 @@
 .ss-conv-row{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:9px;font-family:Inter,sans-serif;color:#7f97ba;}
 .ss-conv-row b{font-family:'JetBrains Mono',monospace;color:#c4d7f2;font-weight:800;font-size:9.5px;}
 .ss-conv-note{margin-top:9px;padding-top:8px;border-top:1px solid rgba(120,160,220,.12);font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;line-height:1.4;font-style:italic;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLONNE DROITE CORE V1 — SOURCE DU RÉSULTAT (§46) + RÉSULTAT DU SPOT (§45)
+═══════════════════════════════════════════════════════════════════ */
+.ss-rsrc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid rgba(120,160,220,.07);}
+.ss-rsrc-row:last-of-type{border-bottom:none;}
+.ss-rsrc-k{font-size:9.5px;color:#8ba3c6;font-family:Inter,sans-serif;}
+.ss-rsrc-desc{margin-top:9px;padding:7px 9px;border:1px solid;border-radius:7px;font-size:8.5px;color:#a9bcd8;font-family:Inter,sans-serif;line-height:1.45;}
+.ss-res-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ss-res-cell{display:flex;flex-direction:column;gap:2px;background:rgba(6,16,34,.6);border:1px solid rgba(120,160,220,.12);border-radius:7px;padding:7px 9px;}
+.ss-res-cell span{font-size:8px;color:#7f97ba;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;}
+.ss-res-cell b{font-size:15px;color:#dceaff;font-family:'Space Grotesk',sans-serif;font-weight:800;line-height:1;}
+.ss-res-note{margin-top:9px;font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;line-height:1.45;font-style:italic;}
+.ss-res-note b{color:#9fb4d6;font-style:normal;}
