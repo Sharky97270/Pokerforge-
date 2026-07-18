@@ -2660,6 +2660,72 @@ function SolverProvenanceLegend({activeSource,precision,modeLabel}){
   );
 }
 
+/* ── STRATÉGIE — FRÉQUENCES (§41) : gros blocs lisibles, code couleur ACTION.
+   Badge de provenance (HEUR / CFR) — n'affiche que les actions réelles (§40). ── */
+function SolverStrategyPanel({blocks,source,evTotal}){
+  const meta=resultMeta(source);
+  const solved=source===ResultSource.CFR_SOLVE;
+  return(
+    <div className="ss-card2 ss-strat">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">STRATÉGIE — FRÉQUENCES (HERO)</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{solved?"CFR SOLVE":"Heuristique"}</span>
+      </div>
+      <div className="ss-freq-blocks" style={{gridTemplateColumns:`repeat(${blocks.length},1fr)`}}>
+        {blocks.map(b=>(
+          <div key={b.id} className="ss-freq-block" style={{background:`linear-gradient(180deg,${b.color}22,${b.color}08)`,borderColor:`${b.color}66`}}>
+            <span className="ss-freq-label" style={{color:b.color}}>{b.label}</span>
+            <span className="ss-freq-pct">{b.pct}%</span>
+          </div>
+        ))}
+      </div>
+      <div className="ss-freq-ev" style={{gridTemplateColumns:`110px repeat(${blocks.length},1fr)`}}>
+        <div className="ss-freq-evcell ss-freq-evtot"><span>EV total (pondéré)</span><b style={{color:evTotal>=0?"#10D87A":"#FF5D6C"}}>{evTotal>=0?"+":""}{evTotal} bb</b></div>
+        {blocks.map(b=>(
+          <div key={b.id} className="ss-freq-evcell">
+            <span>EV {b.label}</span>
+            <b style={{color:b.ev==null?"#7f97ba":b.ev>=0?"#10D87A":"#FF5D6C"}}>{b.ev==null?"—":(b.ev>=0?"+":"")+b.ev+" bb"}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+/* ── STATUT DU SOLVE (§44) — HONNÊTE : itérations réelles si CFR lancé ; les
+   métriques de convergence (NashConv, exploitability) restent « n/d » tant que
+   le Convergence Engine (§14) n'existe pas. Jamais de 98% inventé (§58). ── */
+function SolverSolveStatus({source,cfrResult}){
+  const solved=source===ResultSource.CFR_SOLVE&&!!cfrResult;
+  const meta=resultMeta(source);
+  const iterN=cfrResult?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
+  const rows=[
+    ["Itérations",solved?fmtIters(iterN):"—"],
+    ["NashConv",solved?"n/d":"—"],
+    ["Exploitability",solved?"n/d":"—"],
+    ["Strategy stab.",solved?"n/d":"—"],
+    ["Solveur",solved?"CFR+":"—"],
+    ["Précision",solved?"1-street HU":"Heuristique"],
+    ["Status",solved?"Résolu":"Non lancé"],
+  ];
+  return(
+    <div className="ss-card2 ss-solvestat">
+      <div className="ss-card2-head"><span className="ss-panel-title">STATUT DU SOLVE</span></div>
+      <div className="ss-conv">
+        <div className="ss-conv-ring" style={{borderColor:solved?"#34B4FF":"#2a3a55",boxShadow:solved?"0 0 18px rgba(52,180,255,.35)":"none"}}>
+          <span className="ss-conv-txt" style={{color:solved?"#9fd4ff":"#6a7690"}}>{solved?"CFR":"Idle"}</span>
+          <span className="ss-conv-sub">{solved?"1-street":"heuristique"}</span>
+        </div>
+        <div className="ss-conv-rows">
+          {rows.map(([k,v])=>(
+            <div key={k} className="ss-conv-row"><span>{k}</span><b style={k==="Status"?{color:solved?"#10D87A":"#FFB020"}:undefined}>{v}</b></div>
+          ))}
+        </div>
+      </div>
+      <div className="ss-conv-note">{solved?"Métriques de convergence complètes : à venir (Convergence Engine §14).":"Lance « Résoudre (CFR) » (panneau Solveur CFR) pour une stratégie calculée."}</div>
+    </div>
+  );
+}
+
 export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,onGoReplayer=null,onInitialApplied=null}={}){
   const[scenario,setScenarioRaw]=useState(initialScenario||SOLVER_SCENARIOS[0]);
   const[mode,setMode]=useState(scenario.icmParams?"icm":scenario.pkoParams?"pko":"gto");
@@ -2857,6 +2923,26 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     };
   },[heroFreqs,scenario,mode,icmResult,pkoParams,exploitDetails,stack]);
 
+  /* ── Blocs de STRATÉGIE (§41) — actions RÉELLES du moteur, honnêtes (§40).
+     Défaut = buckets heuristiques (pac / Call / Fold). Après CFR (overlay) =
+     Check / Bet small / Bet big réellement résolus. Jamais un sizing inventé. ── */
+  const strategyBlocks=useMemo(()=>{
+    if(cfrOverlay&&cfrResult){
+      return[
+        {id:"check",label:"Check",pct:cfrResult.heroCheck,color:"#34B4FF",ev:null},
+        {id:"bets",label:`Bet ${cfrResult.betSPct}%`,pct:cfrResult.heroBetS,color:"#10D87A",ev:null},
+        {id:"betb",label:`Bet ${cfrResult.betBPct}%`,pct:cfrResult.heroBetB,color:"#FF8A3D",ev:null},
+      ];
+    }
+    const b=[{id:"r",label:pac.label,pct:stats.raisedPct,color:pac.color,ev:evByBucket.r}];
+    if(stats.calledPct>0)b.push({id:"c",label:"Call",pct:stats.calledPct,color:"#1F8BFF",ev:evByBucket.c});
+    b.push({id:"f",label:"Fold",pct:stats.foldedPct,color:"#5a6a88",ev:0});
+    return b;
+  },[cfrOverlay,cfrResult,pac,stats,evByBucket]);
+  const strategySource=(cfrOverlay&&cfrResult)?ResultSource.CFR_SOLVE:ResultSource.HEURISTIC_ESTIMATE;
+  const evTotalWeighted=(cfrOverlay&&cfrResult)?cfrResult.heroEV
+    :Math.round((stats.raisedPct*evByBucket.r+stats.calledPct*evByBucket.c)/100*100)/100;
+
   /* ── Math du spot : pot, SPR, pot odds, MDF (sur stack effectif) ── */
   const math=useMemo(()=>spotMath(scenario.action,effective,blinds,antes,potOverride),[scenario.action,effective,blinds,antes,potOverride]);
 
@@ -3031,6 +3117,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             villainAction={villainAction} setVillainAction={setVillainAction}
             stackHero={stackHero} setStackHero={setStackHero} stackVillain={stackVillain} setStackVillain={setStackVillain}
           />
+          {/* ── STRATÉGIE — FRÉQUENCES + STATUT DU SOLVE (§41, §44) ── */}
+          <div className="ss-strat-row">
+            <SolverStrategyPanel blocks={strategyBlocks} source={strategySource} evTotal={evTotalWeighted}/>
+            <SolverSolveStatus source={strategySource} cfrResult={cfrOverlay?cfrResult:null}/>
+          </div>
           <SpotStacksBar
             stackHero={stackHero} stackVillain={stackVillain}
             blinds={blinds} setBlinds={setBlinds} antes={antes} setAntes={setAntes}

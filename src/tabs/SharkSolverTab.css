@@ -155,3 +155,33 @@
 .ss-eng-ver{font-size:12px;font-weight:900;color:#9fd4ff;font-family:'Space Grotesk',sans-serif;letter-spacing:1px;}
 .ss-eng-status{font-size:9px;color:#7f97ba;font-family:Inter,sans-serif;}
 .ss-eng-status b{color:#c4d7f2;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CENTRE CORE V1 — STRATÉGIE FRÉQUENCES (§41) + STATUT DU SOLVE (§44)
+═══════════════════════════════════════════════════════════════════ */
+.ss-strat-row{display:grid;grid-template-columns:1fr 232px;gap:12px;margin-bottom:12px;}
+.ss-card2{background:linear-gradient(180deg,#0a1d35,#071427);border:1px solid rgba(0,180,255,.28);
+  border-radius:12px;padding:12px 13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 5px 16px rgba(0,0,0,.4);}
+.ss-card2-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+/* Blocs de fréquences */
+.ss-freq-blocks{display:grid;gap:8px;margin-bottom:8px;}
+.ss-freq-block{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:14px 6px;border-radius:10px;border:1px solid;min-height:74px;}
+.ss-freq-label{font-size:11px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:.03em;text-align:center;}
+.ss-freq-pct{font-size:26px;font-weight:900;color:#eaf3ff;font-family:'Space Grotesk',sans-serif;line-height:1;text-shadow:0 0 16px rgba(0,0,0,.5);}
+.ss-freq-ev{display:grid;gap:6px;padding-top:9px;border-top:1px solid rgba(120,160,220,.12);}
+.ss-freq-evcell{display:flex;flex-direction:column;gap:1px;}
+.ss-freq-evcell span{font-size:8px;color:#7f97ba;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ss-freq-evcell b{font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:800;}
+.ss-freq-evtot span{color:#9fb4d6;font-weight:700;}
+.ss-freq-evtot b{font-size:13px;}
+/* Statut du solve */
+.ss-solvestat{display:flex;flex-direction:column;}
+.ss-conv{display:flex;gap:11px;align-items:center;}
+.ss-conv-ring{width:64px;height:64px;border-radius:50%;border:4px solid;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+.ss-conv-txt{font-size:14px;font-weight:900;font-family:'Space Grotesk',sans-serif;letter-spacing:.5px;}
+.ss-conv-sub{font-size:7px;color:#6a7690;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.06em;}
+.ss-conv-rows{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.ss-conv-row{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:9px;font-family:Inter,sans-serif;color:#7f97ba;}
+.ss-conv-row b{font-family:'JetBrains Mono',monospace;color:#c4d7f2;font-weight:800;font-size:9.5px;}
+.ss-conv-note{margin-top:9px;padding-top:8px;border-top:1px solid rgba(120,160,220,.12);font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;line-height:1.4;font-style:italic;}
