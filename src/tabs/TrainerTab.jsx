@@ -3268,7 +3268,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // "table" = vue canonique (Hero à sa position) ; "hero" = hero-centric (bas-centre).
     const canonical=heroLayout==="table";
     // Structures dont les sièges sont calculés sur l'anneau (ex. 7-max) — web only.
-    const ellipse=(!isMobile&&!canonical)?WEB_ELLIPSE_BY_COUNT[positions.length]:null;
+    const ellipseBase=(!isMobile&&!canonical)?WEB_ELLIPSE_BY_COUNT[positions.length]:null;
+    // MULTI : le feutre de chaque table est plat → les sièges du haut, posés sur
+    // l'ellipse, plongeaient leur plaque sur le pot (chevauchement 15-20px). On
+    // remonte les sièges vers le rail (ringFactorY plus haut) : ça dégage le centre
+    // (pot/board) ET rapproche les joueurs de l'anneau doré comme demandé (§2).
+    const ellipse=(ellipseBase&&numTables>=2)
+      ?{...ellipseBase,ringFactorY:Math.min(0.96,(ellipseBase.ringFactorY??0.84)+0.06)}
+      :ellipseBase;
     const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical,ellipse});
     const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":`${numTables}T-web-dyn`,seats,cfgViz);
     // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
@@ -3838,38 +3845,51 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       const bbSize=parseFloat(spot.stack)||100;
       const raiseAmt=sp.mult===999?bbSize:customBB!==null?customBB:Math.round(currentPotBb*sp.mult*10)/10;
       const neutralHints={FOLD:"Ne pas jouer",CALL:"Suivre",CHECK:"Passer",RAISE:"Relancer",BET33:"33% pot",BET50:"50% pot",BET75:"75% pot",BET100:"Pot",ALLIN:"Tapis","3BET":"3-Bet","4BET":"4-Bet","5BET":"5-Bet"};
+      // MÊME DISPOSITION sur toutes les tables (info · boutons · sizing · stepper).
+      // 1T = pleine taille ; multi = compact dérivé de cfg (adapté à la taille de
+      // chaque table). Corrige le chevauchement au niveau du stack Hero : les actions
+      // vivent dans un bandeau dédié sous le feutre, jamais sur la table.
+      const multi=numTables>1;
+      const az=multi
+        ?{pad:"4px 6px 2px",hdrMb:2,chip:Math.max(7,cfg.actFnt-4),htxt:Math.max(7,cfg.actFnt-4),
+          bgap:cfg.compact?3:4,bmb:3,lbl:cfg.actFnt,siz:Math.max(7,cfg.actFnt-3),hint:Math.max(6,cfg.actFnt-4),
+          szMb:2,stepFs:Math.max(9,cfg.actFnt-2),grid:`repeat(${spot.acts.length},minmax(0,1fr))`}
+        :{pad:"8px 10px 10px",hdrMb:7,chip:8,htxt:8.5,bgap:5,bmb:7,lbl:13,siz:10,hint:8,szMb:5,stepFs:11,grid:null};
       return(
-        <div className="mtr-actions" style={{flexShrink:0,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(255,194,71,.18)",padding:"8px 10px 10px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
-            <div style={{padding:"2px 9px",borderRadius:20,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.3)",fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,color:T.gold}}>🎮 {spot.hpos} vs {spot.vpos}</div>
+        <div className={`mtr-actions${multi?" mtr-actions-multi":""}`} style={{flexShrink:0,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(255,194,71,.18)",padding:az.pad}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:az.hdrMb}}>
+            <div style={{padding:"2px 9px",borderRadius:20,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.3)",fontFamily:"'Space Grotesk',sans-serif",fontSize:az.chip,fontWeight:800,color:T.gold}}>🎮 {spot.hpos} vs {spot.vpos}</div>
             {spotCtx.facing
-              ?<span style={{fontSize:8.5,fontFamily:T.stats,color:"#c090ff",fontWeight:700}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}{spot.toCall>0&&<span style={{color:T.amber}}> · à payer {fmt(spot.toCall)}</span>}</span>
-              :<span style={{fontSize:8.5,fontFamily:T.stats,color:T.green,fontWeight:700}}>{/^pre/i.test(spot.street||"")?"Premier à parler — ouvre ou fold":`${spot.vpos} check — à toi`}</span>}
+              ?<span style={{fontSize:az.htxt,fontFamily:T.stats,color:"#c090ff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}{spot.toCall>0&&<span style={{color:T.amber}}> · à payer {fmt(spot.toCall)}</span>}</span>
+              :<span style={{fontSize:az.htxt,fontFamily:T.stats,color:T.green,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{/^pre/i.test(spot.street||"")?"Premier à parler — ouvre ou fold":`${spot.vpos} check — à toi`}</span>}
           </div>
-          <div style={{display:"flex",gap:5,marginBottom:7}}>
+          <div style={{display:multi?"grid":"flex",...(multi?{gridTemplateColumns:az.grid}:{}),gap:az.bgap,marginBottom:az.bmb}}>
             {spot.acts.map((a,i)=>{
-              const isRaiseBtn=["RAISE","3BET","4BET","5BET","BET33","BET50","BET75","BET100","ALLIN"].includes(a.id);
+              // Seuls RAISE/3BET/4BET/5BET suivent le sélecteur de sizing (raiseAmt).
+              // Les BET33/50/75/100 gardent leur fraction de pot propre (a.s) — sinon
+              // tous les boutons de mise afficheraient le même montant.
+              const isSizedRaise=["RAISE","3BET","4BET","5BET"].includes(a.id);
               const sIsAmount=/^\d|bb$|\$/.test(a.s||"");
-              const dynSizing=isRaiseBtn?(sp.mult===999?"Tapis":fmt(raiseAmt)):sIsAmount?a.s:"";
+              const dynSizing=isSizedRaise?(sp.mult===999?"Tapis":fmt(raiseAmt)):(a.id==="ALLIN"?"Tapis":sIsAmount?a.s:"");
               return(
-                <button key={i} className={`gto-btn gto-btn-${a.id}${errorBtn===i?" btn-error":""}`} onClick={()=>handleHeroAct(i)} style={{flex:1,minWidth:0}}>
+                <button key={i} className={`gto-btn gto-btn-${a.id}${errorBtn===i?" btn-error":""}`} onClick={()=>handleHeroAct(i)} style={multi?{minWidth:0}:{flex:1,minWidth:0}}>
                   <div className="gto-btn-inner">
-                    <span className="gto-btn-label" style={{fontSize:13}}>{a.l}</span>
-                    {dynSizing&&<span className="gto-btn-sizing" style={{fontSize:10}}>{dynSizing}</span>}
+                    <span className="gto-btn-label" style={{fontSize:az.lbl}}>{a.l}</span>
+                    {dynSizing&&<span className="gto-btn-sizing" style={{fontSize:az.siz}}>{dynSizing}</span>}
                   </div>
-                  <div className="gto-btn-hint" style={{fontSize:8}}>{neutralHints[a.id]||""}</div>
+                  <div className="gto-btn-hint" style={{fontSize:az.hint}}>{neutralHints[a.id]||""}</div>
                 </button>
               );
             })}
           </div>
-          <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:5}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:3,marginBottom:az.szMb}}>
             {SIZING_PRESETS.map((s,i)=>(
               <button key={i} className={`sizing-btn${i===raiseSzIdx&&customBB===null?" sz-active":""}${s.mult===999?" sz-allin":""}`} onClick={()=>{setRaiseSzIdx(i);setCustomBB(null);}}>{s.l}</button>
             ))}
           </div>
           <div className="sizing-custom">
             <button className="sizing-step-btn" onClick={()=>{const v=customBB!==null?customBB:raiseAmt;setCustomBB(Math.max(currentPotBb,Math.round((v-.5)*2)/2));}}>−</button>
-            <span style={{flex:1,textAlign:"center",fontFamily:T.mono,fontSize:11,color:customBB!==null?T.gold:T.text3,fontWeight:700}}>{customBB!==null?fmt(customBB):fmt(raiseAmt)} bb</span>
+            <span style={{flex:1,textAlign:"center",fontFamily:T.mono,fontSize:az.stepFs,color:customBB!==null?T.gold:T.text3,fontWeight:700}}>{customBB!==null?fmt(customBB):fmt(raiseAmt)} bb</span>
             <button className="sizing-step-btn" onClick={()=>{const v=customBB!==null?customBB:raiseAmt;setCustomBB(Math.round((v+.5)*2)/2);}}>+</button>
           </div>
           {/* ── Indice raccourcis clavier (1T) — rythme drill type GTO Wizard ── */}
@@ -4798,9 +4818,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             // STANDARD 1T propagé au multi : pot sous le siège du haut, board dessous,
             // pot préflop dégagé — mêmes ancres % que le 1T (calées sur l'ellipse).
             const n=seatOrder.length;
-            const potYboard=WEB_POT_Y_BY_COUNT[n]??potPt.y;
-            const potYpre=WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y;
-            const boardY=WEB_BOARD_Y_BY_COUNT[n]??boardPt.y;
+            // Multi : le feutre est plus court → on ESPACE davantage pot et board
+            // (pot un poil plus bas pour dégager le siège du haut, board nettement
+            // plus bas pour la marge de 16px demandée par la maquette §5/§11).
+            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+11;
+            const potYpre=(WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y)+12;
+            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+13;
             return(
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
@@ -5081,61 +5104,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         </div>
       )}
 
-      {/* ── ACTIONS HERO multi-table — cfg dynamique + solution masquée ── */}
-      {phase==="hero"&&(
-        <div style={{padding:`5px 6px 7px`,background:"linear-gradient(180deg,rgba(255,194,71,.05),#040B1F,#030D2A)",borderTop:"2px solid rgba(255,194,71,.3)",flexShrink:0}}>
-          {/* Info spot */}
-          <div style={{fontFamily:"'Inter',sans-serif",fontSize:cfg.actFnt-3,fontWeight:600,color:T.text2,marginBottom:4,textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:5,flexWrap:"wrap"}}>
-            <span className="hero-turn-glow" style={{padding:"1px 6px",borderRadius:10,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.3)",fontFamily:"'Space Grotesk',sans-serif",fontSize:cfg.actFnt-4,fontWeight:800,color:T.gold}}>🎮</span>
-            <span style={{color:T.gold,fontWeight:700}}>{spot.hpos}</span>
-            <span style={{color:T.text4}}>vs</span>
-            <span style={{color:"#c090ff",fontWeight:700}}>{spot.vpos}</span>
-            {spot.toCall>0&&<span style={{color:T.amber,fontFamily:"'JetBrains Mono',monospace",fontSize:cfg.actFnt-4}}>{fmt(spot.toCall)}</span>}
-            {/* Pot Odds compact */}
-            {potOddsStr&&<span style={{marginLeft:"auto",fontSize:cfg.actFnt-5,color:T.text4,fontFamily:T.mono,padding:"1px 4px",borderRadius:3,background:"rgba(255,138,0,.08)"}}>Odds {potOddsStr}</span>}
-            {/* SPR compact */}
-            <span style={{fontSize:cfg.actFnt-5,color:"rgba(155,92,255,.7)",fontFamily:T.mono}}>SPR {spr}</span>
-          </div>
-          {/* Main Hero dans la zone d'action : retirée (le feutre dé-aplati rend les
-             cartes Hero lisibles SUR la table ; ce doublon volait la hauteur qui
-             sert à dé-aplatir la table). */}
-          {false&&spot.hand.length>=2&&(
-            <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginBottom:5,padding:"3px 6px",background:"rgba(255,194,71,.05)",borderRadius:7,border:"1px solid rgba(255,194,71,.14)"}}>
-              <div className="hero-card-wrap" style={{display:"flex",gap:3}}>
-                {spot.hand.map((c,ci)=><Card key={ci} r={c.r} s={c.s} size={cfg.heroCard} delay={0}/>)}
-              </div>
-              <span style={{fontSize:cfg.actFnt-3,color:T.text4,fontFamily:T.stats,fontWeight:600}}>{spot.hpos} <span style={{color:T.gold}}>•</span> {fmt(currentPotBb)}</span>
-            </div>
-          )}
-          {/* Boutons — sizing neutre avant réponse. Mosaïque 3T : UNE seule ligne
-             (comme la maquette) → hauteur constante quel que soit le nb de boutons,
-             plus de 2e rangée qui débordait le conteneur (§15). */}
-          <div style={{display:"grid",gridTemplateColumns:numTables>=3?`repeat(${spot.acts.length},minmax(0,1fr))`:(spot.acts.length>=3?"repeat(3,1fr)":"repeat(2,1fr)"),gap:cfg.compact?3:5}}>
-            {spot.acts.map((a,i)=>{
-              const sIsAmount=/^\d|bb$|\$/.test(a.s||"");
-              return(
-                <button key={i} className={`gto-btn gto-btn-${a.id}${errorBtn===i?" btn-error":""}`}
-                  style={{borderRadius:cfg.compact?7:10}}
-                  onClick={()=>handleHeroAct(i)}>
-                  <div className="gto-btn-inner" style={{padding:cfg.actPad}}>
-                    <span className="gto-btn-label" style={{fontSize:cfg.actFnt}}>{a.l}</span>
-                    {/* Afficher le montant seulement s'il est numérique */}
-                    {sIsAmount&&<span className="gto-btn-sizing" style={{fontSize:cfg.actFnt-3}}>{a.s}</span>}
-                  </div>
-                  {/* Hint pédagogique seulement si solution visible */}
-                  {(!cfg.compact&&showSol&&sIsAmount)&&<div className="gto-btn-hint" style={{fontSize:cfg.actFnt-4,padding:"3px 10px"}}>{a.s}</div>}
-                </button>
-              );
-            })}
-          </div>
-          {/* Difficulté badge compact */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,marginTop:3}}>
-            <span style={{width:5,height:5,borderRadius:"50%",background:diffCol,flexShrink:0}}/>
-            <span style={{fontSize:cfg.actFnt-5,color:T.text4,fontFamily:T.stats}}>{diffLabel}</span>
-            <span style={{fontSize:cfg.actFnt-5,color:T.text4,fontFamily:T.stats,marginLeft:4}}>POT {fmt(currentPotBb)}</span>
-          </div>
-        </div>
-      )}
+      {/* ── ACTIONS HERO multi-table — MÊME bandeau que le 1T (disposition unifiée :
+             info · boutons · sizing presets · stepper), taille adaptée par cfg.
+             Rendu par renderActionZone() → plus de chevauchement au stack Hero. ── */}
+      {phase==="hero"&&renderActionZone()}
 
       {/* ── EV RÉSULTATS MULTI-TABLE ── */}
       {answered!==null&&renderHeroFeedback()}

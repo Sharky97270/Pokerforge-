@@ -393,12 +393,58 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
 /* 4T dé-aplati : zone 2.58 (feutre ~2.87, trop plat) → 1.71 (feutre ~1.9), même
    famille que le 3T. La place vient des actions sur 1 ligne + doublon Hero retiré. */
-.grid4 .training-table-zone{aspect-ratio:1.71!important;}
+.grid4 .training-table-zone{aspect-ratio:1.92!important;}
+/* 3T : feutre légèrement aplati pour laisser tenir le bandeau complet (sizing +
+   stepper) sans rogner. §6. */
+.grid3 .training-table-zone{aspect-ratio:1.88!important;}
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
 .grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}
 .grid4 .gto-btn-hint{display:none!important;}
+/* §5 POLICES MULTI 3T/4T — les stacks/positions etaient a 5px (illisibles) et le
+   pot a 14px. On agrandit pour la lisibilite (maquette 4 tables) : nameplate
+   position+stack, pot value (gras) et label. */
+.grid3 .pf-mt-nameplate{font-size:10px!important;}
+.grid4 .pf-mt-nameplate{font-size:9px!important;}
+.grid3 .pf-pot-value,.grid4 .pf-pot-value{font-size:15px!important;font-weight:800!important;}
+.grid3 .pf-pot-label,.grid4 .pf-pot-label{font-size:8px!important;}
+/* Blindes + mises un peu plus grandes aussi. */
+.grid3 .pf-blind-stack strong,.grid4 .pf-blind-stack strong{font-size:9px!important;}
+.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:9px!important;}
+.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:8px!important;}
+/* POT COMPACT MULTI (comme le 1T) : sinon la pile de jetons rend le pot très
+   HAUT (~54px = 26% du feutre court) et il chevauche le siège du haut ET le board.
+   Ligne unique [jetons] POT xx bb, hauteur fixe. */
+.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
+  flex-direction:row!important;align-items:center!important;gap:4px!important;
+  white-space:nowrap!important;height:20px!important;
+}
+/* Pile de jetons masquée dans le pot multi : sur petites tables elle encombrait le
+   centre et son empreinte chevauchait la plaque du siège haut-centre. Le pot reste
+   « POT xx bb » (texte), comme la maquette. */
+.grid3 .pf-pot-chip-stack,.grid4 .pf-pot-chip-stack{display:none!important;}
+/* Avatars multi 3T/4T réduits (trop gros → bloc siège trop haut sur feutre court,
+   d'où les chevauchements pot/siège). §2/§7 de la maquette. */
+.grid4 .pf-avatar-premium{width:34px!important;height:34px!important;}
+.grid3 .pf-avatar-premium{width:38px!important;height:38px!important;}
+/* BANDEAU DÉCISION MULTI (mtr-actions-multi) : même disposition que le 1T mais
+   compacté pour chaque table. Sizing presets + stepper réduits pour tenir sur une
+   ligne sans déborder le conteneur. §6 de la maquette. */
+.mtr-actions-multi .sizing-btn{font-size:8px!important;padding:3px 1px!important;border-radius:5px!important;}
+.grid4 .mtr-actions-multi .sizing-btn{font-size:7px!important;padding:2px 1px!important;}
+.mtr-actions-multi .sizing-custom{padding:2px 6px!important;gap:3px!important;border-radius:5px!important;}
+.mtr-actions-multi .sizing-step-btn{width:17px!important;height:17px!important;font-size:12px!important;border-radius:4px!important;}
+.grid4 .mtr-actions-multi .sizing-step-btn{width:15px!important;height:15px!important;font-size:11px!important;}
+/* CHEVAUCHEMENT STACK HERO : « Pre BTN decision » (.table-action-line) était posé
+   au bas-centre du feutre, PILE sur la plaque du Hero (HERO/BTN/20bb). Le 1T la
+   masque déjà (l'info vit dans le bandeau) → on fait pareil en multi : le bandeau
+   de décision porte désormais « BTN vs BB · … ». */
+.grid2 .table-action-line,.grid3 .table-action-line,.grid4 .table-action-line{display:none!important;}
+/* Les hints pédagogiques (2e ligne du bouton) masqués en multi : pas la place. */
+.mtr-actions-multi .gto-btn-hint{display:none!important;}
+.mtr-actions-multi .gto-btn-inner{padding:4px 4px 3px!important;}
+.grid4 .mtr-actions-multi .gto-btn-inner{padding:3px 3px 2px!important;}
 /* Colonne droite partagée multi-table : panneau V2 lisible (renderMultiPanel) */
 .pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
 .pf-mt-sharedcol>.t1-right{flex:1 1 auto!important;width:100%!important;}
