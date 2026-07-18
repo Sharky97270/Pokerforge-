@@ -2610,7 +2610,9 @@ function spotPotType(action){
    la provenance par défaut est HEURISTIQUE (§2, §58). ── */
 function SolverTopBar({mode,format,scenario,effective,solveId,cfrResult,resultSource}){
   const meta=resultMeta(resultSource);
-  const solved=!!cfrResult;
+  // « solved » = la stratégie CFR est RÉELLEMENT affichée (pas seulement calculée en
+  // arrière-plan). Sinon on affiche l'heuristique → badge/itérations honnêtes.
+  const solved=resultSource===ResultSource.CFR_SOLVE&&!!cfrResult;
   const modeLabel={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
   const iterN=solved?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
   const cell=(label,value,valueColor)=>(
@@ -3118,7 +3120,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   })();
 
   const solveId=makeSolveId(scenario,board,mode,effective);
-  const resultSourceTop=cfrResult?ResultSource.CFR_SOLVE:ResultSource.HEURISTIC_ESTIMATE;
+  // Provenance globale = celle de la stratégie RÉELLEMENT AFFICHÉE (overlay CFR ou
+  // heuristique). Cohérente avec les blocs + le panneau Source du Résultat.
+  const resultSourceTop=strategySource;
   const modeLabelTop={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
   return(
     <div className="ss-page">
