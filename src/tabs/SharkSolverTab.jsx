@@ -4,7 +4,7 @@ import { T } from "../theme.js";
 import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta } from "../solver/provenance.js";
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
-import { monteCarloEquity } from "../solver/core/equity.js";
+import { monteCarloEquity, computeEquity } from "../solver/core/equity.js";
 import { solveRiverCFR } from "../solver/core/cfr.js";
 import "./SharkSolverTab.css";
 
@@ -2684,8 +2684,12 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const heroComboList=useMemo(()=>sideComboList(heroMode==="hand",heroParse,heroKey,heroFreqs),[heroMode,heroParse,heroKey,heroFreqs]);
   const villainComboList=useMemo(()=>sideComboList(villainMode==="hand",villainParse,villainKey,villainFreqs),[villainMode,villainParse,villainKey,villainFreqs]);
   // moins d'itérations quand une seule combo (main vs main) → précision suffisante et rapide
-  const equityHero=useMemo(()=>monteCarloEquity(heroComboList,villainComboList,2500,board),[heroComboList,villainComboList,boardInput]);
+  // Équité : énumération EXACTE si le nombre de runouts est calculable, sinon
+  // Monte-Carlo (§10). La provenance affichée (EXACT vs APPROXIMATION) en découle.
+  const equityRes=useMemo(()=>computeEquity(heroComboList,villainComboList,board,{iters:2500}),[heroComboList,villainComboList,boardInput]);
+  const equityHero=equityRes.equity;
   const equityVillain=100-equityHero;
+  const equitySource=equityRes.exact?ResultSource.EXACT_CALCULATION:ResultSource.NUMERICAL_APPROXIMATION;
 
   /* Équité de la main sélectionnée vs le camp Vilain (range ou main), sur le board courant */
   const selectedEquity=useMemo(()=>{
@@ -2950,7 +2954,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             equityHero={equityHero} equityVillain={equityVillain} foldEquity={foldEquity}
             math={math} evTotal={evTotalWeighted} strategySource={strategySource}
           />
-          <SolverResultSourcePanel strategySource={strategySource} equitySource={ResultSource.NUMERICAL_APPROXIMATION}/>
+          <SolverResultSourcePanel strategySource={strategySource} equitySource={equitySource}/>
           <SolverEVChart
             scenario={scenario} mode={mode} pac={pac} evByBucket={evByBucket}
             selectedCell={selectedCell} heroFreqs={heroFreqs} villainFreqs={villainFreqs}

@@ -6,7 +6,7 @@
 ════════════════════════════════════════════════════════════════════════════ */
 import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList } from "./combos.js";
-import { monteCarloEquity } from "./equity.js";
+import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 
 let pass=0, fail=0;
@@ -43,6 +43,17 @@ const AAvKK=monteCarloEquity([{cards:[C("A",0),C("A",1)],w:1}],[{cards:[C("K",0)
 ok("AA vs KK ≈ 82% (obtenu "+AAvKK+"%)", AAvKK>=78&&AAvKK<=86);
 const mirror=monteCarloEquity([{cards:[C("A",0),C("A",1)],w:1}],[{cards:[C("A",2),C("A",3)],w:1}],4000);
 ok("AA vs AA ≈ 50% (obtenu "+mirror+"%)", mirror>=45&&mirror<=55);
+
+console.log("\n[5] EQUITY EXACTE vs MONTE-CARLO (§10)");
+const river=[C("A",2),C("A",3),C("2",2),C("3",1),C("4",0)]; // Ad Ac 2d 3h 4s (board complet)
+const ceR=computeEquity([{cards:[C("A",0),C("A",1)],w:1}],[{cards:[C("K",0),C("K",1)],w:1}],river);
+ok("river board complet → énumération exacte", ceR.exact===true);
+ok("river : Hero (quad aces) gagne 100% (obtenu "+ceR.equity+"%)", ceR.equity===100);
+const turn=[C("K",2),C("Q",1),C("7",0),C("2",3)]; // 4 cartes
+const ceT=computeEquity([{cards:[C("A",0),C("A",1)],w:1}],[{cards:[C("K",0),C("K",1)],w:1}],turn);
+ok("turn hand-vs-hand → exact (44 runouts)", ceT.exact===true);
+const cePre=computeEquity([{cards:[C("A",0),C("A",1)],w:1}],[{cards:[C("K",0),C("K",1)],w:1}],[]);
+ok("préflop hand-vs-hand → Monte-Carlo (C(48,5) hors budget)", cePre.exact===false);
 
 console.log("\n[4] CFR + CONVERGENCE ENGINE (§13, §14)");
 const hf={AKs:{r:100,c:0,f:0},QQ:{r:100,c:0,f:0},JJ:{r:0,c:100,f:0}};
