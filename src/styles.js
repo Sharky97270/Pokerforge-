@@ -238,8 +238,14 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Mosaïque multi-table (maquette V1) : remplit tout le playground, lignes étirées,
    séparation nette entre tables, aucune table fantôme. */
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-.grid3>.mt-slot:nth-child(3){grid-column:auto;}
+/* MOSAÏQUE 3T (standard unique, §1/§4/§20) : TABLE 1 haut-gauche, TABLE 2
+   haut-droite, TABLE 3 bas-centrée à la MÊME largeur que les deux du haut.
+   T3 s'étend sur les 2 colonnes mais sa largeur est bornée à UNE colonne
+   (width = (spanned - gap)/2) puis centrée (justify-self) → jamais étirée. */
+.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:20px 24px;padding:10px 16px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
+.grid3>.mt-slot:nth-child(2){grid-column:2;grid-row:1;}
+.grid3>.mt-slot:nth-child(3){grid-column:1 / span 2;grid-row:2;justify-self:center;width:calc((100% - 24px)/2);}
 .grid3>.mt-slot:nth-child(3) .tw{max-width:none;margin:0;width:100%;}
 /* Viewports en hauteur NATURELLE (contenu = titre + streets + table ratio-exacte
    + actions) : l'ovale garde ses proportions script à toute résolution — plus de
@@ -249,9 +255,9 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
 .grid3>.mt-slot:nth-child(3){max-width:none;}
 .grid4>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
-/* Table 3 (bas) : ovale 500×164 du script. Ratio de zone corrigé des marges de la
-   géométrie 3T (t11 b12.5 l7.4 r7.4) : (500/164)×0.765/0.852 ≈ 2.7375 */
-.grid3>.mt-slot:nth-child(3) .training-table-zone{aspect-ratio:1.7426!important;}
+/* MOSAÏQUE : TABLE 3 a désormais la MÊME cellule (1 colonne × 1 rangée) que
+   T1/T2 → même ratio, plus d'override d'aplatissement (l'ancienne 500×164 servait
+   la disposition 3-en-ligne, supprimée). */
 /* Table basse très plate : clusters de sièges réduits (script §4 : éléments plus
    petits en bas) — sinon nameplates des sièges hauts et cartes des sièges bas se
    rejoignent au centre. Compensation héros : .82×.85 ≈ .7 (identique aux tables hautes). */
@@ -261,7 +267,11 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3>.mt-slot:nth-child(3) .pf-pot-readout{zoom:1;}
 .grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
 @media(max-width:1280px){
-  .grid3{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));}
+  /* Étroit (§5) : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
+  .grid3{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:24px;}
+  .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
+  .grid3>.mt-slot:nth-child(2){grid-column:1;grid-row:2;}
+  .grid3>.mt-slot:nth-child(3){grid-column:1;grid-row:3;justify-self:stretch;width:100%;}
 }
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}

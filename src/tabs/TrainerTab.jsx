@@ -5093,8 +5093,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             {/* SPR compact */}
             <span style={{fontSize:cfg.actFnt-5,color:"rgba(155,92,255,.7)",fontFamily:T.mono}}>SPR {spr}</span>
           </div>
-          {/* Main Hero dans la zone d'action — 3T/4T : lisibilité garantie */}
-          {numTables>=3&&spot.hand.length>=2&&(
+          {/* Main Hero dans la zone d'action — 4T uniquement : en mosaïque 3T les
+             tables sont plus grandes et les cartes Hero sont lisibles SUR la table,
+             ce doublon poussait les boutons hors du conteneur (§15/§19). */}
+          {numTables>=4&&spot.hand.length>=2&&(
             <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginBottom:5,padding:"3px 6px",background:"rgba(255,194,71,.05)",borderRadius:7,border:"1px solid rgba(255,194,71,.14)"}}>
               <div className="hero-card-wrap" style={{display:"flex",gap:3}}>
                 {spot.hand.map((c,ci)=><Card key={ci} r={c.r} s={c.s} size={cfg.heroCard} delay={0}/>)}
@@ -5102,8 +5104,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <span style={{fontSize:cfg.actFnt-3,color:T.text4,fontFamily:T.stats,fontWeight:600}}>{spot.hpos} <span style={{color:T.gold}}>•</span> {fmt(currentPotBb)}</span>
             </div>
           )}
-          {/* Boutons — sizing neutre avant réponse */}
-          <div style={{display:"grid",gridTemplateColumns:spot.acts.length>=3?"repeat(3,1fr)":"repeat(2,1fr)",gap:cfg.compact?3:5}}>
+          {/* Boutons — sizing neutre avant réponse. Mosaïque 3T : UNE seule ligne
+             (comme la maquette) → hauteur constante quel que soit le nb de boutons,
+             plus de 2e rangée qui débordait le conteneur (§15). */}
+          <div style={{display:"grid",gridTemplateColumns:numTables===3?`repeat(${spot.acts.length},minmax(0,1fr))`:(spot.acts.length>=3?"repeat(3,1fr)":"repeat(2,1fr)"),gap:cfg.compact?3:5}}>
             {spot.acts.map((a,i)=>{
               const sIsAmount=/^\d|bb$|\$/.test(a.s||"");
               return(
