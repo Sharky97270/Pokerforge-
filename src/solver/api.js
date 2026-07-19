@@ -36,8 +36,11 @@ export function computeEquity(heroList,villList,board=[],opts={}){
 /* Résolution CFR+ d'un sous-jeu 1-street heads-up + convergence + provenance.
    `result` conserve la forme de solveRiverCFR (rétro-compatible) ; on y ajoute
    la provenance et un résumé de convergence exploitable par l'UI/Coach. */
+function _hashSeed(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
 export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
-  const result=solveRiverCFR(heroFreqs,villFreqs,board,potBb,betFrac,opts);
+  // Seed déterministe → CFR reproductible (§15).
+  const seed=opts.seed!=null?opts.seed:_hashSeed((board||[]).join(",")+"|"+Object.keys(heroFreqs).join("")+"|"+Object.keys(villFreqs).join("")+"|"+betFrac);
+  const result=solveRiverCFR(heroFreqs,villFreqs,board,potBb,betFrac,{...opts,seed});
   if(!result)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null};
   return{
     source:ResultSource.CFR_SOLVE,

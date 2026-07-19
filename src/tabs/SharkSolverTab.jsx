@@ -974,6 +974,10 @@ function SolverStatsBar(props){
 const CFR_BET_SIZES=[[0.33,"33%"],[0.5,"50%"],[0.66,"66%"],[1,"100%"],[1.5,"150%"]];
 function SolverCFRPanel({result,busy,onSolve,betFrac,setBetFrac,boardCards,overlay,setOverlay}){
   const street=boardCards.length===5?"River (showdown exact)":boardCards.length===4?"Turn (runouts)":boardCards.length===3?"Flop (runouts)":"Préflop (runouts complets)";
+  // §40 : le CFR résout un sous-jeu POSTFLOP (check/bet). Sur préflop, son arbre ne
+  // correspond pas à l'action préflop (open/3-bet/fold) → on désactive pour ne pas
+  // afficher des sizings absents du vrai arbre.
+  const preflop=boardCards.length<3;
   const stat=(label,value,color,sub)=>(
     <div style={{flex:"1 1 120px",minWidth:104,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px"}}>
       <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".08em",marginBottom:3}}>{label}</div>
@@ -994,15 +998,20 @@ function SolverCFRPanel({result,busy,onSolve,betFrac,setBetFrac,boardCards,overl
                 background:betFrac===f?T.purple:"transparent",color:betFrac===f?"#06101f":T.text3}}>{lab}</button>
             ))}
           </div>
-          <button onClick={onSolve} disabled={busy} style={{padding:"7px 16px",borderRadius:8,fontSize:10.5,fontWeight:800,cursor:busy?"wait":"pointer",border:"none",fontFamily:T.stats,letterSpacing:".05em",
-            background:busy?"rgba(155,92,255,.3)":"linear-gradient(135deg,#9B5CFF,#34D8FF)",color:"#06101f"}}>
+          <button onClick={onSolve} disabled={busy||preflop} title={preflop?"Sélectionne un board (flop/turn/river)":""} style={{padding:"7px 16px",borderRadius:8,fontSize:10.5,fontWeight:800,cursor:busy?"wait":preflop?"not-allowed":"pointer",border:"none",fontFamily:T.stats,letterSpacing:".05em",
+            background:busy?"rgba(155,92,255,.3)":preflop?"rgba(255,255,255,.06)":"linear-gradient(135deg,#9B5CFF,#34D8FF)",color:preflop?T.text4:"#06101f"}}>
             {busy?"⏳ Calcul…":"▶ Résoudre (CFR)"}
           </button>
         </div>
       </div>
-      <div style={{fontSize:9,color:T.text3,fontFamily:T.stats,marginBottom:result?10:0}}>
+      <div style={{fontSize:9,color:T.text3,fontFamily:T.stats,marginBottom:(result&&!preflop)?10:0}}>
         Texture : <b style={{color:T.cyan}}>{street}</b> · Hero (range/main affichée) en premier de parole (OOP) vs Vilain. Le pot et les stacks viennent de la barre ci-dessus.
       </div>
+      {preflop&&(
+        <div style={{marginTop:8,padding:"8px 10px",borderRadius:8,background:"rgba(255,176,32,.08)",border:"1px solid rgba(255,176,32,.3)",fontSize:9,color:"#FFB020",fontFamily:T.stats}}>
+          ⓘ Le Solveur CFR résout un <b>sous-jeu postflop</b> (check/bet). Renseigne un <b>board</b> (flop/turn/river) pour résoudre. En préflop, la stratégie affichée reste la range <b>heuristique</b> (open/3-bet/fold).
+        </div>
+      )}
       {result?(
         <>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>

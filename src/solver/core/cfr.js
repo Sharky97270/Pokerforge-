@@ -10,6 +10,7 @@
 ════════════════════════════════════════════════════════════════════════════ */
 import { rangeComboList } from "./combos.js";
 import { eval7i } from "./evaluator.js";
+import { mulberry32 } from "./equity.js";
 
 export function solveRiverCFR(heroFreqs,villainFreqs,board,potBB,betFrac,opts={}){
   const maxCombos=opts.maxCombos||50;
@@ -17,6 +18,8 @@ export function solveRiverCFR(heroFreqs,villainFreqs,board,potBB,betFrac,opts={}
   const runouts=opts.runouts||60;
   const raiseMult=opts.raiseMult||3; // taille du raise vilain = 3× le bet
   const bd=board||[];
+  // rng seedé pour les runouts (reproductibilité §15) : même spot → même solve.
+  const rng=opts.seed==null?Math.random:mulberry32(opts.seed>>>0);
   function topCombos(freqs){
     const list=rangeComboList(freqs).filter(e=>!bd.includes(e.cards[0])&&!bd.includes(e.cards[1]));
     list.sort((a,b)=>b.w-a.w);
@@ -44,7 +47,7 @@ export function solveRiverCFR(heroFreqs,villainFreqs,board,potBB,betFrac,opts={}
           used.fill(0);used[h[0]]=1;used[h[1]]=1;used[v[0]]=1;used[v[1]]=1;
           for(const c of bd)used[c]=1;
           const b2=bd.slice();
-          while(b2.length<5){const c=(Math.random()*52)|0;if(!used[c]){used[c]=1;b2.push(c);}}
+          while(b2.length<5){const c=(rng()*52)|0;if(!used[c]){used[c]=1;b2.push(c);}}
           const hv=eval7i([h[0],h[1],b2[0],b2[1],b2[2],b2[3],b2[4]]);
           const vv=eval7i([v[0],v[1],b2[0],b2[1],b2[2],b2[3],b2[4]]);
           s+=hv>vv?1:hv===vv?0.5:0;n++;
