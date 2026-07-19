@@ -68,6 +68,13 @@ if(r){
   ok("heroEV fini", Number.isFinite(r.heroEV));
 }
 
+console.log("\n[6] REPRODUCTIBILITÉ (§15) — seed déterministe");
+const AA=[{cards:[C("A",0),C("A",1)],w:1}], KK=[{cards:[C("K",0),C("K",1)],w:1}];
+const e1=computeEquity(AA,KK,[]), e2=computeEquity(AA,KK,[]);
+ok("computeEquity déterministe (même spot → même équité: "+e1.equity+"="+e2.equity+")", e1.equity===e2.equity && e1.exact===false);
+ok("computeEquity expose un seed", Number.isFinite(e1.seed));
+ok("monteCarloEquity(seed) reproductible", monteCarloEquity(AA,KK,1000,[],12345)===monteCarloEquity(AA,KK,1000,[],12345));
+
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);
 if(fail>0){process.exitCode=1;console.log("❌ VALIDATION ÉCHOUÉE\n");}

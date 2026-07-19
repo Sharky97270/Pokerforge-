@@ -13,11 +13,24 @@ function _buildSampler(list){
   for(const e of list){tot+=e.w;cum.push(tot);}
   return{list,cum,tot};
 }
-function _sample(s){
-  const x=Math.random()*s.tot;
+function _sample(s,rng){
+  const x=rng()*s.tot;
   let lo=0,hi=s.cum.length-1;
   while(lo<hi){const m=(lo+hi)>>1;if(s.cum[m]<x)lo=m+1;else hi=m;}
   return s.list[lo].cards;
+}
+/* PRNG déterministe (mulberry32) — reproductibilité des solves (§15). */
+export function mulberry32(a){
+  return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+}
+/* Graine déterministe dérivée du spot : même spot → même seed → même équité. */
+export function seedFrom(heroList,villList,board){
+  let h=2166136261;const mix=x=>{h^=x>>>0;h=Math.imul(h,16777619);};
+  mix(heroList.length);mix(villList.length);
+  for(const c of (board||[]))mix(c+1);
+  for(let i=0;i<Math.min(8,heroList.length);i++){mix(heroList[i].cards[0]+1);mix(heroList[i].cards[1]+1);}
+  for(let i=0;i<Math.min(8,villList.length);i++){mix(villList[i].cards[0]+1);mix(villList[i].cards[1]+1);}
+  return h>>>0;
 }
 /* Coefficient binomial (petit k). */
 function comb(n,k){ if(k<0||k>n)return 0; let r=1; for(let i=0;i<k;i++)r=r*(n-i)/(i+1); return Math.round(r); }
@@ -72,27 +85,31 @@ export function computeEquity(heroList,villList,boardFixed=[],opts={}){
     return{equity:den?Math.round(num/den*100):50,exact:true,evals:evalCost};
   }
   const iters=opts.iters||2500;
-  return{equity:monteCarloEquity(heroList,villList,iters,fixed),exact:false,samples:iters};
+  // Seed déterministe dérivé du spot (ou fourni) → équité stable & reproductible (§15).
+  const seed=opts.seed!=null?opts.seed:seedFrom(heroList,villList,fixed);
+  return{equity:monteCarloEquity(heroList,villList,iters,fixed,seed),exact:false,samples:iters,seed};
 }
 
 /* Équité Hero (%) par Monte-Carlo. board = cartes fixées (0..5 ints) → postflop
    sur texture réelle. Retourne un entier 0..100. */
-export function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[]){
+export function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[],seed=null){
   if(!heroList||!villList||!heroList.length||!villList.length)return 50;
   const fixed=boardFixed||[];
+  // rng seedé (reproductible) si seed fourni, sinon Math.random.
+  const rng=seed==null?Math.random:mulberry32(seed>>>0);
   const hs=_buildSampler(heroList),vs=_buildSampler(villList);
   const used=new Uint8Array(52);
   let score=0,n=0,guard=0;
   while(n<iters&&guard<iters*4){
     guard++;
-    const h=_sample(hs),v=_sample(vs);
+    const h=_sample(hs,rng),v=_sample(vs,rng);
     // collisions main/main ou main/board
     if(h[0]===v[0]||h[0]===v[1]||h[1]===v[0]||h[1]===v[1])continue;
     if(fixed.includes(h[0])||fixed.includes(h[1])||fixed.includes(v[0])||fixed.includes(v[1]))continue;
     used.fill(0);used[h[0]]=1;used[h[1]]=1;used[v[0]]=1;used[v[1]]=1;
     for(const c of fixed)used[c]=1;
     const board=fixed.slice();
-    while(board.length<5){const c=(Math.random()*52)|0;if(!used[c]){used[c]=1;board.push(c);}}
+    while(board.length<5){const c=(rng()*52)|0;if(!used[c]){used[c]=1;board.push(c);}}
     const hv=eval7i([h[0],h[1],board[0],board[1],board[2],board[3],board[4]]);
     const vv=eval7i([v[0],v[1],board[0],board[1],board[2],board[3],board[4]]);
     if(hv>vv)score+=1;else if(hv===vv)score+=0.5;

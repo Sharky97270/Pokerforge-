@@ -29,7 +29,7 @@ export function computeEquity(heroList,villList,board=[],opts={}){
     equity:r.equity,
     exact:r.exact,
     source:r.exact?ResultSource.EXACT_CALCULATION:ResultSource.NUMERICAL_APPROXIMATION,
-    evals:r.evals,samples:r.samples,
+    evals:r.evals,samples:r.samples,seed:r.seed,   // seed → reproductibilité (§15)
   };
 }
 
