@@ -4,8 +4,8 @@ import { T } from "../theme.js";
 import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta } from "../solver/provenance.js";
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
-import { monteCarloEquity, computeEquity } from "../solver/core/equity.js";
-import { solveRiverCFR } from "../solver/core/cfr.js";
+// §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
+import { computeEquity, solveSubgame } from "../solver/api.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2689,13 +2689,13 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const equityRes=useMemo(()=>computeEquity(heroComboList,villainComboList,board,{iters:2500}),[heroComboList,villainComboList,boardInput]);
   const equityHero=equityRes.equity;
   const equityVillain=100-equityHero;
-  const equitySource=equityRes.exact?ResultSource.EXACT_CALCULATION:ResultSource.NUMERICAL_APPROXIMATION;
+  const equitySource=equityRes.source; // provenance fournie par la Solver API (§17)
 
   /* Équité de la main sélectionnée vs le camp Vilain (range ou main), sur le board courant */
   const selectedEquity=useMemo(()=>{
     if(!selectedCell)return null;
     const hList=(heroKey&&selectedCell.key===heroKey&&exactComboList(heroParse))||singleHandList(selectedCell.key);
-    return monteCarloEquity(hList,villainComboList,1800,board);
+    return computeEquity(hList,villainComboList,board,{iters:1800}).equity;
   },[selectedCell,heroKey,heroParse,villainComboList,boardInput]);
   const foldEquity=useMemo(()=>villainKey?(villainFreqs[villainKey]?.f||0):villainAggOf(villainFreqs).f,[villainKey,villainFreqs]);
   /* ── Lancement du moteur CFR (à la demande) ── */
@@ -2703,8 +2703,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     setCfrBusy(true);
     setTimeout(()=>{
       try{
-        const r=solveRiverCFR(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:50,iters:400,runouts:board.length===5?0:60});
-        setCfrResult(r);
+        // §17 : passe par la Solver API ; s.result garde la forme attendue (+ convergence).
+        const s=solveSubgame(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:50,iters:400,runouts:board.length===5?0:60});
+        setCfrResult(s.result);
       }catch(e){setCfrResult(null);}
       setCfrBusy(false);
     },30);
