@@ -18,7 +18,8 @@
     "db:reset": "prisma migrate reset",
     "build:standalone": "vite build && node build-standalone.mjs",
     "shot": "node scripts/trainer-shot.mjs",
-    "test:solver": "node src/solver/core/validate.mjs"
+    "test:solver": "node src/solver/core/validate.mjs",
+    "bench:solver": "node src/solver/core/benchmark.mjs"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"
