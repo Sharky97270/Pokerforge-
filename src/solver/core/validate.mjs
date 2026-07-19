@@ -9,6 +9,7 @@ import { comboCardsInt, singleHandList } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame } from "../api.js";
+import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 
 let pass=0, fail=0;
 const ok=(name,cond)=>{ if(cond){pass++;console.log("  ✓ "+name);} else {fail++;console.log("  ✗ FAIL: "+name);} };
@@ -85,6 +86,21 @@ ok("2e solve identique → PRESOLVED_LIBRARY (chargement immédiat)", s2.source=
 ok("solution library == solve original (même SolveID & stratégie)", s2.solveId===s1.solveId&&s2.result.heroBet===s1.result.heroBet);
 const s3=solveSubgame(hf2,vf2,[44,40,8],6,0.66,{iters:150,runouts:20}); // board différent
 ok("spot différent → re-solve (pas de collision de cache)", s3.source==="CFR_SOLVE"&&s3.solveId!==s1.solveId);
+
+console.log("\n[8] GAME TREE ENGINE (§12) — fondation multi-street");
+const gt1=buildPostflopTree({betFrac:0.66,startPot:6,streets:1}); const gs1=treeStats(gt1);
+const t3=buildPostflopTree({betFrac:0.66,startPot:6,streets:3}); const gs3=treeStats(t3);
+ok("arbre 1 street : décisions + terminaux, pas de chance", gs1.decision>0&&gs1.terminal>0&&gs1.chance===0);
+ok("arbre 3 streets : nœuds chance présents (turn/river)", gs3.chance>0);
+ok("arbre 3 streets plus grand que 1 street", gs3.total>gs1.total);
+ok("racine = décision Hero (OOP parle en premier)", t3.kind==="decision"&&t3.player===HERO);
+ok("actions racine = check/bet", JSON.stringify(t3.actions)===JSON.stringify(["X","B"]));
+const foldH={result:"foldH",betsH:2,betsV:0}, foldV={result:"foldV",betsH:0,betsV:2};
+ok("Hero fold → utilité négative", terminalUtility(foldH,6,0)<0);
+ok("Villain fold → utilité positive", terminalUtility(foldV,6,0)>0);
+const sd={result:"showdown",betsH:2,betsV:2};
+ok("showdown gagné > nul > perdu", terminalUtility(sd,6,1)>terminalUtility(sd,6,0.5)&&terminalUtility(sd,6,0.5)>terminalUtility(sd,6,0));
+ok("zéro-somme showdown (mises égales)", Math.abs(terminalUtility(sd,6,1)+terminalUtility(sd,6,0))<1e-9);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);
