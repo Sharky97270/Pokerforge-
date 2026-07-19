@@ -8,6 +8,7 @@ import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
+import { solveSubgame } from "../api.js";
 
 let pass=0, fail=0;
 const ok=(name,cond)=>{ if(cond){pass++;console.log("  ✓ "+name);} else {fail++;console.log("  ✗ FAIL: "+name);} };
@@ -74,6 +75,16 @@ const e1=computeEquity(AA,KK,[]), e2=computeEquity(AA,KK,[]);
 ok("computeEquity déterministe (même spot → même équité: "+e1.equity+"="+e2.equity+")", e1.equity===e2.equity && e1.exact===false);
 ok("computeEquity expose un seed", Number.isFinite(e1.seed));
 ok("monteCarloEquity(seed) reproductible", monteCarloEquity(AA,KK,1000,[],12345)===monteCarloEquity(AA,KK,1000,[],12345));
+
+console.log("\n[7] SOLUTION LIBRARY (§16) — cache / rechargement immédiat");
+const hf2={AKs:{r:100,c:0,f:0},QQ:{r:100,c:0,f:0}}, vf2={AA:{r:100,c:0,f:0},KK:{r:0,c:100,f:0}};
+const s1=solveSubgame(hf2,vf2,[44,40,7],6,0.66,{iters:150,runouts:20});
+ok("1er solve → CFR_SOLVE (calculé)", s1.source==="CFR_SOLVE"&&s1.fromLibrary===false);
+const s2=solveSubgame(hf2,vf2,[44,40,7],6,0.66,{iters:150,runouts:20});
+ok("2e solve identique → PRESOLVED_LIBRARY (chargement immédiat)", s2.source==="PRESOLVED_LIBRARY"&&s2.fromLibrary===true);
+ok("solution library == solve original (même SolveID & stratégie)", s2.solveId===s1.solveId&&s2.result.heroBet===s1.result.heroBet);
+const s3=solveSubgame(hf2,vf2,[44,40,8],6,0.66,{iters:150,runouts:20}); // board différent
+ok("spot différent → re-solve (pas de collision de cache)", s3.source==="CFR_SOLVE"&&s3.solveId!==s1.solveId);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

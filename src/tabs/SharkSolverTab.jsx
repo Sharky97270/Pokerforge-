@@ -1,7 +1,7 @@
 // PokerForge — Shark Solver : moteur CFR+, equite, exploit/ICM/PKO + UI (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useMemo } from "react";
 import { T } from "../theme.js";
-import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta } from "../solver/provenance.js";
+import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta, isCalculated } from "../solver/provenance.js";
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
@@ -2307,7 +2307,7 @@ function SolverTopBar({mode,format,scenario,effective,solveId,cfrResult,resultSo
   const meta=resultMeta(resultSource);
   // « solved » = la stratégie CFR est RÉELLEMENT affichée (pas seulement calculée en
   // arrière-plan). Sinon on affiche l'heuristique → badge/itérations honnêtes.
-  const solved=resultSource===ResultSource.CFR_SOLVE&&!!cfrResult;
+  const solved=isCalculated(resultSource)&&!!cfrResult;
   const modeLabel={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
   const iterN=solved?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
   const cell=(label,value,valueColor)=>(
@@ -2329,7 +2329,7 @@ function SolverTopBar({mode,format,scenario,effective,solveId,cfrResult,resultSo
       {/* Provenance globale — badge honnête (heuristique par défaut) */}
       <div className="ss-tb-cell">
         <span className="ss-tb-label">Confiance</span>
-        <span className="ss-tb-badge" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{solved?"CFR":meta.short}</span>
+        <span className="ss-tb-badge" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.short}</span>
       </div>
       {cell("Itérations",solved?fmtIters(iterN):"—")}
       {/* NashConv/exploitabilité : borne réelle calculée par le Convergence Engine (§14). */}
@@ -2361,12 +2361,11 @@ function SolverProvenanceLegend({activeSource,precision,modeLabel}){
    Badge de provenance (HEUR / CFR) — n'affiche que les actions réelles (§40). ── */
 function SolverStrategyPanel({blocks,source,evTotal}){
   const meta=resultMeta(source);
-  const solved=source===ResultSource.CFR_SOLVE;
   return(
     <div className="ss-card2 ss-strat">
       <div className="ss-card2-head">
         <span className="ss-panel-title">STRATÉGIE — FRÉQUENCES (HERO)</span>
-        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{solved?"CFR SOLVE":"Heuristique"}</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>
       </div>
       <div className="ss-freq-blocks" style={{gridTemplateColumns:`repeat(${blocks.length},1fr)`}}>
         {blocks.map(b=>(
@@ -2392,7 +2391,7 @@ function SolverStrategyPanel({blocks,source,evTotal}){
    métriques de convergence (NashConv, exploitability) restent « n/d » tant que
    le Convergence Engine (§14) n'existe pas. Jamais de 98% inventé (§58). ── */
 function SolverSolveStatus({source,cfrResult}){
-  const solved=source===ResultSource.CFR_SOLVE&&!!cfrResult;
+  const solved=isCalculated(source)&&!!cfrResult;
   const meta=resultMeta(source);
   const iterN=cfrResult?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
   // Métriques RÉELLES issues du Convergence Engine (§14) — plus de « n/d ».
@@ -2509,6 +2508,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[boardInput,setBoardInput]=useState("");
   const[cfrBetFrac,setCfrBetFrac]=useState(0.66);
   const[cfrResult,setCfrResult]=useState(null);
+  const[cfrSource,setCfrSource]=useState(ResultSource.CFR_SOLVE); // CFR_SOLVE ou PRESOLVED_LIBRARY (§16)
   const[cfrBusy,setCfrBusy]=useState(false);
   const[cfrOverlay,setCfrOverlay]=useState(false);
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
@@ -2680,7 +2680,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     b.push({id:"f",label:"Fold",pct:stats.foldedPct,color:"#5a6a88",ev:0});
     return b;
   },[cfrOverlay,cfrResult,pac,stats,evByBucket]);
-  const strategySource=(cfrOverlay&&cfrResult)?ResultSource.CFR_SOLVE:ResultSource.HEURISTIC_ESTIMATE;
+  // Provenance de la stratégie affichée : CFR_SOLVE (calculé) ou PRESOLVED_LIBRARY
+  // (rechargé, §16) quand l'overlay CFR est actif ; sinon heuristique.
+  const strategySource=(cfrOverlay&&cfrResult)?(cfrSource||ResultSource.CFR_SOLVE):ResultSource.HEURISTIC_ESTIMATE;
   const evTotalWeighted=(cfrOverlay&&cfrResult)?cfrResult.heroEV
     :Math.round((stats.raisedPct*evByBucket.r+stats.calledPct*evByBucket.c)/100*100)/100;
 
@@ -2714,7 +2716,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
       try{
         // §17 : passe par la Solver API ; s.result garde la forme attendue (+ convergence).
         const s=solveSubgame(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:50,iters:400,runouts:board.length===5?0:60});
-        setCfrResult(s.result);
+        setCfrResult(s.result);setCfrSource(s.source); // §16 : CFR_SOLVE ou PRESOLVED_LIBRARY
       }catch(e){setCfrResult(null);}
       setCfrBusy(false);
     },30);

@@ -14,6 +14,7 @@
 import { ResultSource } from "./provenance.js";
 import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
+import { storeSolution, getSolution, getClosest, librarySize } from "./library.js";
 
 /* Identifiant de solve déterministe : même spec → même ID (reproductibilité §15). */
 export function makeSolveId(spec){
@@ -37,26 +38,45 @@ export function computeEquity(heroList,villList,board=[],opts={}){
    `result` conserve la forme de solveRiverCFR (rétro-compatible) ; on y ajoute
    la provenance et un résumé de convergence exploitable par l'UI/Coach. */
 function _hashSeed(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+/* Signature canonique d'une range (clés + poids de continuation) → clé de solve. */
+function _freqSig(freqs){const keys=Object.keys(freqs).sort();let s="";for(const k of keys){const f=freqs[k];const w=(f.r||0)+(f.c||0);if(w>0)s+=k+":"+w+";";}return s;}
+
 export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
-  // Seed déterministe → CFR reproductible (§15).
-  const seed=opts.seed!=null?opts.seed:_hashSeed((board||[]).join(",")+"|"+Object.keys(heroFreqs).join("")+"|"+Object.keys(villFreqs).join("")+"|"+betFrac);
+  const iters=opts.iters||400,maxCombos=opts.maxCombos||50;
+  // Signature complète du solve (ranges réelles incluses) → seed + SolveID déterministes.
+  const sig=_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+(board||[]).join(",")+"#"+potBb+"#"+betFrac+"#"+iters+"#"+maxCombos;
+  const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
+  const solveId=makeSolveId(sig+"#"+seed);
+  // §16 : solution déjà en bibliothèque → chargement IMMÉDIAT (provenance PRESOLVED_LIBRARY).
+  if(!opts.force){
+    const cached=getSolution(solveId);
+    if(cached)return{...cached,source:ResultSource.PRESOLVED_LIBRARY,fromLibrary:true};
+  }
   const result=solveRiverCFR(heroFreqs,villFreqs,board,potBb,betFrac,{...opts,seed});
   if(!result)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null};
-  return{
+  const out={
     source:ResultSource.CFR_SOLVE,
     result,
     convergence:{
       stability:result.stability,avgRegret:result.avgRegret,
       exploitBb:result.exploitBb,status:result.convStatus,driftPct:result.driftPct,
     },
-    solveId:makeSolveId({board:(board||[]).join(","),potBb,betFrac,iters:opts.iters,maxCombos:opts.maxCombos,nH:result.nH,nV:result.nV}),
+    solveId,seed,fromLibrary:false,
   };
+  storeSolution(solveId,out);   // stocke pour rechargement instantané (§16)
+  return out;
 }
 
-/* ── Bibliothèque pré-solvée (§16) — architecture future. Stubs honnêtes :
-   tant qu'aucune library n'existe, on renvoie null (→ l'appelant solve à la demande). ── */
-export function getPresolvedSolution(/* config */){ return null; }
-export function getClosestSolution(/* config */){ return null; }
+/* ── Bibliothèque pré-solvée (§16) — adossée au Solution Storage. ── */
+export function getPresolvedSolution(solveId){
+  const s=getSolution(solveId);
+  return s?{...s,source:ResultSource.PRESOLVED_LIBRARY}:null;
+}
+export function getClosestSolution(solveId){
+  const m=getClosest(solveId);
+  return m?{...m.solution,source:ResultSource.PRESOLVED_LIBRARY,exactMatch:m.exact}:null;
+}
+export { librarySize };
 
 /* Accès bas-niveau exposé pour les cas simples (équité brute sans provenance). */
 export { monteCarloEquity };
