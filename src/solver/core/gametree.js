@@ -22,9 +22,11 @@ const mk=(o)=>({id:_id++,...o});
 
 /* Construit l'arbre de mises postflop. streets = nb de rues restantes (1..3).
    betFrac = fraction du pot pour toute mise. startPot = pot initial P. */
-export function buildPostflopTree({betFrac=0.66,startPot=6,streets=3}={}){
+export function buildPostflopTree({betFrac=0.66,startPot=6,streets=3,ipProbe=true}={}){
   _id=0;
   const lastStreet=streets-1;
+  // ipProbe=false : l'IP ne peut que checker derrière (pas de donk/probe après un
+  // check du Hero) — utile pour le jeu de clairvoyance (solution analytique).
 
   // Fin de la street (mise suivie ou double check) → chance vers la suivante, ou showdown.
   function advance(street,pot,betsH,betsV){
@@ -45,6 +47,7 @@ export function buildPostflopTree({betFrac=0.66,startPot=6,streets=3}={}){
   }
   // IP après un check du Hero : X (check → street finie) ou B (bet → Hero face à la mise)
   function ipAfterCheck(street,pot,betsH,betsV){
+    if(!ipProbe) return advance(street,pot,betsH,betsV);   // IP check-back forcé
     const bet=betFrac*pot;
     const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X","B"],children:{}});
     node.children.X=advance(street,pot,betsH,betsV);                         // check-check

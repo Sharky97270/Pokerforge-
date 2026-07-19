@@ -10,6 +10,7 @@ import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
+import { solveTreeFixedBoard, solveTree } from "./multistreet.js";
 
 let pass=0, fail=0;
 const ok=(name,cond)=>{ if(cond){pass++;console.log("  ✓ "+name);} else {fail++;console.log("  ✗ FAIL: "+name);} };
@@ -101,6 +102,27 @@ ok("Villain fold → utilité positive", terminalUtility(foldV,6,0)>0);
 const sd={result:"showdown",betsH:2,betsV:2};
 ok("showdown gagné > nul > perdu", terminalUtility(sd,6,1)>terminalUtility(sd,6,0.5)&&terminalUtility(sd,6,0.5)>terminalUtility(sd,6,0));
 ok("zéro-somme showdown (mises égales)", Math.abs(terminalUtility(sd,6,1)+terminalUtility(sd,6,0))<1e-9);
+
+console.log("\n[9] MULTI-STREET CFR (§26) — jeu de clairvoyance (solution GTO analytique)");
+// Board A K Q J 2 ; Hero polarisé : NUTS (quinte à l'As) + AIR ; Villain = bluffcatcher (99).
+// Pot-bet (betFrac=1) → GTO connu : Hero mise nuts 100% + bluffe air 50% ; Villain call 50%.
+const cvBoard=[C("A",0),C("K",0),C("Q",2),C("J",3),C("2",1)];
+const cvHero=[{cards:[C("T",1),C("3",0)],w:1},{cards:[C("4",2),C("5",3)],w:1}]; // [nuts, air]
+const cvVill=[{cards:[C("9",3),C("9",2)],w:1}];                                 // bluffcatcher
+const cv=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:2000,betFrac:1,startPot:6,streets:1,ipProbe:false});
+const nutsBet=Math.round(cv.avgOf(cv.tree,0)[1]*100);      // action B (mise)
+const airBet=Math.round(cv.avgOf(cv.tree,1)[1]*100);
+const villCall=Math.round(cv.avgOf(cv.tree.children.B,0)[1]*100); // nœud villain face à la mise, action C
+ok("Hero mise les NUTS ~100% (obtenu "+nutsBet+"%)", nutsBet>=90);
+ok("Hero bluffe l'AIR ~50% (pot-bet, obtenu "+airBet+"%)", airBet>=38&&airBet<=62);
+ok("Villain call le bluffcatcher ~50% (MDF pot-bet, obtenu "+villCall+"%)", villCall>=38&&villCall<=62);
+ok("EV Hero finie", Number.isFinite(cv.ev));
+// Flop incomplet → échantillonnage des runouts turn+river (arbre 3 rues)
+const flopBoard=[C("A",0),C("K",0),C("7",2)];
+const fr=solveTree([{cards:[C("A",2),C("A",1)],w:1},{cards:[C("6",0),C("5",0)],w:1}],[{cards:[C("K",3),C("Q",3)],w:1}],flopBoard,{iters:400,betFrac:0.75,startPot:6,streets:3});
+ok("flop (board incomplet) → échantillonnage runouts (3 rues)", fr.sampled===true&&fr.boardCards===3);
+ok("multi-street flop : fréquence de mise valide", fr.heroBet>=0&&fr.heroBet<=100);
+ok("multi-street flop : EV finie", Number.isFinite(fr.ev));
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);
