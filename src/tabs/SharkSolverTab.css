@@ -252,3 +252,13 @@
 .ss-ms-exploit b{font-weight:800;}
 .ss-ms-exploit-tag{font-size:8px;font-weight:900;letter-spacing:.09em;color:#0a0f1e;
   background:linear-gradient(135deg,#FF8A3D,#FFC247);padding:2px 8px;border-radius:5px;white-space:nowrap;}
+
+/* ── COACH AI (§30) : faits sourcés ── */
+.ss-coach-rows{display:flex;flex-direction:column;gap:2px;margin:2px 0 8px;}
+.ss-coach-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:4px 0;border-bottom:1px solid rgba(120,160,220,.07);}
+.ss-coach-row:last-child{border-bottom:none;}
+.ss-coach-row span{font-size:9.5px;color:#8ba3c6;font-family:Inter,sans-serif;}
+.ss-coach-row b{font-size:10.5px;color:#c4d7f2;font-family:'JetBrains Mono',monospace;font-weight:800;text-align:right;}
+.ss-coach-note{padding:7px 9px;border:1px solid;border-radius:7px;font-size:8.5px;
+  color:#a9bcd8;font-family:Inter,sans-serif;line-height:1.5;}

@@ -6,6 +6,7 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
 import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO } from "../solver/api.js";
+import { buildCoachBrief } from "../solver/explain.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2085,15 +2086,40 @@ function SolverQualityCard({cfr,busy}){
   );
 }
 
-function SolverInsightsCard({scenario,heroFreqs,mode,onAddNote}){
-  const insights=useMemo(()=>buildSolverInsights(scenario,heroFreqs,mode),[scenario,heroFreqs,mode]);
+/* ── COACH AI (§30) — « LE SOLVER CALCULE, L'IA EXPLIQUE ».
+   N'affiche que des FAITS SOURCÉS produits par buildCoachBrief à partir de la
+   solution courante. Chaque fait est traçable ; aucune fréquence n'est inventée
+   (garde-fou testé côté moteur). Le disclaimer s'adapte à la provenance. ── */
+function SolverCoachPanel({brief,onAddNote}){
+  const meta=resultMeta(brief.source);
+  const f=(t)=>brief.facts.find(x=>x.type===t);
+  const prov=f("provenance"),main=f("primary_action"),mix=f("mixed_strategy"),
+        eq=f("equity"),spr=f("spr"),conv=f("convergence"),ev=f("hero_evaluation"),leak=f("leak");
+  const row=(k,v,color)=>(
+    <div className="ss-coach-row"><span>{k}</span><b style={color?{color}:undefined}>{v}</b></div>
+  );
   return(
-    <div className="ss-card">
-      <div className="ss-card-title">Insights & notes</div>
-      <ul className="ss-insights" style={{margin:0,padding:0}}>
-        {insights.map((t,i)=><li key={i}>{t}</li>)}
-      </ul>
-      <button className="ss-btn" style={{marginTop:6}} onClick={onAddNote}>＋ Ajouter une note</button>
+    <div className="ss-card ss-coach">
+      <div className="ss-card-title" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+        <span>🧠 Coach — faits sourcés</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 8px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-coach-rows">
+        {main&&row("Action principale",`${main.label||main.action} · ${main.freq}%`,"#dceaff")}
+        {main&&main.ev!=null&&row("EV de cette action",`${main.ev>=0?"+":""}${main.ev} bb`,main.ev>=0?"#10D87A":"#FF5D6C")}
+        {mix&&row("Stratégie mixte",mix.actions.map(a=>`${a.label||a.id} ${a.freq}%`).join(" · "),"#9fd4ff")}
+        {eq&&row("Équité Hero",`${eq.heroEquity}%`,"#34B4FF")}
+        {eq&&row("Avantage de range",eq.rangeAdvantage==="hero"?"Hero":eq.rangeAdvantage==="villain"?"Vilain":"Neutre",
+          eq.rangeAdvantage==="hero"?"#10D87A":eq.rangeAdvantage==="villain"?"#FF5D6C":"#8AA0C0")}
+        {spr&&row("SPR",spr.value)}
+        {conv&&conv.nashConv!=null&&row("NashConv",`${conv.nashConv} bb`,"#C77DFF")}
+        {ev&&row("Verdict Hero",`${ev.verdict} · ${ev.evLoss} bb perdus`,ev.verdict==="best"?"#10D87A":"#FFB020")}
+        {leak&&row("Leak détecté",leak.label,"#FF5D6C")}
+      </div>
+      <div className="ss-coach-note" style={{borderColor:meta.color+"55",background:meta.color+"0d"}}>
+        {brief.disclaimer}{prov&&prov.caveat?` ${prov.caveat}`:""}
+      </div>
+      <button className="ss-btn" style={{marginTop:8}} onClick={onAddNote}>＋ Ajouter une note</button>
     </div>
   );
 }
@@ -2951,6 +2977,20 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const equityVillain=100-equityHero;
   const equitySource=equityRes.source; // provenance fournie par la Solver API (§17)
 
+  /* ── COACH AI (§30) : brief de FAITS SOURCÉS construit depuis la solution
+     réellement affichée (stratégie + provenance + équité + convergence).
+     Le moteur garantit qu'aucune fréquence hors solution n'y figure. ── */
+  const coachBrief=useMemo(()=>buildCoachBrief({
+    source:strategySource,
+    // ev peut être inconnue (le CFR ne fournit pas d'EV par action) → null, pas 0 :
+    // afficher « +0 bb » serait une fausse précision.
+    actions:strategyBlocks.map(b=>({id:b.id,label:b.label,freq:b.pct,ev:b.ev??null})),
+    equity:equityHero,
+    spr:math?.spr,
+    nashConv:(msResult&&msResult.convergence)?msResult.convergence.nashConv:null,
+    icm:mode==="icm",
+  }),[strategySource,strategyBlocks,equityHero,math,msResult,mode]);
+
   /* Équité de la main sélectionnée vs le camp Vilain (range ou main), sur le board courant */
   const selectedEquity=useMemo(()=>{
     if(!selectedCell)return null;
@@ -3239,7 +3279,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           </div>
 
           <div className="ss-bottom">
-            <SolverInsightsCard scenario={scenario} heroFreqs={heroFreqs} mode={mode} onAddNote={()=>setShowNoteForm(true)}/>
+            <SolverCoachPanel brief={coachBrief} onAddNote={()=>setShowNoteForm(true)}/>
             <SolverGainsCard/>
             <SolverQuickActions onGoTrainer={handleGoTrainer} onGoReplayer={handleGoReplayer} onExport={onExport} onSave={onSave} mode={mode} setMode={setMode} onNodeLock={()=>{setNodeLockOpen(true);document.querySelector('.ss-center-col.tree')?.scrollIntoView({behavior:'smooth',block:'center'});}}/>
           </div>

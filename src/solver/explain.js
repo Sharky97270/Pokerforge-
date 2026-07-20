@@ -71,7 +71,7 @@ export function buildCoachBrief(sol,evaluation=null){
     const main=acts[0];
     facts.push({type:"primary_action",action:main.id,label:main.label,freq:main.freq,ev:main.ev});
     const mixed=acts.filter(a=>(a.freq||0)>=5);
-    if(mixed.length>1)facts.push({type:"mixed_strategy",actions:mixed.map(a=>({id:a.id,freq:a.freq}))});
+    if(mixed.length>1)facts.push({type:"mixed_strategy",actions:mixed.map(a=>({id:a.id,label:a.label||a.id,freq:a.freq}))});
   }
   if(sol.equity!=null){
     facts.push({type:"equity",heroEquity:sol.equity,
