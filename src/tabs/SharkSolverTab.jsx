@@ -5,7 +5,7 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
-import { computeEquity, solveSubgame, solveMultiStreet } from "../solver/api.js";
+import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked } from "../solver/api.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2466,6 +2466,20 @@ function SolverSpotResultPanel({equityHero,equityVillain,foldEquity,math,evTotal
   );
 }
 
+/* ── EXPLOIT (§20) : convertit les multiplicateurs d'un profil vilain (UI) en
+   FRÉQUENCES VERROUILLÉES pour le re-solve CFR. Base d'équilibre approchée, puis
+   application des tendances du profil, puis normalisation.
+   Le modèle reste une ESTIMATION (HEURISTIC) ; c'est la stratégie Hero re-solvée
+   contre ce modèle qui est calculée (CFR_SOLVE). ── */
+function profileToLocks(prof){
+  const norm=(o)=>{const s=Object.values(o).reduce((a,b)=>a+(b>0?b:0),0)||1;const r={};for(const k in o)r[k]=Math.max(0,o[k])/s;return r;};
+  const p=prof||{foldVsRaise:1,callVsBet:1,threeBet:1,jam:1};
+  return[
+    {match:"villFacingBet",freqs:norm({F:0.45*(p.foldVsRaise??1),C:0.45*(p.callVsBet??1),R:0.10*(p.threeBet??1)})},
+    {match:"villAfterCheck",freqs:norm({X:0.55,B:0.45*(((p.threeBet??1)+(p.jam??1))/2)})},
+  ];
+}
+
 /* ── MULTI-STREET (§26) : libellés/couleurs d'action (code ACTION, ≠ provenance). ── */
 const MS_ACT={X:{l:"Check",c:"#34B4FF"},C:{l:"Call",c:"#1F8BFF"},F:{l:"Fold",c:"#7c88a4"},R:{l:"Raise",c:"#FF8A3D"}};
 function msActMeta(id,node){
@@ -2482,7 +2496,7 @@ const MS_STREETS=["Flop","Turn","River"];
 
 /* ── PANNEAU SOLVEUR MULTI-RUE (§26) — moteur prouvé, exposé avec sa provenance
    et son statut EXPÉRIMENTAL. Permet de naviguer l'arbre street par street. ── */
-function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath}){
+function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath,exploitProfile,exploitLabel}){
   const canSolve=board.length>=3;
   const meta=result?resultMeta(result.source):null;
   const res=result?result.result:null;
@@ -2517,13 +2531,30 @@ function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,s
       )}
 
       <div className="ss-ms-bar">
-        <button className="ss-ms-solve" onClick={onSolve} disabled={!canSolve||busy}>
-          {busy?"⏳ Résolution…":"▶ Résoudre multi-rue"}
+        <button className="ss-ms-solve" onClick={()=>onSolve(false)} disabled={!canSolve||busy}>
+          {busy?"⏳ Résolution…":"▶ Résoudre GTO"}
         </button>
+        {exploitProfile&&(
+          <button className="ss-ms-solve exploit" onClick={()=>onSolve(true)} disabled={!canSolve||busy}
+            title={exploitProfile.desc||""}>
+            {busy?"⏳…":`🎯 Exploiter ${exploitProfile.label}`}
+          </button>
+        )}
         <span className="ss-ms-meta">
           {canSolve?`${MS_STREETS.slice(board.length-3).join(" → ")} · pot ${potBb}bb · stack eff. ${effStack}bb`:"—"}
         </span>
       </div>
+
+      {/* §20 : distinguer explicitement le MODÈLE (estimé) de la STRATÉGIE (calculée). */}
+      {result&&exploitLabel&&(
+        <div className="ss-ms-exploit">
+          <span className="ss-ms-exploit-tag">EXPLOIT · {exploitLabel}</span>
+          <span>Modèle de joueur <b style={{color:"#FF5D6C"}}>estimé</b> (tendances du profil verrouillées)
+            → stratégie Hero <b style={{color:"#34B4FF"}}>re-solvée par CFR</b> contre ce modèle.
+            <br/>Ici un <b>NashConv élevé est normal</b> : le vilain verrouillé est hors équilibre par
+            construction — cet écart est exactement ce que l'exploit capture.</span>
+        </div>
+      )}
 
       {res&&(<>
         <div className="ss-ms-stats">
@@ -2531,7 +2562,8 @@ function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,s
           <div><span>Combos</span><b>{res.heroList.length}×{res.villList.length}</b></div>
           <div><span>Itérations</span><b>{res.iters}</b></div>
           <div><span>Runouts</span><b>{res.sampled?"échantillonnés":"exacts"}</b></div>
-          <div><span>NashConv</span><b style={{color:nc==null?"#7f97ba":nc<=0.1?"#10D87A":"#FFB020"}}>{nc==null?"n/d":nc+" bb"}</b></div>
+          <div><span>{exploitLabel?"Écart équilibre":"NashConv"}</span>
+            <b style={{color:nc==null?"#7f97ba":exploitLabel?"#FF8A3D":nc<=0.1?"#10D87A":"#FFB020"}}>{nc==null?"n/d":nc+" bb"}</b></div>
         </div>
         {nc==null&&(
           <div className="ss-ms-note">
@@ -2644,6 +2676,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[msResult,setMsResult]=useState(null);
   const[msBusy,setMsBusy]=useState(false);
   const[msPath,setMsPath]=useState([]);        // chemin d'actions dans l'arbre
+  const[msExploit,setMsExploit]=useState(null); // libellé du profil si solve exploit (§20)
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
   const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
@@ -2651,7 +2684,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const villainParse=useMemo(()=>villainHand?parseHandToken(villainHand):null,[villainHand]);
   const boardParse=useMemo(()=>parseBoardToken(boardInput),[boardInput]);
   /* Un résultat CFR ne vaut que pour le board sur lequel il a été calculé */
-  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);setMsResult(null);setMsPath([]);},[boardInput]);
+  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);setMsResult(null);setMsPath([]);setMsExploit(null);},[boardInput]);
   const board=boardParse.valid?boardParse.cards:[];
 
   function resetSelection(){
@@ -2855,19 +2888,26 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     },30);
   }
 
-  /* ── Solve MULTI-RUE (§26) — postflop uniquement, via la Solver API (§17). ── */
-  function runMultiStreet(){
+  /* ── Solve MULTI-RUE (§26) — postflop uniquement, via la Solver API (§17).
+     `exploit` : verrouille les tendances du profil vilain sélectionné et RE-SOLVE
+     la stratégie Hero contre elles (§19/§20). Le modèle de joueur reste une
+     estimation ; seule la stratégie est calculée. ── */
+  function runMultiStreet(exploit=false){
     if(board.length<3)return;
     setMsBusy(true);setMsPath([]);
     setTimeout(()=>{
       try{
-        const s=solveMultiStreet(heroFreqs,villainFreqs,board,{
+        const opts={
           iters:board.length===5?400:180,
           betSizes:[0.33,0.75],startPot:math.pot,
           maxCombos:board.length===5?110:80,maxRaisesPerStreet:1,effStack:effective,
-        });
+        };
+        const s=exploit
+          ? solveNodeLocked(heroFreqs,villainFreqs,board,profileToLocks(exploitProfile),opts)
+          : solveMultiStreet(heroFreqs,villainFreqs,board,opts);
         setMsResult(s.source==="NO_SOLUTION"?null:s);
-      }catch(e){setMsResult(null);}
+        setMsExploit(exploit?exploitProfile.label:null);
+      }catch(e){setMsResult(null);setMsExploit(null);}
       setMsBusy(false);
     },30);
   }
@@ -3099,6 +3139,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               board={board} potBb={math.pot} effStack={effective}
               result={msResult} busy={msBusy} onSolve={runMultiStreet}
               path={msPath} setPath={setMsPath}
+              exploitProfile={exploitProfile} exploitLabel={msExploit}
             />
           </div>
 

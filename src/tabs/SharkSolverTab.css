@@ -243,3 +243,12 @@
 .ss-ms-act-l{font-size:10px;font-weight:800;font-family:'Space Grotesk',sans-serif;}
 .ss-ms-act-f{font-size:17px;font-weight:900;color:#eaf3ff;font-family:'Space Grotesk',sans-serif;line-height:1;}
 .ss-ms-hint{margin-top:8px;font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;font-style:italic;}
+.ss-ms-solve.exploit{background:linear-gradient(135deg,#FF8A3D,#FFC247);}
+.ss-ms-solve.exploit:disabled{background:rgba(255,255,255,.06);color:#6a7690;}
+.ss-ms-exploit{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px;
+  padding:7px 10px;border-radius:8px;background:rgba(255,138,61,.08);
+  border:1px solid rgba(255,138,61,.32);font-size:8.5px;color:#a9bcd8;
+  font-family:Inter,sans-serif;line-height:1.5;}
+.ss-ms-exploit b{font-weight:800;}
+.ss-ms-exploit-tag{font-size:8px;font-weight:900;letter-spacing:.09em;color:#0a0f1e;
+  background:linear-gradient(135deg,#FF8A3D,#FFC247);padding:2px 8px;border-radius:5px;white-space:nowrap;}
