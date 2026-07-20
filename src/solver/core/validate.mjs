@@ -10,7 +10,7 @@ import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
-import { solveTreeFixedBoard, solveTree } from "./multistreet.js";
+import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
 
 let pass=0, fail=0;
 const ok=(name,cond)=>{ if(cond){pass++;console.log("  ✓ "+name);} else {fail++;console.log("  ✗ FAIL: "+name);} };
@@ -109,7 +109,7 @@ console.log("\n[9] MULTI-STREET CFR (§26) — jeu de clairvoyance (solution GTO
 const cvBoard=[C("A",0),C("K",0),C("Q",2),C("J",3),C("2",1)];
 const cvHero=[{cards:[C("T",1),C("3",0)],w:1},{cards:[C("4",2),C("5",3)],w:1}]; // [nuts, air]
 const cvVill=[{cards:[C("9",3),C("9",2)],w:1}];                                 // bluffcatcher
-const cv=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:2000,betFrac:1,startPot:6,streets:1,ipProbe:false});
+const cv=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:2000,betFrac:1,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:0});
 const nutsBet=Math.round(cv.avgOf(cv.tree,0)[1]*100);      // action B (mise)
 const airBet=Math.round(cv.avgOf(cv.tree,1)[1]*100);
 const villCall=Math.round(cv.avgOf(cv.tree.children.B,0)[1]*100); // nœud villain face à la mise, action C
@@ -123,6 +123,36 @@ const fr=solveTree([{cards:[C("A",2),C("A",1)],w:1},{cards:[C("6",0),C("5",0)],w
 ok("flop (board incomplet) → échantillonnage runouts (3 rues)", fr.sampled===true&&fr.boardCards===3);
 ok("multi-street flop : fréquence de mise valide", fr.heroBet>=0&&fr.heroBet<=100);
 ok("multi-street flop : EV finie", Number.isFinite(fr.ev));
+
+console.log("\n[10] MULTI-STREET v2 — sizings, raise, all-in, sous-arbres par carte, exploitabilité");
+// (a) Famille de sizings analytique : bet b → bluff:value = b/(P+b) ; call = 1-b/(P+b).
+const cvH=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:2500,betFrac:0.5,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:0});
+const airH=Math.round(cvH.avgOf(cvH.tree,1)[1]*100), callH=Math.round(cvH.avgOf(cvH.tree.children.B,0)[1]*100);
+ok("bet 1/2 pot : bluff air ~33% (obtenu "+airH+"%)", airH>=23&&airH<=43);
+ok("bet 1/2 pot : call ~67% (obtenu "+callH+"%)", callH>=57&&callH<=77);
+// (b) Exploitabilité (meilleure réponse) : équilibre du jeu modélisé ⟺ NashConv ≈ 0.
+const nc1=nashConv(cv);
+ok("NashConv pot-bet ≈ 0 (obtenu "+nc1+" bb)", nc1!=null&&nc1>=-0.02&&nc1<=0.25);
+// (c) Raise activé : raiser un range polarisé avec un bluffcatcheur est dominé → R ≈ 0.
+const cvR=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:2500,betFrac:1,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:1});
+const rIdx=cvR.tree.children.B.actions.indexOf("R");
+const villRaise=rIdx>=0?Math.round(cvR.avgOf(cvR.tree.children.B,0)[rIdx]*100):-1;
+ok("raise disponible dans l'arbre (action R)", rIdx===2);
+ok("bluffcatcher ne raise ~jamais un range polarisé (obtenu "+villRaise+"%)", villRaise>=0&&villRaise<=10);
+// (d) ALL-IN : stack effectif couvert → plus aucune décision après tapis payé.
+const tAI=buildPostflopTree({betSizes:[1],startPot:6,effStack:6,streets:3});
+const aiLine=tAI.children.B.children.C;
+ok("all-in payé → chance→chance→showdown (aucune décision)", aiLine.kind==="chance"&&aiLine.next.kind==="chance"&&aiLine.next.next.kind==="terminal");
+ok("all-in : mises = stack effectif (6bb des deux côtés)", aiLine.next.next.betsH===6&&aiLine.next.next.betsV===6);
+ok("pas de raise face à un all-in", !tAI.children.B.actions.includes("R"));
+// (e) SOUS-ARBRES PAR CARTE : sur un turn échantillonné, la street river apprend
+//     un contexte par carte de river visitée (ctxCount > 1).
+const turnBoard=[C("A",0),C("K",0),C("7",2),C("2",3)];
+const tv=solveTree([{cards:[C("A",2),C("A",1)],w:1},{cards:[C("6",1),C("5",1)],w:1}],[{cards:[C("K",3),C("Q",3)],w:1}],turnBoard,{iters:300,betFrac:0.75,startPot:6,streets:2});
+let riverNode=null;
+(function find(n){if(riverNode)return;if(n.kind==="decision"){if(n.street===1){riverNode=n;return;}for(const a of n.actions)find(n.children[a]);}else if(n.kind==="chance")find(n.next);})(tv.tree);
+ok("nœud river trouvé dans l'arbre 2 rues", !!riverNode);
+ok("sous-arbres par carte : contextes river multiples (obtenu "+(riverNode?tv.ctxCount(riverNode):0)+")", riverNode&&tv.ctxCount(riverNode)>1);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

@@ -1,13 +1,18 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   SHARKSOLVER CORE · GAME TREE ENGINE (§12)
+   SHARKSOLVER CORE · GAME TREE ENGINE v2 (§12)
    Arbre de jeu générique postflop heads-up — FONDATION du solveur multi-rue (§26).
    Nœuds : décision (player), chance (distribution d'une carte de street), terminal
-   (fold / showdown). Modèle de mises V1 : check / bet (1 sizing) / fold / call,
-   SANS raise, pour borner l'arbre (le raise viendra ensuite). Deep-stack (pas de
-   plafond all-in en V1 — noté comme limite).
+   (fold / showdown).
 
-   Le CFR multi-rue (§26) marchera cet arbre avec échantillonnage des cartes turn/
-   river (les cartes ne sont PAS dans la structure : fournies au solve).
+   Modèle de mises v2 :
+   · plusieurs sizings de bet (betSizes, fractions du pot) ;
+   · raise (montant = raiseMult × la mise affrontée), plafonné à
+     maxRaisesPerStreet par rue ;
+   · ALL-IN : toute mise/raise est écrêtée au stack effectif restant ; une fois
+     les tapis engagés, plus aucune décision — l'arbre file au showdown à travers
+     les nœuds chance restants.
+   Hypothèse V2 : stacks SYMÉTRIQUES (effStack identique) → jamais de side-pot
+   (le suiveur peut toujours couvrir). Documenté comme limite.
 
    Comptabilité ChipEV, perspective Hero (=OOP=joueur 0), base P/2 → zéro-somme :
      showdown gagné : +(P/2 + betsV) · perdu : −(P/2 + betsH) · nul : (betsV−betsH)/2
@@ -19,53 +24,81 @@ export const HERO=0, VILL=1;   // Hero = OOP (parle en premier chaque street)
 
 let _id=0;
 const mk=(o)=>({id:_id++,...o});
+const EPS=1e-9;
 
-/* Construit l'arbre de mises postflop. streets = nb de rues restantes (1..3).
-   betFrac = fraction du pot pour toute mise. startPot = pot initial P. */
-export function buildPostflopTree({betFrac=0.66,startPot=6,streets=3,ipProbe=true}={}){
+/* Construit l'arbre de mises postflop. streets = nb de rues restantes (1..3). */
+export function buildPostflopTree(opts={}){
+  const {startPot=6,streets=3,ipProbe=true,raiseMult=3,maxRaisesPerStreet=1,effStack=Infinity}=opts;
+  // Rétro-compat : betFrac (1 sizing) → betSizes=[betFrac].
+  const betSizes=opts.betSizes||(opts.betFrac?[opts.betFrac]:[0.66]);
   _id=0;
   const lastStreet=streets-1;
-  // ipProbe=false : l'IP ne peut que checker derrière (pas de donk/probe après un
-  // check du Hero) — utile pour le jeu de clairvoyance (solution analytique).
+  const remain=(bets)=>Math.max(0,effStack-bets);
 
-  // Fin de la street (mise suivie ou double check) → chance vers la suivante, ou showdown.
-  function advance(street,pot,betsH,betsV){
+  // Fin de street → chance vers la suivante (ou showdown). allIn : plus de décisions.
+  function advance(street,pot,betsH,betsV,allIn){
     if(street>=lastStreet) return mk({kind:"terminal",result:"showdown",street,pot,betsH,betsV});
-    // nœud chance : distribue la carte de la street suivante (résolue au solve)
     return mk({kind:"chance",street,pot,betsH,betsV,
-      next:buildStreet(street+1,pot,betsH,betsV)});
+      next:allIn?advance(street+1,pot,betsH,betsV,true)
+                :buildStreet(street+1,pot,betsH,betsV)});
   }
-  // OOP fait tapis de parole : X (check) ou B (bet). betsH/betsV = mises déjà engagées.
+  // Sizings jouables pour un joueur ayant déjà investi `bets` (écrêtés, dédupliqués).
+  function betActionsFor(pot,bets){
+    const rem=remain(bets);
+    if(rem<=EPS)return[];
+    const out=[];const seen=new Set();
+    betSizes.forEach((f,k)=>{
+      const amt=Math.min(f*pot,rem);
+      const key=Math.round(amt*1000);
+      if(amt<=EPS||seen.has(key))return;
+      seen.add(key);
+      out.push({label:betSizes.length===1?"B":"B"+k,amt,allIn:amt>=rem-EPS});
+    });
+    return out;
+  }
+  // OOP ouvre la street : X (check) ou B (bet, par sizing).
   function buildStreet(street,pot,betsH,betsV){
-    const bet=betFrac*pot;
-    const node=mk({kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["X","B"],children:{}});
-    // Hero check → IP agit
+    const node=mk({kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["X"],children:{}});
     node.children.X=ipAfterCheck(street,pot,betsH,betsV);
-    // Hero bet → pot/mises MAJ, IP face à la mise
-    node.children.B=ipFacingBet(street,pot+bet,betsH+bet,betsV,bet,HERO);
+    for(const b of betActionsFor(pot,betsH)){
+      node.actions.push(b.label);
+      node.children[b.label]=facingBet(street,pot+b.amt,betsH+b.amt,betsV,b.amt,VILL,0,b.allIn);
+    }
     return node;
   }
-  // IP après un check du Hero : X (check → street finie) ou B (bet → Hero face à la mise)
+  // IP après un check du Hero : X (street finie) ou B (probe, par sizing).
   function ipAfterCheck(street,pot,betsH,betsV){
-    if(!ipProbe) return advance(street,pot,betsH,betsV);   // IP check-back forcé
-    const bet=betFrac*pot;
-    const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X","B"],children:{}});
-    node.children.X=advance(street,pot,betsH,betsV);                         // check-check
-    node.children.B=heroFacingBet(street,pot+bet,betsH,betsV+bet,bet);       // IP bet → Hero répond
+    if(!ipProbe) return advance(street,pot,betsH,betsV,false);
+    const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X"],children:{}});
+    node.children.X=advance(street,pot,betsH,betsV,false);
+    for(const b of betActionsFor(pot,betsV)){
+      node.actions.push(b.label);
+      node.children[b.label]=facingBet(street,pot+b.amt,betsH,betsV+b.amt,b.amt,HERO,0,b.allIn);
+    }
     return node;
   }
-  // IP face à une mise du Hero : F (fold → Hero gagne) ou C (call → street finie)
-  function ipFacingBet(street,pot,betsH,betsV,bet,bettor){
-    const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["F","C"],children:{}});
-    node.children.F=mk({kind:"terminal",result:"foldV",street,pot,betsH,betsV});   // villain fold → hero gagne
-    node.children.C=advance(street,pot,betsH+0,betsV+bet);                          // call → pot+=bet côté V
-    return node;
-  }
-  // Hero face à une mise de l'IP : F (fold → Hero perd) ou C (call → street finie)
-  function heroFacingBet(street,pot,betsH,betsV,bet){
-    const node=mk({kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["F","C"],children:{}});
-    node.children.F=mk({kind:"terminal",result:"foldH",street,pot,betsH,betsV});    // hero fold → hero perd
-    node.children.C=advance(street,pot,betsH+bet,betsV);                            // call → pot+=bet côté H
+  /* `who` face à une mise : F (fold) / C (call → street finie ou all-in) /
+     R (raise = raiseMult × la mise, écrêté au stack → possible all-in). */
+  function facingBet(street,pot,betsH,betsV,toCall,who,nRaises,aggAllIn){
+    const myBets=who===HERO?betsH:betsV;
+    const node=mk({kind:"decision",player:who,street,pot,betsH,betsV,toCall,actions:["F","C"],children:{}});
+    node.children.F=mk({kind:"terminal",result:who===HERO?"foldH":"foldV",street,pot,betsH,betsV});
+    // Call — stacks symétriques : le suiveur couvre toujours (pas de side-pot).
+    const cBetsH=who===HERO?betsH+toCall:betsH;
+    const cBetsV=who===VILL?betsV+toCall:betsV;
+    const callerAllIn=remain(who===HERO?cBetsH:cBetsV)<=EPS;
+    node.children.C=advance(street,pot+toCall,cBetsH,cBetsV,aggAllIn||callerAllIn);
+    // Raise — si le plafond de raises n'est pas atteint et que l'agresseur n'est pas all-in.
+    if(nRaises<maxRaisesPerStreet&&!aggAllIn){
+      const raiseAmt=Math.min(raiseMult*toCall,remain(myBets));
+      if(raiseAmt>toCall+EPS){
+        const rBetsH=who===HERO?betsH+raiseAmt:betsH;
+        const rBetsV=who===VILL?betsV+raiseAmt:betsV;
+        const raiseAllIn=raiseAmt>=remain(myBets)-EPS;
+        node.actions.push("R");
+        node.children.R=facingBet(street,pot+raiseAmt,rBetsH,rBetsV,raiseAmt-toCall,who===HERO?VILL:HERO,nRaises+1,raiseAllIn);
+      }
+    }
     return node;
   }
 
