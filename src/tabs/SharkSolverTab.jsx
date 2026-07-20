@@ -5,7 +5,7 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
-import { computeEquity, solveSubgame } from "../solver/api.js";
+import { computeEquity, solveSubgame, solveMultiStreet } from "../solver/api.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2466,6 +2466,135 @@ function SolverSpotResultPanel({equityHero,equityVillain,foldEquity,math,evTotal
   );
 }
 
+/* ── MULTI-STREET (§26) : libellés/couleurs d'action (code ACTION, ≠ provenance). ── */
+const MS_ACT={X:{l:"Check",c:"#34B4FF"},C:{l:"Call",c:"#1F8BFF"},F:{l:"Fold",c:"#7c88a4"},R:{l:"Raise",c:"#FF8A3D"}};
+function msActMeta(id,node){
+  if(MS_ACT[id])return MS_ACT[id];
+  if(id.startsWith("B")){                       // B, B0, B1… → sizings de mise
+    const bets=node.actions.filter(a=>a.startsWith("B"));
+    const k=bets.indexOf(id);
+    const cols=["#10D87A","#FFC247","#FF6B6B"];
+    return{l:bets.length>1?`Bet ${k+1}`:"Bet",c:cols[k%cols.length]};
+  }
+  return{l:id,c:"#8AA0C0"};
+}
+const MS_STREETS=["Flop","Turn","River"];
+
+/* ── PANNEAU SOLVEUR MULTI-RUE (§26) — moteur prouvé, exposé avec sa provenance
+   et son statut EXPÉRIMENTAL. Permet de naviguer l'arbre street par street. ── */
+function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath}){
+  const canSolve=board.length>=3;
+  const meta=result?resultMeta(result.source):null;
+  const res=result?result.result:null;
+  // Descend l'arbre selon `path` (les nœuds chance sont traversés automatiquement).
+  let node=res?res.tree:null;const hops=[];
+  if(node){
+    for(const step of path){
+      while(node&&node.kind==="chance")node=node.next;
+      if(!node||node.kind!=="decision"||!node.children[step]){node=null;break;}
+      hops.push({step,node});node=node.children[step];
+    }
+    while(node&&node.kind==="chance")node=node.next;
+  }
+  const streetName=(n)=>MS_STREETS[(board.length-3)+n.street]||"—";
+  const nc=result&&result.convergence?result.convergence.nashConv:null;
+
+  return(
+    <div className="ss-card2 ss-ms">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">🌳 SOLVEUR MULTI-RUE (POSTFLOP)</span>
+        <span style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span className="ss-ms-exp">EXPÉRIMENTAL</span>
+          {meta&&<span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>}
+        </span>
+      </div>
+
+      {!canSolve&&(
+        <div className="ss-ms-note warn">
+          ⓘ Le solveur multi-rue résout un arbre <b>postflop</b> (flop → turn → river).
+          Renseigne un <b>board</b> d'au moins 3 cartes pour l'activer.
+        </div>
+      )}
+
+      <div className="ss-ms-bar">
+        <button className="ss-ms-solve" onClick={onSolve} disabled={!canSolve||busy}>
+          {busy?"⏳ Résolution…":"▶ Résoudre multi-rue"}
+        </button>
+        <span className="ss-ms-meta">
+          {canSolve?`${MS_STREETS.slice(board.length-3).join(" → ")} · pot ${potBb}bb · stack eff. ${effStack}bb`:"—"}
+        </span>
+      </div>
+
+      {res&&(<>
+        <div className="ss-ms-stats">
+          <div><span>EV Hero</span><b style={{color:res.ev>=0?"#10D87A":"#FF5D6C"}}>{res.ev>=0?"+":""}{res.ev} bb</b></div>
+          <div><span>Combos</span><b>{res.heroList.length}×{res.villList.length}</b></div>
+          <div><span>Itérations</span><b>{res.iters}</b></div>
+          <div><span>Runouts</span><b>{res.sampled?"échantillonnés":"exacts"}</b></div>
+          <div><span>NashConv</span><b style={{color:nc==null?"#7f97ba":nc<=0.1?"#10D87A":"#FFB020"}}>{nc==null?"n/d":nc+" bb"}</b></div>
+        </div>
+        {nc==null&&(
+          <div className="ss-ms-note">
+            ⓘ Board incomplet → runouts échantillonnés : l'exploitabilité exacte n'est pas
+            calculable. Renseigne le <b>river</b> (5 cartes) pour obtenir un NashConv exact.
+          </div>
+        )}
+
+        {/* Fil d'Ariane de navigation dans l'arbre */}
+        <div className="ss-ms-trail">
+          <button className={"ss-ms-crumb"+(path.length===0?" on":"")} onClick={()=>setPath([])}>Racine</button>
+          {hops.map((h,i)=>(
+            <React.Fragment key={i}>
+              <span className="ss-ms-arrow">›</span>
+              <button className={"ss-ms-crumb"+(i===hops.length-1?" on":"")}
+                onClick={()=>setPath(path.slice(0,i+1))}>
+                {streetName(h.node)} · {msActMeta(h.step,h.node).l}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Nœud courant */}
+        {node&&node.kind==="decision"?(
+          <div className="ss-ms-node">
+            <div className="ss-ms-node-head">
+              <b style={{color:node.player===0?T.cyan:T.purple}}>{node.player===0?"HERO (OOP)":"VILAIN (IP)"}</b>
+              <span>{streetName(node)} · pot {Math.round(node.pot*10)/10}bb</span>
+            </div>
+            <div className="ss-ms-acts" style={{gridTemplateColumns:`repeat(${node.actions.length},1fr)`}}>
+              {node.actions.map((a,i)=>{
+                const am=msActMeta(a,node),f=Math.round(res.aggAt(node,i)*1000)/10;
+                return(
+                  <button key={a} className="ss-ms-act" onClick={()=>setPath([...path,a])}
+                    style={{background:`linear-gradient(180deg,${am.c}26,${am.c}0a)`,borderColor:`${am.c}66`}}>
+                    <span className="ss-ms-act-l" style={{color:am.c}}>{am.l}</span>
+                    <span className="ss-ms-act-f">{f}%</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ss-ms-hint">Clique une action pour descendre dans l'arbre.</div>
+          </div>
+        ):node&&node.kind==="terminal"?(
+          <div className="ss-ms-node">
+            <div className="ss-ms-node-head"><b style={{color:T.gold}}>NŒUD TERMINAL</b>
+              <span>{node.result==="showdown"?"Abattage":node.result==="foldH"?"Hero se couche":"Vilain se couche"} · pot {Math.round(node.pot*10)/10}bb</span></div>
+            <div className="ss-ms-hint">Fin de la ligne — remonte via le fil d'Ariane.</div>
+          </div>
+        ):(
+          <div className="ss-ms-note">Ligne indisponible dans l'arbre résolu.</div>
+        )}
+
+        <div className="ss-ms-note">
+          <b>Lecture honnête</b> — stratégie <b>calculée</b> par CFR+ multi-rue sur un arbre borné
+          (2 sizings, 1 raise/rue, stacks symétriques, ranges plafonnées). Ce n'est pas un solveur
+          commercial complet : voir <i>10_SHARKSOLVER_LIMITATIONS</i>.
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,onGoReplayer=null,onInitialApplied=null}={}){
   const[scenario,setScenarioRaw]=useState(initialScenario||SOLVER_SCENARIOS[0]);
   const[mode,setMode]=useState(scenario.icmParams?"icm":scenario.pkoParams?"pko":"gto");
@@ -2511,6 +2640,10 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[cfrSource,setCfrSource]=useState(ResultSource.CFR_SOLVE); // CFR_SOLVE ou PRESOLVED_LIBRARY (§16)
   const[cfrBusy,setCfrBusy]=useState(false);
   const[cfrOverlay,setCfrOverlay]=useState(false);
+  /* ── Multi-street (§26) : solve postflop multi-rue à la demande + navigation d'arbre ── */
+  const[msResult,setMsResult]=useState(null);
+  const[msBusy,setMsBusy]=useState(false);
+  const[msPath,setMsPath]=useState([]);        // chemin d'actions dans l'arbre
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
   const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
@@ -2518,7 +2651,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const villainParse=useMemo(()=>villainHand?parseHandToken(villainHand):null,[villainHand]);
   const boardParse=useMemo(()=>parseBoardToken(boardInput),[boardInput]);
   /* Un résultat CFR ne vaut que pour le board sur lequel il a été calculé */
-  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);},[boardInput]);
+  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);setMsResult(null);setMsPath([]);},[boardInput]);
   const board=boardParse.valid?boardParse.cards:[];
 
   function resetSelection(){
@@ -2719,6 +2852,23 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
         setCfrResult(s.result);setCfrSource(s.source); // §16 : CFR_SOLVE ou PRESOLVED_LIBRARY
       }catch(e){setCfrResult(null);}
       setCfrBusy(false);
+    },30);
+  }
+
+  /* ── Solve MULTI-RUE (§26) — postflop uniquement, via la Solver API (§17). ── */
+  function runMultiStreet(){
+    if(board.length<3)return;
+    setMsBusy(true);setMsPath([]);
+    setTimeout(()=>{
+      try{
+        const s=solveMultiStreet(heroFreqs,villainFreqs,board,{
+          iters:board.length===5?400:180,
+          betSizes:[0.33,0.75],startPot:math.pot,
+          maxCombos:board.length===5?110:80,maxRaisesPerStreet:1,effStack:effective,
+        });
+        setMsResult(s.source==="NO_SOLUTION"?null:s);
+      }catch(e){setMsResult(null);}
+      setMsBusy(false);
     },30);
   }
 
@@ -2940,6 +3090,15 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               heroParse={heroKey&&selectedCell&&selectedCell.key===heroKey?heroParse:null}
               equityHero={selectedEquity} foldEquity={foldEquity} math={math}
               onPickHand={pickHand}
+            />
+          </div>
+
+          {/* ── SOLVEUR MULTI-RUE (§26) — moteur CFR+ multi-street exposé ── */}
+          <div style={{marginTop:12}}>
+            <SolverMultiStreetPanel
+              board={board} potBb={math.pot} effStack={effective}
+              result={msResult} busy={msBusy} onSolve={runMultiStreet}
+              path={msPath} setPath={setMsPath}
             />
           </div>
 
