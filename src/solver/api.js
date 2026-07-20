@@ -79,7 +79,7 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
   const H=cap(heroFreqs),V=cap(villFreqs);
   if(!H.length||!V.length||board.length<3)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null,experimental:true};
   const nStreets=opts.streets??(6-board.length-1);          // flop→3, turn→2, river→1
-  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets;
+  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"");
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   if(!opts.force){
@@ -96,6 +96,15 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
   };
   storeSolution(solveId,out);
   return out;
+}
+
+/* ── SOLVED NODE LOCK (§19) — vrai re-solve CFR contre des fréquences verrouillées.
+   locks = [{path:["B"], freqs:{F:0.7,C:0.3}}] : chemin d'actions depuis la racine,
+   fréquences imposées au nœud atteint ; tout le reste de l'arbre re-solve.
+   ≠ Quick Node Lock (HEURISTIC_ESTIMATE) : ici provenance CFR_SOLVE + nodeLocked. ── */
+export function solveNodeLocked(heroFreqs,villFreqs,board,locks,opts={}){
+  const out=solveMultiStreet(heroFreqs,villFreqs,board,{...opts,locks});
+  return{...out,nodeLocked:true,locks};
 }
 
 /* ── Bibliothèque pré-solvée (§16) — adossée au Solution Storage. ── */

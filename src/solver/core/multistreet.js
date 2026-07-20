@@ -60,6 +60,26 @@ export function solveTree(heroList,villList,board,opts={}){
   let curB=board.slice();
   if(need===0){curB=board.slice();computeE(curB);}
 
+  /* ── SOLVED NODE LOCK (§19) : fréquences verrouillées à des nœuds désignés par
+     chemin d'actions depuis la racine (ex. path:["B"] = vilain face au bet).
+     Au nœud verrouillé : stratégie IMPOSÉE (identique pour tous les combos),
+     regrets non mis à jour — le reste de l'arbre RE-SOLVE contre ce verrou.
+     ≠ Quick Node Lock (édition heuristique) : ici c'est un vrai re-solve CFR. ── */
+  const locks={};
+  if(opts.locks)for(const L of opts.locks){
+    let n=tree,okPath=true;
+    for(const step of (L.path||[])){
+      while(n&&n.kind==="chance")n=n.next;
+      if(!n||!n.children||!n.children[step]){okPath=false;break;}
+      n=n.children[step];
+    }
+    while(n&&n.kind==="chance")n=n.next;
+    if(!okPath||!n||n.kind!=="decision")continue;
+    const arr=new Float64Array(n.actions.length);let s=0;
+    n.actions.forEach((a,k)=>{arr[k]=Math.max(0,(L.freqs&&L.freqs[a])||0);s+=arr[k];});
+    if(s>0){for(let k=0;k<arr.length;k++)arr[k]/=s;locks[n.id]=arr;}
+  }
+
   /* Tables de regret / stratégie cumulée : node.id → Map(ctx → [combo][action]).
      ctx = cartes révélées depuis le board initial à la street du nœud (sous-arbres
      par carte). Allocation lazy par runout réellement visité. */
@@ -105,27 +125,28 @@ export function solveTree(heroList,villList,board,opts={}){
       return traverse(node.next,reachH,reachV,tw);
     }
     const na=node.actions.length,key=keyFor(node);
+    const lock=locks[node.id]||null;           // §19 : stratégie imposée à ce nœud
     const vH=new Float64Array(nH),vV=new Float64Array(nV);
     if(node.player===0){                                   // Hero agit
       const regT=getTbl(reg,node,key,nH,na),stT=getTbl(strat,node,key,nH,na);
-      const S=[];for(let i=0;i<nH;i++)S[i]=stratFromReg(regT[i]);
+      const S=[];for(let i=0;i<nH;i++)S[i]=lock||stratFromReg(regT[i]);
       const child=[];
       for(let a=0;a<na;a++){const cr=new Float64Array(nH);for(let i=0;i<nH;i++)cr[i]=reachH[i]*S[i][a];child[a]=traverse(node.children[node.actions[a]],cr,reachV,tw);}
       for(let i=0;i<nH;i++){
         let nv=0;for(let a=0;a<na;a++)nv+=S[i][a]*child[a].vH[i];vH[i]=nv;
         const rg=regT[i],st=stT[i];
-        for(let a=0;a<na;a++){rg[a]=Math.max(0,rg[a]+child[a].vH[i]-nv);st[a]+=tw*reachH[i]*S[i][a];}
+        for(let a=0;a<na;a++){if(!lock)rg[a]=Math.max(0,rg[a]+child[a].vH[i]-nv);st[a]+=tw*reachH[i]*S[i][a];}
       }
       for(let j=0;j<nV;j++){let acc=0;for(let a=0;a<na;a++)acc+=child[a].vV[j];vV[j]=acc;}
     }else{                                                 // Villain agit
       const regT=getTbl(reg,node,key,nV,na),stT=getTbl(strat,node,key,nV,na);
-      const S=[];for(let j=0;j<nV;j++)S[j]=stratFromReg(regT[j]);
+      const S=[];for(let j=0;j<nV;j++)S[j]=lock||stratFromReg(regT[j]);
       const child=[];
       for(let a=0;a<na;a++){const cr=new Float64Array(nV);for(let j=0;j<nV;j++)cr[j]=reachV[j]*S[j][a];child[a]=traverse(node.children[node.actions[a]],reachH,cr,tw);}
       for(let j=0;j<nV;j++){
         let nv=0;for(let a=0;a<na;a++)nv+=S[j][a]*child[a].vV[j];vV[j]=nv;
         const rg=regT[j],st=stT[j];
-        for(let a=0;a<na;a++){rg[a]=Math.max(0,rg[a]+child[a].vV[j]-nv);st[a]+=tw*reachV[j]*S[j][a];}
+        for(let a=0;a<na;a++){if(!lock)rg[a]=Math.max(0,rg[a]+child[a].vV[j]-nv);st[a]+=tw*reachV[j]*S[j][a];}
       }
       for(let i=0;i<nH;i++){let acc=0;for(let a=0;a<na;a++)acc+=child[a].vH[i];vH[i]=acc;}
     }

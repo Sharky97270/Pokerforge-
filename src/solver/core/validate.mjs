@@ -8,7 +8,7 @@ import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
-import { solveSubgame, solveMultiStreet } from "../api.js";
+import { solveSubgame, solveMultiStreet, solveNodeLocked } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
 
@@ -162,6 +162,26 @@ ok("API multi-street : CFR_SOLVE + experimental", ms1.source==="CFR_SOLVE"&&ms1.
 ok("API multi-street : NashConv exact fourni sur river ("+(ms1.convergence&&ms1.convergence.nashConv)+" bb)", ms1.convergence&&Number.isFinite(ms1.convergence.nashConv));
 const ms2=solveMultiStreet(msH,msV,msBoard,{iters:200,betFrac:0.66,startPot:6});
 ok("API multi-street : re-solve identique → PRESOLVED_LIBRARY", ms2.source==="PRESOLVED_LIBRARY"&&ms2.solveId===ms1.solveId);
+
+console.log("\n[11] SOLVED NODE LOCK (§19) — re-solve CFR contre fréquences verrouillées");
+// Clairvoyance pot-bet : équilibre = bluff 50 / call 50 (cv ci-dessus). Exploits analytiques :
+// (a) Vilain verrouillé OVERFOLD (fold 80% vs bet) → bluff air optimal = 100% (EV +0.6 vs -3).
+const lockOF=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:1500,betFrac:1,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:0,locks:[{path:["B"],freqs:{F:0.8,C:0.2}}]});
+const airOF=Math.round(lockOF.avgOf(lockOF.tree,1)[1]*100);
+const callLocked=Math.round(lockOF.avgOf(lockOF.tree.children.B,0)[1]*100);
+ok("vilain overfold verrouillé → Hero bluffe l'air ~100% (obtenu "+airOF+"%)", airOF>=90);
+ok("le nœud verrouillé joue EXACTEMENT le verrou (call 20%, obtenu "+callLocked+"%)", callLocked>=18&&callLocked<=22);
+ok("EV exploit > EV équilibre ("+lockOF.ev+" vs "+cv.ev+" bb)", lockOF.ev>cv.ev);
+// (b) Vilain verrouillé OVERCALL (fold 10%) → bluff air = 0% (EV -7.8 vs -3), nuts value ~100%.
+const lockOC=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:1500,betFrac:1,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:0,locks:[{path:["B"],freqs:{F:0.1,C:0.9}}]});
+const airOC=Math.round(lockOC.avgOf(lockOC.tree,1)[1]*100);
+const nutsOC=Math.round(lockOC.avgOf(lockOC.tree,0)[1]*100);
+ok("vilain overcall verrouillé → Hero ne bluffe plus (obtenu "+airOC+"%)", airOC<=10);
+ok("vilain overcall verrouillé → nuts value bet ~100% (obtenu "+nutsOC+"%)", nutsOC>=90);
+// (c) API : solveNodeLocked → CFR_SOLVE + nodeLocked, SolveID distinct du solve non verrouillé.
+const nl=solveNodeLocked(msH,msV,msBoard,[{path:["B"],freqs:{F:0.7,C:0.3}}],{iters:150,betFrac:0.66,startPot:6});
+ok("API node lock : CFR_SOLVE + nodeLocked", nl.source==="CFR_SOLVE"&&nl.nodeLocked===true);
+ok("API node lock : pas de collision de cache avec le solve non verrouillé", nl.solveId!==ms1.solveId);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);
