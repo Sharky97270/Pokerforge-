@@ -5,7 +5,7 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
-import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked } from "../solver/api.js";
+import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO } from "../solver/api.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2466,6 +2466,89 @@ function SolverSpotResultPanel({equityHero,equityVillain,foldEquity,math,evTotal
   );
 }
 
+/* ══ ICM / PKO (§21, §22) — panneaux de calcul RÉEL, à provenance honnête.
+   L'équité ICM est calculée EXACTEMENT (Malmuth-Harville) ; la STRATÉGIE, elle,
+   n'est pas solvée sous contrainte ICM → provenance ICM_ESTIMATE (jamais
+   « EXACT ICM SOLVE », §21/§58). ══ */
+function SolverIcmPanel({icmParams,effStack}){
+  const p=icmParams;
+  const res=useMemo(()=>{
+    if(!p||!p.payouts||!p.payouts.length)return null;
+    const n=Math.max(2,p.playersLeft||p.payouts.length);
+    // Champ reconstruit : Hero + (n-1) joueurs au stack moyen.
+    const stacks=[p.heroStack||25,...Array.from({length:n-1},()=>p.avgStack||p.heroStack||25)];
+    return computeICM({stacks,payouts:p.payouts.slice(0,n),heroIdx:0,riskChips:Math.min(effStack||0,p.heroStack||0),villIdx:1});
+  },[p,effStack]);
+  const meta=resultMeta(ResultSource.ICM_ESTIMATE);
+  if(!p||!p.payouts||!p.payouts.length){
+    return(<div className="ss-card2"><div className="ss-card2-head"><span className="ss-panel-title">🏆 ICM</span></div>
+      <div className="ss-ms-note warn">ⓘ Renseigne les <b>payouts</b> et les stacks pour calculer l'équité ICM.</div></div>);
+  }
+  const totalChips=(p.heroStack||0)+((p.playersLeft||1)-1)*(p.avgStack||0);
+  const chipShare=totalChips?(p.heroStack||0)/totalChips:0;
+  const prize=(p.payouts||[]).reduce((a,b)=>a+b,0);
+  return(
+    <div className="ss-card2">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">🏆 ÉQUITÉ ICM (MALMUTH-HARVILLE)</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-ms-stats" style={{gridTemplateColumns:"repeat(5,1fr)"}}>
+        {/* eq est en UNITÉS DE PAYOUT → on l'exprime en part du prizepool. */}
+        <div><span>Équité ICM Hero</span><b style={{color:"#C77DFF"}}>{res&&prize?(res.heroEq/prize*100).toFixed(2)+"%":"—"}</b></div>
+        <div><span>Part de jetons</span><b>{(chipShare*100).toFixed(2)}%</b></div>
+        <div><span>Écart ICM vs jetons</span><b style={{color:res&&prize&&(res.heroEq/prize)<chipShare?"#FF5D6C":"#10D87A"}}>
+          {res&&prize?((res.heroEq/prize-chipShare)*100>=0?"+":"")+((res.heroEq/prize-chipShare)*100).toFixed(2)+" pts":"—"}</b></div>
+        {/* riskPremium / evNeutralEquity sont DÉJÀ en points de % (pas des fractions). */}
+        <div><span>Équité requise</span><b style={{color:"#34B4FF"}}>{res&&res.evNeutralEquity!=null?res.evNeutralEquity+"%":"n/d"}</b></div>
+        <div><span>Risk premium</span><b style={{color:"#FFB020"}}>{res&&res.riskPremium!=null?(res.riskPremium>=0?"+":"")+res.riskPremium+" pts":"n/d"}</b></div>
+      </div>
+      <div className="ss-ms-note">
+        <b>Lecture</b> — l'équité ICM est exprimée en part du prizepool ({prize} unités réparties).
+        Sous ICM les <b>gros tapis</b> valent <b>moins</b> que leur part de jetons et les <b>courts tapis
+        davantage</b> (chaque jeton perdu coûte plus qu'un jeton gagné ne rapporte).
+        Ici Hero est <b>{chipShare*100>=100/((p.playersLeft||1))?"au-dessus":"en-dessous"} de la moyenne</b>,
+        d'où un écart {res&&prize&&(res.heroEq/prize-chipShare)>=0?"positif":"négatif"}.
+        L'<b>équité requise</b> est le seuil brut pour qu'un affrontement à tapis soit neutre en $ ;
+        le <b>risk premium</b> est ce qu'il exige <i>au-delà</i> des 50% du ChipEV.
+        <b> {meta.label}</b> : le calcul Malmuth-Harville est exact, mais la <b>stratégie</b> n'est pas
+        solvée sous contrainte ICM (§21) — les fréquences affichées ailleurs restent heuristiques.
+      </div>
+    </div>
+  );
+}
+function SolverPkoPanel({pkoParams,potBb,heroEquity,effStack}){
+  const p=pkoParams||{};
+  const eq=(heroEquity??50)/100;
+  /* Le bounty se capture en éliminant l'adversaire : le pot pertinent est celui d'un
+     TAPIS PAYÉ (pot courant + les deux tapis), pas le pot courant. Sinon le bounty
+     écrase le pot et le « seuil d'équité » devient aberrant. */
+  const allInPot=(potBb||0)+2*(p.effectiveStack??effStack??0);
+  const res=useMemo(()=>computePKO({potBb:allInPot,heroEquity:eq,villainBounty:p.villainBounty??p.avgBounty??0,bountyRealization:p.coverage!=null?Math.min(1,p.coverage/2):0.5}),[allInPot,eq,p]);
+  const meta=resultMeta(ResultSource.PKO_ESTIMATE);
+  return(
+    <div className="ss-card2">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">🎯 VALEUR PKO (CHIPS + BOUNTY)</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-ms-stats" style={{gridTemplateColumns:"repeat(5,1fr)"}}>
+        <div><span>Pot tapis payé</span><b>{Math.round(allInPot*10)/10} bb</b></div>
+        <div><span>EV chips</span><b>{res.chipEv} bb</b></div>
+        <div><span>EV bounty</span><b style={{color:"#FF9E4D"}}>{res.bountyEv} bb</b></div>
+        <div><span>EV totale</span><b style={{color:res.totalEv>=0?"#10D87A":"#FF5D6C"}}>{res.totalEv} bb</b></div>
+        <div><span>Seuil d'équité ↓</span><b style={{color:"#FF9E4D"}}>−{res.equityDiscount} pts</b></div>
+      </div>
+      <div className="ss-ms-note">
+        <b>Lecture</b> — le bounty ajoute de l'EV à tout affrontement gagné, ce qui <b>abaisse</b> le seuil
+        d'équité nécessaire pour payer (−{res.equityDiscount} pts ici) et élargit donc les ranges.
+        <b> {meta.label}</b> : valeur estimée (pas de modèle complet bounty progressif / couverture /
+        éliminations futures, §22) — la stratégie n'est pas solvée sous contrainte PKO.
+      </div>
+    </div>
+  );
+}
+
 /* ── EXPLOIT (§20) : convertit les multiplicateurs d'un profil vilain (UI) en
    FRÉQUENCES VERROUILLÉES pour le re-solve CFR. Base d'équilibre approchée, puis
    application des tendances du profil, puis normalisation.
@@ -3132,6 +3215,18 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               onPickHand={pickHand}
             />
           </div>
+
+          {/* ── ICM / PKO (§21, §22) — calcul réel, provenance ICM/PKO_ESTIMATE ── */}
+          {mode==="icm"&&(
+            <div style={{marginTop:12}}>
+              <SolverIcmPanel icmParams={icmParams} effStack={effective}/>
+            </div>
+          )}
+          {mode==="pko"&&(
+            <div style={{marginTop:12}}>
+              <SolverPkoPanel pkoParams={pkoParams} potBb={math.pot} heroEquity={equityHero} effStack={effective}/>
+            </div>
+          )}
 
           {/* ── SOLVEUR MULTI-RUE (§26) — moteur CFR+ multi-street exposé ── */}
           <div style={{marginTop:12}}>
