@@ -66,7 +66,33 @@ export function solveTree(heroList,villList,board,opts={}){
      regrets non mis à jour — le reste de l'arbre RE-SOLVE contre ce verrou.
      ≠ Quick Node Lock (édition heuristique) : ici c'est un vrai re-solve CFR. ── */
   const locks={};
+  // Fréquence d'une action au nœud : clé exacte, sinon "B" réparti sur les sizings B*.
+  const lockArrFor=(n,freqs)=>{
+    const nBets=n.actions.filter(a=>a.startsWith("B")).length||1;
+    const arr=new Float64Array(n.actions.length);let s=0;
+    n.actions.forEach((a,k)=>{
+      let f=freqs&&freqs[a];
+      if(f==null&&a.startsWith("B")&&freqs&&freqs.B!=null)f=freqs.B/nBets;
+      arr[k]=Math.max(0,f||0);s+=arr[k];
+    });
+    if(s<=0)return null;
+    for(let k=0;k<arr.length;k++)arr[k]/=s;
+    return arr;
+  };
   if(opts.locks)for(const L of opts.locks){
+    if(L.match){
+      // Verrou par MOTIF : tous les nœuds de décision correspondants (profils §20).
+      (function walk(n){
+        if(n.kind==="chance")return walk(n.next);
+        if(n.kind!=="decision")return;
+        const isVill=n.player===1;
+        const hit=(L.match==="villFacingBet"&&isVill&&n.actions[0]==="F")
+                ||(L.match==="villAfterCheck"&&isVill&&n.actions[0]==="X");
+        if(hit){const arr=lockArrFor(n,L.freqs);if(arr)locks[n.id]=arr;}
+        for(const a of n.actions)walk(n.children[a]);
+      })(tree);
+      continue;
+    }
     let n=tree,okPath=true;
     for(const step of (L.path||[])){
       while(n&&n.kind==="chance")n=n.next;
@@ -75,9 +101,8 @@ export function solveTree(heroList,villList,board,opts={}){
     }
     while(n&&n.kind==="chance")n=n.next;
     if(!okPath||!n||n.kind!=="decision")continue;
-    const arr=new Float64Array(n.actions.length);let s=0;
-    n.actions.forEach((a,k)=>{arr[k]=Math.max(0,(L.freqs&&L.freqs[a])||0);s+=arr[k];});
-    if(s>0){for(let k=0;k<arr.length;k++)arr[k]/=s;locks[n.id]=arr;}
+    const arr=lockArrFor(n,L.freqs);
+    if(arr)locks[n.id]=arr;
   }
 
   /* Tables de regret / stratégie cumulée : node.id → Map(ctx → [combo][action]).

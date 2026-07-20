@@ -8,7 +8,7 @@ import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
-import { solveSubgame, solveMultiStreet, solveNodeLocked } from "../api.js";
+import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
 
@@ -182,6 +182,23 @@ ok("vilain overcall verrouillé → nuts value bet ~100% (obtenu "+nutsOC+"%)", 
 const nl=solveNodeLocked(msH,msV,msBoard,[{path:["B"],freqs:{F:0.7,C:0.3}}],{iters:150,betFrac:0.66,startPot:6});
 ok("API node lock : CFR_SOLVE + nodeLocked", nl.source==="CFR_SOLVE"&&nl.nodeLocked===true);
 ok("API node lock : pas de collision de cache avec le solve non verrouillé", nl.solveId!==ms1.solveId);
+
+console.log("\n[12] EXPLOIT SOLVER (§20) — modèle de joueur → verrous → re-solve CFR");
+// Verrous par MOTIF (tous les nœuds vilain face à la mise) — exploits analytiques :
+// Nit (fold ~65% après normalisation) → bluff pot EV -1.16 > give-up -3 → bluff 100%.
+const exN=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:1500,betFrac:1,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:0,locks:[{match:"villFacingBet",freqs:{F:0.62,C:0.33,R:0.05}}]});
+const airN=Math.round(exN.avgOf(exN.tree,1)[1]*100);
+ok("vs Nit (overfold) → Hero bluffe l'air ~100% (obtenu "+airN+"%)", airN>=90);
+ok("EV exploit vs Nit > EV équilibre ("+exN.ev+" vs "+cv.ev+" bb)", exN.ev>cv.ev);
+// Calling Station (call ~87%) → bluff EV -7.5 < -3 → bluff 0%.
+const exCS=solveTreeFixedBoard(cvHero,cvVill,cvBoard,{iters:1500,betFrac:1,startPot:6,streets:1,ipProbe:false,maxRaisesPerStreet:0,locks:[{match:"villFacingBet",freqs:{F:0.12,C:0.83,R:0.05}}]});
+const airCS=Math.round(exCS.avgOf(exCS.tree,1)[1]*100);
+ok("vs Calling Station → Hero ne bluffe plus (obtenu "+airCS+"%)", airCS<=10);
+// API : profil → CFR_SOLVE + métadonnées exploit (modèle étiqueté HEURISTIC_ESTIMATE).
+const ex1=solveExploit("nit",msH,msV,msBoard,{iters:150,betFrac:0.66,startPot:6});
+ok("API exploit : CFR_SOLVE + profil nit", ex1.source==="CFR_SOLVE"&&ex1.exploit&&ex1.exploit.profile==="nit");
+ok("API exploit : modèle étiqueté HEURISTIC_ESTIMATE (§20)", ex1.exploit.model==="HEURISTIC_ESTIMATE");
+ok("API exploit : profil inconnu → NO_SOLUTION", solveExploit("zzz",msH,msV,msBoard,{}).source==="NO_SOLUTION");
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

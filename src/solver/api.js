@@ -107,6 +107,31 @@ export function solveNodeLocked(heroFreqs,villFreqs,board,locks,opts={}){
   return{...out,nodeLocked:true,locks};
 }
 
+/* ── EXPLOIT SOLVER (§20) : GTO SOLUTION → PLAYER MODEL → NODE LOCK → RE-SOLVE.
+   Les profils sont des MODÈLES DE JOUEUR (tendances estimées → HEURISTIC) ; la
+   stratégie d'exploit, elle, est réellement RE-SOLVÉE par CFR contre ces verrous.
+   Tendances : réponse face à une mise (F/C/R) + comportement après check (X/B). ── */
+export const EXPLOIT_PROFILES={
+  nit:            {label:"Nit",             vsBet:{F:0.62,C:0.33,R:0.05}, afterCheck:{X:0.75,B:0.25}},
+  tag:            {label:"TAG",             vsBet:{F:0.45,C:0.45,R:0.10}, afterCheck:{X:0.55,B:0.45}},
+  lag:            {label:"LAG",             vsBet:{F:0.30,C:0.50,R:0.20}, afterCheck:{X:0.40,B:0.60}},
+  calling_station:{label:"Calling Station", vsBet:{F:0.12,C:0.83,R:0.05}, afterCheck:{X:0.60,B:0.40}},
+  fish:           {label:"Fish",            vsBet:{F:0.20,C:0.75,R:0.05}, afterCheck:{X:0.65,B:0.35}},
+  aggro_reg:      {label:"Aggro Reg",       vsBet:{F:0.35,C:0.45,R:0.20}, afterCheck:{X:0.45,B:0.55}},
+  maniac:         {label:"Maniac",          vsBet:{F:0.25,C:0.35,R:0.40}, afterCheck:{X:0.30,B:0.70}},
+  reg:            {label:"Reg",             vsBet:{F:0.42,C:0.48,R:0.10}, afterCheck:{X:0.50,B:0.50}},
+};
+export function solveExploit(profileId,heroFreqs,villFreqs,board,opts={}){
+  const prof=EXPLOIT_PROFILES[profileId];
+  if(!prof)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null,experimental:true};
+  const locks=[
+    {match:"villFacingBet",freqs:prof.vsBet},
+    {match:"villAfterCheck",freqs:prof.afterCheck},
+  ];
+  const out=solveMultiStreet(heroFreqs,villFreqs,board,{...opts,locks});
+  return{...out,exploit:{profile:profileId,label:prof.label,model:ResultSource.HEURISTIC_ESTIMATE,locks}};
+}
+
 /* ── Bibliothèque pré-solvée (§16) — adossée au Solution Storage. ── */
 export function getPresolvedSolution(solveId){
   const s=getSolution(solveId);
