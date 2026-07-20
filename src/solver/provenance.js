@@ -20,6 +20,8 @@ export const ResultSource = {
   PRESOLVED_LIBRARY: "PRESOLVED_LIBRARY",        // solution pré-solvée chargée
   NUMERICAL_APPROXIMATION: "NUMERICAL_APPROXIMATION", // Monte-Carlo / sampling
   HEURISTIC_ESTIMATE: "HEURISTIC_ESTIMATE",      // estimation codée à la main
+  ICM_ESTIMATE: "ICM_ESTIMATE",                  // équité ICM (Malmuth-Harville) — pas un solve GTO/ICM complet
+  PKO_ESTIMATE: "PKO_ESTIMATE",                  // équité PKO (chips + bounty) — pas un solve complet
   AI_EXPLANATION: "AI_EXPLANATION",              // texte pédagogique (ne change aucun chiffre)
   NO_SOLUTION: "NO_SOLUTION",                    // aucune solution fiable
 };
@@ -31,6 +33,8 @@ export const RESULT_SOURCE_META = {
   PRESOLVED_LIBRARY:       { label: "Bibliothèque",    short: "LIB",    color: "#9B5CFF", glow: "rgba(155,92,255,.35)",  desc: "Solution pré-solvée chargée depuis la Shark Solution Library." },
   NUMERICAL_APPROXIMATION: { label: "Approximation",   short: "APPROX", color: "#FFB020", glow: "rgba(255,176,32,.35)",  desc: "Estimation numérique (Monte-Carlo) — comporte une marge d'erreur." },
   HEURISTIC_ESTIMATE:      { label: "Heuristique",     short: "HEUR",   color: "#FF5D6C", glow: "rgba(255,93,108,.32)",  desc: "Estimation heuristique — ce n'est PAS un solve GTO calculé." },
+  ICM_ESTIMATE:            { label: "ICM (estimé)",    short: "ICM",    color: "#C77DFF", glow: "rgba(199,125,255,.3)",  desc: "Équité ICM (Malmuth-Harville) calculée exactement, mais ce n'est PAS un solve ICM/GTO complet." },
+  PKO_ESTIMATE:            { label: "PKO (estimé)",    short: "PKO",    color: "#FF9E4D", glow: "rgba(255,158,77,.3)",   desc: "Équité PKO (chips + valeur de bounty) estimée — pas un solve PKO complet." },
   AI_EXPLANATION:          { label: "Explication IA",  short: "IA",     color: "#8AA0C0", glow: "rgba(138,160,192,.3)",  desc: "Analyse pédagogique — n'invente ni ne modifie aucune valeur mathématique." },
   NO_SOLUTION:             { label: "Pas de solution", short: "—",      color: "#6A7690", glow: "rgba(106,118,144,.25)", desc: "Aucune solution fiable disponible pour ce spot." },
 };
@@ -40,6 +44,7 @@ export const RESULT_SOURCE_LEGEND = [
   ResultSource.EXACT_CALCULATION,
   ResultSource.CFR_SOLVE,
   ResultSource.NUMERICAL_APPROXIMATION,
+  ResultSource.ICM_ESTIMATE,
   ResultSource.HEURISTIC_ESTIMATE,
   ResultSource.AI_EXPLANATION,
 ];

@@ -8,8 +8,9 @@ import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
-import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit } from "../api.js";
+import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
+import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue } from "./icm.js";
 import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
 
 let pass=0, fail=0;
@@ -199,6 +200,41 @@ const ex1=solveExploit("nit",msH,msV,msBoard,{iters:150,betFrac:0.66,startPot:6}
 ok("API exploit : CFR_SOLVE + profil nit", ex1.source==="CFR_SOLVE"&&ex1.exploit&&ex1.exploit.profile==="nit");
 ok("API exploit : modèle étiqueté HEURISTIC_ESTIMATE (§20)", ex1.exploit.model==="HEURISTIC_ESTIMATE");
 ok("API exploit : profil inconnu → NO_SOLUTION", solveExploit("zzz",msH,msV,msBoard,{}).source==="NO_SOLUTION");
+
+console.log("\n[13] ICM ENGINE (§21) — Malmuth-Harville exact");
+// (a) Probas de finish : stacks égaux → symétrie parfaite (chacun 1/n par place).
+const fp=finishProbabilities([100,100,100,100]);
+ok("stacks égaux → P(1re place) = 25% chacun", fp.every(r=>Math.abs(r[0]-0.25)<1e-9));
+ok("probas de finish : chaque joueur somme à 1", fp.every(r=>Math.abs(r.reduce((a,b)=>a+b,0)-1)<1e-9));
+// (b) $EQ : winner-take-all + stacks égaux → payout partagé également.
+const wta=icmEquity([100,100,100,100],[100,0,0,0]);
+ok("winner-take-all, stacks égaux → $EQ = 25 chacun", wta.eq.every(e=>Math.abs(e-25)<1e-9));
+// (c) Cas 2 joueurs, payouts [70,30] : $EQ = part linéaire du prizepool restant ? Non —
+//     ICM 2 joueurs : EQ_i = 30 + (stack_i/total)*(70-30) (chacun a min 30, se partage l'écart).
+const hu2=icmEquity([70,30],[70,30]);
+ok("2 joueurs [70,30] payouts [70,30] : gros stack $EQ = 58 (obtenu "+Math.round(hu2.eq[0]*10)/10+")", Math.abs(hu2.eq[0]-58)<0.5);
+ok("2 joueurs : conservation du prizepool (Σ$EQ = 100)", Math.abs(hu2.eq[0]+hu2.eq[1]-100)<1e-9);
+// (d) Monotonie : plus de jetons ⇒ plus de $EQ.
+const mono=icmEquity([50,30,20],[50,30,20]);
+ok("monotonie : $EQ décroît avec le stack (50>30>20)", mono.eq[0]>mono.eq[1]&&mono.eq[1]>mono.eq[2]);
+// (e) Risk premium : bulle (4 joueurs, 3 payés) → prime ICM > 0 (il faut plus que 50%).
+const rp=icmRiskPremium([40,40,40,40],[50,30,20,0],0,40);
+ok("bulle → risk premium > 0 (obtenu "+rp.riskPremium+"%)", rp.riskPremium>0);
+ok("bulle → équité EV-neutre > 50% (obtenu "+rp.evNeutralEquity+"%)", rp.evNeutralEquity>50);
+// (f) Pas de bulle (winner-take-all, HU) → pas de prime ICM (chipEV pur).
+const rpH=icmRiskPremium([50,50],[100,0],0,50);
+ok("HU winner-take-all → risk premium ≈ 0 (chipEV, obtenu "+rpH.riskPremium+"%)", Math.abs(rpH.riskPremium)<1);
+
+console.log("\n[14] PKO ENGINE (§22) — valeur chips + bounty");
+const pk=pkoValue({potBb:20,heroEquity:0.5,villainBounty:10,bountyRealization:0.5});
+ok("PKO : total = chipEV + bountyEV (10 + 2.5 = 12.5)", Math.abs(pk.totalEv-12.5)<1e-6);
+ok("PKO : bounty ↑ → discount d'équité > 0 (obtenu "+pk.equityDiscount+"%)", pk.equityDiscount>0);
+ok("PKO : sans bounty → discount = 0", pkoValue({potBb:20,heroEquity:0.5,villainBounty:0}).equityDiscount===0);
+// API : provenance honnête (ICM_ESTIMATE / PKO_ESTIMATE — jamais « exact solve », §21/§58).
+const apiIcm=computeICM({stacks:[40,40,40,40],payouts:[50,30,20,0],heroIdx:0,riskChips:40});
+ok("API ICM : provenance ICM_ESTIMATE (pas EXACT)", apiIcm.source==="ICM_ESTIMATE");
+ok("API ICM : risk premium fourni", Number.isFinite(apiIcm.riskPremium));
+ok("API PKO : provenance PKO_ESTIMATE", computePKO({potBb:20,heroEquity:0.5,villainBounty:10}).source==="PKO_ESTIMATE");
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

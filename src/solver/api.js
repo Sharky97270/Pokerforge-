@@ -16,6 +16,7 @@ import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
 import { rangeComboList } from "./core/combos.js";
+import { icmEquity, icmRiskPremium, pkoValue } from "./core/icm.js";
 import { storeSolution, getSolution, getClosest, librarySize } from "./library.js";
 
 /* Identifiant de solve déterministe : même spec → même ID (reproductibilité §15). */
@@ -130,6 +131,25 @@ export function solveExploit(profileId,heroFreqs,villFreqs,board,opts={}){
   ];
   const out=solveMultiStreet(heroFreqs,villFreqs,board,{...opts,locks});
   return{...out,exploit:{profile:profileId,label:prof.label,model:ResultSource.HEURISTIC_ESTIMATE,locks}};
+}
+
+/* ── ICM (§21) : équité de tournoi Malmuth-Harville EXACTE + risk premium.
+   Provenance ICM_ESTIMATE — le calcul est exact mais ce n'est PAS un solve ICM
+   complet (§21/§58 : jamais « EXACT ICM SOLVE »). ── */
+export function computeICM({stacks,payouts,heroIdx=0,riskChips,villIdx}={}){
+  if(!stacks||!stacks.length||!payouts)return{source:ResultSource.NO_SOLUTION,eq:null};
+  const {eq,finishProb}=icmEquity(stacks,payouts);
+  const rp=riskChips?icmRiskPremium(stacks,payouts,heroIdx,riskChips,villIdx):null;
+  return{
+    source:ResultSource.ICM_ESTIMATE,model:"Malmuth-Harville",
+    eq,finishProb:finishProb.map(r=>Array.from(r)),
+    heroEq:eq[heroIdx],riskPremium:rp?rp.riskPremium:null,evNeutralEquity:rp?rp.evNeutralEquity:null,
+  };
+}
+/* ── PKO (§22) : valeur chips + bounty. Provenance PKO_ESTIMATE. ── */
+export function computePKO(params={}){
+  const v=pkoValue(params);
+  return{source:ResultSource.PKO_ESTIMATE,...v};
 }
 
 /* ── Bibliothèque pré-solvée (§16) — adossée au Solution Storage. ── */
