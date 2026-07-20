@@ -8,7 +8,7 @@ import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
-import { solveSubgame } from "../api.js";
+import { solveSubgame, solveMultiStreet } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
 
@@ -153,6 +153,15 @@ let riverNode=null;
 (function find(n){if(riverNode)return;if(n.kind==="decision"){if(n.street===1){riverNode=n;return;}for(const a of n.actions)find(n.children[a]);}else if(n.kind==="chance")find(n.next);})(tv.tree);
 ok("nœud river trouvé dans l'arbre 2 rues", !!riverNode);
 ok("sous-arbres par carte : contextes river multiples (obtenu "+(riverNode?tv.ctxCount(riverNode):0)+")", riverNode&&tv.ctxCount(riverNode)>1);
+// (f) SOLVER API multi-street (§17/§26) : provenance + convergence + cache library.
+const msH={AA:{r:100,c:0,f:0},KK:{r:100,c:0,f:0},T9s:{r:100,c:0,f:0}};
+const msV={QQ:{r:100,c:0,f:0},AKo:{r:0,c:100,f:0}};
+const msBoard=[C("K",1),C("8",2),C("4",3),C("J",1),C("2",2)];
+const ms1=solveMultiStreet(msH,msV,msBoard,{iters:200,betFrac:0.66,startPot:6});
+ok("API multi-street : CFR_SOLVE + experimental", ms1.source==="CFR_SOLVE"&&ms1.experimental===true);
+ok("API multi-street : NashConv exact fourni sur river ("+(ms1.convergence&&ms1.convergence.nashConv)+" bb)", ms1.convergence&&Number.isFinite(ms1.convergence.nashConv));
+const ms2=solveMultiStreet(msH,msV,msBoard,{iters:200,betFrac:0.66,startPot:6});
+ok("API multi-street : re-solve identique → PRESOLVED_LIBRARY", ms2.source==="PRESOLVED_LIBRARY"&&ms2.solveId===ms1.solveId);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

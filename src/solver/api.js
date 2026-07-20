@@ -14,6 +14,8 @@
 import { ResultSource } from "./provenance.js";
 import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
+import { solveTree, nashConv } from "./core/multistreet.js";
+import { rangeComboList } from "./core/combos.js";
 import { storeSolution, getSolution, getClosest, librarySize } from "./library.js";
 
 /* Identifiant de solve déterministe : même spec → même ID (reproductibilité §15). */
@@ -64,6 +66,35 @@ export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
     solveId,seed,fromLibrary:false,
   };
   storeSolution(solveId,out);   // stocke pour rechargement instantané (§16)
+  return out;
+}
+
+/* ── MULTI-STREET (§26) — EXPÉRIMENTAL. Résout l'arbre postflop multi-rue
+   (sous-arbres par carte, raises, all-in) sur ranges 169 bornées à maxCombos.
+   Benchmarké : clairvoyance analytique ≤0.4%, NashConv ≈0 (river ranges larges).
+   `experimental:true` : l'UI ne doit PAS l'afficher comme « GTO » sans le dire (§2). ── */
+export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
+  const maxCombos=opts.maxCombos||100;
+  const cap=(freqs)=>rangeComboList(freqs).filter(e=>!board.includes(e.cards[0])&&!board.includes(e.cards[1])).slice(0,maxCombos);
+  const H=cap(heroFreqs),V=cap(villFreqs);
+  if(!H.length||!V.length||board.length<3)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null,experimental:true};
+  const nStreets=opts.streets??(6-board.length-1);          // flop→3, turn→2, river→1
+  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets;
+  const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
+  const solveId=makeSolveId(sig+"#"+seed);
+  if(!opts.force){
+    const cached=getSolution(solveId);
+    if(cached)return{...cached,source:ResultSource.PRESOLVED_LIBRARY,fromLibrary:true};
+  }
+  const sol=solveTree(H,V,board,{...opts,streets:nStreets,seed,iters:opts.iters||200});
+  const nc=sol.sampled?null:nashConv(sol);
+  const out={
+    source:ResultSource.CFR_SOLVE,experimental:true,fromLibrary:false,
+    result:sol,
+    convergence:nc==null?{nashConv:null,note:"board incomplet — exploitabilité exacte indisponible (runouts échantillonnés)"}:{nashConv:nc},
+    solveId,seed,
+  };
+  storeSolution(solveId,out);
   return out;
 }
 

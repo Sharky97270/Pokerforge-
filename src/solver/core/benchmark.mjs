@@ -6,7 +6,7 @@
    l'évaluateur / de l'équité. Reproductible (équité seedée §15).
    Lancer :  node src/solver/core/benchmark.mjs   (npm run bench:solver)
 ════════════════════════════════════════════════════════════════════════════ */
-import { singleHandList } from "./combos.js";
+import { singleHandList, rangeComboList } from "./combos.js";
 import { computeEquity } from "./equity.js";
 import { solveTree, nashConv } from "./multistreet.js";
 
@@ -74,6 +74,48 @@ for(const [id,s,tol] of [["1 street sans raise",sc1,0.15],["1 street avec raise"
 }
 console.log("  ──────────────────────────────────────────────────────────");
 console.log(`  Multi-street : ${mpass} PASS / ${mfail} FAIL\n`);
+
+/* ══ [C] RANGES LARGES — perf + convergence (préalable au câblage UI) ══
+   Ranges réalistes ~large vs ~large générées par force de main, bornées à
+   maxCombos par camp (même abstraction que le solveur 1-street de l'API).
+   · River (board complet) : NashConv EXACT mesurable, raise inclus.
+   · Flop 3 rues échantillonnées : temps de solve + bornes de sanité + repro. */
+function wideRange(pct){
+  const RK="AKQJT98765432";
+  const freqs={};
+  for(let i=0;i<13;i++)for(let j=i;j<13;j++){
+    const mk2=(k,sc)=>{if(sc>=(1-pct)*100)freqs[k]={r:100,c:0,f:0};};
+    if(i===j){mk2(RK[i]+RK[i],100-i*5.5);continue;}                 // paires
+    const gap=j-i;
+    mk2(RK[i]+RK[j]+"s",96-(i+j)*3.2-gap*2.4);                       // suited
+    mk2(RK[i]+RK[j]+"o",90-(i+j)*3.6-gap*3.2);                       // offsuit
+  }
+  return freqs;
+}
+const capCombos=(freqs,cap,bd)=>rangeComboList(freqs).filter(e=>!bd.includes(e.cards[0])&&!bd.includes(e.cards[1])).slice(0,cap);
+const wideBtn=wideRange(0.42),wideBb=wideRange(0.34);
+console.log("  RANGES LARGES — perf & convergence :");
+const rvBoard=[Cc("K",0),Cc("8",1),Cc("4",2),Cc("J",3),Cc("2",0)];
+const rvH=capCombos(wideBtn,120,rvBoard),rvV=capCombos(wideBb,120,rvBoard);
+let t0=Date.now();
+const wr=solveTree(rvH,rvV,rvBoard,{iters:250,betSizes:[0.5,1],startPot:6,streets:1,maxRaisesPerStreet:1,effStack:97});
+const wrMs=Date.now()-t0,wrNc=nashConv(wr);
+const okWr=wrNc!=null&&wrNc>=-0.02&&wrNc<=0.35;
+if(okWr)mpass++;else mfail++;
+console.log("  river "+rvH.length+"×"+rvV.length+" combos · 2 sizings+raise      "+String(wrMs).padStart(5)+" ms   NashConv "+String(wrNc).padStart(8)+" bb (tol 0.35)   "+(okWr?"PASS ✓":"FAIL ✗"));
+const flBoard=[Cc("K",0),Cc("8",1),Cc("4",2)];
+const flH=capCombos(wideBtn,100,flBoard),flV=capCombos(wideBb,100,flBoard);
+t0=Date.now();
+const wf=solveTree(flH,flV,flBoard,{iters:120,betFrac:0.66,startPot:6,streets:3,maxRaisesPerStreet:1,effStack:97,seed:777});
+const wfMs=Date.now()-t0;
+const wf2=solveTree(flH,flV,flBoard,{iters:120,betFrac:0.66,startPot:6,streets:3,maxRaisesPerStreet:1,effStack:97,seed:777});
+const okWf=Number.isFinite(wf.ev)&&Math.abs(wf.ev)<=100&&wf.heroBet>=0&&wf.heroBet<=100;
+const okRepro=wf.heroBet===wf2.heroBet&&wf.ev===wf2.ev;
+if(okWf)mpass++;else mfail++;
+if(okRepro)mpass++;else mfail++;
+console.log("  flop 3 rues "+flH.length+"×"+flV.length+" combos (120 iters)     "+String(wfMs).padStart(5)+" ms   EV "+wf.ev+" bb · bet "+wf.heroBet+"%          "+(okWf?"PASS ✓":"FAIL ✗"));
+console.log("  reproductibilité flop 3 rues (même seed → même solve)              "+(okRepro?"PASS ✓":"FAIL ✗"));
+console.log(`\n  Ranges larges : voir ci-dessus — total multi-street ${mpass} PASS / ${mfail} FAIL\n`);
 
 if(fail+mfail>0){process.exitCode=1;console.log("❌ BENCHMARK ÉCHOUÉ — écart moteur vs référence.\n");}
 else console.log("✅ BENCHMARK RÉUSSI — équité + multi-street conformes.\n");

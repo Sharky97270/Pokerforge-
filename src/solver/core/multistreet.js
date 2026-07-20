@@ -35,14 +35,19 @@ export function solveTree(heroList,villList,board,opts={}){
   const wH=heroList.map(e=>e.w??1),wV=villList.map(e=>e.w??1);
 
   // Showdown E[i][j] ∈ {1,0.5,0} pour le board complet courant ; -1 si collision.
+  // PERF ranges larges : scores PAR MAIN (nH+nV eval7i) puis comparaisons —
+  // au lieu de 2·nH·nV évaluations par board.
   const E=Array.from({length:nH},()=>new Float32Array(nV));
+  const sH=new Float64Array(nH),sV=new Float64Array(nV);
   const computeE=(b)=>{
-    for(let i=0;i<nH;i++){const h=heroList[i].cards;const row=E[i];
+    for(let i=0;i<nH;i++){const h=heroList[i].cards;
+      sH[i]=(b.includes(h[0])||b.includes(h[1]))?-1:eval7i([h[0],h[1],b[0],b[1],b[2],b[3],b[4]]);}
+    for(let j=0;j<nV;j++){const v=villList[j].cards;
+      sV[j]=(b.includes(v[0])||b.includes(v[1]))?-1:eval7i([v[0],v[1],b[0],b[1],b[2],b[3],b[4]]);}
+    for(let i=0;i<nH;i++){const h=heroList[i].cards;const row=E[i];const hs=sH[i];
       for(let j=0;j<nV;j++){const v=villList[j].cards;
-        if(h[0]===v[0]||h[0]===v[1]||h[1]===v[0]||h[1]===v[1]||b.includes(h[0])||b.includes(h[1])||b.includes(v[0])||b.includes(v[1])){row[j]=-1;continue;}
-        const hv=eval7i([h[0],h[1],b[0],b[1],b[2],b[3],b[4]]);
-        const vv=eval7i([v[0],v[1],b[0],b[1],b[2],b[3],b[4]]);
-        row[j]=hv>vv?1:hv===vv?0.5:0;
+        if(hs<0||sV[j]<0||h[0]===v[0]||h[0]===v[1]||h[1]===v[0]||h[1]===v[1]){row[j]=-1;continue;}
+        row[j]=hs>sV[j]?1:hs===sV[j]?0.5:0;
       }}
   };
   const used=new Uint8Array(52);
