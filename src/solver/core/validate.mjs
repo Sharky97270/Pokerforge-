@@ -11,6 +11,7 @@ import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue } from "./icm.js";
+import { classifyDecision, classifyLeak, buildCoachBrief, buildExercise } from "../explain.js";
 import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
 
 let pass=0, fail=0;
@@ -235,6 +236,35 @@ const apiIcm=computeICM({stacks:[40,40,40,40],payouts:[50,30,20,0],heroIdx:0,ris
 ok("API ICM : provenance ICM_ESTIMATE (pas EXACT)", apiIcm.source==="ICM_ESTIMATE");
 ok("API ICM : risk premium fourni", Number.isFinite(apiIcm.riskPremium));
 ok("API PKO : provenance PKO_ESTIMATE", computePKO({potBb:20,heroEquity:0.5,villainBounty:10}).source==="PKO_ESTIMATE");
+
+console.log("\n[15] AI EXPLANATION (§30) — le solver calcule, l'IA explique");
+const dActions=[{id:"X",label:"Check",freq:60,ev:5.1},{id:"B75",label:"Bet 75%",freq:40,ev:5.0},{id:"F",label:"Fold",freq:0,ev:0.0}];
+// (a) Classification : action = meilleure EV → best ; grosse perte d'EV → blunder.
+ok("classifyDecision : meilleure EV → verdict best", classifyDecision({actions:dActions,chosenId:"X"}).verdict==="best");
+const bl=classifyDecision({actions:dActions,chosenId:"F"});
+ok("classifyDecision : perte d'EV massive → blunder + evLoss (obtenu "+bl.evLoss+")", bl.verdict==="blunder"&&bl.evLoss>3);
+ok("classifyDecision : mix proche (0.1 bb) → correct", classifyDecision({actions:dActions,chosenId:"B75"}).verdict==="correct");
+// (b) Leak : check quand best = bet → value manquée ; fold quand best ≠ fold → sur-fold.
+const misVal=classifyLeak(classifyDecision({actions:[{id:"X",freq:0,ev:2},{id:"B75",freq:100,ev:6}],chosenId:"X"}));
+ok("classifyLeak : check vs best=bet → value manquée", misVal&&misVal.key==="missed_value");
+const ovf=classifyLeak(classifyDecision({actions:[{id:"F",freq:0,ev:0},{id:"C",freq:100,ev:4}],chosenId:"F"}));
+ok("classifyLeak : fold vs best=call → sur-fold", ovf&&ovf.key==="overfold_vs_bet");
+// (c) Coach brief : provenance présente, flag calculated cohérent avec la source.
+const sol={source:"CFR_SOLVE",actions:dActions,equity:58,spr:3.2,nashConv:0.03};
+const brief=buildCoachBrief(sol,classifyDecision({actions:dActions,chosenId:"F"}));
+ok("buildCoachBrief : 1er fait = provenance calculée (CFR)", brief.facts[0].type==="provenance"&&brief.facts[0].calculated===true);
+ok("buildCoachBrief : verdict Hero présent (blunder)", brief.facts.some(f=>f.type==="hero_evaluation"&&f.verdict==="blunder"));
+ok("buildCoachBrief : leak value/défense présent", brief.facts.some(f=>f.type==="leak"));
+// GARDE-FOU HONNÊTETÉ : aucune fréquence des faits n'est absente de la solution (§2/§30).
+const inFreqs=new Set(sol.actions.map(a=>a.freq));
+const factFreqs=brief.facts.flatMap(f=>f.type==="primary_action"?[f.freq]:f.type==="mixed_strategy"?f.actions.map(a=>a.freq):[]).filter(x=>x!=null);
+ok("aucune fréquence inventée : toutes ⊆ solution ("+factFreqs.join(",")+")", factFreqs.every(f=>inFreqs.has(f)));
+// source heuristique → disclaimer honnête (pas GTO).
+const briefH=buildCoachBrief({source:"HEURISTIC_ESTIMATE",actions:dActions,equity:52});
+ok("brief heuristique → disclaimer 'pas un solve GTO'", /pas un solve GTO/.test(briefH.disclaimer)&&briefH.calculated===false);
+// (d) Exercice ciblé sur le leak.
+const ex=buildExercise(misVal,{heroPos:"CO",vsPos:"BB"});
+ok("buildExercise : scénario + focus + reps (leak value)", ex&&ex.scenario.heroPos==="CO"&&ex.reps>=2&&/value/i.test(ex.focus));
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);
