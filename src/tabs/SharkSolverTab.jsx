@@ -16,7 +16,25 @@ import "./SharkSolverTab.css";
 
 const RANKS=["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 
-/* Construit une fréquence GTO réaliste par main selon position + action + stack */
+/* ⚠ RANGES HEURISTIQUES — CE N'EST PAS UN SOLVE (§2, §11/§37).
+   Fréquences fabriquées par des formules écrites à la main (paliers de paires,
+   décote par gap et bonus de hauteur), calibrées à l'œil pour AVOIR LA FORME d'une
+   range correcte. Aucun calcul d'équilibre là-dedans.
+
+   Le commentaire précédent disait « fréquence GTO réaliste » : abus de langage
+   corrigé, y compris en interne — c'est ainsi qu'une heuristique finit par être
+   traitée comme un solve trois fichiers plus loin.
+
+   PORTÉE RÉELLE DE L'APPROXIMATION, à ne pas sous-estimer : ces ranges sont les
+   ENTRÉES du CFR postflop. Un solve postflop exact sur des ranges devinées reste
+   une réponse exacte à la mauvaise question, et la composition de range pilote
+   l'essentiel de la stratégie postflop — démontré par le bug de troncature (§8),
+   où supprimer les offsuit changeait toute la solution. Tant que ces ranges sont
+   heuristiques, elles dominent le terme d'erreur, devant la précision du CFR.
+
+   SORTIE PRÉVUE : bibliothèque de ranges pré-solvées → RangeSource.PRESOLVED
+   (déjà défini dans provenance.js, encore inutilisé). Le préflop ne se solve pas
+   en direct dans un navigateur ; il s'embarque pré-calculé. */
 function buildSolverFreqs(heroPos, action, stack=100, vsPos="BB"){
   const deep=stack>=80, mid=stack>=40&&stack<80, short=stack<40;
   const posIdx={UTG:0,LJ:0,HJ:1,CO:2,BTN:3,SB:4,BB:5}[heroPos]||0;
