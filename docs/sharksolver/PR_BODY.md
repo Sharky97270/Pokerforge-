@@ -1,7 +1,7 @@
 # SharkSolver Core V1 + roadmap V2 (§11)
 
 Refonte du solveur en moteur isolé, testé et à provenance honnête, puis les quatre
-premiers items de la roadmap V2. 87 commits, 88 fichiers, +7832 / −1011.
+premiers items de la roadmap V2. 55 commits, 28 fichiers, +5345 / −481.
 
 **Principe directeur (§2) : « LE SOLVER CALCULE. L'IA EXPLIQUE. »** — ne jamais
 présenter une heuristique comme un résultat GTO calculé. Plusieurs changements
