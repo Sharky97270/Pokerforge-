@@ -5,7 +5,8 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
-import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO, hydrateLibrary } from "../solver/api.js";
+import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO,
+         hydrateLibrary, librarySize, persistedCount, clearLibrary, libraryStatus } from "../solver/api.js";
 import { buildCoachBrief } from "../solver/explain.js";
 import "./SharkSolverTab.css";
 
@@ -2498,6 +2499,56 @@ function SolverResultSourcePanel({strategySource,equitySource}){
     </div>
   );
 }
+/* ── BIBLIOTHÈQUE DE SOLUTIONS (§16) — état + reprise en main.
+   Les solves sont conservés sur disque (IndexedDB) et rechargés instantanément.
+   Note : un solve n'est retrouvé que si sa SIGNATURE correspond (ranges, board,
+   pot, sizing, itérations, budget de combos). Les entrées produites avec d'anciens
+   réglages ne peuvent donc pas être servies à la place d'un solve courant — elles
+   deviennent simplement du poids mort, que le LRU évince. Vider est de l'hygiène,
+   pas un correctif. ── */
+function SolverLibraryPanel(){
+  const[mem,setMem]=useState(0),[disk,setDisk]=useState(null),[busy,setBusy]=useState(false);
+  const refresh=React.useCallback(()=>{
+    setMem(librarySize());
+    persistedCount().then(setDisk).catch(()=>setDisk(null));
+  },[]);
+  useEffect(()=>{refresh();const t=setInterval(refresh,4000);return()=>clearInterval(t);},[refresh]);
+  const wipe=()=>{
+    if(!window.confirm("Vider la bibliothèque de solutions ?\n\nLes solves en mémoire ET sur disque seront supprimés. Ils seront recalculés à la demande — aucune donnée personnelle n'est concernée."))return;
+    setBusy(true);clearLibrary();
+    setTimeout(()=>{refresh();setBusy(false);},400);
+  };
+  const persistent=libraryStatus.persistent;
+  return(
+    <div className="ss-card">
+      <div className="ss-panel-title" style={{marginBottom:9}}>📚 BIBLIOTHÈQUE DE SOLUTIONS</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <div style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"7px 9px"}}>
+          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".07em"}}>EN MÉMOIRE</div>
+          <div style={{fontFamily:T.brand,fontWeight:900,fontSize:15,color:T.text}}>{mem}</div>
+        </div>
+        <div style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"7px 9px"}}>
+          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".07em"}}>SUR DISQUE</div>
+          <div style={{fontFamily:T.brand,fontWeight:900,fontSize:15,color:persistent?T.green:T.text4}}>
+            {disk==null?"—":disk}
+          </div>
+        </div>
+      </div>
+      <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontStyle:"italic",marginBottom:8}}>
+        {persistent
+          ? "Les solves survivent au rechargement de la page et se rechargent instantanément."
+          : "Persistance indisponible sur ce navigateur — bibliothèque en mémoire uniquement, perdue au rechargement."}
+      </div>
+      <button onClick={wipe} disabled={busy||(mem===0&&!disk)}
+        style={{width:"100%",padding:"7px 10px",borderRadius:7,fontSize:9.5,fontWeight:800,fontFamily:T.stats,
+          cursor:busy||(mem===0&&!disk)?"default":"pointer",opacity:busy||(mem===0&&!disk)?.45:1,
+          border:`1px solid ${T.border}`,background:"transparent",color:T.text3}}>
+        {busy?"⏳ Vidage…":"🗑 Vider la bibliothèque"}
+      </button>
+    </div>
+  );
+}
+
 /* ── RÉSULTAT DU SPOT (§45) — distingue clairement ÉQUITÉ (part du pot à
    l'abattage) et EV (gain espéré de l'action). Ce ne sont PAS la même chose. ── */
 function SolverSpotResultPanel({equityHero,equityVillain,foldEquity,math,evTotal,strategySource}){
@@ -3351,6 +3402,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             overlay={cfrOverlay} setOverlay={setCfrOverlay}
           />
           <SolverQualityCard cfr={cfrResult} busy={cfrBusy}/>
+          <SolverLibraryPanel/>
         </div>
       </div>
 
