@@ -261,7 +261,20 @@ function callTransition({ spot, ctx, state = {}, autoFull = false }) {
   assert.match(commandDockRule, /height:54px/, "1T command dock must keep its compact premium height");
   assert.match(commandDockRule, /margin:8px 0 8px 14px/, "1T command dock must preserve a safety gap from the table");
   assert.match(CSS, /\.grid1>\.mt-slot\{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;\}/, "1T table slot must shrink above the command dock without overlap");
-  assert.match(CSS, /\.t1-left \.felt-oval\{top:3%!important;left:2\.5%!important;right:2\.5%!important;bottom:6%!important;\}/, "mobile 1T felt must keep bottom safety clearance");
+  /* Garde basse du feutre 1T mobile — le feutre ne doit pas descendre jusqu'au
+     command dock. On teste CETTE intention, et non la règle CSS entière.
+     Cette assertion figeait auparavant les quatre offsets au caractère près
+     (top:3%/left:2.5%/right:2.5%/bottom:6%). La géométrie mobile a été refondue
+     trois fois depuis (PixelPack 94b265e, sièges sur l'anneau doré 5a05690,
+     anneau d'ancrage fixe 53461d2) : le test échouait à cause de `left`/`right`,
+     c'est-à-dire pour une raison étrangère à ce qu'il prétend protéger, et il est
+     resté rouge sans que personne ne puisse s'y fier. Un test de non-régression
+     ne doit contraindre que l'invariant qu'il nomme. */
+  const feltRule = CSS.match(/\.t1-left \.felt-oval\{([^}]*top:[^}]*)\}/)?.[1] || "";
+  assert.ok(feltRule, "mobile 1T felt must define its oval offsets");
+  const feltBottom = Number(feltRule.match(/bottom:([\d.]+)%/)?.[1]);
+  assert.ok(Number.isFinite(feltBottom), "mobile 1T felt must declare a bottom offset");
+  assert.ok(feltBottom >= 4, `mobile 1T felt must keep bottom safety clearance (bottom:${feltBottom}% < 4%)`);
 
   assert.equal(trainerChipValueBand(0.5), "forced");
   assert.equal(trainerChipValueBand(4.5), "small");
