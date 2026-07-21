@@ -11,7 +11,10 @@
      solveSubgame(heroFreqs, villFreqs, …)     → { source, result, convergence }  (§13,§14)
      getPresolvedSolution / getClosestSolution → stubs bibliothèque pré-solvée     (§16)
 ════════════════════════════════════════════════════════════════════════════ */
-import { ResultSource } from "./provenance.js";
+import { ResultSource, RangeSource } from "./provenance.js";
+import { solvePushFold, pfExploitability, pfRangePct, pfToFreqs,
+         PF_HANDS, PF_MATRIX_META } from "./core/pushfold.js";
+import PF_RANGES from "./data/pushfoldRanges.js";
 import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
@@ -205,6 +208,65 @@ export function computePKO(params={}){
   const v=pkoValue(params);
   return{source:ResultSource.PKO_ESTIMATE,...v};
 }
+
+/* ── PUSH/FOLD PRÉFLOP (§11) — la PREMIÈRE zone préflop réellement calculée.
+   Jusqu'ici tout le préflop était heuristique (buildSolverFreqs) et le CFR y était
+   désactivé (§40, sous-jeu postflop). Le push/fold tapis court échappe à cette
+   limite : tout all-in va à l'abattage, donc aucune EV postflop à estimer.
+   Provenance EXACT_CALCULATION et RangeSource.SOLVER_GENERATED — ces ranges ne
+   sont PAS des estimations.
+   Réserves à afficher : heads-up uniquement, chip-EV pur (aucune contrainte ICM,
+   bien que l'utilité §21 existe), précision bornée par le bruit de la matrice. ── */
+const _pfCache=new Map();
+const _pfLimits={
+  headsUpOnly:true,
+  chipEvOnly:true,   // aucune contrainte ICM — ne pas présenter comme bulle
+  note:"heads-up, chip-EV pur (sans ICM), précision bornée par la matrice d'équité",
+};
+export function solvePreflopPushFold(effStackBb,opts={}){
+  const S=Math.round((effStackBb||0)*10)/10;
+  if(!(S>0))return{source:ResultSource.NO_SOLUTION,sbJam:null,bbCall:null};
+
+  /* Table PRÉ-CALCULÉE hors ligne à 20000 itérations (exploitabilité max
+     0.000256 bb) pour les tapis entiers 1..25bb. Le solve live coûterait ~6 s et
+     gèlerait l'UI ; ici c'est un lookup instantané ET plus précis. Repli sur le
+     solve live pour tout tapis non tabulé (fractionnaire, ou hors 1..25). */
+  const whole=Math.round(S);
+  const tabled=(!opts.force&&Math.abs(S-whole)<1e-9&&PF_RANGES.depths[whole])?PF_RANGES.depths[whole]:null;
+  const key=S+"|"+(tabled?"lib":(opts.iters||"live"));
+  if(!opts.force&&_pfCache.has(key))return _pfCache.get(key);
+
+  let sbJamFreq,bbCallFreq,jamPct,callPct,exp,iters,provenance;
+  if(tabled){
+    const toDist=(arr)=>Float64Array.from(arr,x=>x/1000);
+    sbJamFreq=toDist(tabled.jam);bbCallFreq=toDist(tabled.call);
+    jamPct=tabled.jamPct;callPct=tabled.callPct;
+    exp={sb:tabled.exp.sb,bb:tabled.exp.bb};
+    iters=PF_RANGES.iters;provenance="library";
+  }else{
+    const sol=solvePushFold(S,opts);
+    sbJamFreq=sol.sbJam;bbCallFreq=sol.bbCall;
+    jamPct=Math.round(pfRangePct(sol.sbJam)*10)/10;
+    callPct=Math.round(pfRangePct(sol.bbCall)*10)/10;
+    const e=pfExploitability(sol.sbJam,sol.bbCall,S);
+    exp={sb:e.sbGain,bb:e.bbGain};
+    iters=sol.iters;provenance="live";
+  }
+  const out={
+    source:ResultSource.EXACT_CALCULATION,
+    rangeSource:RangeSource.SOLVER_GENERATED,
+    stack:S,iters,precompiled:provenance==="library",
+    sbJam:pfToFreqs(sbJamFreq),bbCall:pfToFreqs(bbCallFreq),
+    sbJamPct:jamPct,bbCallPct:callPct,
+    // Même rôle que NashConv : ≈0 des deux côtés ⟺ équilibre atteint.
+    exploitability:exp,
+    matrix:PF_MATRIX_META,
+    limits:_pfLimits,
+  };
+  _pfCache.set(key,out);
+  return out;
+}
+export { PF_HANDS, PF_MATRIX_META };
 
 /* ── Bibliothèque pré-solvée (§16) — adossée au Solution Storage. ── */
 export function getPresolvedSolution(solveId){

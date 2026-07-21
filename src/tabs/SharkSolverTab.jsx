@@ -6,7 +6,8 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
 import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO,
-         hydrateLibrary, librarySize, persistedCount, clearLibrary, libraryStatus } from "../solver/api.js";
+         hydrateLibrary, librarySize, persistedCount, clearLibrary, libraryStatus,
+         solvePreflopPushFold } from "../solver/api.js";
 import { buildCoachBrief } from "../solver/explain.js";
 import "./SharkSolverTab.css";
 
@@ -2517,6 +2518,109 @@ function SolverResultSourcePanel({strategySource,equitySource}){
     </div>
   );
 }
+/* ── PUSH/FOLD PRÉFLOP (§11) — LA PREMIÈRE ZONE PRÉFLOP CALCULÉE.
+   Tout le préflop était heuristique et le CFR y est désactivé (§40). Ici les
+   ranges sont un ÉQUILIBRE DE NASH réellement calculé : tout all-in va à
+   l'abattage, donc aucune EV postflop à estimer.
+
+   Le panneau n'apparaît que là où il a un sens (préflop, tapis ≤ 25bb) et affiche
+   ses LIMITES aussi lisiblement que son résultat : heads-up, chip-EV pur, sans
+   ICM. Sans cette mention, un joueur en bulle prendrait ces ranges pour des ranges
+   de bulle — l'erreur serait invisible et coûteuse (§2). ── */
+function SolverPushFoldPanel({preflop,effStack}){
+  const [sol,setSol]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const usable=preflop&&effStack>0&&effStack<=25;
+  useEffect(()=>{setSol(null);},[effStack,preflop]);
+  if(!preflop)return null;
+  const run=()=>{
+    setBusy(true);
+    setTimeout(()=>{
+      try{ setSol(solvePreflopPushFold(effStack)); }catch{ setSol(null); }
+      setBusy(false);
+    },30);
+  };
+  const meta=resultMeta(ResultSource.EXACT_CALCULATION);
+  const grid=(freqs,color)=>{
+    const hands=Object.keys(freqs).filter(k=>freqs[k].r>=50);
+    const cls=(k)=>k.length===2?"paires":k.endsWith("s")?"assorties":"dépareillées";
+    return ["paires","assorties","dépareillées"].map(c=>{
+      const list=hands.filter(h=>cls(h)===c);
+      if(!list.length)return null;
+      return(
+        <div key={c} style={{marginBottom:5}}>
+          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".06em",marginBottom:2}}>{c.toUpperCase()} ({list.length})</div>
+          <div style={{fontSize:9,color,fontFamily:T.stats,lineHeight:1.5,wordBreak:"break-word"}}>{list.join(" ")}</div>
+        </div>
+      );
+    });
+  };
+  return(
+    <div className="ss-card2">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">♠ PUSH / FOLD PRÉFLOP — ÉQUILIBRE</span>
+        {sol&&<span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>}
+      </div>
+
+      {!usable?(
+        <div className="ss-ms-note warn">
+          ⓘ Le push/fold ne s'applique qu'aux <b>tapis courts</b> (≤ 25bb).
+          Tapis effectif actuel : <b>{effStack}bb</b> — au-delà, jamer n'est plus
+          l'équilibre et le préflop reste <b>heuristique</b> (non solvé).
+        </div>
+      ):(
+        <>
+          <div className="ss-ms-bar">
+            <button className="ss-ms-solve" onClick={run} disabled={busy}>
+              {busy?"⏳ Résolution…":`▶ Résoudre l'équilibre à ${effStack}bb`}
+            </button>
+            <span className="ss-ms-meta">heads-up · blindes 0.5 / 1</span>
+          </div>
+
+          {sol&&sol.source!=="NO_SOLUTION"&&(<>
+            <div className="ss-ms-stats" style={{gridTemplateColumns:"repeat(4,1fr)"}}>
+              <div><span>SB jam</span><b style={{color:"#10D87A"}}>{sol.sbJamPct}%</b></div>
+              <div><span>BB paie</span><b style={{color:"#34B4FF"}}>{sol.bbCallPct}%</b></div>
+              <div><span>Exploitabilité</span><b style={{color:"#10D87A"}}>{sol.exploitability.bb.toFixed(5)} bb</b></div>
+              <div><span>Itérations</span><b>{sol.iters}</b></div>
+            </div>
+
+            {/* Les limites AVANT les ranges : elles conditionnent leur lecture. */}
+            <div className="ss-ms-note warn">
+              ⚠ <b>Heads-up et chip-EV pur.</b> Ces ranges ignorent totalement l'<b>ICM</b> :
+              en bulle il faut jamer et payer plus serré. Elles ne valent pas non plus
+              en multiway. Équité issue d'une matrice pré-calculée
+              (bruit ≈ ±{sol.matrix.matrixNoise.mean} pt).
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:8}}>
+              <div>
+                <div style={{fontSize:9.5,fontWeight:800,color:"#10D87A",fontFamily:T.stats,marginBottom:4}}>
+                  SB JAM · {sol.sbJamPct}%
+                </div>
+                {grid(sol.sbJam,"#10D87A")}
+              </div>
+              <div>
+                <div style={{fontSize:9.5,fontWeight:800,color:"#34B4FF",fontFamily:T.stats,marginBottom:4}}>
+                  BB PAIE · {sol.bbCallPct}%
+                </div>
+                {grid(sol.bbCall,"#34B4FF")}
+              </div>
+            </div>
+
+            <div className="ss-ms-note">
+              <b>Pourquoi c'est calculé et pas estimé</b> — tout all-in va à l'abattage,
+              donc aucune EV postflop à approcher : il ne reste qu'une matrice d'équité
+              et un jeu à somme nulle. L'<b>exploitabilité ≈ 0</b> ci-dessus prouve que
+              l'équilibre est atteint (même rôle que le NashConv postflop).
+            </div>
+          </>)}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ── BIBLIOTHÈQUE DE SOLUTIONS (§16) — état + reprise en main.
    Les solves sont conservés sur disque (IndexedDB) et rechargés instantanément.
    Note : un solve n'est retrouvé que si sa SIGNATURE correspond (ranges, board,
@@ -3482,6 +3586,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               icmReady={!!(icmParams&&icmParams.payouts&&icmParams.payouts.length)}
               bountyRate={tourneyCtx&&tourneyCtx._rate}
             />
+            {/* §11 — le solveur multi-rue est postflop ; celui-ci prend le relais
+                EN AMONT, sur la seule zone préflop réellement calculable. */}
+            <SolverPushFoldPanel preflop={board.length<3} effStack={effective}/>
           </div>
 
           <div className="ss-bottom">

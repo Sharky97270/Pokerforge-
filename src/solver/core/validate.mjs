@@ -8,7 +8,8 @@ import { eval5i, eval7i } from "./evaluator.js";
 import { comboCardsInt, singleHandList, rangeComboList, reduceRange } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
-import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO } from "../api.js";
+import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO, solvePreflopPushFold } from "../api.js";
+import { solvePushFold, pfExploitability, pfRangePct, pfEquity, PF_HANDS } from "./pushfold.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue, makeIcmUtility, makePkoUtility, CHIP_UTILITY } from "./icm.js";
 import { classifyDecision, classifyLeak, buildCoachBrief, buildExercise } from "../explain.js";
@@ -511,6 +512,109 @@ ok("persistance PKO : lecture identique après réhydratation",
   Math.abs(pkSol.result.aggAt(pkSol.result.tree,0)-pkBack.aggAt(pkBack.tree,0))<1e-12);
 ok("persistance PKO : sans paramètres → REJETÉ (jamais rétrogradé en jetons)",
   rehydrateTreeSolution({...pkClone,pkoParams:null})===null);
+
+console.log("\n[20] PUSH/FOLD PRÉFLOP (§11 — première zone préflop CALCULÉE)");
+/* Le préflop était intégralement heuristique (buildSolverFreqs) et le CFR y est
+   désactivé (§40). Le push/fold tapis court échappe à cette limite : tout all-in va
+   à l'abattage, donc aucune EV postflop à estimer — il ne reste qu'une matrice
+   d'équité et un jeu à somme nulle. Ces ranges sont CALCULÉES, pas estimées.
+
+   On teste des propriétés THÉORIQUEMENT NÉCESSAIRES, pas des chiffres cités de
+   mémoire : citer une table Nash de tête reproduirait exactement l'erreur du
+   commentaire « GTO réaliste » de buildSolverFreqs. */
+const pfIters=3000;   // suffisant pour les propriétés ; l'artefact livré est à 20000
+const pfDepths=[1,5,10,20,25];
+const pfSols={};
+for(const S of pfDepths)pfSols[S]=solvePushFold(S,{iters:pfIters});
+const pfIdx=Object.fromEntries(PF_HANDS.map((h,i)=>[h,i]));
+
+// (a) Matrice d'équité — cohérence interne.
+ok("matrice : antisymétrie eq(i,j)+eq(j,i)=100", (()=>{
+  for(let i=0;i<PF_HANDS.length;i+=7)for(let j=0;j<PF_HANDS.length;j+=5)
+    if(Math.abs(pfEquity(i,j)+pfEquity(j,i)-100)>0.02)return false;
+  return true;
+})());
+// La diagonale est un THÉORÈME (main contre elle-même = situation symétrique),
+// pas une estimation : elle sert de témoin du bruit de toute la matrice.
+ok("matrice : diagonale = 50% exactement (symétrie, posée et non estimée)", (()=>{
+  for(let i=0;i<PF_HANDS.length;i++)if(Math.abs(pfEquity(i,i)-50)>1e-9)return false;
+  return true;
+})());
+ok("matrice : équités conformes aux références (§24)",
+  Math.abs(pfEquity(pfIdx["AA"],pfIdx["KK"])-82.4)<2.5&&
+  Math.abs(pfEquity(pfIdx["AKo"],pfIdx["KK"])-30.0)<3&&
+  Math.abs(pfEquity(pfIdx["JJ"],pfIdx["AKo"])-56.9)<3);
+
+// (b) Équilibre — le juge de paix.
+let pfWorst=0;
+for(const S of pfDepths){
+  const e=pfExploitability(pfSols[S].sbJam,pfSols[S].bbCall,S);
+  pfWorst=Math.max(pfWorst,e.sbGain,e.bbGain);
+}
+ok(`push/fold : exploitabilité ≈ 0 (max ${pfWorst.toFixed(5)} bb à ${pfIters} itérations)`, pfWorst<0.005);
+
+// (c) Propriétés structurelles.
+ok("push/fold : range de jam décroissante quand le tapis s'allonge", (()=>{
+  for(let k=1;k<pfDepths.length;k++)
+    if(pfRangePct(pfSols[pfDepths[k]].sbJam)>pfRangePct(pfSols[pfDepths[k-1]].sbJam)+0.5)return false;
+  return true;
+})());
+ok("push/fold : à 1bb les deux camps jouent ~100% (jamer 1bb pour en gagner 1)",
+  pfRangePct(pfSols[1].sbJam)>95&&pfRangePct(pfSols[1].bbCall)>95);
+/* BB paie plus serré que SB ne jam — SEULEMENT hors tapis dégénéré. À 1bb BB est
+   déjà all-in du fait de sa blinde, payer ne lui coûte rien. Deux formulations
+   antérieures de cette propriété se sont révélées fausses, tirées d'un prototype à
+   5 mains : on borne donc explicitement son domaine de validité. */
+ok("push/fold : BB paie plus serré que SB ne jam (S ≥ 5bb uniquement)", (()=>{
+  for(const S of pfDepths.filter(d=>d>=5))
+    if(pfRangePct(pfSols[S].bbCall)>pfRangePct(pfSols[S].sbJam))return false;
+  return true;
+})());
+ok("push/fold : AA jam et paie à toutes les profondeurs",
+  pfDepths.every(S=>pfSols[S].sbJam[pfIdx["AA"]]>0.99&&pfSols[S].bbCall[pfIdx["AA"]]>0.99));
+ok("push/fold : 72o couché à 25bb des deux côtés",
+  pfSols[25].sbJam[pfIdx["72o"]]<0.02&&pfSols[25].bbCall[pfIdx["72o"]]<0.02);
+ok("push/fold : monotonie sur les paires (AA ≥ KK ≥ … ≥ 77) à 10bb", (()=>{
+  const P=["AA","KK","QQ","JJ","TT","99","88","77"];
+  for(let k=1;k<P.length;k++){
+    if(pfSols[10].sbJam[pfIdx[P[k]]]>pfSols[10].sbJam[pfIdx[P[k-1]]]+1e-9)return false;
+    if(pfSols[10].bbCall[pfIdx[P[k]]]>pfSols[10].bbCall[pfIdx[P[k-1]]]+1e-9)return false;
+  }
+  return true;
+})());
+
+// (d) API + PROVENANCE — ces ranges ne doivent JAMAIS être étiquetées heuristiques.
+const pfApi=solvePreflopPushFold(10,{iters:2000,force:true});
+ok("API push/fold : provenance CALCULÉE, jamais heuristique",
+  pfApi.source==="EXACT_CALCULATION"&&pfApi.rangeSource==="SOLVER_GENERATED");
+ok("API push/fold : format de range compatible avec le reste du solveur",
+  pfApi.sbJam&&pfApi.sbJam.AA&&pfApi.sbJam.AA.r===100&&pfApi.sbJam["72o"].f===100);
+/* Les limites doivent VOYAGER avec le résultat : heads-up et chip-EV pur. Sans ce
+   marqueur, ces ranges seraient prises pour des ranges de bulle alors qu'elles
+   ignorent totalement l'ICM (§21) — l'erreur serait invisible à l'écran. */
+ok("API push/fold : limites transportées (heads-up, chip-EV sans ICM)",
+  pfApi.limits&&pfApi.limits.headsUpOnly===true&&pfApi.limits.chipEvOnly===true);
+ok("API push/fold : exploitabilité fournie (l'UI peut prouver l'équilibre)",
+  pfApi.exploitability&&Number.isFinite(pfApi.exploitability.sb));
+ok("API push/fold : tapis invalide → NO_SOLUTION",
+  solvePreflopPushFold(0).source==="NO_SOLUTION"&&solvePreflopPushFold(-5).source==="NO_SOLUTION");
+
+/* Table PRÉ-CALCULÉE : un tapis entier tabulé doit être servi depuis la
+   bibliothèque (instantané) et non re-solvé. Et surtout, l'accord table↔live doit
+   être vérifié sur les VALEURS : si l'ordre des mains des deux générateurs divergait,
+   le lookup mélangerait les mains sans erreur visible. */
+const pfLib=solvePreflopPushFold(10);
+ok("API push/fold : tapis entier servi depuis la bibliothèque pré-calculée",
+  pfLib.precompiled===true&&pfLib.iters>=20000);
+ok("API push/fold : bibliothèque et solve live concordent (même ordre de mains)", (()=>{
+  const live=solvePreflopPushFold(10,{iters:4000,force:true});
+  // AA doit jam/payer, 72o doit fold, des deux côtés — invariant robuste au bruit.
+  return pfLib.sbJam.AA.r===100&&live.sbJam.AA.r===100&&
+         pfLib.sbJam["72o"].f===100&&live.sbJam["72o"].f===100&&
+         Math.abs(pfLib.sbJamPct-live.sbJamPct)<3;
+})());
+ok("API push/fold : tapis fractionnaire → repli sur solve live",
+  solvePreflopPushFold(10.5,{iters:2000}).precompiled===false);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);
