@@ -188,6 +188,32 @@ export function solveTree(heroList,villList,board,opts={}){
   }
   const ev=evDen?evNum/evDen:0;
 
+  // `strat` est EXPOSÉ dans le retour : c'est l'état complet de la solution, donc
+  // ce qui doit être persisté pour la recharger sans re-solve (§16).
+  const base={
+    tree,E,strat,heroList,villList,wH,wV,startPot,initLen,
+    ev:Math.round(ev*1000)/1000,
+    iters,sampled:need>0,boardCards:initLen,
+  };
+  attachStrategyAccessors(base);
+  const heroCheck=base.aggAt(tree,0);
+  base.heroCheck=Math.round(heroCheck*1000)/10;
+  base.heroBet=Math.round((1-heroCheck)*1000)/10;
+  return base;
+}
+
+/* ══ ACCESSEURS DE STRATÉGIE (§26/§16) — FABRIQUE UNIQUE ══
+   avgOf / aggAt / ctxCount sont des fonctions PURES de (strat, wH, wV) : elles ne
+   dépendent d'aucun état de la boucle CFR. On les attache ici plutôt que de les
+   fermer sur le scope de solveTree, pour deux raisons :
+     1. les closures ne survivent pas au structured clone → une solution persistée
+        les perd ; on les RECONSTRUIT à la relecture (rehydrateTreeSolution) ;
+     2. une seule implémentation sert le solve frais ET le solve rechargé, donc
+        aucune dérive possible entre les deux chemins de lecture.
+   Mute et retourne `sol`. */
+export function attachStrategyAccessors(sol){
+  const {strat,wH,wV,heroList,villList}=sol;
+  const nH=heroList.length,nV=villList.length;
   // Stratégie moyenne par nœud/combo, pour un contexte de runout donné (déf. board initial).
   const avgOf=(node,c,key="")=>{
     const m=strat[node.id];const t=m?m.get(key):null;
@@ -199,17 +225,20 @@ export function solveTree(heroList,villList,board,opts={}){
   };
   // Fréquence agrégée (pondérée par le poids des combos) d'une action à un nœud.
   const aggAt=(node,actIdx,key="")=>{let num=0,den=0;const nc=node.player===0?nH:nV,w=node.player===0?wH:wV;for(let c=0;c<nc;c++){num+=w[c]*avgOf(node,c,key)[actIdx];den+=w[c];}return den?num/den:0;};
+  sol.avgOf=avgOf;
+  sol.aggAt=aggAt;
+  // nb de contextes de runout appris à un nœud (>1 ⟺ sous-arbres par carte actifs)
+  sol.ctxCount=(node)=>strat[node.id]?strat[node.id].size:0;
+  return sol;
+}
 
-  const heroCheck=aggAt(tree,0);
-  return{
-    tree,E,avgOf,aggAt,heroList,villList,wH,wV,startPot,initLen,
-    // nb de contextes de runout appris à un nœud (>1 ⟺ sous-arbres par carte actifs)
-    ctxCount:(node)=>strat[node.id]?strat[node.id].size:0,
-    heroCheck:Math.round(heroCheck*1000)/10,
-    heroBet:Math.round((1-heroCheck)*1000)/10,
-    ev:Math.round(ev*1000)/1000,
-    iters,sampled:need>0,boardCards:initLen,
-  };
+/* Solution rechargée depuis la bibliothèque → réattache les accesseurs perdus au
+   clonage. `plain` doit porter strat/tree/heroList/villList/wH/wV (cf. SOLVE_DATA_KEYS
+   dans library.js). Retourne null si l'objet n'est pas réhydratable — on préfère
+   un cache manquant à une solution silencieusement amputée (§2). */
+export function rehydrateTreeSolution(plain){
+  if(!plain||!plain.strat||!plain.tree||!plain.heroList||!plain.villList)return null;
+  return attachStrategyAccessors(plain);
 }
 /* Alias rétro-compat : le board complet (5 cartes) est le cas exact. */
 export const solveTreeFixedBoard=solveTree;

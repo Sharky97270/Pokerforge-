@@ -12,7 +12,10 @@ import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeI
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
 import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue } from "./icm.js";
 import { classifyDecision, classifyLeak, buildCoachBrief, buildExercise } from "../explain.js";
-import { solveTreeFixedBoard, solveTree, nashConv } from "./multistreet.js";
+import { solveTreeFixedBoard, solveTree, nashConv, rehydrateTreeSolution } from "./multistreet.js";
+import { storeSolution, getSolution, librarySize, clearLibrary,
+         hydrateLibrary, libraryStatus, persistedCount } from "../library.js";
+import { persistenceAvailable } from "../persist.js";
 
 let pass=0, fail=0;
 const ok=(name,cond)=>{ if(cond){pass++;console.log("  ✓ "+name);} else {fail++;console.log("  ✗ FAIL: "+name);} };
@@ -265,6 +268,55 @@ ok("brief heuristique → disclaimer 'pas un solve GTO'", /pas un solve GTO/.tes
 // (d) Exercice ciblé sur le leak.
 const ex=buildExercise(misVal,{heroPos:"CO",vsPos:"BB"});
 ok("buildExercise : scénario + focus + reps (leak value)", ex&&ex.scenario.heroPos==="CO"&&ex.reps>=2&&/value/i.test(ex.focus));
+
+console.log("\n[16] SOLUTION LIBRARY — PERSISTANCE (§16 · roadmap §11)");
+/* La persistance repose sur le structured clone d'IndexedDB, qui NE CONSERVE PAS
+   les fonctions. Une solution multi-rue expose des accesseurs (avgOf/aggAt/ctxCount)
+   fermés sur ses tables de stratégie : rechargée telle quelle, elle les perdrait et
+   renverrait des fréquences uniformes 1/na — de la fausse stratégie présentée comme
+   un solve. Ces tests verrouillent le contrat : ce qui revient du disque se lit
+   EXACTEMENT comme ce qui sort du solveur. Ici on SIMULE le clone en retirant les
+   fonctions (Node n'a pas d'IndexedDB). */
+const persistSol=solveTree(
+  [{cards:[C("A",2),C("A",1)],w:1},{cards:[C("6",1),C("5",1)],w:1}],
+  [{cards:[C("K",3),C("Q",3)],w:1}],
+  turnBoard,{iters:300,betFrac:0.75,startPot:6,streets:2});
+// `strat` doit être exposé : sans lui, rien n'est persistable.
+ok("solveTree expose ses tables de stratégie (strat)", !!persistSol.strat&&typeof persistSol.strat==="object");
+// Simulation du structured clone : les fonctions disparaissent.
+const cloned={};for(const k of Object.keys(persistSol))if(typeof persistSol[k]!=="function")cloned[k]=persistSol[k];
+ok("clone simulé : les accesseurs sont bien perdus", cloned.aggAt===undefined&&cloned.avgOf===undefined);
+const revived=rehydrateTreeSolution(cloned);
+ok("rehydrateTreeSolution : accesseurs reconstruits", !!revived&&typeof revived.aggAt==="function"&&typeof revived.avgOf==="function");
+// LE test qui compte : lecture identique à la racine ET sur un nœud enfant.
+const rootA=persistSol.aggAt(persistSol.tree,0), rootB=revived.aggAt(revived.tree,0);
+ok("réhydratée == fraîche : fréquence racine ("+rootA.toFixed(6)+" vs "+rootB.toFixed(6)+")", Math.abs(rootA-rootB)<1e-12);
+const avgA=persistSol.avgOf(persistSol.tree,0), avgB=revived.avgOf(revived.tree,0);
+ok("réhydratée == fraîche : stratégie par combo identique", avgA.length===avgB.length&&avgA.every((x,i)=>Math.abs(x-avgB[i])<1e-12));
+ok("réhydratée == fraîche : ctxCount identique", persistSol.ctxCount(persistSol.tree)===revived.ctxCount(revived.tree));
+// GARDE-FOU : une charge amputée doit être REJETÉE, pas servie en silence (§2).
+ok("payload sans strat → null (jamais de solution amputée)", rehydrateTreeSolution({...cloned,strat:undefined})===null);
+ok("payload vide → null", rehydrateTreeSolution(null)===null&&rehydrateTreeSolution({})===null);
+
+/* Éviction LRU RÉELLE : une solution relue ne doit pas être évincée avant une
+   solution jamais relue insérée plus tard (l'ancienne implémentation, FIFO sur
+   l'ordre d'insertion, échouait ici). */
+clearLibrary();
+for(let i=0;i<500;i++)storeSolution("LRU-"+i,{result:{n:i}});
+getSolution("LRU-0");                    // on « utilise » la plus ancienne
+storeSolution("LRU-new",{result:{n:-1}}); // force une éviction
+ok("LRU : l'entrée relue survit à l'éviction", getSolution("LRU-0")!==null);
+ok("LRU : c'est la vraie inutilisée qui est évincée", getSolution("LRU-1")===null);
+ok("LRU : taille bornée après éviction ("+librarySize()+")", librarySize()<=500);
+
+/* Dégradation hors navigateur : pas d'IndexedDB sous Node. Rien ne doit lever, et
+   la bibliothèque doit rester pleinement fonctionnelle en mémoire. */
+ok("Node : persistance correctement signalée indisponible", persistenceAvailable()===false);
+const hydrated=await hydrateLibrary();
+ok("Node : hydrateLibrary() résout sans lever (0 entrée)", hydrated===0&&libraryStatus.hydrated===true);
+ok("Node : storeSolution reste fonctionnel sans disque", storeSolution("NODB-1",{result:{ok:1}})==="NODB-1"&&getSolution("NODB-1")!==null);
+ok("Node : persistedCount() = 0", (await persistedCount())===0);
+clearLibrary();
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

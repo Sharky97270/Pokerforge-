@@ -17,7 +17,8 @@ import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
 import { rangeComboList } from "./core/combos.js";
 import { icmEquity, icmRiskPremium, pkoValue } from "./core/icm.js";
-import { storeSolution, getSolution, getClosest, librarySize } from "./library.js";
+import { storeSolution, getSolution, getClosest, librarySize,
+         hydrateLibrary, libraryStatus, persistedCount, clearLibrary } from "./library.js";
 
 /* Identifiant de solve déterministe : même spec → même ID (reproductibilité §15). */
 export function makeSolveId(spec){
@@ -162,6 +163,10 @@ export function getClosestSolution(solveId){
   return m?{...m.solution,source:ResultSource.PRESOLVED_LIBRARY,exactMatch:m.exact}:null;
 }
 export { librarySize };
+/* Persistance de la bibliothèque (§16 · roadmap §11). hydrateLibrary() doit être
+   appelé une fois au montage du solveur : il remonte en mémoire les solves des
+   sessions précédentes, qui redeviennent alors des PRESOLVED_LIBRARY immédiats. */
+export { hydrateLibrary, libraryStatus, persistedCount, clearLibrary };
 
 /* Accès bas-niveau exposé pour les cas simples (équité brute sans provenance). */
 export { monteCarloEquity };

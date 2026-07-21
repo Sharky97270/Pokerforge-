@@ -5,7 +5,7 @@ import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta,
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
 import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
 // §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
-import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO } from "../solver/api.js";
+import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO, hydrateLibrary } from "../solver/api.js";
 import { buildCoachBrief } from "../solver/explain.js";
 import "./SharkSolverTab.css";
 
@@ -2794,6 +2794,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const boardParse=useMemo(()=>parseBoardToken(boardInput),[boardInput]);
   /* Un résultat CFR ne vaut que pour le board sur lequel il a été calculé */
   useEffect(()=>{setCfrResult(null);setCfrOverlay(false);setMsResult(null);setMsPath([]);setMsExploit(null);},[boardInput]);
+  /* §16 — remonte les solves des sessions précédentes en cache chaud. Idempotent,
+     best-effort : un échec de persistance laisse simplement la bibliothèque vide. */
+  useEffect(()=>{hydrateLibrary();},[]);
   const board=boardParse.valid?boardParse.cards:[];
 
   function resetSelection(){
