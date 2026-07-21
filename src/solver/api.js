@@ -15,7 +15,7 @@ import { ResultSource } from "./provenance.js";
 import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
-import { rangeComboList } from "./core/combos.js";
+import { rangeComboList, reduceRange } from "./core/combos.js";
 import { icmEquity, icmRiskPremium, pkoValue } from "./core/icm.js";
 import { storeSolution, getSolution, getClosest, librarySize,
          hydrateLibrary, libraryStatus, persistedCount, clearLibrary } from "./library.js";
@@ -46,7 +46,9 @@ function _hashSeed(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.ch
 function _freqSig(freqs){const keys=Object.keys(freqs).sort();let s="";for(const k of keys){const f=freqs[k];const w=(f.r||0)+(f.c||0);if(w>0)s+=k+":"+w+";";}return s;}
 
 export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
-  const iters=opts.iters||400,maxCombos=opts.maxCombos||50;
+  /* 200 par défaut (et non 50) : en dessous de 169 classes, la réduction supprime
+     des classes de mains entières. `maxCombos:0` = range non plafonnée. */
+  const iters=opts.iters||400,maxCombos=opts.maxCombos!=null?opts.maxCombos:200;
   // Signature complète du solve (ranges réelles incluses) → seed + SolveID déterministes.
   const sig=_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+(board||[]).join(",")+"#"+potBb+"#"+betFrac+"#"+iters+"#"+maxCombos;
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
@@ -56,7 +58,9 @@ export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
     const cached=getSolution(solveId);
     if(cached)return{...cached,source:ResultSource.PRESOLVED_LIBRARY,fromLibrary:true};
   }
-  const result=solveRiverCFR(heroFreqs,villFreqs,board,potBb,betFrac,{...opts,seed});
+  // maxCombos passé EXPLICITEMENT : il entre dans la signature de cache ci-dessus,
+  // il doit donc être exactement celui utilisé par le solve (sinon la clé ment).
+  const result=solveRiverCFR(heroFreqs,villFreqs,board,potBb,betFrac,{...opts,maxCombos,seed});
   if(!result)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null};
   const out={
     source:ResultSource.CFR_SOLVE,
@@ -76,9 +80,15 @@ export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
    Benchmarké : clairvoyance analytique ≤0.4%, NashConv ≈0 (river ranges larges).
    `experimental:true` : l'UI ne doit PAS l'afficher comme « GTO » sans le dire (§2). ── */
 export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
-  const maxCombos=opts.maxCombos||100;
-  const cap=(freqs)=>rangeComboList(freqs).filter(e=>!board.includes(e.cards[0])&&!board.includes(e.cards[1])).slice(0,maxCombos);
-  const H=cap(heroFreqs),V=cap(villFreqs);
+  /* Défaut 200 et non 100 : il y a jusqu'à 169 classes de mains. En dessous, la
+     réduction doit SUPPRIMER des classes entières (cf. reduceRange). Au-dessus,
+     la forme de la range est conservée exactement. `maxCombos:0` = non plafonné. */
+  const maxCombos=opts.maxCombos!=null?opts.maxCombos:200;
+  const reduce=(freqs)=>reduceRange(
+    rangeComboList(freqs).filter(e=>!board.includes(e.cards[0])&&!board.includes(e.cards[1])),
+    maxCombos);
+  const rH=reduce(heroFreqs),rV=reduce(villFreqs);
+  const H=rH.list,V=rV.list;
   if(!H.length||!V.length||board.length<3)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null,experimental:true};
   const nStreets=opts.streets??(6-board.length-1);          // flop→3, turn→2, river→1
   const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"");
@@ -94,6 +104,12 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
     source:ResultSource.CFR_SOLVE,experimental:true,fromLibrary:false,
     result:sol,
     convergence:nc==null?{nashConv:null,note:"board incomplet — exploitabilité exacte indisponible (runouts échantillonnés)"}:{nashConv:nc},
+    /* §8/§2 — la solution porte-t-elle sur la range COMPLÈTE ? L'UI doit le dire. */
+    abstraction:{
+      exact:rH.exact&&rV.exact,
+      hero:{kept:rH.kept,total:rH.total,classesKept:rH.classesKept,classesTotal:rH.classesTotal,classesDropped:rH.classesDropped,method:rH.method},
+      vill:{kept:rV.kept,total:rV.total,classesKept:rV.classesKept,classesTotal:rV.classesTotal,classesDropped:rV.classesDropped,method:rV.method},
+    },
     solveId,seed,
   };
   storeSolution(solveId,out);

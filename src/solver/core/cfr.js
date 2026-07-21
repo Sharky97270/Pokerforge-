@@ -8,24 +8,29 @@
    d'exploitabilité — métriques RÉELLES (pas d'invention, §58).
    Isolé du monolithe (Phase 12).
 ════════════════════════════════════════════════════════════════════════════ */
-import { rangeComboList } from "./combos.js";
+import { rangeComboList, reduceRange } from "./combos.js";
 import { eval7i } from "./evaluator.js";
 import { mulberry32 } from "./equity.js";
 
 export function solveRiverCFR(heroFreqs,villainFreqs,board,potBB,betFrac,opts={}){
-  const maxCombos=opts.maxCombos||50;
+  /* `!=null` et non `||` : maxCombos:0 signifie « range NON PLAFONNÉE ». Avec `||`
+     le 0 retombait sur le défaut, et le mode non plafonné était inatteignable. */
+  const maxCombos=opts.maxCombos!=null?opts.maxCombos:200;
   const iters=opts.iters||400;
   const runouts=opts.runouts||60;
   const raiseMult=opts.raiseMult||3; // taille du raise vilain = 3× le bet
   const bd=board||[];
   // rng seedé pour les runouts (reproductibilité §15) : même spot → même solve.
   const rng=opts.seed==null?Math.random:mulberry32(opts.seed>>>0);
-  function topCombos(freqs){
+  /* Réduction STRATIFIÉE (§8) et non plus troncature : le tri par poids suivi d'un
+     slice gardait le haut de l'ordre d'insertion (paires/suited) et supprimait la
+     totalité des offsuit. reduceRange conserve la forme de la range. */
+  function sideCombos(freqs){
     const list=rangeComboList(freqs).filter(e=>!bd.includes(e.cards[0])&&!bd.includes(e.cards[1]));
-    list.sort((a,b)=>b.w-a.w);
-    return list.slice(0,maxCombos);
+    return reduceRange(list,maxCombos);
   }
-  const H=topCombos(heroFreqs),V=topCombos(villainFreqs);
+  const rH=sideCombos(heroFreqs),rV=sideCombos(villainFreqs);
+  const H=rH.list,V=rV.list;
   if(!H.length||!V.length)return null;
   const nH=H.length,nV=V.length;
   const complete=bd.length===5;
@@ -212,5 +217,12 @@ export function solveRiverCFR(heroFreqs,villainFreqs,board,potBB,betFrac,opts={}
     heroEV:Math.round(evNum/(wNum||1)*100)/100,
     heroByKey,
     iters,betSPct:Math.round(betFrac*100),betBPct:Math.round(bB/potBB*100),nH,nV,complete,pot:Math.round(potBB*10)/10,
+    /* §8 — état de l'abstraction de range, pour affichage honnête (§2) : la
+       solution porte-t-elle sur la range COMPLÈTE ou sur une réduction ? */
+    abstraction:{
+      exact:rH.exact&&rV.exact,
+      hero:{kept:rH.kept,total:rH.total,classesKept:rH.classesKept,classesTotal:rH.classesTotal,classesDropped:rH.classesDropped,method:rH.method},
+      vill:{kept:rV.kept,total:rV.total,classesKept:rV.classesKept,classesTotal:rV.classesTotal,classesDropped:rV.classesDropped,method:rV.method},
+    },
   };
 }

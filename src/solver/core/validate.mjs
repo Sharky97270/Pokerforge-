@@ -5,7 +5,7 @@
    Lancer :  node src/solver/core/validate.mjs
 ════════════════════════════════════════════════════════════════════════════ */
 import { eval5i, eval7i } from "./evaluator.js";
-import { comboCardsInt, singleHandList } from "./combos.js";
+import { comboCardsInt, singleHandList, rangeComboList, reduceRange } from "./combos.js";
 import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO } from "../api.js";
@@ -317,6 +317,60 @@ ok("Node : hydrateLibrary() résout sans lever (0 entrée)", hydrated===0&&libra
 ok("Node : storeSolution reste fonctionnel sans disque", storeSolution("NODB-1",{result:{ok:1}})==="NODB-1"&&getSolution("NODB-1")!==null);
 ok("Node : persistedCount() = 0", (await persistedCount())===0);
 clearLibrary();
+
+console.log("\n[17] RANGES NON PLAFONNÉES (§8 · roadmap §11)");
+/* L'ancien plafond faisait `list.slice(0,maxCombos)` sur un ordre d'INSERTION
+   (paires → suited → offsuit) : il ne réduisait pas la range, il en supprimait
+   le bas. Mesuré : à maxCombos=110 sur une range BTN RFI de 1134 combos, 90% de
+   la range partait et les 744 offsuit disparaissaient EN TOTALITÉ. Ces tests
+   verrouillent le remplacement : la range réduite garde la FORME de la range. */
+const rr={};
+"AKQJT98765432".split("").forEach((r,i)=>{const p=[100,100,100,100,95,90,85,90,80,79,69,59,49][i];rr[r+r]={r:p,c:0,f:100-p};});
+for(let i=0;i<13;i++)for(let j=i+1;j<13;j++){const R="AKQJT98765432";const p=Math.max(0,Math.min(100,100-(j-i)*12+(12-i)*4));if(p>0)rr[R[i]+R[j]+"s"]={r:p,c:0,f:100-p};}
+for(let i=0;i<13;i++)for(let j=i+1;j<13;j++){const R="AKQJT98765432";const p=Math.max(0,Math.min(100,90-(j-i)*16+(12-i)*3));if(p>0)rr[R[i]+R[j]+"o"]={r:p,c:0,f:100-p};}
+const rrFull=rangeComboList(rr);
+const klass=(k)=>k[0]===k[1]?"pp":k.endsWith("s")?"s":"o";
+const shareOf=(l)=>{const t={pp:0,s:0,o:0};let tot=0;for(const e of l){t[klass(e.key)]+=e.w;tot+=e.w;}return{pp:t.pp/tot,s:t.s/tot,o:t.o/tot};};
+const wSum=(l)=>l.reduce((a,e)=>a+e.w,0);
+const shFull=shareOf(rrFull);
+ok("range de test large ("+rrFull.length+" combos, "+new Set(rrFull.map(e=>e.key)).size+" classes)", rrFull.length>1000);
+
+// L'ANCIEN comportement, reproduit ici pour prouver ce qui a été corrigé.
+const oldWay=rrFull.slice(0,110);
+ok("ancien slice : supprimait TOUS les offsuit (régression verrouillée)", shareOf(oldWay).o===0);
+
+const red=reduceRange(rrFull,200);
+ok("réduction : budget respecté ("+red.kept+" ≤ 200)", red.kept<=200);
+ok("réduction : aucune classe perdue à 200 ("+red.classesKept+"/"+red.classesTotal+")", red.classesDropped===0);
+ok("réduction : les offsuit SURVIVENT ("+(100*shareOf(red.list).o).toFixed(1)+"%)", shareOf(red.list).o>0.5);
+// La forme de la range est le point : c'est elle qui pilote la stratégie postflop.
+ok("réduction : forme préservée (pp/s/o à ±1 pt)",
+  Math.abs(shareOf(red.list).pp-shFull.pp)<0.01&&
+  Math.abs(shareOf(red.list).s -shFull.s )<0.01&&
+  Math.abs(shareOf(red.list).o -shFull.o )<0.01);
+ok("réduction : poids TOTAL conservé ("+wSum(red.list).toFixed(3)+" vs "+wSum(rrFull).toFixed(3)+")", Math.abs(wSum(red.list)-wSum(rrFull))<1e-9);
+ok("réduction : marquée non exacte (l'UI doit le dire)", red.exact===false&&red.method==="stratified");
+
+// Non plafonné = chemin EXACT, aucune abstraction.
+const unc=reduceRange(rrFull,0);
+ok("maxCombos=0 → range complète, exact", unc.exact===true&&unc.method==="complete"&&unc.kept===rrFull.length);
+const under=reduceRange(rrFull,99999);
+ok("budget > range → complète, exact", under.exact===true&&under.method==="complete");
+// Budget < nombre de classes : perte inévitable, mais REMONTÉE et non silencieuse.
+const squeezed=reduceRange(rrFull,50);
+ok("budget < classes → classesDropped renseigné ("+squeezed.classesDropped+")", squeezed.classesDropped>0&&squeezed.exact===false);
+
+// L'abstraction doit remonter jusqu'aux résultats de l'API, sinon l'UI ne peut pas être honnête.
+const abRiver=[C("K",1),C("8",2),C("4",3),C("J",1),C("2",2)];
+const ab1=solveSubgame(rr,rr,abRiver,6,0.66,{maxCombos:200,iters:60,force:true});
+ok("API 1-street : abstraction exposée dans le résultat", !!ab1.result.abstraction&&ab1.result.abstraction.hero.classesTotal>0);
+const abSmall={AA:{r:100,c:0,f:0},T9o:{r:100,c:0,f:0}};
+const ab2=solveSubgame(abSmall,abSmall,abRiver,6,0.66,{maxCombos:0,iters:60,force:true});
+ok("API 1-street : maxCombos=0 → abstraction.exact=true", ab2.result.abstraction.exact===true);
+const ab3=solveMultiStreet(rr,rr,abRiver,{maxCombos:200,iters:40,betFrac:0.66,startPot:6,force:true});
+ok("API multi-rue : abstraction exposée + non exacte à 200", ab3.abstraction&&ab3.abstraction.exact===false);
+const ab4=solveMultiStreet(abSmall,abSmall,abRiver,{maxCombos:0,iters:40,betFrac:0.66,startPot:6,force:true});
+ok("API multi-rue : maxCombos=0 → abstraction.exact=true", ab4.abstraction.exact===true);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

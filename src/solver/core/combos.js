@@ -44,6 +44,85 @@ export function rangeComboList(freqs){
   }
   return out;
 }
+/* ══ RÉDUCTION DE RANGE (§8) — ABSTRACTION HONNÊTE ═══════════════════════════
+   Remplace le `list.slice(0,maxCombos)` qui plafonnait les ranges jusqu'ici.
+
+   POURQUOI c'était faux et pas seulement « approximatif » : rangeComboList itère
+   les clés dans l'ordre d'INSERTION (paires, puis suited, puis offsuit — cf.
+   buildSolverFreqs). Tronquer gardait donc systématiquement le haut de cet ordre.
+   Mesuré sur une range BTN RFI (1134 combos) à maxCombos=110 : 90% de la range
+   supprimée et les 744 combos OFFSUIT éliminés en totalité, à chaque solve. Le
+   solveur ne résolvait pas une version échantillonnée de la range demandée mais
+   une AUTRE range — paires + quelques suited — bien plus nuttée. Comme la
+   composition de range pilote l'essentiel de la stratégie postflop, les fréquences
+   affichées portaient sur une range que l'utilisateur n'avait jamais saisie.
+
+   CE QU'ON FAIT À LA PLACE : réduction stratifiée par classe de main (169).
+     · chaque classe présente dans la range reste présente (≥ 1 combo) ;
+     · le nombre de combos alloué à une classe est proportionnel à son POIDS ;
+     · les combos gardés sont pris à pas régulier (couleurs réparties, pas les
+       premières) et leur poids est remonté ×(combos_classe / combos_gardés),
+       ce qui conserve EXACTEMENT le poids de chaque classe et le poids total.
+   La range réduite a donc la même forme que la range demandée.
+
+   CE QUE ÇA NE CONSERVE PAS, et qu'il faut dire (§2) : la granularité par COULEUR
+   à l'intérieur d'une classe. Sur board monotone/flush-draw, les blockers de
+   couleur comptent — une classe réduite de 12 à 3 combos y perd de l'information.
+   D'où `exact:false` dans le retour : l'appelant doit signaler l'abstraction.
+
+   Retourne {list, exact, kept, total, classesKept, classesTotal, classesDropped, method}. */
+export function reduceRange(list,maxCombos){
+  const total=list.length;
+  const byKey=new Map();
+  for(const e of list){
+    let g=byKey.get(e.key);
+    if(!g){g={key:e.key,combos:[],w:e.w};byKey.set(e.key,g);}
+    g.combos.push(e);
+  }
+  const classesTotal=byKey.size;
+  const complete=(l)=>({list:l,exact:true,kept:l.length,total,
+    classesKept:classesTotal,classesTotal,classesDropped:0,method:"complete"});
+  // Range non plafonnée : chemin EXACT, aucune abstraction.
+  if(!Number.isFinite(maxCombos)||maxCombos<=0||total<=maxCombos)return complete(list);
+
+  const groups=[...byKey.values()];
+  for(const g of groups)g.W=g.combos.length*g.w;      // poids total de la classe
+
+  // Cas extrême : moins de budget que de classes → on garde les classes les plus
+  // lourdes et on REMONTE le nombre de classes perdues (jamais en silence).
+  let sel=groups;
+  if(maxCombos<groups.length)sel=[...groups].sort((a,b)=>b.W-a.W).slice(0,maxCombos);
+  const selW=sel.reduce((a,g)=>a+g.W,0)||1;
+
+  // Allocation proportionnelle au poids, bornée par les combos réellement dispo.
+  const alloc=sel.map(g=>({g,n:Math.max(1,Math.min(g.combos.length,
+    Math.round(maxCombos*g.W/selW)))}));
+  const sum=()=>alloc.reduce((a,x)=>a+x.n,0);
+  // Ajustement pour retomber exactement sur le budget.
+  let guard=alloc.length*8;
+  while(sum()>maxCombos&&guard-->0){
+    alloc.sort((a,b)=>b.n-a.n);
+    const t=alloc.find(x=>x.n>1);if(!t)break;t.n--;
+  }
+  guard=alloc.length*8;
+  while(sum()<maxCombos&&guard-->0){
+    alloc.sort((a,b)=>(b.g.combos.length-b.n)-(a.g.combos.length-a.n));
+    const t=alloc.find(x=>x.n<x.g.combos.length);if(!t)break;t.n++;
+  }
+
+  const out=[];
+  for(const {g,n} of alloc){
+    const c=g.combos.length,scale=c/n;                // conserve le poids de la classe
+    for(let i=0;i<n;i++){
+      const e=g.combos[Math.floor(i*c/n)];            // pas régulier → couleurs réparties
+      out.push({...e,w:e.w*scale});
+    }
+  }
+  return {list:out,exact:false,kept:out.length,total,
+    classesKept:alloc.length,classesTotal,classesDropped:classesTotal-alloc.length,
+    method:"stratified"};
+}
+
 /* Construit la liste de combos d'un camp selon Main/Range (+ combo exact si couleurs). */
 export function sideComboList(isHand,parse,key,freqs){
   if(isHand&&parse&&parse.valid){

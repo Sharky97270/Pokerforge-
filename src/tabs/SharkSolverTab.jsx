@@ -943,6 +943,32 @@ function SpotStacksBar(props){
   );
 }
 
+/* ── ABSTRACTION DE RANGE (§8/§2) — la solution porte-t-elle sur la range COMPLÈTE ?
+   Le solveur réduit les grandes ranges pour rester interactif. Tant que le budget
+   couvre les 169 classes de mains, la range solvée garde la FORME de la range saisie
+   (poids par classe conservé) et seule la granularité par COULEUR est approchée —
+   ce qui compte surtout sur board monotone/flush-draw. Si des classes entières ont
+   dû sauter, c'est une approximation d'une autre nature : on le dit explicitement,
+   jamais en silence. ── */
+function AbstractionNote({abstraction}){
+  if(!abstraction)return null;
+  const{exact,hero,vill}=abstraction;
+  if(exact)return(
+    <div style={{fontSize:8,color:T.green,fontFamily:T.stats,fontStyle:"italic"}}>
+      ✓ Ranges COMPLÈTES — aucune abstraction de combos ({hero.kept} vs {vill.kept} combos).
+    </div>
+  );
+  const dropped=Math.max(hero.classesDropped||0,vill.classesDropped||0);
+  return(
+    <div style={{fontSize:8,color:dropped>0?T.amber||"#FFC247":T.text4,fontFamily:T.stats,fontStyle:"italic"}}>
+      {dropped>0?"⚠ ":"≈ "}Ranges réduites : Hero {hero.kept}/{hero.total} combos, Vilain {vill.kept}/{vill.total}.
+      {dropped>0
+        ? <> {dropped} classe{dropped>1?"s":""} de mains ÉCARTÉE{dropped>1?"S":""} faute de budget — la solution ne couvre pas toute la range.</>
+        : <> Les {hero.classesTotal} classes de mains sont représentées et le poids de chacune est conservé ; seule la granularité par couleur est approchée.</>}
+    </div>
+  );
+}
+
 /* ── Bandeau de stats clés (Equity / Fold Eq / Pot Odds / MDF / SPR / combos) ── */
 function SolverStatsBar(props){
   const{equityHero,equityVillain,foldEquity,math,effective,combosAvail,combosBlocked,mode,riskPremium,bountyFactor}=props;
@@ -1031,7 +1057,10 @@ function SolverCFRPanel({result,busy,onSolve,betFrac,setBetFrac,boardCards,overl
             {overlay&&<span style={{fontSize:8.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>cellules colorées par fréquence de bet d'équilibre (vert = bet, gris = check)</span>}
           </div>
           <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,marginTop:8,fontStyle:"italic"}}>
-            {result.iters} itérations CFR+ · {result.nH}×{result.nV} combos (bornés) · pot {result.pot}bb · 2 sizings Hero ({result.betSPct}% / {result.betBPct}% pot) · check-raise & raise vilain inclus{result.complete?" · showdown exact":" · équité par runouts"}. Solveur de spot 1-street — pas un arbre multi-rue complet.
+            {result.iters} itérations CFR+ · {result.nH}×{result.nV} combos · pot {result.pot}bb · 2 sizings Hero ({result.betSPct}% / {result.betBPct}% pot) · check-raise & raise vilain inclus{result.complete?" · showdown exact":" · équité par runouts"}. Solveur de spot 1-street — pas un arbre multi-rue complet.
+          </div>
+          <div style={{marginTop:6}}>
+            <AbstractionNote abstraction={result.abstraction}/>
           </div>
         </>
       ):(
@@ -2680,6 +2709,8 @@ function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,s
             calculable. Renseigne le <b>river</b> (5 cartes) pour obtenir un NashConv exact.
           </div>
         )}
+        {/* §8 : la solution couvre-t-elle la range saisie, ou une réduction ? */}
+        <div style={{margin:"6px 0 2px"}}><AbstractionNote abstraction={result.abstraction}/></div>
 
         {/* Fil d'Ariane de navigation dans l'arbre */}
         <div className="ss-ms-trail">
@@ -3007,7 +3038,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     setTimeout(()=>{
       try{
         // §17 : passe par la Solver API ; s.result garde la forme attendue (+ convergence).
-        const s=solveSubgame(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:50,iters:400,runouts:board.length===5?0:60});
+        // maxCombos 200 (était 50) : en dessous de 169 classes de mains, la réduction
+        // en supprime — à 50, ~100 classes disparaissaient, dont TOUS les offsuit (§8).
+        const s=solveSubgame(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:200,iters:400,runouts:board.length===5?0:60});
         setCfrResult(s.result);setCfrSource(s.source); // §16 : CFR_SOLVE ou PRESOLVED_LIBRARY
       }catch(e){setCfrResult(null);}
       setCfrBusy(false);
@@ -3026,7 +3059,10 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
         const opts={
           iters:board.length===5?400:180,
           betSizes:[0.33,0.75],startPot:math.pot,
-          maxCombos:board.length===5?110:80,maxRaisesPerStreet:1,effStack:effective,
+          // 200 quelle que soit la rue (était 110/80) : couvre les 169 classes
+          // possibles, donc la range solvée garde la FORME de la range saisie (§8).
+          // Coût mesuré : river ~1.6 s, flop 3 rues ~6.3 s.
+          maxCombos:200,maxRaisesPerStreet:1,effStack:effective,
         };
         const s=exploit
           ? solveNodeLocked(heroFreqs,villainFreqs,board,profileToLocks(exploitProfile),opts)
