@@ -32,9 +32,11 @@ let pass=0,fail=0;
 for(const [id,ha,hb,ref,tol] of REF){
   const eq=computeEquity(singleHandList(ha),singleHandList(hb),[],{iters:ITERS}).equity;
   const diff=Math.round((eq-ref)*10)/10;
+  // La COMPARAISON se fait sur l'équité pleine précision ; seul l'AFFICHAGE arrondit.
+  const eqShown=Math.round(eq*100)/100;
   const okv=Math.abs(eq-ref)<=tol;
   if(okv)pass++;else fail++;
-  console.log("  "+id.padEnd(32)+" "+String(ref).padStart(5)+"%  "+String(eq).padStart(5)+"%  "+
+  console.log("  "+id.padEnd(32)+" "+String(ref).padStart(5)+"%  "+String(eqShown).padStart(6)+"%  "+
     (diff>=0?"+":"")+String(diff).padStart(4)+"   ±"+String(tol).padStart(3)+"   "+(okv?"PASS ✓":"FAIL ✗"));
 }
 console.log("  ─────────────────────────────────────────────────────────────────────────");

@@ -82,7 +82,8 @@ export function computeEquity(heroList,villList,boardFixed=[],opts={}){
       if(hc[0]===vc[0]||hc[0]===vc[1]||hc[1]===vc[0]||hc[1]===vc[1])continue;
       num+=w*exactMatchup(hc,vc,fixed);den+=w;
     }
-    return{equity:den?Math.round(num/den*100):50,exact:true,evals:evalCost};
+    // Équité NON ARRONDIE — cf. note de précision au-dessus de monteCarloEquity.
+    return{equity:den?num/den*100:50,exact:true,evals:evalCost};
   }
   const iters=opts.iters||2500;
   // Seed déterministe dérivé du spot (ou fourni) → équité stable & reproductible (§15).
@@ -90,8 +91,27 @@ export function computeEquity(heroList,villList,boardFixed=[],opts={}){
   return{equity:monteCarloEquity(heroList,villList,iters,fixed,seed),exact:false,samples:iters,seed};
 }
 
-/* Équité Hero (%) par Monte-Carlo. board = cartes fixées (0..5 ints) → postflop
-   sur texture réelle. Retourne un entier 0..100. */
+/* ── PRÉCISION : équité NON ARRONDIE (0..100, flottant) ────────────────────────
+   Cette fonction et computeEquity renvoyaient `Math.round(...*100)`, soit un
+   plancher de granularité de 1 POINT. Anodin pour l'affichage, disqualifiant comme
+   primitive de calcul : une décision de range marginale se joue SOUS le point, et
+   aucun budget d'échantillonnage ne rattrape un arrondi.
+
+   Mesuré sur AKs vs QQ (réf. publiée ≈46.0%), 12 tirages par palier :
+     400 itérations   → écart-type ±3.01
+     5 000            → ±0.72
+     20 000           → ±0.28
+     80 000           → ±0.00  ← ce n'était PAS de la précision, mais l'arrondi
+                                 masquant toute variation résiduelle.
+
+   L'arrondi appartient désormais à la couche d'AFFICHAGE (SharkSolverTab arrondit
+   au dixième au moment de composer ses props). Le CFR n'est pas concerné : il
+   construit sa propre matrice d'équité depuis eval7i et ne passe pas par ici.
+
+   Prérequis à la génération de ranges préflop pré-solvées (§11) : le push/fold
+   tapis court est exactement solvable sans arbre postflop, mais seulement si la
+   primitive d'équité sait exprimer mieux que le point entier.
+   board = cartes fixées (0..5 ints) → postflop sur texture réelle. */
 export function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[],seed=null){
   if(!heroList||!villList||!heroList.length||!villList.length)return 50;
   const fixed=boardFixed||[];
@@ -115,5 +135,5 @@ export function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[],seed
     if(hv>vv)score+=1;else if(hv===vv)score+=0.5;
     n++;
   }
-  return n?Math.round(score/n*100):50;
+  return n?score/n*100:50;
 }

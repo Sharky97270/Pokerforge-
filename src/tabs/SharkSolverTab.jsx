@@ -3134,7 +3134,10 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   // Équité : énumération EXACTE si le nombre de runouts est calculable, sinon
   // Monte-Carlo (§10). La provenance affichée (EXACT vs APPROXIMATION) en découle.
   const equityRes=useMemo(()=>computeEquity(heroComboList,villainComboList,board,{iters:2500}),[heroComboList,villainComboList,boardInput]);
-  const equityHero=equityRes.equity;
+  // Le moteur renvoie l'équité NON ARRONDIE (nécessaire au solveur préflop) ;
+  // l'arrondi appartient à l'affichage. Au dixième : suffisant à l'écran, et sans
+  // la fausse précision d'un 46.083333%.
+  const equityHero=Math.round(equityRes.equity*10)/10;
   const equityVillain=100-equityHero;
   const equitySource=equityRes.source; // provenance fournie par la Solver API (§17)
 
@@ -3156,7 +3159,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const selectedEquity=useMemo(()=>{
     if(!selectedCell)return null;
     const hList=(heroKey&&selectedCell.key===heroKey&&exactComboList(heroParse))||singleHandList(selectedCell.key);
-    return computeEquity(hList,villainComboList,board,{iters:1800}).equity;
+    return Math.round(computeEquity(hList,villainComboList,board,{iters:1800}).equity*10)/10;
   },[selectedCell,heroKey,heroParse,villainComboList,boardInput]);
   const foldEquity=useMemo(()=>villainKey?(villainFreqs[villainKey]?.f||0):villainAggOf(villainFreqs).f,[villainKey,villainFreqs]);
   /* ── Contexte de tournoi passé au solveur (§21/§22) ────────────────────────
