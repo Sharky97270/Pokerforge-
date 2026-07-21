@@ -10,7 +10,7 @@ import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
-import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue } from "./icm.js";
+import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue, makeIcmUtility, CHIP_UTILITY } from "./icm.js";
 import { classifyDecision, classifyLeak, buildCoachBrief, buildExercise } from "../explain.js";
 import { solveTreeFixedBoard, solveTree, nashConv, rehydrateTreeSolution } from "./multistreet.js";
 import { storeSolution, getSolution, librarySize, clearLibrary,
@@ -371,6 +371,86 @@ const ab3=solveMultiStreet(rr,rr,abRiver,{maxCombos:200,iters:40,betFrac:0.66,st
 ok("API multi-rue : abstraction exposée + non exacte à 200", ab3.abstraction&&ab3.abstraction.exact===false);
 const ab4=solveMultiStreet(abSmall,abSmall,abRiver,{maxCombos:0,iters:40,betFrac:0.66,startPot:6,force:true});
 ok("API multi-rue : maxCombos=0 → abstraction.exact=true", ab4.abstraction.exact===true);
+
+console.log("\n[18] ICM STRATÉGIQUE (§21 · roadmap §11)");
+/* Jusqu'ici l'ICM était un AFFICHAGE à côté d'une stratégie calculée en jetons.
+   makeIcmUtility le fait ENTRER dans le calcul : le CFR optimise des $EQ. */
+
+// (a) CONSERVATION — la somme des $EQ vaut toujours le total des prix.
+// Corrige un bug préexistant : un joueur à EXACTEMENT 0 jeton n'obtenait aucune
+// place, son gain s'évaporait (mesuré 70 au lieu de 100 sur [100,0]/[70,30]).
+// Cas atteint dès qu'un all-in tapis complet est évalué.
+let consOk=true;
+for(const [stacks,payouts] of [
+  [[50,50],[70,30]],[[100,0],[70,30]],[[25,25,25,25],[50,30,20,0]],
+  [[75,0,25,0],[50,30,20,0]],[[100,0,0,0],[50,30,20,0]],[[0,0],[70,30]],
+]){
+  const tot=icmEquity(stacks,payouts).eq.reduce((a,b)=>a+b,0);
+  if(Math.abs(tot-payouts.reduce((a,b)=>a+b,0))>1e-9)consOk=false;
+}
+ok("ICM : Σ$EQ = total des prix, y compris avec des tapis à 0", consOk);
+
+// (b) L'utilité du solveur doit coïncider avec le moteur ICM déjà validé.
+const uBub=makeIcmUtility({stacks:[25,25,25,25],payouts:[50,30,20,0],heroIdx:0,villIdx:1});
+const baseB=icmEquity([25,25,25,25],[50,30,20,0]).eq[0];
+const refGain=icmEquity([50,0,25,25],[50,30,20,0]).eq[0]-baseB;
+const refLoss=baseB-icmEquity([0,50,25,25],[50,30,20,0]).eq[0];
+ok("utilité ICM : gain == référence recalculée ("+uBub.h(25).toFixed(4)+")", Math.abs(uBub.h(25)-refGain)<1e-12);
+ok("utilité ICM : perte == référence recalculée ("+(-uBub.h(-25)).toFixed(4)+")", Math.abs(-uBub.h(-25)-refLoss)<1e-12);
+ok("utilité ICM : perte > gain (asymétrie = pression de bulle)", refLoss>refGain);
+ok("utilité ICM : écrêtée au tapis couvrant", Math.abs(uBub.h(9999)-uBub.h(25))<1e-12);
+ok("utilité ICM : mémoïsée (peu d'appels icmEquity)", uBub.memoSize<=8);
+
+// (c) SOMME NULLE — le fait qui commande la validité de NashConv.
+const uHu=makeIcmUtility({stacks:[50,50],payouts:[70,30],heroIdx:0,villIdx:1});
+ok("ICM heads-up : somme nulle (même à l'all-in tapis complet)",
+  uHu.zeroSum===true&&Math.abs(uHu.h(50)+uHu.v(50))<1e-9&&Math.abs(uHu.h(10)+uHu.v(10))<1e-9);
+ok("ICM 3+ joueurs : PAS somme nulle (l'équité des absents bouge)",
+  uBub.zeroSum===false&&Math.abs(uBub.h(10)+uBub.v(10))>1e-6);
+
+// (d) EFFET SUR LA STRATÉGIE — la validation qui compte. Sur un call d'all-in,
+// la pression ICM doit AUGMENTER le fold, et de façon monotone avec l'intensité.
+const icmBoard=[C("K",1),C("8",2),C("4",3),C("J",1),C("2",2)];
+const icmH={A5s:{r:0,c:100,f:0},KTs:{r:0,c:100,f:0},T9s:{r:0,c:100,f:0},QJo:{r:0,c:100,f:0}};
+const icmV={AA:{r:100,c:0,f:0},KK:{r:100,c:0,f:0},T9o:{r:100,c:0,f:0},A5o:{r:100,c:0,f:0}};
+const icmOpts={iters:400,betFrac:2.5,startPot:6,maxCombos:200,effStack:25,maxRaisesPerStreet:0,force:true};
+const foldFacingBet=(r)=>{
+  const t=r.result.tree;let n=t.children[t.actions[0]];
+  while(n&&n.kind==="chance")n=n.next;
+  const bi=n.actions.findIndex(a=>a!=="X"&&a!=="K");
+  let m=n.children[n.actions[bi]];
+  while(m&&m.kind==="chance")m=m.next;
+  return r.result.aggAt(m,m.actions.indexOf("F"));
+};
+const fChip  =foldFacingBet(solveMultiStreet(icmH,icmV,icmBoard,icmOpts));
+const fFinal =foldFacingBet(solveMultiStreet(icmH,icmV,icmBoard,{...icmOpts,icm:{stacks:[25,25,25],payouts:[50,30,20],heroIdx:0,villIdx:1}}));
+const fBubble=foldFacingBet(solveMultiStreet(icmH,icmV,icmBoard,{...icmOpts,icm:{stacks:[25,25,25,25],payouts:[50,30,20,0],heroIdx:0,villIdx:1}}));
+ok(`ICM : la bulle fait folder plus qu'en jetons (${(100*fChip).toFixed(1)}% → ${(100*fBubble).toFixed(1)}%)`, fBubble>fChip+0.02);
+ok(`ICM : pression monotone bulle > table finale > jetons (${(100*fChip).toFixed(1)} < ${(100*fFinal).toFixed(1)} < ${(100*fBubble).toFixed(1)})`, fBubble>fFinal&&fFinal>fChip);
+
+// (e) GARDE-FOUS DE PROVENANCE.
+const icmSol=solveMultiStreet(icmH,icmV,icmBoard,{...icmOpts,icm:{stacks:[25,25,25,25],payouts:[50,30,20,0],heroIdx:0,villIdx:1}});
+ok("API : icm.strategic=true quand l'ICM entre dans le calcul", icmSol.icm.strategic===true);
+ok("API : NashConv MASQUÉ hors somme nulle (jamais un chiffre trompeur)",
+  icmSol.convergence.nashConv===null&&/somme nulle/.test(icmSol.convergence.note));
+const chipSol=solveMultiStreet(icmH,icmV,icmBoard,icmOpts);
+ok("API : chip-EV garde son NashConv", chipSol.icm.strategic===false&&Number.isFinite(chipSol.convergence.nashConv));
+// Gains plats → jetons sans valeur → utilité nulle → stratégie uniforme sans signification.
+const flat=solveMultiStreet(icmH,icmV,icmBoard,{...icmOpts,icm:{stacks:[25,25,25,25],payouts:[25,25,25,25],heroIdx:0,villIdx:1}});
+ok("API : structure de gains plate DÉTECTÉE (stratégie uniforme non présentable)",
+  flat.icm.degenerate===true&&/pas de valeur/.test(flat.icm.degenerateNote||""));
+ok("API : ICM normal NON marqué dégénéré", icmSol.icm.degenerate===false);
+
+// (f) PERSISTANCE — `utility` porte des fonctions ; sans traitement, plus AUCUNE
+// solution ne se persisterait (DataCloneError). Le descripteur doit la reconstruire.
+ok("persistance : descripteur d'utilité sérialisable", icmSol.result.utilityKind==="icm"&&!!icmSol.result.icmParams);
+const icmClone={};for(const k of Object.keys(icmSol.result))if(typeof icmSol.result[k]!=="function"&&k!=="utility")icmClone[k]=icmSol.result[k];
+const icmBack=rehydrateTreeSolution(icmClone);
+ok("persistance : solution ICM réhydratée retrouve son utilité", !!icmBack&&icmBack.utility&&icmBack.utility.zeroSum===false);
+ok("persistance : lecture identique après réhydratation",
+  Math.abs(icmSol.result.aggAt(icmSol.result.tree,0)-icmBack.aggAt(icmBack.tree,0))<1e-12);
+ok("persistance : solve ICM sans paramètres → REJETÉ (jamais rétrogradé en jetons)",
+  rehydrateTreeSolution({...icmClone,icmParams:null})===null);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

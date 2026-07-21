@@ -21,7 +21,13 @@ export function finishProbabilities(stacks){
   const n=stacks.length;
   const total=stacks.reduce((a,b)=>a+b,0);
   const prob=Array.from({length:n},()=>new Float64Array(n));
-  if(total<=0)return prob;
+  // Personne n'a de jetons (cas dégénéré) : rien ne départage, on répartit les places
+  // à égalité plutôt que de renvoyer des probabilités nulles — sans quoi la somme des
+  // $EQ ne vaut pas le total des prix (même classe de bug que le masque à 0 ci-dessous).
+  if(total<=0){
+    for(let i=0;i<n;i++)for(let p=0;p<n;p++)prob[i][p]=1/n;
+    return prob;
+  }
   // rec(actifs, place) : répartit P(atteindre cette configuration) sur les 1res places.
   // On construit les probas de finir 1er, puis conditionnellement 2e, etc., via DFS
   // sur les ensembles d'« encore en jeu ». Mémoïsation sur le masque de bits.
@@ -41,7 +47,20 @@ export function finishProbabilities(stacks){
     const pr=reach.get(mask);if(!pr)continue;
     const k=popcount(mask);
     const place=n-k;                        // le "1er de S" prend la place (n-k+1)? → index place = n-k
-    const tot=sumMask(mask);if(tot<=0)continue;
+    const tot=sumMask(mask);
+    if(tot<=0){
+      /* Tous les joueurs encore dans `mask` ont 0 jeton. Avec `continue`, leur masse
+         de probabilité était ABANDONNÉE : ils n'obtenaient aucune place et leur gain
+         de dernière place s'évaporait — la somme des $EQ ne valait plus le total des
+         prix (mesuré : 70 au lieu de 100 sur [100,0] / payouts [70,30]). Cas atteint
+         dès qu'un all-in tapis complet est évalué, donc par icmRiskPremium ET par
+         l'utilité ICM du solveur : exactement le nœud qui compte le plus.
+         Rien ne départage des joueurs à 0 jeton → ils se partagent à égalité les
+         places restantes. */
+      const rem=[];for(let i=0;i<n;i++)if(mask&(1<<i))rem.push(i);
+      for(const i of rem)for(let p=place;p<place+rem.length;p++)prob[i][p]+=pr/rem.length;
+      continue;
+    }
     for(let i=0;i<n;i++){
       if(!(mask&(1<<i)))continue;
       const pWin=stacks[i]/tot;             // P(i est le meilleur de S)
@@ -87,6 +106,83 @@ export function icmRiskPremium(stacks,payouts,heroIdx,riskChips,villIdx){
     gain:Math.round(gain*10000)/10000,loss:Math.round(loss*10000)/10000,
   };
 }
+
+/* ══ UTILITÉ ICM POUR LE SOLVEUR (§21 stratégique · roadmap §11) ═══════════════
+   Jusqu'ici l'ICM ne servait qu'à AFFICHER une équité à côté d'une stratégie
+   calculée en chip-EV : le solveur ignorait la pression ICM. Cette fabrique
+   fournit au CFR une utilité terminale exprimée en $EQ, pour que la STRATÉGIE
+   elle-même soit solvée sous contrainte ICM.
+
+   DEUX PROPRIÉTÉS À NE PAS PERDRE DE VUE :
+
+   1. LE JEU N'EST GÉNÉRALEMENT PLUS À SOMME NULLE. En chip-EV, ce que Hero gagne
+      Vilain le perd, d'où le `-utilité` câblé dans le CFR. Sous ICM c'est FAUX dès
+      qu'il reste un TROISIÈME joueur : transférer des jetons entre Hero et Vilain
+      modifie aussi l'équité des joueurs NON IMPLIQUÉS dans le coup (leur position
+      relative change). On renvoie donc deux fonctions d'utilité indépendantes, `h`
+      et `v` — jamais l'une la négation de l'autre. Conséquence : NashConv, défini
+      comme brEV(H)+brEV(V) ≥ 0 pour un jeu à somme nulle, n'est plus interprétable.
+      EXCEPTION mesurée : à DEUX joueurs, la somme des $EQ vaut le total des prix,
+      constant → ΔEQ(H)+ΔEQ(V) = 0 exactement, le jeu RESTE à somme nulle et
+      NashConv redevient valide. `zeroSum` reflète donc le nombre de joueurs plutôt
+      qu'un « mode ICM » global : masquer NashConv en heads-up serait perdre une
+      information juste.
+
+   2. PERF. icmEquity coûte 9 µs à 3 joueurs et 275 µs à 9 (récursion en O(2^n)).
+      L'appeler à chaque nœud terminal × paire de combos × itération est hors de
+      question. Mais un arbre 3 rues ne produit que ~89 résultats en jetons
+      DISTINCTS pour 1345 nœuds terminaux : on mémoïse sur le delta de jetons.
+      Clé ARRONDIE — sans quoi le bruit flottant (-81.6222 vs -81.62220000000002,
+      ou 3.55e-15 vs 0) fragmente le cache en doublons.
+
+   `stacks` et `delta` sont dans la MÊME unité (bb par défaut, cohérent avec le
+   reste du solveur). Retourne {h, v, zeroSum:false, base, calls}. */
+export function makeIcmUtility({stacks,payouts,heroIdx=0,villIdx=1,precision=6}={}){
+  if(!stacks||stacks.length<2||!payouts)return null;
+  const base=icmEquity(stacks,payouts).eq;
+  const baseH=base[heroIdx],baseV=base[villIdx];
+  const maxSwing=Math.min(stacks[heroIdx],stacks[villIdx]);   // on ne peut pas perdre plus que le tapis couvrant
+  const memo=new Map();
+  let calls=0;
+  const evalDelta=(d)=>{
+    // Écrêtage au tapis effectif : l'arbre le fait déjà, on se protège des arrondis.
+    const x=Math.max(-maxSwing,Math.min(maxSwing,d));
+    const key=x.toFixed(precision);
+    let hit=memo.get(key);
+    if(hit)return hit;
+    const s=stacks.slice();
+    s[heroIdx]+=x;s[villIdx]-=x;
+    const eq=icmEquity(s,payouts).eq;
+    calls++;
+    hit=[eq[heroIdx]-baseH,eq[villIdx]-baseV];
+    memo.set(key,hit);
+    return hit;
+  };
+  /* UTILITÉ DÉGÉNÉRÉE — garde-fou §2. Si la structure de gains rend les jetons sans
+     valeur en $ (payouts strictement plats : tout le monde touche la même chose quel
+     que soit son classement), alors ΔEQ ≡ 0 pour TOUT transfert. Le CFR n'a plus
+     aucun gradient et renvoie une stratégie uniforme 1/na — mesuré : 50/50 exact sur
+     une décision fold/call. Ce n'est pas une stratégie d'équilibre, c'est l'absence
+     d'information. L'appelant doit le signaler plutôt que d'afficher ce 50/50 comme
+     un solve. On teste les deux extrêmes, seuls points où l'écart serait maximal. */
+  const degenerate=Math.abs(evalDelta(maxSwing)[0])<1e-12&&Math.abs(evalDelta(-maxSwing)[0])<1e-12;
+
+  return{
+    h:(d)=>evalDelta(d)[0],
+    v:(d)=>evalDelta(d)[1],
+    degenerate,
+    // À 2 joueurs la somme des $EQ est constante → somme nulle (vérifié à 1e-12).
+    // Au-delà, l'équité des joueurs hors du coup bouge → somme non nulle.
+    zeroSum:stacks.length===2,
+    base:{hero:baseH,vill:baseV},
+    get calls(){return calls;},
+    get memoSize(){return memo.size;},
+  };
+}
+
+/* Utilité chip-EV — le comportement historique, rendu EXPLICITE pour que le CFR
+   n'ait qu'un seul chemin de code. Somme nulle : v = -h. */
+export const CHIP_UTILITY={h:(d)=>d,v:(d)=>-d,zeroSum:true};
 
 /* ── PKO (§22) : valeur = équité chips (part du pot) + valeur de bounty capturée.
    bountyValue = fraction du bounty adverse réalisée si Hero gagne l'affrontement.

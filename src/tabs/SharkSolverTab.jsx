@@ -2685,7 +2685,7 @@ const MS_STREETS=["Flop","Turn","River"];
 
 /* ── PANNEAU SOLVEUR MULTI-RUE (§26) — moteur prouvé, exposé avec sa provenance
    et son statut EXPÉRIMENTAL. Permet de naviguer l'arbre street par street. ── */
-function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath,exploitProfile,exploitLabel}){
+function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath,exploitProfile,exploitLabel,icmMode,setIcmMode,icmReady}){
   const canSolve=board.length>=3;
   const meta=result?resultMeta(result.source):null;
   const res=result?result.result:null;
@@ -2733,6 +2733,47 @@ function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,s
           {canSolve?`${MS_STREETS.slice(board.length-3).join(" → ")} · pot ${potBb}bb · stack eff. ${effStack}bb`:"—"}
         </span>
       </div>
+
+      {/* §21 STRATÉGIQUE — bascule jetons ↔ $EQ ICM. Ce n'est PAS un affichage :
+          l'ICM entre dans la fonction d'utilité que le CFR optimise. */}
+      <div style={{display:"flex",alignItems:"center",gap:8,margin:"2px 0 8px",flexWrap:"wrap"}}>
+        <button onClick={()=>setIcmMode(!icmMode)} disabled={!icmReady}
+          title={icmReady?"":"Renseigne les payouts et les stacks dans les paramètres ICM"}
+          style={{padding:"5px 11px",borderRadius:7,fontSize:9,fontWeight:800,fontFamily:T.stats,
+            cursor:icmReady?"pointer":"default",opacity:icmReady?1:.4,
+            border:`1px solid ${icmMode?"#C77DFF":T.border}`,
+            background:icmMode?"rgba(199,125,255,.15)":"transparent",
+            color:icmMode?"#C77DFF":T.text3}}>
+          {icmMode?"🏆 Utilité ICM ($EQ)":"🪙 Utilité jetons (chip-EV)"}
+        </button>
+        <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>
+          {!icmReady?"payouts/stacks manquants — mode ICM indisponible"
+            :icmMode?"le solveur optimise l'équité de tournoi : la pression de bulle entre dans la stratégie"
+            :"le solveur optimise les jetons — l'ICM n'influence pas la stratégie"}
+        </span>
+      </div>
+
+      {/* Structure de gains plate → jetons sans valeur en $ → stratégie uniforme
+          dénuée de sens. On refuse de la présenter comme un solve (§2). */}
+      {result&&result.icm&&result.icm.degenerate&&(
+        <div className="ss-ms-note warn">
+          ⚠ <b>Structure de gains plate</b> — tous les joueurs restants touchent la même somme,
+          donc les jetons n'ont aucune valeur en $EQ et toutes les actions se valent.
+          La stratégie affichée est <b>uniforme et ne signifie rien</b> : repasse en utilité
+          jetons, ou renseigne des payouts réellement décroissants.
+        </div>
+      )}
+      {result&&result.icm&&result.icm.strategic&&!result.icm.degenerate&&(
+        <div className="ss-ms-exploit">
+          <span className="ss-ms-exploit-tag" style={{background:"rgba(199,125,255,.18)",color:"#C77DFF"}}>ICM · $EQ</span>
+          <span>Stratégie <b style={{color:"#C77DFF"}}>solvée sous contrainte ICM</b> (Malmuth-Harville) :
+            le CFR optimise l'équité de tournoi, pas les jetons.
+            <br/>NashConv est <b>masqué</b> ici — hors heads-up le jeu n'est pas à somme nulle
+            (transférer des jetons déplace aussi l'équité des joueurs hors du coup), donc
+            l'indicateur d'exploitabilité n'y est pas interprétable.
+          </span>
+        </div>
+      )}
 
       {/* §20 : distinguer explicitement le MODÈLE (estimé) de la STRATÉGIE (calculée). */}
       {result&&exploitLabel&&(
@@ -2868,6 +2909,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[msBusy,setMsBusy]=useState(false);
   const[msPath,setMsPath]=useState([]);        // chemin d'actions dans l'arbre
   const[msExploit,setMsExploit]=useState(null); // libellé du profil si solve exploit (§20)
+  const[msIcm,setMsIcm]=useState(false);        // §21 : solver en $EQ ICM plutôt qu'en jetons
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
   const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
@@ -3114,6 +3156,20 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           // possibles, donc la range solvée garde la FORME de la range saisie (§8).
           // Coût mesuré : river ~1.6 s, flop 3 rues ~6.3 s.
           maxCombos:200,maxRaisesPerStreet:1,effStack:effective,
+          /* §21 STRATÉGIQUE — quand le mode ICM est actif, le CFR optimise des $EQ
+             et non des jetons : la pression de bulle entre dans la stratégie au lieu
+             d'être un simple affichage à côté. Le contexte de tournoi est reconstruit
+             comme dans le panneau ICM (Hero + n-1 joueurs au tapis moyen). */
+          ...(msIcm&&icmParams&&icmParams.payouts&&icmParams.payouts.length?{
+            icm:(()=>{
+              const n=Math.max(2,icmParams.playersLeft||icmParams.payouts.length);
+              return{
+                stacks:[icmParams.heroStack||25,
+                  ...Array.from({length:n-1},()=>icmParams.avgStack||icmParams.heroStack||25)],
+                payouts:icmParams.payouts.slice(0,n),heroIdx:0,villIdx:1,
+              };
+            })(),
+          }:{}),
         };
         const s=exploit
           ? solveNodeLocked(heroFreqs,villainFreqs,board,profileToLocks(exploitProfile),opts)
@@ -3365,6 +3421,8 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               result={msResult} busy={msBusy} onSolve={runMultiStreet}
               path={msPath} setPath={setMsPath}
               exploitProfile={exploitProfile} exploitLabel={msExploit}
+              icmMode={msIcm} setIcmMode={setMsIcm}
+              icmReady={!!(icmParams&&icmParams.payouts&&icmParams.payouts.length)}
             />
           </div>
 

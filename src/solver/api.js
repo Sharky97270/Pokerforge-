@@ -16,7 +16,7 @@ import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
 import { rangeComboList, reduceRange } from "./core/combos.js";
-import { icmEquity, icmRiskPremium, pkoValue } from "./core/icm.js";
+import { icmEquity, icmRiskPremium, pkoValue, makeIcmUtility } from "./core/icm.js";
 import { storeSolution, getSolution, getClosest, librarySize,
          hydrateLibrary, libraryStatus, persistedCount, clearLibrary } from "./library.js";
 
@@ -91,19 +91,44 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
   const H=rH.list,V=rV.list;
   if(!H.length||!V.length||board.length<3)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null,experimental:true};
   const nStreets=opts.streets??(6-board.length-1);          // flop→3, turn→2, river→1
-  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"");
+  /* §21 STRATÉGIQUE — `opts.icm = {stacks,payouts,heroIdx,villIdx}` fait solver la
+     stratégie en $EQ ICM et non en jetons. Distinction essentielle : jusqu'ici l'ICM
+     n'était qu'un affichage à côté d'une stratégie chip-EV ; ici il ENTRE dans le
+     calcul. Le jeu cesse d'être à somme nulle → NashConv indisponible (cf. nashConv). */
+  const icmUtility=opts.icm?makeIcmUtility(opts.icm):null;
+  // Le contexte ICM entre dans la SIGNATURE : mêmes ranges + mêmes stacks de
+  // tournoi différents = solves différents, ils ne doivent pas partager de clé.
+  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   if(!opts.force){
     const cached=getSolution(solveId);
     if(cached)return{...cached,source:ResultSource.PRESOLVED_LIBRARY,fromLibrary:true};
   }
-  const sol=solveTree(H,V,board,{...opts,streets:nStreets,seed,iters:opts.iters||200});
+  const sol=solveTree(H,V,board,{...opts,streets:nStreets,seed,iters:opts.iters||200,
+    utility:icmUtility||undefined});
   const nc=sol.sampled?null:nashConv(sol);
+  // Deux raisons DISTINCTES d'absence de NashConv — les confondre induirait en erreur.
+  const convNote=icmUtility
+    ? "mode ICM : le jeu n'est pas à somme nulle, NashConv n'est pas interprétable"
+    : "board incomplet — exploitabilité exacte indisponible (runouts échantillonnés)";
   const out={
     source:ResultSource.CFR_SOLVE,experimental:true,fromLibrary:false,
     result:sol,
-    convergence:nc==null?{nashConv:null,note:"board incomplet — exploitabilité exacte indisponible (runouts échantillonnés)"}:{nashConv:nc},
+    convergence:nc==null?{nashConv:null,note:convNote}:{nashConv:nc},
+    /* §21 — la stratégie est-elle solvée sous contrainte ICM, ou en jetons ?
+       `icm.strategic:true` signifie que l'ICM est ENTRÉ dans le calcul de la
+       stratégie, pas seulement affiché à côté. */
+    icm:icmUtility?{
+      strategic:true,model:"Malmuth-Harville",params:opts.icm,
+      baseEq:icmUtility.base,icmCalls:icmUtility.calls,
+      /* Gains plats → les jetons n'ont aucune valeur en $ → utilité identiquement
+         nulle → stratégie uniforme dénuée de sens. À ne PAS présenter comme un solve. */
+      degenerate:icmUtility.degenerate,
+      degenerateNote:icmUtility.degenerate
+        ?"structure de gains plate : les jetons n'ont pas de valeur en $EQ, la stratégie renvoyée est uniforme et ne signifie rien"
+        :null,
+    }:{strategic:false},
     /* §8/§2 — la solution porte-t-elle sur la range COMPLÈTE ? L'UI doit le dire. */
     abstraction:{
       exact:rH.exact&&rV.exact,

@@ -20,6 +20,7 @@
    (solution analytique) + exploitabilité ≈ 0.
 ════════════════════════════════════════════════════════════════════════════ */
 import { buildPostflopTree, terminalUtility } from "./gametree.js";
+import { CHIP_UTILITY, makeIcmUtility } from "./icm.js";
 import { eval7i } from "./evaluator.js";
 import { mulberry32 } from "./equity.js";
 
@@ -30,6 +31,10 @@ export function solveTree(heroList,villList,board,opts={}){
   const initLen=board.length;
   const need=5-initLen;                       // cartes de board à tirer (0..2)
   const rng=mulberry32((opts.seed??123457)>>>0);
+  /* Utilité terminale : chip-EV par défaut (somme nulle, comportement historique),
+     ou utilité ICM en $EQ via makeIcmUtility (§21 stratégique) — auquel cas le jeu
+     n'est PAS à somme nulle et NashConv devient ininterprétable (cf. nashConv). */
+  const U=opts.utility||CHIP_UTILITY;
   const tree=buildPostflopTree({...opts,startPot,streets:opts.streets||1,ipProbe:opts.ipProbe!==false});
   const nH=heroList.length,nV=villList.length;
   const wH=heroList.map(e=>e.w??1),wV=villList.map(e=>e.w??1);
@@ -133,8 +138,12 @@ export function solveTree(heroList,villList,board,opts={}){
   function traverse(node,reachH,reachV,tw){
     if(node.kind==="terminal"){
       const vH=new Float64Array(nH),vV=new Float64Array(nV);
-      for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=reachV[j]*terminalUtility(node,startPot,e);}vH[i]=acc;}
-      for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=reachH[i]*(-terminalUtility(node,startPot,e));}vV[j]=acc;}
+      /* U.h / U.v et non `x` / `-x` : sous ICM le jeu n'est PAS à somme nulle
+         (les jetons transférés déplacent aussi l'équité des joueurs hors du coup),
+         donc chaque camp a sa propre utilité. En chip-EV, U vaut CHIP_UTILITY et
+         on retrouve exactement le comportement historique. */
+      for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=reachV[j]*U.h(terminalUtility(node,startPot,e));}vH[i]=acc;}
+      for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=reachH[i]*U.v(terminalUtility(node,startPot,e));}vV[j]=acc;}
       return{vH,vV};
     }
     if(node.kind==="chance"){
@@ -192,6 +201,14 @@ export function solveTree(heroList,villList,board,opts={}){
   // ce qui doit être persisté pour la recharger sans re-solve (§16).
   const base={
     tree,E,strat,heroList,villList,wH,wV,startPot,initLen,
+    utility:U,                                  // requis par bestResponseEV/nashConv
+    /* Descripteur SÉRIALISABLE de l'utilité : `utility` porte des fonctions et ne
+       survit pas au structured clone de la Solution Library (§16). Ces deux champs
+       suffisent à la reconstruire à la relecture (cf. rehydrateTreeSolution). */
+    // Basé sur la PRÉSENCE de paramètres ICM, pas sur zeroSum : un solve ICM
+    // heads-up est à somme nulle et resterait pourtant un solve ICM.
+    utilityKind:opts.icm?"icm":"chip",
+    icmParams:opts.icm||null,
     ev:Math.round(ev*1000)/1000,
     iters,sampled:need>0,boardCards:initLen,
   };
@@ -238,6 +255,18 @@ export function attachStrategyAccessors(sol){
    un cache manquant à une solution silencieusement amputée (§2). */
 export function rehydrateTreeSolution(plain){
   if(!plain||!plain.strat||!plain.tree||!plain.heroList||!plain.villList)return null;
+  /* `utility` porte des fonctions : elle a été retirée avant persistance. On la
+     reconstruit depuis le descripteur. Une solution ICM dont les paramètres de
+     tournoi manquent n'est PAS réhydratable en chip-EV — ce serait changer la
+     nature du solve en silence (§2) : on la rejette, elle sera recalculée. */
+  if(plain.utilityKind==="icm"){
+    if(!plain.icmParams)return null;
+    const u=makeIcmUtility(plain.icmParams);
+    if(!u)return null;
+    plain.utility=u;
+  }else{
+    plain.utility=CHIP_UTILITY;
+  }
   return attachStrategyAccessors(plain);
 }
 /* Alias rétro-compat : le board complet (5 cartes) est le cas exact. */
@@ -249,13 +278,14 @@ export const solveTreeFixedBoard=solveTree;
 export function bestResponseEV(sol,brPlayer){
   if(sol.sampled)return null;   // exact seulement sur board complet (pas de bruit d'échantillonnage)
   const {tree,E,heroList,villList,wH,wV,startPot,avgOf}=sol;
+  const U=sol.utility||CHIP_UTILITY;
   const nH=heroList.length,nV=villList.length;
   const nBr=brPlayer===0?nH:nV;
   function walk(node,oppReach){
     if(node.kind==="terminal"){
       const v=new Float64Array(nBr);
-      if(brPlayer===0){for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=oppReach[j]*terminalUtility(node,startPot,e);}v[i]=acc;}}
-      else{for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=oppReach[i]*(-terminalUtility(node,startPot,e));}v[j]=acc;}}
+      if(brPlayer===0){for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=oppReach[j]*U.h(terminalUtility(node,startPot,e));}v[i]=acc;}}
+      else{for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=oppReach[i]*U.v(terminalUtility(node,startPot,e));}v[j]=acc;}}
       return v;
     }
     if(node.kind==="chance")return walk(node.next,oppReach);
@@ -287,6 +317,14 @@ export function bestResponseEV(sol,brPlayer){
 }
 /* NashConv (bb) : somme des gains de meilleure réponse. ≈0 ⟺ équilibre. */
 export function nashConv(sol){
+  /* NashConv = brEV(H) + brEV(V) ≥ 0, avec ≈0 ⟺ équilibre. Cette identité SUPPOSE
+     un jeu à somme nulle : c'est parce que les utilités s'annulent à l'équilibre
+     que la somme mesure l'exploitabilité. Sous utilité ICM le jeu ne l'est pas
+     (le transfert de jetons déplace aussi l'équité des joueurs hors du coup), et
+     la somme n'a plus de sens — la renvoyer quand même afficherait un nombre
+     d'apparence rigoureuse mais faux (§2). On renvoie null : l'UI sait déjà
+     traiter « exploitabilité indisponible ». */
+  if(sol&&sol.utility&&sol.utility.zeroSum===false)return null;
   const h=bestResponseEV(sol,0),v=bestResponseEV(sol,1);
   if(h==null||v==null)return null;
   return Math.round((h+v)*10000)/10000;

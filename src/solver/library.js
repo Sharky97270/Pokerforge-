@@ -63,6 +63,11 @@ const _isTreeSolution=(sol)=>!!(sol&&sol.result&&sol.result.strat);
 function _toRecord(solveId,solution){
   const rec=_stripFns(solution);
   rec.result=_stripFns(solution.result);
+  /* `utility` est un OBJET porteur de fonctions (h/v) : _stripFns ne retire que les
+     propriétés qui SONT des fonctions, pas celles qui en contiennent. Sans ce retrait
+     explicite, le structured clone lève DataCloneError et PLUS AUCUNE solution ne se
+     persiste. Elle est reconstruite via utilityKind/icmParams (rehydrateTreeSolution). */
+  if(rec.result&&rec.result.utility)delete rec.result.utility;
   return {
     solveId,
     kind:_isTreeSolution(solution)?"tree":"plain",
