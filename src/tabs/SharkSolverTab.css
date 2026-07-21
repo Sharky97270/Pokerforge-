@@ -99,3 +99,166 @@
   .ss-right{flex-direction:column;}
   .ss-head-honesty{display:none;}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHARKSOLVER CORE V1 — BARRE DE CONTEXTE (§34) & LÉGENDE PROVENANCE (§52)
+   Identité PokerForge : bleu nuit, cyan électrique, bordures lumineuses.
+═══════════════════════════════════════════════════════════════════ */
+.ss-topbar{display:flex;align-items:stretch;gap:0;padding:0 16px;flex-shrink:0;height:52px;
+  background:linear-gradient(90deg,rgba(124,60,255,.10),rgba(0,170,255,.05));
+  border-bottom:1px solid rgba(0,180,255,.28);overflow-x:auto;}
+.ss-tb-brand{display:flex;align-items:center;gap:8px;padding-right:16px;font-family:'Space Grotesk',sans-serif;
+  font-size:14px;font-weight:900;letter-spacing:2px;color:#9fd4ff;text-shadow:0 0 16px rgba(0,170,255,.5);white-space:nowrap;}
+.ss-tb-core{font-size:8.5px;font-weight:900;letter-spacing:1.5px;color:#0a0f1e;background:linear-gradient(135deg,#34d8ff,#0a84ff);
+  padding:2px 6px;border-radius:5px;box-shadow:0 0 12px rgba(52,216,255,.4);}
+.ss-tb-cell{display:flex;flex-direction:column;justify-content:center;gap:2px;padding:0 14px;min-width:0;
+  border-left:1px solid rgba(0,180,255,.12);white-space:nowrap;}
+.ss-tb-label{font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:#6f88ac;font-family:Inter,sans-serif;font-weight:600;}
+.ss-tb-value{font-size:12.5px;font-weight:800;color:#dceaff;font-family:'JetBrains Mono',monospace;}
+.ss-tb-sep{width:1px;margin:10px 4px;background:rgba(0,180,255,.28);flex-shrink:0;}
+.ss-tb-badge{font-size:10px;font-weight:900;letter-spacing:.06em;font-family:'Space Grotesk',sans-serif;
+  border:1px solid;border-radius:5px;padding:1px 7px;background:rgba(4,11,31,.6);}
+
+/* Légende de provenance — code couleur = NATURE de l'info (≠ actions poker). */
+.ss-prov-legend{gap:14px;flex-wrap:wrap;}
+.ss-prov-item{display:inline-flex;align-items:center;gap:5px;font-size:8.5px;font-family:Inter,sans-serif;transition:opacity .15s;}
+.ss-prov-dot{width:7px;height:7px;border-radius:2px;display:inline-block;flex-shrink:0;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLONNE GAUCHE CORE V1 — SCÉNARIO / RANGE SOURCE / FILTRES & BLOCKERS
+═══════════════════════════════════════════════════════════════════ */
+.ss-panel,.ss-scen-card,.ss-picker,.ss-engine-card{
+  background:linear-gradient(180deg,#0a1d35,#071427);border:1px solid rgba(0,180,255,.28);
+  border-radius:10px;padding:10px 11px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 4px 14px rgba(0,0,0,.35);}
+.ss-scen-card{border-color:rgba(52,216,255,.35);}
+.ss-panel-title{font-size:8.5px;letter-spacing:.18em;color:#5fb8ff;font-family:Inter,sans-serif;font-weight:800;text-transform:uppercase;}
+.ss-panel-sub{font-size:8.5px;letter-spacing:.06em;color:#6f88ac;font-family:Inter,sans-serif;font-weight:700;margin:7px 0 3px;}
+.ss-scen-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+.ss-modif-btn{font-size:8.5px;font-weight:800;font-family:Inter,sans-serif;color:#9fd4ff;cursor:pointer;
+  background:rgba(0,170,255,.1);border:1px solid rgba(0,180,255,.4);border-radius:5px;padding:2px 9px;transition:.15s;}
+.ss-modif-btn:hover{background:rgba(0,170,255,.2);color:#dceaff;}
+.ss-inforow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid rgba(120,160,220,.06);}
+.ss-inforow:last-child{border-bottom:none;}
+.ss-inforow-k{font-size:9.5px;color:#7f97ba;font-family:Inter,sans-serif;white-space:nowrap;}
+.ss-inforow-v{font-size:10px;color:#c4d7f2;font-family:'JetBrains Mono',monospace;text-align:right;}
+.ss-cardrow{display:inline-flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;}
+.ss-cardpill{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:20px;padding:0 3px;
+  font-size:10px;font-weight:800;font-family:'JetBrains Mono',monospace;border-radius:4px;
+  background:rgba(4,12,28,.85);border:1px solid;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.ss-src-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;}
+.ss-src-tag{font-size:9px;font-weight:800;font-family:Inter,sans-serif;border:1px solid;border-radius:5px;padding:1px 8px;background:rgba(4,11,31,.5);}
+.ss-toggle{width:30px;height:16px;border-radius:9px;background:rgba(16,216,122,.25);border:1px solid rgba(16,216,122,.5);position:relative;display:inline-block;}
+.ss-toggle>span{position:absolute;top:1px;right:1px;width:12px;height:12px;border-radius:50%;background:#10D87A;box-shadow:0 0 6px rgba(16,216,122,.7);}
+.ss-engine-card{display:flex;flex-direction:column;gap:3px;}
+.ss-eng-name{font-size:9px;letter-spacing:.14em;color:#7f97ba;font-family:Inter,sans-serif;font-weight:800;display:flex;align-items:center;gap:6px;}
+.ss-eng-dot{width:6px;height:6px;border-radius:50%;background:#10D87A;box-shadow:0 0 7px #10D87A;}
+.ss-eng-ver{font-size:12px;font-weight:900;color:#9fd4ff;font-family:'Space Grotesk',sans-serif;letter-spacing:1px;}
+.ss-eng-status{font-size:9px;color:#7f97ba;font-family:Inter,sans-serif;}
+.ss-eng-status b{color:#c4d7f2;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CENTRE CORE V1 — STRATÉGIE FRÉQUENCES (§41) + STATUT DU SOLVE (§44)
+═══════════════════════════════════════════════════════════════════ */
+.ss-strat-row{display:grid;grid-template-columns:1fr 232px;gap:12px;margin-bottom:12px;}
+.ss-card2{background:linear-gradient(180deg,#0a1d35,#071427);border:1px solid rgba(0,180,255,.28);
+  border-radius:12px;padding:12px 13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 5px 16px rgba(0,0,0,.4);}
+.ss-card2-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+/* Blocs de fréquences */
+.ss-freq-blocks{display:grid;gap:8px;margin-bottom:8px;}
+.ss-freq-block{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:14px 6px;border-radius:10px;border:1px solid;min-height:74px;}
+.ss-freq-label{font-size:11px;font-weight:800;font-family:'Space Grotesk',sans-serif;letter-spacing:.03em;text-align:center;}
+.ss-freq-pct{font-size:26px;font-weight:900;color:#eaf3ff;font-family:'Space Grotesk',sans-serif;line-height:1;text-shadow:0 0 16px rgba(0,0,0,.5);}
+.ss-freq-ev{display:grid;gap:6px;padding-top:9px;border-top:1px solid rgba(120,160,220,.12);}
+.ss-freq-evcell{display:flex;flex-direction:column;gap:1px;}
+.ss-freq-evcell span{font-size:8px;color:#7f97ba;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ss-freq-evcell b{font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:800;}
+.ss-freq-evtot span{color:#9fb4d6;font-weight:700;}
+.ss-freq-evtot b{font-size:13px;}
+/* Statut du solve */
+.ss-solvestat{display:flex;flex-direction:column;}
+.ss-conv{display:flex;gap:11px;align-items:center;}
+.ss-conv-ring{width:64px;height:64px;border-radius:50%;border:4px solid;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+.ss-conv-txt{font-size:14px;font-weight:900;font-family:'Space Grotesk',sans-serif;letter-spacing:.5px;}
+.ss-conv-sub{font-size:7px;color:#6a7690;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.06em;}
+.ss-conv-rows{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.ss-conv-row{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:9px;font-family:Inter,sans-serif;color:#7f97ba;}
+.ss-conv-row b{font-family:'JetBrains Mono',monospace;color:#c4d7f2;font-weight:800;font-size:9.5px;}
+.ss-conv-note{margin-top:9px;padding-top:8px;border-top:1px solid rgba(120,160,220,.12);font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;line-height:1.4;font-style:italic;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLONNE DROITE CORE V1 — SOURCE DU RÉSULTAT (§46) + RÉSULTAT DU SPOT (§45)
+═══════════════════════════════════════════════════════════════════ */
+.ss-rsrc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid rgba(120,160,220,.07);}
+.ss-rsrc-row:last-of-type{border-bottom:none;}
+.ss-rsrc-k{font-size:9.5px;color:#8ba3c6;font-family:Inter,sans-serif;}
+.ss-rsrc-desc{margin-top:9px;padding:7px 9px;border:1px solid;border-radius:7px;font-size:8.5px;color:#a9bcd8;font-family:Inter,sans-serif;line-height:1.45;}
+.ss-res-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ss-res-cell{display:flex;flex-direction:column;gap:2px;background:rgba(6,16,34,.6);border:1px solid rgba(120,160,220,.12);border-radius:7px;padding:7px 9px;}
+.ss-res-cell span{font-size:8px;color:#7f97ba;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;}
+.ss-res-cell b{font-size:15px;color:#dceaff;font-family:'Space Grotesk',sans-serif;font-weight:800;line-height:1;}
+.ss-res-note{margin-top:9px;font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;line-height:1.45;font-style:italic;}
+.ss-res-note b{color:#9fb4d6;font-style:normal;}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SOLVEUR MULTI-RUE (§26) — moteur CFR+ multi-street, statut expérimental
+═══════════════════════════════════════════════════════════════════ */
+.ss-ms{margin-top:0;}
+.ss-ms-exp{font-size:8px;font-weight:900;letter-spacing:.1em;color:#0a0f1e;
+  background:linear-gradient(135deg,#FFB020,#FF8A3D);padding:2px 7px;border-radius:5px;
+  box-shadow:0 0 10px rgba(255,176,32,.35);}
+.ss-ms-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+.ss-ms-solve{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;
+  font-family:Inter,sans-serif;font-size:11px;font-weight:800;letter-spacing:.04em;
+  background:linear-gradient(135deg,#9B5CFF,#34D8FF);color:#06101f;transition:.15s;}
+.ss-ms-solve:disabled{background:rgba(255,255,255,.06);color:#6a7690;cursor:not-allowed;}
+.ss-ms-meta{font-size:9px;color:#7f97ba;font-family:'JetBrains Mono',monospace;}
+.ss-ms-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:9px;}
+.ss-ms-stats>div{background:rgba(6,16,34,.6);border:1px solid rgba(120,160,220,.12);
+  border-radius:7px;padding:7px 9px;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.ss-ms-stats span{font-size:8px;color:#7f97ba;font-family:Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;}
+.ss-ms-stats b{font-size:13px;color:#dceaff;font-family:'Space Grotesk',sans-serif;font-weight:800;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ss-ms-note{font-size:8.5px;color:#8ba3c6;font-family:Inter,sans-serif;line-height:1.5;
+  background:rgba(6,16,34,.5);border:1px solid rgba(120,160,220,.14);border-radius:7px;
+  padding:7px 9px;margin-bottom:8px;}
+.ss-ms-note.warn{color:#FFB020;border-color:rgba(255,176,32,.3);background:rgba(255,176,32,.07);}
+.ss-ms-note b{color:#c4d7f2;}
+.ss-ms-trail{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
+.ss-ms-crumb{font-size:9px;font-family:Inter,sans-serif;font-weight:700;cursor:pointer;
+  background:rgba(0,170,255,.08);border:1px solid rgba(0,180,255,.28);border-radius:5px;
+  padding:3px 8px;color:#9fd4ff;transition:.12s;}
+.ss-ms-crumb.on{background:rgba(52,216,255,.2);border-color:rgba(52,216,255,.55);color:#dceaff;}
+.ss-ms-arrow{color:#4a5d7e;font-size:10px;}
+.ss-ms-node{background:rgba(6,16,34,.55);border:1px solid rgba(120,160,220,.16);
+  border-radius:9px;padding:10px 11px;margin-bottom:8px;}
+.ss-ms-node-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-bottom:9px;font-size:10px;font-family:Inter,sans-serif;}
+.ss-ms-node-head b{font-size:10.5px;letter-spacing:.06em;}
+.ss-ms-node-head span{font-size:9px;color:#7f97ba;font-family:'JetBrains Mono',monospace;}
+.ss-ms-acts{display:grid;gap:7px;}
+.ss-ms-act{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 5px;
+  border-radius:8px;border:1px solid;cursor:pointer;transition:transform .1s,filter .12s;}
+.ss-ms-act:hover{transform:translateY(-1px);filter:brightness(1.18);}
+.ss-ms-act-l{font-size:10px;font-weight:800;font-family:'Space Grotesk',sans-serif;}
+.ss-ms-act-f{font-size:17px;font-weight:900;color:#eaf3ff;font-family:'Space Grotesk',sans-serif;line-height:1;}
+.ss-ms-hint{margin-top:8px;font-size:8px;color:#6f88ac;font-family:Inter,sans-serif;font-style:italic;}
+.ss-ms-solve.exploit{background:linear-gradient(135deg,#FF8A3D,#FFC247);}
+.ss-ms-solve.exploit:disabled{background:rgba(255,255,255,.06);color:#6a7690;}
+.ss-ms-exploit{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px;
+  padding:7px 10px;border-radius:8px;background:rgba(255,138,61,.08);
+  border:1px solid rgba(255,138,61,.32);font-size:8.5px;color:#a9bcd8;
+  font-family:Inter,sans-serif;line-height:1.5;}
+.ss-ms-exploit b{font-weight:800;}
+.ss-ms-exploit-tag{font-size:8px;font-weight:900;letter-spacing:.09em;color:#0a0f1e;
+  background:linear-gradient(135deg,#FF8A3D,#FFC247);padding:2px 8px;border-radius:5px;white-space:nowrap;}
+
+/* ── COACH AI (§30) : faits sourcés ── */
+.ss-coach-rows{display:flex;flex-direction:column;gap:2px;margin:2px 0 8px;}
+.ss-coach-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:4px 0;border-bottom:1px solid rgba(120,160,220,.07);}
+.ss-coach-row:last-child{border-bottom:none;}
+.ss-coach-row span{font-size:9.5px;color:#8ba3c6;font-family:Inter,sans-serif;}
+.ss-coach-row b{font-size:10.5px;color:#c4d7f2;font-family:'JetBrains Mono',monospace;font-weight:800;text-align:right;}
+.ss-coach-note{padding:7px 9px;border:1px solid;border-radius:7px;font-size:8.5px;
+  color:#a9bcd8;font-family:Inter,sans-serif;line-height:1.5;}

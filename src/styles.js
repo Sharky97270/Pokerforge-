@@ -238,8 +238,14 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Mosaïque multi-table (maquette V1) : remplit tout le playground, lignes étirées,
    séparation nette entre tables, aucune table fantôme. */
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-.grid3>.mt-slot:nth-child(3){grid-column:auto;}
+/* MOSAÏQUE 3T (standard unique, §1/§4/§20) : TABLE 1 haut-gauche, TABLE 2
+   haut-droite, TABLE 3 bas-centrée à la MÊME largeur que les deux du haut.
+   T3 s'étend sur les 2 colonnes mais sa largeur est bornée à UNE colonne
+   (width = (spanned - gap)/2) puis centrée (justify-self) → jamais étirée. */
+.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:20px 24px;padding:10px 16px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+.grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
+.grid3>.mt-slot:nth-child(2){grid-column:2;grid-row:1;}
+.grid3>.mt-slot:nth-child(3){grid-column:1 / span 2;grid-row:2;justify-self:center;width:calc((100% - 24px)/2);}
 .grid3>.mt-slot:nth-child(3) .tw{max-width:none;margin:0;width:100%;}
 /* Viewports en hauteur NATURELLE (contenu = titre + streets + table ratio-exacte
    + actions) : l'ovale garde ses proportions script à toute résolution — plus de
@@ -249,9 +255,9 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
 .grid3>.mt-slot:nth-child(3){max-width:none;}
 .grid4>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
-/* Table 3 (bas) : ovale 500×164 du script. Ratio de zone corrigé des marges de la
-   géométrie 3T (t11 b12.5 l7.4 r7.4) : (500/164)×0.765/0.852 ≈ 2.7375 */
-.grid3>.mt-slot:nth-child(3) .training-table-zone{aspect-ratio:1.7426!important;}
+/* MOSAÏQUE : TABLE 3 a désormais la MÊME cellule (1 colonne × 1 rangée) que
+   T1/T2 → même ratio, plus d'override d'aplatissement (l'ancienne 500×164 servait
+   la disposition 3-en-ligne, supprimée). */
 /* Table basse très plate : clusters de sièges réduits (script §4 : éléments plus
    petits en bas) — sinon nameplates des sièges hauts et cartes des sièges bas se
    rejoignent au centre. Compensation héros : .82×.85 ≈ .7 (identique aux tables hautes). */
@@ -261,7 +267,11 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3>.mt-slot:nth-child(3) .pf-pot-readout{zoom:1;}
 .grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
 @media(max-width:1280px){
-  .grid3{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));}
+  /* Étroit (§5) : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
+  .grid3{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:24px;}
+  .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
+  .grid3>.mt-slot:nth-child(2){grid-column:1;grid-row:2;}
+  .grid3>.mt-slot:nth-child(3){grid-column:1;grid-row:3;justify-self:stretch;width:100%;}
 }
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}
@@ -381,12 +391,60 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
 .grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
-.grid4 .training-table-zone{aspect-ratio:2.58!important;}
+/* 4T dé-aplati : zone 2.58 (feutre ~2.87, trop plat) → 1.71 (feutre ~1.9), même
+   famille que le 3T. La place vient des actions sur 1 ligne + doublon Hero retiré. */
+.grid4 .training-table-zone{aspect-ratio:1.92!important;}
+/* 3T : feutre légèrement aplati pour laisser tenir le bandeau complet (sizing +
+   stepper) sans rogner. §6. */
+.grid3 .training-table-zone{aspect-ratio:1.88!important;}
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
 .grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}
 .grid4 .gto-btn-hint{display:none!important;}
+/* §5 POLICES MULTI 3T/4T — les stacks/positions etaient a 5px (illisibles) et le
+   pot a 14px. On agrandit pour la lisibilite (maquette 4 tables) : nameplate
+   position+stack, pot value (gras) et label. */
+.grid3 .pf-mt-nameplate{font-size:10px!important;}
+.grid4 .pf-mt-nameplate{font-size:9px!important;}
+.grid3 .pf-pot-value,.grid4 .pf-pot-value{font-size:15px!important;font-weight:800!important;}
+.grid3 .pf-pot-label,.grid4 .pf-pot-label{font-size:8px!important;}
+/* Blindes + mises un peu plus grandes aussi. */
+.grid3 .pf-blind-stack strong,.grid4 .pf-blind-stack strong{font-size:9px!important;}
+.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:9px!important;}
+.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:8px!important;}
+/* POT COMPACT MULTI (comme le 1T) : sinon la pile de jetons rend le pot très
+   HAUT (~54px = 26% du feutre court) et il chevauche le siège du haut ET le board.
+   Ligne unique [jetons] POT xx bb, hauteur fixe. */
+.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
+  flex-direction:row!important;align-items:center!important;gap:4px!important;
+  white-space:nowrap!important;height:20px!important;
+}
+/* Pile de jetons masquée dans le pot multi : sur petites tables elle encombrait le
+   centre et son empreinte chevauchait la plaque du siège haut-centre. Le pot reste
+   « POT xx bb » (texte), comme la maquette. */
+.grid3 .pf-pot-chip-stack,.grid4 .pf-pot-chip-stack{display:none!important;}
+/* Avatars multi 3T/4T réduits (trop gros → bloc siège trop haut sur feutre court,
+   d'où les chevauchements pot/siège). §2/§7 de la maquette. */
+.grid4 .pf-avatar-premium{width:34px!important;height:34px!important;}
+.grid3 .pf-avatar-premium{width:38px!important;height:38px!important;}
+/* BANDEAU DÉCISION MULTI (mtr-actions-multi) : même disposition que le 1T mais
+   compacté pour chaque table. Sizing presets + stepper réduits pour tenir sur une
+   ligne sans déborder le conteneur. §6 de la maquette. */
+.mtr-actions-multi .sizing-btn{font-size:8px!important;padding:3px 1px!important;border-radius:5px!important;}
+.grid4 .mtr-actions-multi .sizing-btn{font-size:7px!important;padding:2px 1px!important;}
+.mtr-actions-multi .sizing-custom{padding:2px 6px!important;gap:3px!important;border-radius:5px!important;}
+.mtr-actions-multi .sizing-step-btn{width:17px!important;height:17px!important;font-size:12px!important;border-radius:4px!important;}
+.grid4 .mtr-actions-multi .sizing-step-btn{width:15px!important;height:15px!important;font-size:11px!important;}
+/* CHEVAUCHEMENT STACK HERO : « Pre BTN decision » (.table-action-line) était posé
+   au bas-centre du feutre, PILE sur la plaque du Hero (HERO/BTN/20bb). Le 1T la
+   masque déjà (l'info vit dans le bandeau) → on fait pareil en multi : le bandeau
+   de décision porte désormais « BTN vs BB · … ». */
+.grid2 .table-action-line,.grid3 .table-action-line,.grid4 .table-action-line{display:none!important;}
+/* Les hints pédagogiques (2e ligne du bouton) masqués en multi : pas la place. */
+.mtr-actions-multi .gto-btn-hint{display:none!important;}
+.mtr-actions-multi .gto-btn-inner{padding:4px 4px 3px!important;}
+.grid4 .mtr-actions-multi .gto-btn-inner{padding:3px 3px 2px!important;}
 /* Colonne droite partagée multi-table : panneau V2 lisible (renderMultiPanel) */
 .pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
 .pf-mt-sharedcol>.t1-right{flex:1 1 auto!important;width:100%!important;}
@@ -5451,5 +5509,96 @@ export const CSS_TABLE=`
   .card-1t-hero-mobile .card-corner-r{font-size:11px!important;}
   .card-1t-hero-mobile .card-corner-s{font-size:8px!important;}
   .card-1t-hero-mobile .card-center{font-size:17px!important;}
+}
+
+/* ═══ TABLE 1T — ANTI-CHEVAUCHEMENT AUTOUR DU HERO (§3.1) ═══
+   Le bloc HERO vit en bas-centre de la table. Or deux libellés étaient rendus
+   EN ABSOLU au même endroit :
+     · .table-action-line  (« Preflop BB décision ») → chevauchait la plaque BB ;
+     · .pf-facing-label    (« Face à Open 2.5bb → à payer 1.5bb ») → coincé à
+       3px de la plaque et 5px du bandeau d'actions.
+   Les deux sont REDONDANTS : l'en-tête du bandeau d'actions affiche déjà
+   « HJ vs UTG · Face à Open 2.5bb · à payer 2.5bb », c'est-à-dire exactement le
+   texte d'information « juste au-dessus de la zone d'actions » attendu.
+   On les masque donc dans la table → zéro chevauchement, zéro perte d'info.
+   (Le mobile les masquait déjà pour la même raison.) */
+.t1-left .pf-facing-label{display:none!important;}
+.t1-left .table-action-line{display:none!important;}
+
+/* ═══ ZONE D'ACTIONS DESKTOP — COMPACTION (§3.2) ═══
+   Objectif : rendre de la hauteur verticale sous le stack du Hero, sans toucher
+   à la largeur des boutons ni à la hiérarchie visuelle. Hauteur des boutons
+   ~-14% (72→62), polices et paddings verticaux légèrement réduits, ligne des
+   multiplicateurs resserrée. Desktop uniquement (.t1-actions-under est masqué
+   sur mobile, qui garde son propre bandeau déjà compacté). */
+/* ═══ DIMENSIONS FIXES DE LA TABLE 1T (§9) ═══
+   La zone d'actions desktop fait ~204px en phase « hero » (boutons visibles) mais
+   se vide en phase « done » (le résultat vit dans le panneau droit) → sans réserve,
+   .t1-table-area (flex:1) reprend l'espace et le feutre BONDIT de ~150px à chaque
+   main. On réserve la hauteur → le feutre garde EXACTEMENT la même taille et
+   position quels que soient le spot, la street, la phase (§9). Contenu aligné en
+   haut : les boutons restent collés sous la table, l'espace libre en phase done
+   reste sous eux. (.t1-actions-under est masqué sur mobile → sans effet.) */
+.t1-actions-under{min-height:206px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;}
+.t1-actions-under .mtr-actions{padding:6px 10px 7px!important;}
+.t1-actions-under .mtr-actions>div{margin-bottom:5px!important;}
+.t1-actions-under .gto-btn{min-height:62px!important;}
+.t1-actions-under .gto-btn .gto-btn-inner{padding:8px 8px 6px!important;}
+.t1-actions-under .gto-btn-label{font-size:14px!important;}
+.t1-actions-under .gto-btn-sizing{font-size:9.5px!important;}
+.t1-actions-under .gto-btn-hint{font-size:7.5px!important;}
+.t1-actions-under .sizing-btn{min-height:19px!important;}
+.t1-actions-under .sizing-custom{margin-top:3px!important;}
+.t1-actions-under .sizing-step-btn{height:27px!important;}
+
+/* ═══ 7-MAX — CARTES HERO -5% (§2) ═══
+   Scopé via [data-nplayers="7"] : les autres structures gardent leur taille.
+   Ratio, style, arrondis, ombres conservés (seules les dimensions baissent de
+   ~5% : 48x66 -> 46x63) pour dégager l'écart board -> cartes Hero (§3). */
+/* ═══ 6-MAX — POT COMPACT HORIZONTAL ═══
+   Le 6-max hero-centric place un siège PILE en haut-centre (x50), dans la colonne
+   du pot. Mesuré : entre le bas de son bloc et les cartes du Hero il n'y a que
+   ~134px, alors que pot(53) + board(79) + les écarts mini (8+12) en réclament
+   152 → déficit de 18px, d'où le pot posé sur sa plaque.
+   Remonter le siège ne résout pas : au-delà de ~0.87 son avatar est rogné par le
+   bord, et le budget dépend de la rotation (un siège AVEC cartes est plus haut).
+   Solution : compacter le pot sur UNE ligne — [jetons] POT 12bb — comme le fait
+   déjà le mobile. ~53px → ~26px : les ~27px rendus couvrent le déficit sans
+   toucher aux sièges ni au board. Pot toujours centré (x50) et lisible. */
+/* STANDARD 1T — pot compact horizontal ([jetons] POT xx bb sur une ligne) +
+   hauteur fixe, pour TOUTES les structures 1T web. Uniforme, lisible, et rend la
+   hauteur nécessaire pour que le pot passe sous le siège du haut. .t1-left ne
+   cible que le 1T web (le multi et le mobile ont leur propre pot). */
+.t1-left[data-nplayers] .pf-pot-readout{
+  flex-direction:row!important;align-items:center!important;
+  gap:7px!important;white-space:nowrap!important;height:30px!important;
+}
+.t1-left[data-nplayers] .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
+.t1-left[data-nplayers] .pf-pot-label{font-size:9px!important;}
+.t1-left[data-nplayers] .pf-pot-value{font-size:17px!important;}
+
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom{width:46px!important;height:63px!important;}
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-r{font-size:17px!important;}
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-corner-s{font-size:12px!important;}
+.t1-left[data-nplayers="7"] .card-1t-hero-bottom .card-center{font-size:27px!important;}
+
+/* ═══ DESKTOP ÉCRAN COURT (≤820px de haut : 1366×768, fenêtre réduite) — §24 ═══
+   La zone de table tombe à ~395px alors que le bloc HERO (cartes+avatar+plaque)
+   fait 208px FIXES, soit 53% de la hauteur → il débordait sous la table (7px) et
+   touchait le bandeau d'actions. Règle du §24 : on réduit le scale AVANT de
+   rogner. On rabote donc les cartes Hero et les boutons d'action sur ces
+   hauteurs uniquement — le 1440×900 et au-delà restent inchangés. */
+@media (min-width:769px) and (max-height:820px){
+  .t1-left .card-1t-hero-bottom{width:40px!important;height:55px!important;}
+  .t1-left .card-1t-hero-bottom .card-corner-r{font-size:15px!important;}
+  .t1-left .card-1t-hero-bottom .card-corner-s{font-size:11px!important;}
+  .t1-left .card-1t-hero-bottom .card-center{font-size:23px!important;}
+  .t1-left .pf-player-seat[data-mode="1T"] .pf-avatar-premium{
+    width:calc(var(--avatar-size) - 10px)!important;height:calc(var(--avatar-size) - 10px)!important;
+  }
+  .t1-actions-under .gto-btn{min-height:54px!important;}
+  .t1-actions-under .gto-btn .gto-btn-inner{padding:6px 8px 5px!important;}
+  .t1-actions-under .mtr-actions{padding:5px 10px 6px!important;}
+  .t1-actions-under .mtr-actions>div{margin-bottom:4px!important;}
 }
 `;

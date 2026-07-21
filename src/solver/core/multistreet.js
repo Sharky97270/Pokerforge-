@@ -1,0 +1,337 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   SHARKSOLVER CORE · MULTI-STREET CFR v2 (§26) — EXPÉRIMENTAL
+   CFR+ VECTORISÉ marchant le Game Tree Engine v2 (§12).
+
+   v2 :
+   · SOUS-ARBRES PAR CARTE : les infosets sont indexés par (nœud, cartes de board
+     révélées depuis le board initial) → la stratégie turn/river DÉPEND de la carte
+     tombée (plus de moyennage sur les runouts). L'arbre physique reste partagé ;
+     seules les tables de regret/stratégie se ramifient (lazy, par runout visité).
+   · Échantillonnage des runouts (chance sampling) seedé quand le board est
+     incomplet ; énumération exacte du showdown quand le board est complet.
+   · Zérotage des reaches aux nœuds chance : un combo qui contient la carte
+     tombée n'existe pas sur ce runout.
+   · MEILLEURE RÉPONSE / EXPLOITABILITÉ (board complet) : nashConv(sol) = somme
+     des gains de meilleure réponse des deux joueurs contre la stratégie moyenne.
+     ≈ 0 ⟺ équilibre du jeu modélisé. C'est LA mesure rigoureuse de validité.
+
+   ⚠ Tant que non benchmarké sur un large éventail de spots, ne JAMAIS présenter
+   ces résultats comme « GTO » dans l'UI (§2). Validé : jeu de clairvoyance
+   (solution analytique) + exploitabilité ≈ 0.
+════════════════════════════════════════════════════════════════════════════ */
+import { buildPostflopTree, terminalUtility } from "./gametree.js";
+import { CHIP_UTILITY, makeIcmUtility, makePkoUtility } from "./icm.js";
+import { eval7i } from "./evaluator.js";
+import { mulberry32 } from "./equity.js";
+
+/* Résout l'arbre postflop pour un board de 3 à 5 cartes. */
+export function solveTree(heroList,villList,board,opts={}){
+  const iters=opts.iters||600;
+  const startPot=opts.startPot||6;
+  const initLen=board.length;
+  const need=5-initLen;                       // cartes de board à tirer (0..2)
+  const rng=mulberry32((opts.seed??123457)>>>0);
+  /* Utilité terminale : chip-EV par défaut (somme nulle, comportement historique),
+     ou utilité ICM en $EQ via makeIcmUtility (§21 stratégique) — auquel cas le jeu
+     n'est PAS à somme nulle et NashConv devient ininterprétable (cf. nashConv). */
+  const U=opts.utility||CHIP_UTILITY;
+  const tree=buildPostflopTree({...opts,startPot,streets:opts.streets||1,ipProbe:opts.ipProbe!==false});
+  const nH=heroList.length,nV=villList.length;
+  const wH=heroList.map(e=>e.w??1),wV=villList.map(e=>e.w??1);
+
+  // Showdown E[i][j] ∈ {1,0.5,0} pour le board complet courant ; -1 si collision.
+  // PERF ranges larges : scores PAR MAIN (nH+nV eval7i) puis comparaisons —
+  // au lieu de 2·nH·nV évaluations par board.
+  const E=Array.from({length:nH},()=>new Float32Array(nV));
+  const sH=new Float64Array(nH),sV=new Float64Array(nV);
+  const computeE=(b)=>{
+    for(let i=0;i<nH;i++){const h=heroList[i].cards;
+      sH[i]=(b.includes(h[0])||b.includes(h[1]))?-1:eval7i([h[0],h[1],b[0],b[1],b[2],b[3],b[4]]);}
+    for(let j=0;j<nV;j++){const v=villList[j].cards;
+      sV[j]=(b.includes(v[0])||b.includes(v[1]))?-1:eval7i([v[0],v[1],b[0],b[1],b[2],b[3],b[4]]);}
+    for(let i=0;i<nH;i++){const h=heroList[i].cards;const row=E[i];const hs=sH[i];
+      for(let j=0;j<nV;j++){const v=villList[j].cards;
+        if(hs<0||sV[j]<0||h[0]===v[0]||h[0]===v[1]||h[1]===v[0]||h[1]===v[1]){row[j]=-1;continue;}
+        row[j]=hs>sV[j]?1:hs===sV[j]?0.5:0;
+      }}
+  };
+  const used=new Uint8Array(52);
+  const sampleBoard=()=>{
+    used.fill(0);for(const c of board)used[c]=1;
+    const b=board.slice();
+    while(b.length<5){const c=(rng()*52)|0;if(!used[c]){used[c]=1;b.push(c);}}
+    return b;
+  };
+  let curB=board.slice();
+  if(need===0){curB=board.slice();computeE(curB);}
+
+  /* ── SOLVED NODE LOCK (§19) : fréquences verrouillées à des nœuds désignés par
+     chemin d'actions depuis la racine (ex. path:["B"] = vilain face au bet).
+     Au nœud verrouillé : stratégie IMPOSÉE (identique pour tous les combos),
+     regrets non mis à jour — le reste de l'arbre RE-SOLVE contre ce verrou.
+     ≠ Quick Node Lock (édition heuristique) : ici c'est un vrai re-solve CFR. ── */
+  const locks={};
+  // Fréquence d'une action au nœud : clé exacte, sinon "B" réparti sur les sizings B*.
+  const lockArrFor=(n,freqs)=>{
+    const nBets=n.actions.filter(a=>a.startsWith("B")).length||1;
+    const arr=new Float64Array(n.actions.length);let s=0;
+    n.actions.forEach((a,k)=>{
+      let f=freqs&&freqs[a];
+      if(f==null&&a.startsWith("B")&&freqs&&freqs.B!=null)f=freqs.B/nBets;
+      arr[k]=Math.max(0,f||0);s+=arr[k];
+    });
+    if(s<=0)return null;
+    for(let k=0;k<arr.length;k++)arr[k]/=s;
+    return arr;
+  };
+  if(opts.locks)for(const L of opts.locks){
+    if(L.match){
+      // Verrou par MOTIF : tous les nœuds de décision correspondants (profils §20).
+      (function walk(n){
+        if(n.kind==="chance")return walk(n.next);
+        if(n.kind!=="decision")return;
+        const isVill=n.player===1;
+        const hit=(L.match==="villFacingBet"&&isVill&&n.actions[0]==="F")
+                ||(L.match==="villAfterCheck"&&isVill&&n.actions[0]==="X");
+        if(hit){const arr=lockArrFor(n,L.freqs);if(arr)locks[n.id]=arr;}
+        for(const a of n.actions)walk(n.children[a]);
+      })(tree);
+      continue;
+    }
+    let n=tree,okPath=true;
+    for(const step of (L.path||[])){
+      while(n&&n.kind==="chance")n=n.next;
+      if(!n||!n.children||!n.children[step]){okPath=false;break;}
+      n=n.children[step];
+    }
+    while(n&&n.kind==="chance")n=n.next;
+    if(!okPath||!n||n.kind!=="decision")continue;
+    const arr=lockArrFor(n,L.freqs);
+    if(arr)locks[n.id]=arr;
+  }
+
+  /* Tables de regret / stratégie cumulée : node.id → Map(ctx → [combo][action]).
+     ctx = cartes révélées depuis le board initial à la street du nœud (sous-arbres
+     par carte). Allocation lazy par runout réellement visité. */
+  const reg={},strat={};
+  (function init(n){
+    if(n.kind==="decision"){reg[n.id]=new Map();strat[n.id]=new Map();for(const a of n.actions)init(n.children[a]);}
+    else if(n.kind==="chance")init(n.next);
+  })(tree);
+  // Clé de contexte d'un nœud : cartes du board visibles à sa street, au-delà du
+  // board initial. La street 0 de l'arbre = le board initial (flop OU turn OU river),
+  // donc visibles à la street s = initLen + s.
+  const keyFor=(node)=>{const vis=initLen+node.street;return vis<=initLen?"":curB.slice(initLen,Math.min(5,vis)).join(",");};
+  const getTbl=(store,node,key,nc,na)=>{
+    const m=store[node.id];let t=m.get(key);
+    if(!t){t=Array.from({length:nc},()=>new Float64Array(na));m.set(key,t);}
+    return t;
+  };
+  const stratFromReg=(r)=>{
+    let s=0;const out=new Float64Array(r.length);
+    for(let k=0;k<r.length;k++){out[k]=r[k]>0?r[k]:0;s+=out[k];}
+    if(s>0)for(let k=0;k<r.length;k++)out[k]/=s;else out.fill(1/r.length);
+    return out;
+  };
+
+  // Retourne {vH,vV} : valeurs contrefactuelles par combo, perspective de chaque joueur.
+  function traverse(node,reachH,reachV,tw){
+    if(node.kind==="terminal"){
+      const vH=new Float64Array(nH),vV=new Float64Array(nV);
+      /* U.h / U.v et non `x` / `-x` : sous ICM le jeu n'est PAS à somme nulle
+         (les jetons transférés déplacent aussi l'équité des joueurs hors du coup),
+         donc chaque camp a sa propre utilité. En chip-EV, U vaut CHIP_UTILITY et
+         on retrouve exactement le comportement historique. */
+      for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=reachV[j]*U.h(terminalUtility(node,startPot,e));}vH[i]=acc;}
+      for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=reachH[i]*U.v(terminalUtility(node,startPot,e));}vV[j]=acc;}
+      return{vH,vV};
+    }
+    if(node.kind==="chance"){
+      const ci=initLen+node.street;            // index de la carte révélée pour street+1
+      if(ci>=initLen&&ci<5){
+        // Carte échantillonnée : les combos qui la contiennent n'existent pas sur ce runout.
+        const c=curB[ci];
+        const rh=Float64Array.from(reachH),rv=Float64Array.from(reachV);
+        for(let i=0;i<nH;i++){const h=heroList[i].cards;if(h[0]===c||h[1]===c)rh[i]=0;}
+        for(let j=0;j<nV;j++){const v=villList[j].cards;if(v[0]===c||v[1]===c)rv[j]=0;}
+        return traverse(node.next,rh,rv,tw);
+      }
+      return traverse(node.next,reachH,reachV,tw);
+    }
+    const na=node.actions.length,key=keyFor(node);
+    const lock=locks[node.id]||null;           // §19 : stratégie imposée à ce nœud
+    const vH=new Float64Array(nH),vV=new Float64Array(nV);
+    if(node.player===0){                                   // Hero agit
+      const regT=getTbl(reg,node,key,nH,na),stT=getTbl(strat,node,key,nH,na);
+      const S=[];for(let i=0;i<nH;i++)S[i]=lock||stratFromReg(regT[i]);
+      const child=[];
+      for(let a=0;a<na;a++){const cr=new Float64Array(nH);for(let i=0;i<nH;i++)cr[i]=reachH[i]*S[i][a];child[a]=traverse(node.children[node.actions[a]],cr,reachV,tw);}
+      for(let i=0;i<nH;i++){
+        let nv=0;for(let a=0;a<na;a++)nv+=S[i][a]*child[a].vH[i];vH[i]=nv;
+        const rg=regT[i],st=stT[i];
+        for(let a=0;a<na;a++){if(!lock)rg[a]=Math.max(0,rg[a]+child[a].vH[i]-nv);st[a]+=tw*reachH[i]*S[i][a];}
+      }
+      for(let j=0;j<nV;j++){let acc=0;for(let a=0;a<na;a++)acc+=child[a].vV[j];vV[j]=acc;}
+    }else{                                                 // Villain agit
+      const regT=getTbl(reg,node,key,nV,na),stT=getTbl(strat,node,key,nV,na);
+      const S=[];for(let j=0;j<nV;j++)S[j]=lock||stratFromReg(regT[j]);
+      const child=[];
+      for(let a=0;a<na;a++){const cr=new Float64Array(nV);for(let j=0;j<nV;j++)cr[j]=reachV[j]*S[j][a];child[a]=traverse(node.children[node.actions[a]],reachH,cr,tw);}
+      for(let j=0;j<nV;j++){
+        let nv=0;for(let a=0;a<na;a++)nv+=S[j][a]*child[a].vV[j];vV[j]=nv;
+        const rg=regT[j],st=stT[j];
+        for(let a=0;a<na;a++){if(!lock)rg[a]=Math.max(0,rg[a]+child[a].vV[j]-nv);st[a]+=tw*reachV[j]*S[j][a];}
+      }
+      for(let i=0;i<nH;i++){let acc=0;for(let a=0;a<na;a++)acc+=child[a].vH[i];vH[i]=acc;}
+    }
+    return{vH,vV};
+  }
+
+  const sumWH=wH.reduce((a,b)=>a+b,0),sumWV=wV.reduce((a,b)=>a+b,0);
+  let evNum=0,evDen=0;
+  for(let t=0;t<iters;t++){
+    if(need>0){curB=sampleBoard();computeE(curB);}   // échantillonne le runout (§26)
+    const r=traverse(tree,Float64Array.from(wH),Float64Array.from(wV),t+1);
+    let num=0;for(let i=0;i<nH;i++)num+=wH[i]*r.vH[i];
+    evNum+=num;evDen+=sumWH*sumWV;                   // EV Hero moyennée sur les runouts
+  }
+  const ev=evDen?evNum/evDen:0;
+
+  // `strat` est EXPOSÉ dans le retour : c'est l'état complet de la solution, donc
+  // ce qui doit être persisté pour la recharger sans re-solve (§16).
+  const base={
+    tree,E,strat,heroList,villList,wH,wV,startPot,initLen,
+    utility:U,                                  // requis par bestResponseEV/nashConv
+    /* Descripteur SÉRIALISABLE de l'utilité : `utility` porte des fonctions et ne
+       survit pas au structured clone de la Solution Library (§16). Ces deux champs
+       suffisent à la reconstruire à la relecture (cf. rehydrateTreeSolution). */
+    // Basé sur la PRÉSENCE de paramètres, pas sur zeroSum : un solve ICM heads-up
+    // est à somme nulle et resterait pourtant un solve ICM.
+    utilityKind:opts.pko?"pko":opts.icm?"icm":"chip",
+    icmParams:opts.icm||null,
+    pkoParams:opts.pko||null,
+    ev:Math.round(ev*1000)/1000,
+    iters,sampled:need>0,boardCards:initLen,
+  };
+  attachStrategyAccessors(base);
+  const heroCheck=base.aggAt(tree,0);
+  base.heroCheck=Math.round(heroCheck*1000)/10;
+  base.heroBet=Math.round((1-heroCheck)*1000)/10;
+  return base;
+}
+
+/* ══ ACCESSEURS DE STRATÉGIE (§26/§16) — FABRIQUE UNIQUE ══
+   avgOf / aggAt / ctxCount sont des fonctions PURES de (strat, wH, wV) : elles ne
+   dépendent d'aucun état de la boucle CFR. On les attache ici plutôt que de les
+   fermer sur le scope de solveTree, pour deux raisons :
+     1. les closures ne survivent pas au structured clone → une solution persistée
+        les perd ; on les RECONSTRUIT à la relecture (rehydrateTreeSolution) ;
+     2. une seule implémentation sert le solve frais ET le solve rechargé, donc
+        aucune dérive possible entre les deux chemins de lecture.
+   Mute et retourne `sol`. */
+export function attachStrategyAccessors(sol){
+  const {strat,wH,wV,heroList,villList}=sol;
+  const nH=heroList.length,nV=villList.length;
+  // Stratégie moyenne par nœud/combo, pour un contexte de runout donné (déf. board initial).
+  const avgOf=(node,c,key="")=>{
+    const m=strat[node.id];const t=m?m.get(key):null;
+    const na=node.actions.length;
+    if(!t)return new Array(na).fill(1/na);
+    const st=t[c];let s=0;for(const x of st)s+=x;
+    const out=new Array(na);for(let k=0;k<na;k++)out[k]=s>0?st[k]/s:1/na;
+    return out;
+  };
+  // Fréquence agrégée (pondérée par le poids des combos) d'une action à un nœud.
+  const aggAt=(node,actIdx,key="")=>{let num=0,den=0;const nc=node.player===0?nH:nV,w=node.player===0?wH:wV;for(let c=0;c<nc;c++){num+=w[c]*avgOf(node,c,key)[actIdx];den+=w[c];}return den?num/den:0;};
+  sol.avgOf=avgOf;
+  sol.aggAt=aggAt;
+  // nb de contextes de runout appris à un nœud (>1 ⟺ sous-arbres par carte actifs)
+  sol.ctxCount=(node)=>strat[node.id]?strat[node.id].size:0;
+  return sol;
+}
+
+/* Solution rechargée depuis la bibliothèque → réattache les accesseurs perdus au
+   clonage. `plain` doit porter strat/tree/heroList/villList/wH/wV (cf. SOLVE_DATA_KEYS
+   dans library.js). Retourne null si l'objet n'est pas réhydratable — on préfère
+   un cache manquant à une solution silencieusement amputée (§2). */
+export function rehydrateTreeSolution(plain){
+  if(!plain||!plain.strat||!plain.tree||!plain.heroList||!plain.villList)return null;
+  /* `utility` porte des fonctions : elle a été retirée avant persistance. On la
+     reconstruit depuis le descripteur. Une solution ICM dont les paramètres de
+     tournoi manquent n'est PAS réhydratable en chip-EV — ce serait changer la
+     nature du solve en silence (§2) : on la rejette, elle sera recalculée. */
+  if(plain.utilityKind==="pko"){
+    if(!plain.pkoParams)return null;
+    const u=makePkoUtility(plain.pkoParams);
+    if(!u)return null;
+    plain.utility=u;
+  }else if(plain.utilityKind==="icm"){
+    if(!plain.icmParams)return null;
+    const u=makeIcmUtility(plain.icmParams);
+    if(!u)return null;
+    plain.utility=u;
+  }else{
+    plain.utility=CHIP_UTILITY;
+  }
+  return attachStrategyAccessors(plain);
+}
+/* Alias rétro-compat : le board complet (5 cartes) est le cas exact. */
+export const solveTreeFixedBoard=solveTree;
+
+/* ══ MEILLEURE RÉPONSE / EXPLOITABILITÉ — board complet uniquement (exact). ══
+   Valeur de la meilleure réponse de `brPlayer` contre la stratégie MOYENNE adverse.
+   nashConv = brEV(Hero) + brEV(Villain) ≥ 0 ; ≈ 0 ⟺ équilibre (jeu zéro-somme). */
+export function bestResponseEV(sol,brPlayer){
+  if(sol.sampled)return null;   // exact seulement sur board complet (pas de bruit d'échantillonnage)
+  const {tree,E,heroList,villList,wH,wV,startPot,avgOf}=sol;
+  const U=sol.utility||CHIP_UTILITY;
+  const nH=heroList.length,nV=villList.length;
+  const nBr=brPlayer===0?nH:nV;
+  function walk(node,oppReach){
+    if(node.kind==="terminal"){
+      const v=new Float64Array(nBr);
+      if(brPlayer===0){for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=oppReach[j]*U.h(terminalUtility(node,startPot,e));}v[i]=acc;}}
+      else{for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=oppReach[i]*U.v(terminalUtility(node,startPot,e));}v[j]=acc;}}
+      return v;
+    }
+    if(node.kind==="chance")return walk(node.next,oppReach);
+    const na=node.actions.length;
+    if(node.player===brPlayer){
+      // Le BR choisit, par combo, l'action qui maximise sa valeur (même oppReach partout).
+      const childs=node.actions.map(a=>walk(node.children[a],oppReach));
+      const v=new Float64Array(nBr);
+      for(let c=0;c<nBr;c++){let best=-Infinity;for(let a=0;a<na;a++)if(childs[a][c]>best)best=childs[a][c];v[c]=best;}
+      return v;
+    }
+    // L'adversaire joue sa stratégie moyenne : on scinde son reach par action et on somme.
+    const nOpp=node.player===0?nH:nV;
+    const v=new Float64Array(nBr);
+    for(let a=0;a<na;a++){
+      const cr=new Float64Array(nOpp);
+      for(let c=0;c<nOpp;c++)cr[c]=oppReach[c]*avgOf(node,c)[a];
+      const cv=walk(node.children[node.actions[a]],cr);
+      for(let c=0;c<nBr;c++)v[c]+=cv[c];
+    }
+    return v;
+  }
+  const oppW=brPlayer===0?Float64Array.from(wV):Float64Array.from(wH);
+  const myW=brPlayer===0?wH:wV;
+  const v=walk(tree,oppW);
+  let num=0;for(let c=0;c<nBr;c++)num+=myW[c]*v[c];
+  const den=wH.reduce((a,b)=>a+b,0)*wV.reduce((a,b)=>a+b,0);
+  return den?num/den:0;
+}
+/* NashConv (bb) : somme des gains de meilleure réponse. ≈0 ⟺ équilibre. */
+export function nashConv(sol){
+  /* NashConv = brEV(H) + brEV(V) ≥ 0, avec ≈0 ⟺ équilibre. Cette identité SUPPOSE
+     un jeu à somme nulle : c'est parce que les utilités s'annulent à l'équilibre
+     que la somme mesure l'exploitabilité. Sous utilité ICM le jeu ne l'est pas
+     (le transfert de jetons déplace aussi l'équité des joueurs hors du coup), et
+     la somme n'a plus de sens — la renvoyer quand même afficherait un nombre
+     d'apparence rigoureuse mais faux (§2). On renvoie null : l'UI sait déjà
+     traiter « exploitabilité indisponible ». */
+  if(sol&&sol.utility&&sol.utility.zeroSum===false)return null;
+  const h=bestResponseEV(sol,0),v=bestResponseEV(sol,1);
+  if(h==null||v==null)return null;
+  return Math.round((h+v)*10000)/10000;
+}

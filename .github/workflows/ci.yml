@@ -24,6 +24,19 @@ jobs:
       - name: Tests (trainer + coach)
         run: npm test
 
+      # Le moteur du solveur (§23) n'était couvert par AUCUN job : `npm test` ne
+      # lance que trainer/coach/mental. Les 160 assertions de validate.mjs ne
+      # tournaient qu'en local, donc un ✅ de CI ne disait rien du solveur.
+      - name: Tests moteur solveur (validation §23)
+        run: npm run test:solver
+
+      # Complémentaire et non redondant : validate.mjs vérifie la cohérence interne,
+      # le benchmark confronte le moteur à des RÉFÉRENCES EXTERNES (équités publiées,
+      # clairvoyance analytique). Aucune assertion sur le temps — les durées sont
+      # seulement affichées — donc pas de flakiness sur un runner partagé.
+      - name: Benchmark moteur solveur (références §24)
+        run: npm run bench:solver
+
       - name: Build standalone (vite build + inline)
         run: npm run build:standalone
 

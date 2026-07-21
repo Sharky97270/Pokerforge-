@@ -1,6 +1,14 @@
 // PokerForge — Shark Solver : moteur CFR+, equite, exploit/ICM/PKO + UI (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useMemo } from "react";
 import { T } from "../theme.js";
+import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta, isCalculated } from "../solver/provenance.js";
+// SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
+import { EQ_RANKVAL, EQ_SUITIDX, exactComboList, singleHandList, sideComboList, cardLabel } from "../solver/core/combos.js";
+// §17 : l'UI consomme la SOLVER API (provenance + convergence), jamais le CFR en direct.
+import { computeEquity, solveSubgame, solveMultiStreet, solveNodeLocked, computeICM, computePKO,
+         hydrateLibrary, librarySize, persistedCount, clearLibrary, libraryStatus,
+         solvePreflopPushFold } from "../solver/api.js";
+import { buildCoachBrief } from "../solver/explain.js";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -9,7 +17,25 @@ import "./SharkSolverTab.css";
 
 const RANKS=["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
 
-/* Construit une fréquence GTO réaliste par main selon position + action + stack */
+/* ⚠ RANGES HEURISTIQUES — CE N'EST PAS UN SOLVE (§2, §11/§37).
+   Fréquences fabriquées par des formules écrites à la main (paliers de paires,
+   décote par gap et bonus de hauteur), calibrées à l'œil pour AVOIR LA FORME d'une
+   range correcte. Aucun calcul d'équilibre là-dedans.
+
+   Le commentaire précédent disait « fréquence GTO réaliste » : abus de langage
+   corrigé, y compris en interne — c'est ainsi qu'une heuristique finit par être
+   traitée comme un solve trois fichiers plus loin.
+
+   PORTÉE RÉELLE DE L'APPROXIMATION, à ne pas sous-estimer : ces ranges sont les
+   ENTRÉES du CFR postflop. Un solve postflop exact sur des ranges devinées reste
+   une réponse exacte à la mauvaise question, et la composition de range pilote
+   l'essentiel de la stratégie postflop — démontré par le bug de troncature (§8),
+   où supprimer les offsuit changeait toute la solution. Tant que ces ranges sont
+   heuristiques, elles dominent le terme d'erreur, devant la précision du CFR.
+
+   SORTIE PRÉVUE : bibliothèque de ranges pré-solvées → RangeSource.PRESOLVED
+   (déjà défini dans provenance.js, encore inutilisé). Le préflop ne se solve pas
+   en direct dans un navigateur ; il s'embarque pré-calculé. */
 function buildSolverFreqs(heroPos, action, stack=100, vsPos="BB"){
   const deep=stack>=80, mid=stack>=40&&stack<80, short=stack<40;
   const posIdx={UTG:0,LJ:0,HJ:1,CO:2,BTN:3,SB:4,BB:5}[heroPos]||0;
@@ -789,119 +815,6 @@ function spotMath(action,effective,blinds,antes,potOverride){
    Évaluateur 7 cartes exact (meilleure main de 5 parmi 7).
    Cartes encodées 0..51 : rang = (carte>>2)+2 (2..14), couleur = carte&3.
 ════════════════════════════════════════════════════════ */
-const EQ_RANKVAL="23456789TJQKA";
-const EQ_SUITIDX={"♠":0,"♥":1,"♦":2,"♣":3,"s":0,"h":1,"d":2,"c":3,"S":0,"H":1,"D":2,"C":3};
-
-/* Combos concrets (ints) d'une clé de main (AA, AKs, AKo) */
-function comboCardsInt(key){
-  const out=[];
-  if(key.length===2){
-    const ri=EQ_RANKVAL.indexOf(key[0]);
-    for(let s1=0;s1<4;s1++)for(let s2=s1+1;s2<4;s2++)out.push([ri*4+s1,ri*4+s2]);
-  }else{
-    const r1=EQ_RANKVAL.indexOf(key[0]),r2=EQ_RANKVAL.indexOf(key[1]),suited=key[2]==="s";
-    if(suited){for(let s=0;s<4;s++)out.push([r1*4+s,r2*4+s]);}
-    else{for(let s1=0;s1<4;s1++)for(let s2=0;s2<4;s2++)if(s1!==s2)out.push([r1*4+s1,r2*4+s2]);}
-  }
-  return out;
-}
-/* Combo exact (avec couleurs) d'une main parsée → [{cards,w}] ou null */
-function exactComboList(parse){
-  if(!parse||!parse.valid||!parse.suits||parse.suits.length<2)return null;
-  const r1=EQ_RANKVAL.indexOf(parse.key[0]);
-  const r2=parse.isPair?r1:EQ_RANKVAL.indexOf(parse.key[1]);
-  const s1=EQ_SUITIDX[parse.suits[0]],s2=EQ_SUITIDX[parse.suits[1]];
-  if(s1==null||s2==null||(r1===r2&&s1===s2))return null;
-  return[{cards:[r1*4+s1,r2*4+s2],w:1}];
-}
-/* Liste pondérée de combos d'une seule main (toutes couleurs) */
-function singleHandList(key){return comboCardsInt(key).map(cards=>({cards,w:1}));}
-/* Liste pondérée de combos d'une range (poids = part continuant raise+call) */
-function rangeComboList(freqs){
-  const out=[];
-  for(const key in freqs){
-    const f=freqs[key];const w=((f.r||0)+(f.c||0))/100;
-    if(w<=0)continue;
-    for(const cards of comboCardsInt(key))out.push({cards,w,key});
-  }
-  return out;
-}
-/* Évaluateur 5 cartes → score entier comparable (catégorie + tiebreaks) */
-function eval5i(cs){
-  const r=[];
-  for(let i=0;i<5;i++)r.push((cs[i]>>2)+2);
-  r.sort((a,b)=>b-a);
-  const flush=(cs[0]&3)===(cs[1]&3)&&(cs[1]&3)===(cs[2]&3)&&(cs[2]&3)===(cs[3]&3)&&(cs[3]&3)===(cs[4]&3);
-  const u=[...new Set(r)];
-  let sh=0;
-  if(u.length===5){
-    if(u[0]-u[4]===4)sh=u[0];
-    else if(u[0]===14&&u[1]===5&&u[4]===2)sh=5;
-  }
-  const cnt={};for(const x of r)cnt[x]=(cnt[x]||0)+1;
-  const groups=Object.keys(cnt).map(k=>[cnt[k],+k]).sort((a,b)=>b[0]-a[0]||b[1]-a[1]);
-  const pat=groups.map(g=>g[0]).join("");
-  let cat,tb;
-  if(sh&&flush){cat=8;tb=[sh];}
-  else if(pat==="41"){cat=7;tb=groups.map(g=>g[1]);}
-  else if(pat==="32"){cat=6;tb=groups.map(g=>g[1]);}
-  else if(flush){cat=5;tb=r;}
-  else if(sh){cat=4;tb=[sh];}
-  else if(pat==="311"){cat=3;tb=groups.map(g=>g[1]);}
-  else if(pat==="221"){cat=2;tb=groups.map(g=>g[1]);}
-  else if(pat==="2111"){cat=1;tb=groups.map(g=>g[1]);}
-  else{cat=0;tb=r;}
-  let score=cat;
-  for(let i=0;i<5;i++)score=score*15+(tb[i]||0);
-  return score;
-}
-/* Meilleure main de 5 parmi 7 (21 combinaisons) */
-function eval7i(cards){
-  let best=-1;
-  for(let a=0;a<7;a++)for(let b=a+1;b<7;b++){
-    const five=[];
-    for(let k=0;k<7;k++)if(k!==a&&k!==b)five.push(cards[k]);
-    const s=eval5i(five);
-    if(s>best)best=s;
-  }
-  return best;
-}
-function _buildSampler(list){
-  const cum=[];let tot=0;
-  for(const e of list){tot+=e.w;cum.push(tot);}
-  return{list,cum,tot};
-}
-function _sample(s){
-  const x=Math.random()*s.tot;
-  let lo=0,hi=s.cum.length-1;
-  while(lo<hi){const m=(lo+hi)>>1;if(s.cum[m]<x)lo=m+1;else hi=m;}
-  return s.list[lo].cards;
-}
-/* Équité Hero (%) par Monte-Carlo. board = cartes fixées (0..5 ints) → postflop sur texture réelle */
-function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[]){
-  if(!heroList||!villList||!heroList.length||!villList.length)return 50;
-  const fixed=boardFixed||[];
-  const hs=_buildSampler(heroList),vs=_buildSampler(villList);
-  const used=new Uint8Array(52);
-  let score=0,n=0,guard=0;
-  const need=5-fixed.length;
-  while(n<iters&&guard<iters*4){
-    guard++;
-    const h=_sample(hs),v=_sample(vs);
-    // collisions main/main ou main/board
-    if(h[0]===v[0]||h[0]===v[1]||h[1]===v[0]||h[1]===v[1])continue;
-    if(fixed.includes(h[0])||fixed.includes(h[1])||fixed.includes(v[0])||fixed.includes(v[1]))continue;
-    used.fill(0);used[h[0]]=1;used[h[1]]=1;used[v[0]]=1;used[v[1]]=1;
-    for(const c of fixed)used[c]=1;
-    const board=fixed.slice();
-    while(board.length<5){const c=(Math.random()*52)|0;if(!used[c]){used[c]=1;board.push(c);}}
-    const hv=eval7i([h[0],h[1],board[0],board[1],board[2],board[3],board[4]]);
-    const vv=eval7i([v[0],v[1],board[0],board[1],board[2],board[3],board[4]]);
-    if(hv>vv)score+=1;else if(hv===vv)score+=0.5;
-    n++;
-  }
-  return n?Math.round(score/n*100):50;
-}
 
 /* Parse un board "Ah Kd 7c", "As Ks Qs Jh", "2c3c4c5c6c" → {valid,cards:[ints],error} */
 function parseBoardToken(raw){
@@ -929,209 +842,6 @@ function parseBoardToken(raw){
   if(cards.length>5)return{valid:false,cards:[],error:"Un board comporte au plus 5 cartes."};
   if(cards.length===1||cards.length===2)return{valid:false,cards:[],error:"Board = 3 (flop), 4 (turn) ou 5 (river) cartes."};
   return{valid:true,cards,error:null};
-}
-/* Libellé lisible d'une carte int */
-function cardLabel(c){const SU=["♠","♥","♦","♣"];return EQ_RANKVAL[c>>2]+SU[c&3];}
-
-/* ═══════════════════════════════════════════════════════
-   MOTEUR CFR+ — sous-jeu heads-up single-street (board + bet + raise + call/fold)
-   Arbre :  Hero (OOP) : check | bet b
-     ├─ check → Vilain : check (→ SD) | bet b → Hero : fold | call (→ SD)
-     └─ bet b → Vilain : fold | call (→ SD) | raise R → Hero : fold | call (→ SD)
-   Payoffs zéro-somme (perspective Hero). Showdown exact si board complet (5),
-   sinon équité par runouts Monte-Carlo. Ranges réelles bornées à maxCombos combos
-   pondérés (raise+call). Régret-matching CFR+ (regrets clampés ≥0).
-   Périmètre assumé : 1 street, 1 sizing de bet + 1 raise — solveur de spot, pas multi-rue.
-════════════════════════════════════════════════════════ */
-function solveRiverCFR(heroFreqs,villainFreqs,board,potBB,betFrac,opts={}){
-  const maxCombos=opts.maxCombos||50;
-  const iters=opts.iters||400;
-  const runouts=opts.runouts||60;
-  const raiseMult=opts.raiseMult||3; // taille du raise vilain = 3× le bet
-  const bd=board||[];
-  function topCombos(freqs){
-    const list=rangeComboList(freqs).filter(e=>!bd.includes(e.cards[0])&&!bd.includes(e.cards[1]));
-    list.sort((a,b)=>b.w-a.w);
-    return list.slice(0,maxCombos);
-  }
-  const H=topCombos(heroFreqs),V=topCombos(villainFreqs);
-  if(!H.length||!V.length)return null;
-  const nH=H.length,nV=V.length;
-  const complete=bd.length===5;
-  // matrice d'équité E[i][j] (0..1) ; -1 si combos incompatibles
-  const E=[];const used=new Uint8Array(52);
-  for(let i=0;i<nH;i++){
-    const row=new Float32Array(nV);E.push(row);
-    const h=H[i].cards;
-    for(let j=0;j<nV;j++){
-      const v=V[j].cards;
-      if(h[0]===v[0]||h[0]===v[1]||h[1]===v[0]||h[1]===v[1]){row[j]=-1;continue;}
-      if(complete){
-        const hv=eval7i([h[0],h[1],bd[0],bd[1],bd[2],bd[3],bd[4]]);
-        const vv=eval7i([v[0],v[1],bd[0],bd[1],bd[2],bd[3],bd[4]]);
-        row[j]=hv>vv?1:hv===vv?0.5:0;
-      }else{
-        let s=0,n=0;
-        for(let it=0;it<runouts;it++){
-          used.fill(0);used[h[0]]=1;used[h[1]]=1;used[v[0]]=1;used[v[1]]=1;
-          for(const c of bd)used[c]=1;
-          const b2=bd.slice();
-          while(b2.length<5){const c=(Math.random()*52)|0;if(!used[c]){used[c]=1;b2.push(c);}}
-          const hv=eval7i([h[0],h[1],b2[0],b2[1],b2[2],b2[3],b2[4]]);
-          const vv=eval7i([v[0],v[1],b2[0],b2[1],b2[2],b2[3],b2[4]]);
-          s+=hv>vv?1:hv===vv?0.5:0;n++;
-        }
-        row[j]=n?s/n:0.5;
-      }
-    }
-  }
-  const wH=H.map(e=>e.w),wV=V.map(e=>e.w);
-  const p2=potBB/2;
-  const bS=betFrac*potBB;                          // bet Hero "small" (= sizing choisi)
-  const bB=Math.min(potBB*2,bS*1.5);               // bet Hero "big" (2e sizing)
-  const vb=betFrac*potBB;                          // stab Vilain après check Hero
-  const Rs=raiseMult*bS,Rb=raiseMult*bB,CR=raiseMult*vb; // tailles de raise / check-raise
-  // infosets : HR[h]{check,betS,betB} ; VC[v]{check,bet} ; HCB[h]{fold,call,raise=check-raise} ;
-  //   VCR[v]{fold,call} ; VBs[v]{fold,call,raise} ; HBsR[h]{fold,call} ; VBb[v]{fold,call,raise} ; HBbR[h]{fold,call}
-  const mk=(n,a)=>({reg:Array.from({length:n},()=>new Array(a).fill(0)),sum:Array.from({length:n},()=>new Array(a).fill(0))});
-  const HR=mk(nH,3),VC=mk(nV,2),HCB=mk(nH,3),VCR=mk(nV,2),VBs=mk(nV,3),HBsR=mk(nH,2),VBb=mk(nV,3),HBbR=mk(nH,2);
-  const strat=(node,i)=>{
-    const r=node.reg[i];let s=0;const out=new Array(r.length);
-    for(let k=0;k<r.length;k++){out[k]=r[k]>0?r[k]:0;s+=out[k];}
-    if(s>0){for(let k=0;k<r.length;k++)out[k]/=s;}else{for(let k=0;k<r.length;k++)out[k]=1/r.length;}
-    return out;
-  };
-  const addSum=(node,i,st,w)=>{for(let k=0;k<st.length;k++)node.sum[i][k]+=w*st[k];};
-  for(let t=0;t<iters;t++){
-    const sHR=[],sVC=[],sHCB=[],sVCR=[],sVBs=[],sHBsR=[],sVBb=[],sHBbR=[];
-    for(let i=0;i<nH;i++){sHR[i]=strat(HR,i);sHCB[i]=strat(HCB,i);sHBsR[i]=strat(HBsR,i);sHBbR[i]=strat(HBbR,i);}
-    for(let j=0;j<nV;j++){sVC[j]=strat(VC,j);sVCR[j]=strat(VCR,j);sVBs[j]=strat(VBs,j);sVBb[j]=strat(VBb,j);}
-    const wt=t+1;
-    for(let i=0;i<nH;i++){addSum(HR,i,sHR[i],wt*wH[i]);addSum(HCB,i,sHCB[i],wt*wH[i]);addSum(HBsR,i,sHBsR[i],wt*wH[i]);addSum(HBbR,i,sHBbR[i],wt*wH[i]);}
-    for(let j=0;j<nV;j++){addSum(VC,j,sVC[j],wt*wV[j]);addSum(VCR,j,sVCR[j],wt*wV[j]);addSum(VBs,j,sVBs[j],wt*wV[j]);addSum(VBb,j,sVBb[j],wt*wV[j]);}
-    // valeur hero d'une branche bet de taille bX / RX, selon stratégies VBx (vilain) & HBxR (hero vs raise)
-    const heroBetVal=(i,j,sd,bX,RX,sVBx,sHBxR)=>
-      sVBx[0]*p2 + sVBx[1]*(sd*(p2+bX)) + sVBx[2]*( sHBxR[i][0]*(-(p2+bX)) + sHBxR[i][1]*(sd*(p2+RX)) );
-    // ── Hero root {check, betS, betB} ──
-    for(let i=0;i<nH;i++){
-      let vCheck=0,vBetS=0,vBetB=0;
-      for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;
-        // branche check : vilain check (SD) ou bet → hero {fold,call,check-raise→vilain fold/call}
-        const heroVsStab=sHCB[i][0]*(-p2)+sHCB[i][1]*(sd*(p2+vb))+sHCB[i][2]*(sVCR[j][0]*(p2+vb)+sVCR[j][1]*(sd*(p2+CR)));
-        vCheck+=wV[j]*(sVC[j][0]*(sd*p2)+sVC[j][1]*heroVsStab);
-        vBetS+=wV[j]*heroBetVal(i,j,sd,bS,Rs,sVBs[j],sHBsR);
-        vBetB+=wV[j]*heroBetVal(i,j,sd,bB,Rb,sVBb[j],sHBbR);
-      }
-      const nodeV=sHR[i][0]*vCheck+sHR[i][1]*vBetS+sHR[i][2]*vBetB;
-      HR.reg[i][0]=Math.max(0,HR.reg[i][0]+vCheck-nodeV);
-      HR.reg[i][1]=Math.max(0,HR.reg[i][1]+vBetS-nodeV);
-      HR.reg[i][2]=Math.max(0,HR.reg[i][2]+vBetB-nodeV);
-    }
-    // ── Hero après check-bet {fold, call, check-raise} (reach = wV*sVC.bet) ──
-    for(let i=0;i<nH;i++){
-      let vF=0,vC=0,vR=0;
-      for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;const reach=wV[j]*sVC[j][1];
-        vF+=reach*(-p2);vC+=reach*(sd*(p2+vb));
-        vR+=reach*(sVCR[j][0]*(p2+vb)+sVCR[j][1]*(sd*(p2+CR)));
-      }
-      const s=sHCB[i];const nodeV=s[0]*vF+s[1]*vC+s[2]*vR;
-      HCB.reg[i][0]=Math.max(0,HCB.reg[i][0]+vF-nodeV);
-      HCB.reg[i][1]=Math.max(0,HCB.reg[i][1]+vC-nodeV);
-      HCB.reg[i][2]=Math.max(0,HCB.reg[i][2]+vR-nodeV);
-    }
-    // ── Hero après betS-raise et betB-raise {fold,call} ──
-    for(let i=0;i<nH;i++){
-      let sF=0,sC=0,bF=0,bC=0;
-      for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;
-        const rs=wV[j]*sVBs[j][2],rb=wV[j]*sVBb[j][2];
-        sF+=rs*(-(p2+bS));sC+=rs*(sd*(p2+Rs));
-        bF+=rb*(-(p2+bB));bC+=rb*(sd*(p2+Rb));
-      }
-      let s=sHBsR[i],nv=s[0]*sF+s[1]*sC;
-      HBsR.reg[i][0]=Math.max(0,HBsR.reg[i][0]+sF-nv);HBsR.reg[i][1]=Math.max(0,HBsR.reg[i][1]+sC-nv);
-      s=sHBbR[i];nv=s[0]*bF+s[1]*bC;
-      HBbR.reg[i][0]=Math.max(0,HBbR.reg[i][0]+bF-nv);HBbR.reg[i][1]=Math.max(0,HBbR.reg[i][1]+bC-nv);
-    }
-    // ── Vilain après check hero {check,bet} (util = -hero) ──
-    for(let j=0;j<nV;j++){
-      let vCheck=0,vBet=0;
-      for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;const reach=wH[i]*sHR[i][0];
-        vCheck+=reach*(-(sd*p2));
-        // vilain bet → hero {fold:+p2(vil), call:-(...), check-raise → vilain {fold:-(p2+vb), call:-(sd*(p2+CR))}}
-        const heroCR=sHCB[i][2]*(sVCR[j][0]*(-(p2+vb))+sVCR[j][1]*(-(sd*(p2+CR))));
-        vBet+=reach*(sHCB[i][0]*p2+sHCB[i][1]*(-(sd*(p2+vb)))+heroCR);
-      }
-      const s=sVC[j];const nodeV=s[0]*vCheck+s[1]*vBet;
-      VC.reg[j][0]=Math.max(0,VC.reg[j][0]+vCheck-nodeV);
-      VC.reg[j][1]=Math.max(0,VC.reg[j][1]+vBet-nodeV);
-    }
-    // ── Vilain après hero check-raise {fold,call} (reach = wH*sHR.check*sHCB.raise) ──
-    for(let j=0;j<nV;j++){
-      let vF=0,vC=0;
-      for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;const reach=wH[i]*sHR[i][0]*sHCB[i][2];
-        vF+=reach*(-(p2+vb));vC+=reach*(-(sd*(p2+CR)));
-      }
-      const s=sVCR[j];const nodeV=s[0]*vF+s[1]*vC;
-      VCR.reg[j][0]=Math.max(0,VCR.reg[j][0]+vF-nodeV);
-      VCR.reg[j][1]=Math.max(0,VCR.reg[j][1]+vC-nodeV);
-    }
-    // ── Vilain après betS et betB {fold,call,raise} ──
-    for(let j=0;j<nV;j++){
-      let sF=0,sC=0,sR=0,bF=0,bC=0,bR=0;
-      for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;
-        const reachS=wH[i]*sHR[i][1],reachB=wH[i]*sHR[i][2];
-        sF+=reachS*(-p2);sC+=reachS*(-(sd*(p2+bS)));sR+=reachS*(sHBsR[i][0]*(p2+bS)+sHBsR[i][1]*(-(sd*(p2+Rs))));
-        bF+=reachB*(-p2);bC+=reachB*(-(sd*(p2+bB)));bR+=reachB*(sHBbR[i][0]*(p2+bB)+sHBbR[i][1]*(-(sd*(p2+Rb))));
-      }
-      let s=sVBs[j],nv=s[0]*sF+s[1]*sC+s[2]*sR;
-      VBs.reg[j][0]=Math.max(0,VBs.reg[j][0]+sF-nv);VBs.reg[j][1]=Math.max(0,VBs.reg[j][1]+sC-nv);VBs.reg[j][2]=Math.max(0,VBs.reg[j][2]+sR-nv);
-      s=sVBb[j];nv=s[0]*bF+s[1]*bC+s[2]*bR;
-      VBb.reg[j][0]=Math.max(0,VBb.reg[j][0]+bF-nv);VBb.reg[j][1]=Math.max(0,VBb.reg[j][1]+bC-nv);VBb.reg[j][2]=Math.max(0,VBb.reg[j][2]+bR-nv);
-    }
-  }
-  // stratégies moyennes par combo
-  const avg=(node,i)=>{const a=node.sum[i];let s=0;for(const x of a)s+=x;const out=new Array(a.length);for(let k=0;k<a.length;k++)out[k]=s>0?a[k]/s:1/a.length;return out;};
-  const aHR=[],aHCB=[],aHBsR=[],aHBbR=[],aVC=[],aVCR=[],aVBs=[],aVBb=[];
-  for(let i=0;i<nH;i++){aHR[i]=avg(HR,i);aHCB[i]=avg(HCB,i);aHBsR[i]=avg(HBsR,i);aHBbR[i]=avg(HBbR,i);}
-  for(let j=0;j<nV;j++){aVC[j]=avg(VC,j);aVCR[j]=avg(VCR,j);aVBs[j]=avg(VBs,j);aVBb[j]=avg(VBb,j);}
-  const aggW=(arr,w,a)=>{let num=0,den=0;for(let i=0;i<arr.length;i++){num+=w[i]*arr[i][a];den+=w[i];}return den>0?num/den:0;};
-  // EV Hero du sous-jeu sous stratégies moyennes
-  let evNum=0,wNum=0;
-  for(let i=0;i<nH;i++)for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;const sd=2*e-1;
-    const heroVsStab=aHCB[i][0]*(-p2)+aHCB[i][1]*(sd*(p2+vb))+aHCB[i][2]*(aVCR[j][0]*(p2+vb)+aVCR[j][1]*(sd*(p2+CR)));
-    const checkVal=aVC[j][0]*(sd*p2)+aVC[j][1]*heroVsStab;
-    const betSVal=aVBs[j][0]*p2+aVBs[j][1]*(sd*(p2+bS))+aVBs[j][2]*(aHBsR[i][0]*(-(p2+bS))+aHBsR[i][1]*(sd*(p2+Rs)));
-    const betBVal=aVBb[j][0]*p2+aVBb[j][1]*(sd*(p2+bB))+aVBb[j][2]*(aHBbR[i][0]*(-(p2+bB))+aHBbR[i][1]*(sd*(p2+Rb)));
-    const val=aHR[i][0]*checkVal+aHR[i][1]*betSVal+aHR[i][2]*betBVal;
-    evNum+=wH[i]*wV[j]*val;wNum+=wH[i]*wV[j];
-  }
-  // stratégie Hero agrégée par clé de main (pour overlay matrice) : bet = betS+betB
-  const heroByKey={};
-  {
-    const acc={};
-    for(let i=0;i<nH;i++){const k=H[i].key;if(!k)continue;const a=acc[k]||(acc[k]={bet:0,xr:0,w:0});a.bet+=wH[i]*(aHR[i][1]+aHR[i][2]);a.xr+=wH[i]*aHCB[i][2];a.w+=wH[i];}
-    for(const k in acc){const a=acc[k];heroByKey[k]={bet:Math.round(a.bet/a.w*100),xr:Math.round(a.xr/a.w*100)};}
-  }
-  const R=x=>Math.round(x*100);
-  return{
-    heroCheck:R(aggW(aHR,wH,0)),heroBetS:R(aggW(aHR,wH,1)),heroBetB:R(aggW(aHR,wH,2)),
-    heroBet:R(aggW(aHR,wH,1))+R(aggW(aHR,wH,2)),
-    villCheckVsCheck:R(aggW(aVC,wV,0)),villBetVsCheck:R(aggW(aVC,wV,1)),
-    heroFoldVsStab:R(aggW(aHCB,wH,0)),heroCallVsStab:R(aggW(aHCB,wH,1)),heroCheckRaise:R(aggW(aHCB,wH,2)),
-    villFoldVsBetS:R(aggW(aVBs,wV,0)),villCallVsBetS:R(aggW(aVBs,wV,1)),villRaiseVsBetS:R(aggW(aVBs,wV,2)),
-    villFoldVsBetB:R(aggW(aVBb,wV,0)),villCallVsBetB:R(aggW(aVBb,wV,1)),villRaiseVsBetB:R(aggW(aVBb,wV,2)),
-    heroEV:Math.round(evNum/(wNum||1)*100)/100,
-    heroByKey,
-    iters,betSPct:Math.round(betFrac*100),betBPct:Math.round(bB/potBB*100),nH,nV,complete,pot:Math.round(potBB*10)/10,
-  };
-}
-/* Construit la liste de combos d'un camp selon Main/Range (+ combo exact si couleurs) */
-function sideComboList(isHand,parse,key,freqs){
-  if(isHand&&parse&&parse.valid){
-    return exactComboList(parse)||singleHandList(parse.key);
-  }
-  if(key)return singleHandList(key);
-  return rangeComboList(freqs);
 }
 
 /* ── Switch Main / Range ── */
@@ -1253,6 +963,32 @@ function SpotStacksBar(props){
   );
 }
 
+/* ── ABSTRACTION DE RANGE (§8/§2) — la solution porte-t-elle sur la range COMPLÈTE ?
+   Le solveur réduit les grandes ranges pour rester interactif. Tant que le budget
+   couvre les 169 classes de mains, la range solvée garde la FORME de la range saisie
+   (poids par classe conservé) et seule la granularité par COULEUR est approchée —
+   ce qui compte surtout sur board monotone/flush-draw. Si des classes entières ont
+   dû sauter, c'est une approximation d'une autre nature : on le dit explicitement,
+   jamais en silence. ── */
+function AbstractionNote({abstraction}){
+  if(!abstraction)return null;
+  const{exact,hero,vill}=abstraction;
+  if(exact)return(
+    <div style={{fontSize:8,color:T.green,fontFamily:T.stats,fontStyle:"italic"}}>
+      ✓ Ranges COMPLÈTES — aucune abstraction de combos ({hero.kept} vs {vill.kept} combos).
+    </div>
+  );
+  const dropped=Math.max(hero.classesDropped||0,vill.classesDropped||0);
+  return(
+    <div style={{fontSize:8,color:dropped>0?T.amber||"#FFC247":T.text4,fontFamily:T.stats,fontStyle:"italic"}}>
+      {dropped>0?"⚠ ":"≈ "}Ranges réduites : Hero {hero.kept}/{hero.total} combos, Vilain {vill.kept}/{vill.total}.
+      {dropped>0
+        ? <> {dropped} classe{dropped>1?"s":""} de mains ÉCARTÉE{dropped>1?"S":""} faute de budget — la solution ne couvre pas toute la range.</>
+        : <> Les {hero.classesTotal} classes de mains sont représentées et le poids de chacune est conservé ; seule la granularité par couleur est approchée.</>}
+    </div>
+  );
+}
+
 /* ── Bandeau de stats clés (Equity / Fold Eq / Pot Odds / MDF / SPR / combos) ── */
 function SolverStatsBar(props){
   const{equityHero,equityVillain,foldEquity,math,effective,combosAvail,combosBlocked,mode,riskPremium,bountyFactor}=props;
@@ -1265,15 +1001,13 @@ function SolverStatsBar(props){
   );
   return(
     <div className="cai-card" style={{marginBottom:12,padding:"12px 14px"}}>
-      <div className="cai-card-h" style={{marginBottom:10}}>📊 STATS DU SPOT <span style={{fontSize:8,color:T.text4,fontWeight:400,fontStyle:"italic",marginLeft:6}}>équité = calcul réel (énumération) · fréquences/EV GTO = heuristiques (voir Solveur CFR)</span></div>
+      {/* Équité/EV/SPR vivent dans RÉSULTAT DU SPOT + RÉSUMÉ (colonne droite) → ici
+          uniquement les métriques de décision NON dupliquées (§39). */}
+      <div className="cai-card-h" style={{marginBottom:10}}>📊 MÉTRIQUES DE DÉCISION <span style={{fontSize:8,color:T.text4,fontWeight:400,fontStyle:"italic",marginLeft:6}}>pot odds / défense / combos — calcul réel</span></div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        {chip("EQUITY HERO",`${equityHero}%`,T.cyan)}
-        {chip("EQUITY VILAIN",`${equityVillain}%`,T.purple)}
-        {chip("FOLD EQUITY",`${foldEquity}%`,T.green,"Vilain fold")}
         {chip("POT ODDS",`${math.potOdds}%`,T.gold,`à payer ${math.facingBet}bb`)}
         {chip("MDF",`${math.mdf}%`,T.blue,"défense mini")}
         {chip("SPR",math.spr,T.green)}
-        {chip("STACK EFFECTIF",`${effective}bb`,T.text)}
         {chip("COMBOS DISPO",combosAvail,T.cyan,"continuation Hero")}
         {chip("COMBOS BLOQUÉS",combosBlocked==null?"—":combosBlocked,T.text3,"premiums bloqués")}
         {mode==="icm"&&chip("RISK PREMIUM",`${Math.round((riskPremium||0)*100)}%`,T.red,"prime ICM")}
@@ -1287,6 +1021,10 @@ function SolverStatsBar(props){
 const CFR_BET_SIZES=[[0.33,"33%"],[0.5,"50%"],[0.66,"66%"],[1,"100%"],[1.5,"150%"]];
 function SolverCFRPanel({result,busy,onSolve,betFrac,setBetFrac,boardCards,overlay,setOverlay}){
   const street=boardCards.length===5?"River (showdown exact)":boardCards.length===4?"Turn (runouts)":boardCards.length===3?"Flop (runouts)":"Préflop (runouts complets)";
+  // §40 : le CFR résout un sous-jeu POSTFLOP (check/bet). Sur préflop, son arbre ne
+  // correspond pas à l'action préflop (open/3-bet/fold) → on désactive pour ne pas
+  // afficher des sizings absents du vrai arbre.
+  const preflop=boardCards.length<3;
   const stat=(label,value,color,sub)=>(
     <div style={{flex:"1 1 120px",minWidth:104,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px"}}>
       <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".08em",marginBottom:3}}>{label}</div>
@@ -1307,15 +1045,20 @@ function SolverCFRPanel({result,busy,onSolve,betFrac,setBetFrac,boardCards,overl
                 background:betFrac===f?T.purple:"transparent",color:betFrac===f?"#06101f":T.text3}}>{lab}</button>
             ))}
           </div>
-          <button onClick={onSolve} disabled={busy} style={{padding:"7px 16px",borderRadius:8,fontSize:10.5,fontWeight:800,cursor:busy?"wait":"pointer",border:"none",fontFamily:T.stats,letterSpacing:".05em",
-            background:busy?"rgba(155,92,255,.3)":"linear-gradient(135deg,#9B5CFF,#34D8FF)",color:"#06101f"}}>
+          <button onClick={onSolve} disabled={busy||preflop} title={preflop?"Sélectionne un board (flop/turn/river)":""} style={{padding:"7px 16px",borderRadius:8,fontSize:10.5,fontWeight:800,cursor:busy?"wait":preflop?"not-allowed":"pointer",border:"none",fontFamily:T.stats,letterSpacing:".05em",
+            background:busy?"rgba(155,92,255,.3)":preflop?"rgba(255,255,255,.06)":"linear-gradient(135deg,#9B5CFF,#34D8FF)",color:preflop?T.text4:"#06101f"}}>
             {busy?"⏳ Calcul…":"▶ Résoudre (CFR)"}
           </button>
         </div>
       </div>
-      <div style={{fontSize:9,color:T.text3,fontFamily:T.stats,marginBottom:result?10:0}}>
+      <div style={{fontSize:9,color:T.text3,fontFamily:T.stats,marginBottom:(result&&!preflop)?10:0}}>
         Texture : <b style={{color:T.cyan}}>{street}</b> · Hero (range/main affichée) en premier de parole (OOP) vs Vilain. Le pot et les stacks viennent de la barre ci-dessus.
       </div>
+      {preflop&&(
+        <div style={{marginTop:8,padding:"8px 10px",borderRadius:8,background:"rgba(255,176,32,.08)",border:"1px solid rgba(255,176,32,.3)",fontSize:9,color:"#FFB020",fontFamily:T.stats}}>
+          ⓘ Le Solveur CFR résout un <b>sous-jeu postflop</b> (check/bet). Renseigne un <b>board</b> (flop/turn/river) pour résoudre. En préflop, la stratégie affichée reste la range <b>heuristique</b> (open/3-bet/fold).
+        </div>
+      )}
       {result?(
         <>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -1334,7 +1077,10 @@ function SolverCFRPanel({result,busy,onSolve,betFrac,setBetFrac,boardCards,overl
             {overlay&&<span style={{fontSize:8.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>cellules colorées par fréquence de bet d'équilibre (vert = bet, gris = check)</span>}
           </div>
           <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,marginTop:8,fontStyle:"italic"}}>
-            {result.iters} itérations CFR+ · {result.nH}×{result.nV} combos (bornés) · pot {result.pot}bb · 2 sizings Hero ({result.betSPct}% / {result.betBPct}% pot) · check-raise & raise vilain inclus{result.complete?" · showdown exact":" · équité par runouts"}. Solveur de spot 1-street — pas un arbre multi-rue complet.
+            {result.iters} itérations CFR+ · {result.nH}×{result.nV} combos · pot {result.pot}bb · 2 sizings Hero ({result.betSPct}% / {result.betBPct}% pot) · check-raise & raise vilain inclus{result.complete?" · showdown exact":" · équité par runouts"}. Solveur de spot 1-street — pas un arbre multi-rue complet.
+          </div>
+          <div style={{marginTop:6}}>
+            <AbstractionNote abstraction={result.abstraction}/>
           </div>
         </>
       ):(
@@ -1591,9 +1337,30 @@ function SolverModeBar({scenario,onUpdateScenario,mode,setMode,exploitProfileId,
 }
 
 /* ── Colonne gauche : scénario actuel + 15 scénarios + custom ── */
-function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpots,showCustomForm,setShowCustomForm,newSpot,setNewSpot,format}){
+/* ── Mini-carte (rang + couleur) pour Board / Hero dans la colonne gauche ── */
+function SsCardPill({c}){
+  const lab=cardLabel(c);const red=lab.includes("♥")||lab.includes("♦");
+  return <span className="ss-cardpill" style={{color:red?"#ff7d9c":"#e6f0ff",borderColor:red?"rgba(255,125,156,.4)":"rgba(120,170,255,.4)"}}>{lab}</span>;
+}
+/* ── COLONNE GAUCHE (§36-§39) : SCÉNARIO · RANGE SOURCE · FILTRES & BLOCKERS ·
+   SOLVER ENGINE. Lecture seule + bouton « Modifier » qui révèle le sélecteur de
+   scénarios (préchargés + custom), qui ne monopolise plus la colonne (§54). ── */
+function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpots,showCustomForm,setShowCustomForm,newSpot,setNewSpot,format,
+  effective,math,board,heroParse,heroMode,villainMode,heroCombosN,villainCombosN,antes}){
   const selStyle={width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,fontFamily:T.stats,fontSize:10,padding:"5px 7px",outline:"none"};
   const newSpotValidation=useMemo(()=>validateSpot({heroPos:newSpot.hero,vsPos:newSpot.vs,action:newSpot.action,stack:newSpot.stack}),[newSpot]);
+  const editing=showCustomForm;
+  // Provenance réelle des ranges (§37) : main saisie = utilisateur, sinon heuristique.
+  const heroRangeSrc=heroMode==="hand"?RangeSource.USER_DEFINED:RangeSource.HEURISTIC;
+  const vilRangeSrc=villainMode==="hand"?RangeSource.USER_DEFINED:RangeSource.HEURISTIC;
+  const heroCards=heroMode==="hand"&&heroParse?.valid&&heroParse.suits?exactComboList(heroParse)?.[0]?.cards:null;
+  const deadCards=[...(board||[]),...(heroCards||[])];
+  const structure=antes>0?"Ante":"No Ante";
+  const rake=format==="Cash"?"5% (Cap 3bb)":"0% (tournoi)";
+  // Action précédente déduite de l'action du scénario.
+  const prevAction={rfi:["Premier à parler (RFI)"],vs_open:[`${scenario.vsPos} raise`],
+    vs_3bet:[`${scenario.heroPos} raise`,`${scenario.vsPos} 3-bet`],
+    cbet_ip:["Raise / call préflop","Flop checké au Hero"],vs_bet:["Raise / call préflop",`${scenario.vsPos} bet`]}[scenario.action]||["—"];
 
   function applyNewSpot(){
     if(!newSpotValidation.ok)return;
@@ -1611,53 +1378,72 @@ function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpot
     setNewSpot({title:"",hero:"BTN",vs:"BB",action:"rfi",stack:100,note:""});
     setShowCustomForm(false);
   }
+  const InfoRow=({label,children,strong})=>(
+    <div className="ss-inforow"><span className="ss-inforow-k">{label}</span><span className="ss-inforow-v" style={strong?{color:"#dceaff",fontWeight:800}:undefined}>{children}</span></div>
+  );
 
   return(
-    <div className="shark-left-col" style={{width:230,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,overflowY:"auto",display:"flex",flexDirection:"column"}}>
-      <div style={{padding:"12px 12px 6px"}}>
-        <div className="cai-card" style={{padding:"10px 12px",marginBottom:12,border:`1px solid rgba(52,216,255,.25)`,background:"rgba(52,216,255,.04)"}}>
-          <div style={{fontSize:8.5,color:T.cyan,letterSpacing:".2em",fontFamily:T.stats,fontWeight:700,marginBottom:6}}>SCÉNARIO ACTUEL</div>
-          <div style={{fontFamily:T.brand,fontSize:13,fontWeight:900,color:T.text,marginBottom:2}}>{scenario.label}</div>
-          <div style={{fontSize:9.5,color:T.text3,fontFamily:T.stats}}>{scenario.heroPos} vs {scenario.vsPos} · {ACTION_LABELS[scenario.action]||scenario.action}</div>
-          <div style={{fontSize:9.5,color:T.text3,fontFamily:T.stats,marginTop:2}}>{scenario.stack||100}bb · {scenario.street||"Preflop"} · {format}</div>
+    <div className="shark-left-col" style={{width:238,flexShrink:0,background:T.surface,borderRight:`1px solid ${T.border}`,overflowY:"auto",display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"12px 12px 10px",display:"flex",flexDirection:"column",gap:11}}>
+
+        {/* ── SCÉNARIO ── */}
+        <div className="ss-scen-card">
+          <div className="ss-scen-head">
+            <span className="ss-panel-title">SCÉNARIO</span>
+            <button className="ss-modif-btn" onClick={()=>setShowCustomForm(v=>!v)}>{editing?"✕ Fermer":"Modifier"}</button>
+          </div>
+          {!editing&&<>
+            <div style={{fontFamily:T.brand,fontSize:12.5,fontWeight:900,color:T.text,margin:"2px 0 8px"}}>{scenario.label}</div>
+            <div className="ss-inforow" style={{alignItems:"flex-start"}}>
+              <span className="ss-inforow-k">Positions</span>
+              <span className="ss-inforow-v" style={{textAlign:"right"}}>
+                <span style={{color:T.cyan,fontWeight:800}}>Hero ({scenario.heroPos})</span><br/>
+                <span style={{color:T.purple,fontWeight:800}}>Villain ({scenario.vsPos})</span>
+              </span>
+            </div>
+            <InfoRow label="Stack effectif" strong>{effective} bb</InfoRow>
+            <InfoRow label="Pot" strong>{math?.pot??"—"} bb</InfoRow>
+            <div className="ss-inforow"><span className="ss-inforow-k">Board</span>
+              <span className="ss-inforow-v">{board&&board.length?<span className="ss-cardrow">{board.map((c,i)=><SsCardPill key={i} c={c}/>)}</span>:<span style={{color:T.text4}}>préflop</span>}</span></div>
+            <div className="ss-inforow"><span className="ss-inforow-k">Hero</span>
+              <span className="ss-inforow-v">{heroCards?<span className="ss-cardrow">{heroCards.map((c,i)=><SsCardPill key={i} c={c}/>)}</span>:<span style={{color:T.text4}}>range</span>}</span></div>
+            <div className="ss-inforow" style={{alignItems:"flex-start"}}><span className="ss-inforow-k">Action préc.</span>
+              <span className="ss-inforow-v" style={{textAlign:"right",lineHeight:1.4}}>{prevAction.map((a,i)=><React.Fragment key={i}>{a}{i<prevAction.length-1&&<br/>}</React.Fragment>)}</span></div>
+            <InfoRow label="Structure">{structure}</InfoRow>
+            <InfoRow label="Rake">{rake}</InfoRow>
+            <InfoRow label="Ranges">Définies</InfoRow>
+          </>}
         </div>
 
-        <div style={{fontSize:8.5,color:T.text3,letterSpacing:".2em",fontFamily:T.stats,fontWeight:700,marginBottom:8}}>SCÉNARIOS PRÉCHARGÉS</div>
-        {SOLVER_SCENARIOS.map(sc=>(
-          <div key={sc.id} onClick={()=>{setScenario(sc);onResetCell();}}
-            style={{padding:"7px 10px",borderRadius:7,marginBottom:3,cursor:"pointer",transition:"all .12s",
-              background:scenario.id===sc.id?"rgba(52,216,255,.12)":T.bg,
-              border:`1px solid ${scenario.id===sc.id?"rgba(52,216,255,.4)":T.border}`,
-              borderLeft:`3px solid ${scenario.id===sc.id?T.cyan:"transparent"}`}}>
-            <div style={{fontSize:10.5,fontWeight:700,color:scenario.id===sc.id?T.cyan:T.text,fontFamily:T.stats}}>{sc.label}</div>
-            <div style={{fontSize:8.5,color:T.text3,fontFamily:T.stats,marginTop:1}}>{sc.street} · {sc.stack}bb{sc.icmParams?" · ICM":sc.pkoParams?" · PKO":""}</div>
-          </div>
-        ))}
-
-        {savedSpots.length>0&&<>
-          <div style={{fontSize:8.5,color:T.text3,letterSpacing:".2em",fontFamily:T.stats,fontWeight:700,margin:"12px 0 8px"}}>MES SPOTS CUSTOM</div>
-          {savedSpots.map(sp=>(
-            <div key={sp.id} style={{padding:"7px 10px",borderRadius:7,marginBottom:3,cursor:"pointer",transition:"all .12s",
-              background:scenario.id===sp.id?"rgba(255,194,71,.1)":T.bg,
-              border:`1px solid ${scenario.id===sp.id?"rgba(255,194,71,.3)":T.border}`,
-              display:"flex",alignItems:"center",gap:6}}
-              onClick={()=>{setScenario(sp);onResetCell();}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:10,fontWeight:700,color:T.gold,fontFamily:T.stats}}>{sp.label}</div>
-                <div style={{fontSize:8,color:T.text3,fontFamily:T.stats}}>{sp.heroPos} vs {sp.vsPos} · {sp.stack}bb</div>
-              </div>
-              <div onClick={e=>{e.stopPropagation();const u=savedSpots.filter(s=>s.id!==sp.id);setSavedSpots(u);localStorage.setItem("pf_custom_spots",JSON.stringify(u));}}
-                style={{fontSize:10,color:T.red,cursor:"pointer",opacity:.6,padding:2}}>✕</div>
+        {/* ── Sélecteur (préchargés + custom) révélé par « Modifier » ── */}
+        {editing&&(
+          <div className="ss-picker">
+            <div className="ss-panel-title" style={{marginBottom:6}}>SCÉNARIOS PRÉCHARGÉS</div>
+            <div style={{maxHeight:220,overflowY:"auto",marginBottom:8}}>
+              {SOLVER_SCENARIOS.map(sc=>(
+                <div key={sc.id} onClick={()=>{setScenario(sc);onResetCell();setShowCustomForm(false);}}
+                  style={{padding:"6px 9px",borderRadius:6,marginBottom:3,cursor:"pointer",
+                    background:scenario.id===sc.id?"rgba(52,216,255,.12)":T.bg,
+                    border:`1px solid ${scenario.id===sc.id?"rgba(52,216,255,.4)":T.border}`,
+                    borderLeft:`3px solid ${scenario.id===sc.id?T.cyan:"transparent"}`}}>
+                  <div style={{fontSize:10,fontWeight:700,color:scenario.id===sc.id?T.cyan:T.text,fontFamily:T.stats}}>{sc.label}</div>
+                  <div style={{fontSize:8,color:T.text3,fontFamily:T.stats,marginTop:1}}>{sc.street} · {sc.stack}bb{sc.icmParams?" · ICM":sc.pkoParams?" · PKO":""}</div>
+                </div>
+              ))}
+              {savedSpots.map(sp=>(
+                <div key={sp.id} style={{padding:"6px 9px",borderRadius:6,marginBottom:3,cursor:"pointer",
+                  background:scenario.id===sp.id?"rgba(255,194,71,.1)":T.bg,border:`1px solid ${scenario.id===sp.id?"rgba(255,194,71,.3)":T.border}`,
+                  display:"flex",alignItems:"center",gap:6}} onClick={()=>{setScenario(sp);onResetCell();setShowCustomForm(false);}}>
+                  <div style={{flex:1}}><div style={{fontSize:9.5,fontWeight:700,color:T.gold,fontFamily:T.stats}}>{sp.label}</div>
+                    <div style={{fontSize:8,color:T.text3,fontFamily:T.stats}}>{sp.heroPos} vs {sp.vsPos} · {sp.stack}bb</div></div>
+                  <div onClick={e=>{e.stopPropagation();const u=savedSpots.filter(s=>s.id!==sp.id);setSavedSpots(u);localStorage.setItem("pf_custom_spots",JSON.stringify(u));}} style={{fontSize:10,color:T.red,cursor:"pointer",opacity:.6,padding:2}}>✕</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </>}
-
-        <button onClick={()=>setShowCustomForm(v=>!v)} style={{width:"100%",marginTop:12,padding:"8px 10px",borderRadius:8,fontSize:10.5,fontWeight:700,cursor:"pointer",border:"none",fontFamily:T.stats,
-          background:showCustomForm?"rgba(255,69,96,.15)":"linear-gradient(135deg,#9B5CFF,#34D8FF)",color:showCustomForm?T.red:"#0a0814"}}>
-          {showCustomForm?"✕ Annuler":"+ Nouveau scénario"}
-        </button>
-
-        {showCustomForm&&(
+            <div className="ss-panel-title" style={{marginBottom:6}}>NOUVEAU SCÉNARIO</div>
+          </div>
+        )}
+        {editing&&(
           <div style={{marginTop:10,background:T.bg,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 10px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               <div>
@@ -1697,6 +1483,34 @@ function SolverSidebar({scenario,setScenario,onResetCell,savedSpots,setSavedSpot
             </button>
           </div>
         )}
+
+        {/* ── RANGES SOURCE (§37) — provenance réelle des ranges ── */}
+        <div className="ss-panel">
+          <div className="ss-panel-title">RANGES SOURCE</div>
+          <div className="ss-src-row"><span className="ss-inforow-k">Hero</span>
+            <span className="ss-src-tag" style={{color:rangeMeta(heroRangeSrc).color,borderColor:rangeMeta(heroRangeSrc).color}}>{rangeMeta(heroRangeSrc).label}</span></div>
+          <div className="ss-src-row"><span className="ss-inforow-k">Villain</span>
+            <span className="ss-src-tag" style={{color:rangeMeta(vilRangeSrc).color,borderColor:rangeMeta(vilRangeSrc).color}}>{rangeMeta(vilRangeSrc).label}</span></div>
+        </div>
+
+        {/* ── FILTRES & BLOCKERS (§38) — infos issues du Combo Engine ── */}
+        <div className="ss-panel">
+          <div className="ss-panel-title">FILTRES &amp; BLOCKERS</div>
+          <div className="ss-inforow" style={{alignItems:"flex-start"}}><span className="ss-inforow-k">Dead cards</span>
+            <span className="ss-inforow-v">{deadCards.length?<span className="ss-cardrow">{deadCards.map((c,i)=><SsCardPill key={i} c={c}/>)}</span>:<span style={{color:T.text4}}>aucune</span>}</span></div>
+          <div className="ss-inforow"><span className="ss-inforow-k">Cartes connues retirées</span>
+            <span className="ss-toggle on" title="Le moteur retire toujours les cartes connues (card removal)"><span/></span></div>
+          <div className="ss-panel-sub">Combos restants</div>
+          <InfoRow label="Hero"><b style={{color:T.cyan}}>{heroCombosN??"—"}</b> / 1326</InfoRow>
+          <InfoRow label="Villain"><b style={{color:T.purple}}>{villainCombosN??"—"}</b> / 1326</InfoRow>
+        </div>
+
+        {/* ── SOLVER ENGINE — état du moteur ── */}
+        <div className="ss-engine-card">
+          <div className="ss-eng-name"><span className="ss-eng-dot"/>SOLVER ENGINE</div>
+          <div className="ss-eng-ver">CORE V1.0.0</div>
+          <div className="ss-eng-status">Status : <b>Idle</b></div>
+        </div>
       </div>
     </div>
   );
@@ -2321,15 +2135,40 @@ function SolverQualityCard({cfr,busy}){
   );
 }
 
-function SolverInsightsCard({scenario,heroFreqs,mode,onAddNote}){
-  const insights=useMemo(()=>buildSolverInsights(scenario,heroFreqs,mode),[scenario,heroFreqs,mode]);
+/* ── COACH AI (§30) — « LE SOLVER CALCULE, L'IA EXPLIQUE ».
+   N'affiche que des FAITS SOURCÉS produits par buildCoachBrief à partir de la
+   solution courante. Chaque fait est traçable ; aucune fréquence n'est inventée
+   (garde-fou testé côté moteur). Le disclaimer s'adapte à la provenance. ── */
+function SolverCoachPanel({brief,onAddNote}){
+  const meta=resultMeta(brief.source);
+  const f=(t)=>brief.facts.find(x=>x.type===t);
+  const prov=f("provenance"),main=f("primary_action"),mix=f("mixed_strategy"),
+        eq=f("equity"),spr=f("spr"),conv=f("convergence"),ev=f("hero_evaluation"),leak=f("leak");
+  const row=(k,v,color)=>(
+    <div className="ss-coach-row"><span>{k}</span><b style={color?{color}:undefined}>{v}</b></div>
+  );
   return(
-    <div className="ss-card">
-      <div className="ss-card-title">Insights & notes</div>
-      <ul className="ss-insights" style={{margin:0,padding:0}}>
-        {insights.map((t,i)=><li key={i}>{t}</li>)}
-      </ul>
-      <button className="ss-btn" style={{marginTop:6}} onClick={onAddNote}>＋ Ajouter une note</button>
+    <div className="ss-card ss-coach">
+      <div className="ss-card-title" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+        <span>🧠 Coach — faits sourcés</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 8px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-coach-rows">
+        {main&&row("Action principale",`${main.label||main.action} · ${main.freq}%`,"#dceaff")}
+        {main&&main.ev!=null&&row("EV de cette action",`${main.ev>=0?"+":""}${main.ev} bb`,main.ev>=0?"#10D87A":"#FF5D6C")}
+        {mix&&row("Stratégie mixte",mix.actions.map(a=>`${a.label||a.id} ${a.freq}%`).join(" · "),"#9fd4ff")}
+        {eq&&row("Équité Hero",`${eq.heroEquity}%`,"#34B4FF")}
+        {eq&&row("Avantage de range",eq.rangeAdvantage==="hero"?"Hero":eq.rangeAdvantage==="villain"?"Vilain":"Neutre",
+          eq.rangeAdvantage==="hero"?"#10D87A":eq.rangeAdvantage==="villain"?"#FF5D6C":"#8AA0C0")}
+        {spr&&row("SPR",spr.value)}
+        {conv&&conv.nashConv!=null&&row("NashConv",`${conv.nashConv} bb`,"#C77DFF")}
+        {ev&&row("Verdict Hero",`${ev.verdict} · ${ev.evLoss} bb perdus`,ev.verdict==="best"?"#10D87A":"#FFB020")}
+        {leak&&row("Leak détecté",leak.label,"#FF5D6C")}
+      </div>
+      <div className="ss-coach-note" style={{borderColor:meta.color+"55",background:meta.color+"0d"}}>
+        {brief.disclaimer}{prov&&prov.caveat?` ${prov.caveat}`:""}
+      </div>
+      <button className="ss-btn" style={{marginTop:8}} onClick={onAddNote}>＋ Ajouter une note</button>
     </div>
   );
 }
@@ -2515,6 +2354,649 @@ function SolverFooterBar({mode,validation}){
   );
 }
 
+/* ── SolveID déterministe (reproductibilité minimale, §15) ──
+   Même spot (positions, action, mode, stack, board) → même ID. */
+function makeSolveId(scenario,board,mode,effective){
+  const raw=`${scenario.heroPos}|${scenario.vsPos}|${scenario.action}|${mode}|${effective}|${(board||[]).join(",")}|${scenario.street||""}`;
+  let h=0;for(let i=0;i<raw.length;i++){h=(h*31+raw.charCodeAt(i))>>>0;}
+  return "SHK-"+h.toString(16).toUpperCase().padStart(8,"0").slice(0,8);
+}
+function fmtIters(n){
+  if(!n||n<1000)return String(n||0);
+  if(n<1e6)return (n/1e3).toFixed(n<1e4?1:0)+"K";
+  if(n<1e9)return (n/1e6).toFixed(n<1e7?1:0)+"M";
+  return (n/1e9).toFixed(1)+"Md";
+}
+/* Type de pot depuis l'action (§34 "Spot"). */
+function spotPotType(action){
+  if(action==="rfi")return"RFI";
+  if(action==="vs_open")return"SRP";
+  if(action==="vs_3bet")return"3BP";
+  if(action==="cbet_ip"||action==="vs_bet")return"SRP";
+  return"SRP";
+}
+/* ── BARRE DE CONTEXTE SUPÉRIEURE (§34) — HONNÊTE.
+   Tant qu'aucun CFR n'a tourné, on n'invente PAS d'itérations / NashConv :
+   la provenance par défaut est HEURISTIQUE (§2, §58). ── */
+function SolverTopBar({mode,format,scenario,effective,solveId,cfrResult,resultSource}){
+  const meta=resultMeta(resultSource);
+  // « solved » = la stratégie CFR est RÉELLEMENT affichée (pas seulement calculée en
+  // arrière-plan). Sinon on affiche l'heuristique → badge/itérations honnêtes.
+  const solved=isCalculated(resultSource)&&!!cfrResult;
+  const modeLabel={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
+  const iterN=solved?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
+  const cell=(label,value,valueColor)=>(
+    <div className="ss-tb-cell">
+      <span className="ss-tb-label">{label}</span>
+      <span className="ss-tb-value" style={valueColor?{color:valueColor}:undefined}>{value}</span>
+    </div>
+  );
+  return(
+    <div className="ss-topbar">
+      <div className="ss-tb-brand">SHARK SOLVER <span className="ss-tb-core">CORE V1</span></div>
+      {cell("Mode",modeLabel)}
+      {cell("Format",format==="Cash"?"Cash 6Max":format)}
+      {cell("Street",scenario.street||"Preflop")}
+      {cell("Spot",spotPotType(scenario.action))}
+      {cell("Stacks (eff.)",effective+"bb")}
+      <div className="ss-tb-sep"/>
+      {cell("Solve ID",solveId)}
+      {/* Provenance globale — badge honnête (heuristique par défaut) */}
+      <div className="ss-tb-cell">
+        <span className="ss-tb-label">Confiance</span>
+        <span className="ss-tb-badge" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.short}</span>
+      </div>
+      {cell("Itérations",solved?fmtIters(iterN):"—")}
+      {/* NashConv/exploitabilité : borne réelle calculée par le Convergence Engine (§14). */}
+      {cell("NashConv",solved?"≈"+cfrResult.exploitBb+" bb":"—",solved?"#8ea4c7":undefined)}
+    </div>
+  );
+}
+/* ── LÉGENDE DE PROVENANCE (§52) — nature de l'info, PAS les actions poker.
+   Code couleur distinct du code couleur d'action (§58). ── */
+function SolverProvenanceLegend({activeSource,precision,modeLabel}){
+  return(
+    <div className="ss-footer ss-prov-legend">
+      {RESULT_SOURCE_LEGEND.map(src=>{
+        const m=resultMeta(src);const on=src===activeSource;
+        return(
+          <span key={src} className="ss-prov-item" style={on?{opacity:1}:{opacity:.55}}>
+            <span className="ss-prov-dot" style={{background:m.color,boxShadow:on?`0 0 7px ${m.color}`:"none"}}/>
+            <b style={{color:on?m.color:"#c9dcf5"}}>{m.label}</b>
+          </span>
+        );
+      })}
+      <span style={{marginLeft:"auto"}}>Précision : <b>{precision}</b></span>
+      <span>Mode : <b>{modeLabel}</b></span>
+    </div>
+  );
+}
+
+/* ── STRATÉGIE — FRÉQUENCES (§41) : gros blocs lisibles, code couleur ACTION.
+   Badge de provenance (HEUR / CFR) — n'affiche que les actions réelles (§40). ── */
+function SolverStrategyPanel({blocks,source,evTotal}){
+  const meta=resultMeta(source);
+  return(
+    <div className="ss-card2 ss-strat">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">STRATÉGIE — FRÉQUENCES (HERO)</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-freq-blocks" style={{gridTemplateColumns:`repeat(${blocks.length},1fr)`}}>
+        {blocks.map(b=>(
+          <div key={b.id} className="ss-freq-block" style={{background:`linear-gradient(180deg,${b.color}22,${b.color}08)`,borderColor:`${b.color}66`}}>
+            <span className="ss-freq-label" style={{color:b.color}}>{b.label}</span>
+            <span className="ss-freq-pct">{b.pct}%</span>
+          </div>
+        ))}
+      </div>
+      <div className="ss-freq-ev" style={{gridTemplateColumns:`110px repeat(${blocks.length},1fr)`}}>
+        <div className="ss-freq-evcell ss-freq-evtot"><span>EV total (pondéré)</span><b style={{color:evTotal>=0?"#10D87A":"#FF5D6C"}}>{evTotal>=0?"+":""}{evTotal} bb</b></div>
+        {blocks.map(b=>(
+          <div key={b.id} className="ss-freq-evcell">
+            <span>EV {b.label}</span>
+            <b style={{color:b.ev==null?"#7f97ba":b.ev>=0?"#10D87A":"#FF5D6C"}}>{b.ev==null?"—":(b.ev>=0?"+":"")+b.ev+" bb"}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+/* ── STATUT DU SOLVE (§44) — HONNÊTE : itérations réelles si CFR lancé ; les
+   métriques de convergence (NashConv, exploitability) restent « n/d » tant que
+   le Convergence Engine (§14) n'existe pas. Jamais de 98% inventé (§58). ── */
+function SolverSolveStatus({source,cfrResult}){
+  const solved=isCalculated(source)&&!!cfrResult;
+  const meta=resultMeta(source);
+  const iterN=cfrResult?cfrResult.iters*(cfrResult.nH+cfrResult.nV):0;
+  // Métriques RÉELLES issues du Convergence Engine (§14) — plus de « n/d ».
+  const rows=[
+    ["Itérations",solved?fmtIters(iterN):"—"],
+    ["Stabilité strat.",solved?cfrResult.stability+" %":"—"],
+    ["Regret moyen",solved?cfrResult.avgRegret+" bb":"—"],
+    ["Exploit. (borne)",solved?"≈ "+cfrResult.exploitBb+" bb":"—"],
+    ["Solveur",solved?"CFR+":"—"],
+    ["Précision",solved?"1-street HU":"Heuristique"],
+    ["Status",solved?(cfrResult.convStatus||"Résolu"):"Non lancé"],
+  ];
+  return(
+    <div className="ss-card2 ss-solvestat">
+      <div className="ss-card2-head"><span className="ss-panel-title">STATUT DU SOLVE</span></div>
+      <div className="ss-conv">
+        <div className="ss-conv-ring" style={{borderColor:solved?"#34B4FF":"#2a3a55",boxShadow:solved?"0 0 18px rgba(52,180,255,.35)":"none"}}>
+          <span className="ss-conv-txt" style={{color:solved?"#9fd4ff":"#6a7690",fontSize:solved?16:14}}>{solved?cfrResult.stability+"%":"Idle"}</span>
+          <span className="ss-conv-sub">{solved?"stabilité":"heuristique"}</span>
+        </div>
+        <div className="ss-conv-rows">
+          {rows.map(([k,v])=>(
+            <div key={k} className="ss-conv-row"><span>{k}</span><b style={k==="Status"?{color:solved?"#10D87A":"#FFB020"}:undefined}>{v}</b></div>
+          ))}
+        </div>
+      </div>
+      <div className="ss-conv-note">{solved?"Stabilité & regret calculés par le Convergence Engine (§14). Exploitabilité = borne sup. estimée depuis le regret moyen.":"Lance « Résoudre (CFR) » (panneau Solveur CFR) pour une stratégie calculée."}</div>
+    </div>
+  );
+}
+
+/* ── SOURCE DU RÉSULTAT (§46) — panneau critique : la provenance de CHAQUE
+   valeur affichée, sans ambiguïté. Utilise le module provenance central. ── */
+function SolverResultSourcePanel({strategySource,equitySource}){
+  const s=resultMeta(strategySource),e=resultMeta(equitySource);
+  const rows=[{k:"Stratégie / Fréquences",m:s},{k:"Équité (vs range)",m:e},{k:"EV par action",m:s}];
+  return(
+    <div className="ss-card ss-resultsrc">
+      <div className="ss-panel-title" style={{marginBottom:9}}>⬡ SOURCE DU RÉSULTAT</div>
+      {rows.map((r,i)=>(
+        <div key={i} className="ss-rsrc-row">
+          <span className="ss-rsrc-k">{r.k}</span>
+          <span className="ss-src-tag" style={{color:r.m.color,borderColor:r.m.color,boxShadow:`0 0 8px ${r.m.glow}`}}>{r.m.label}</span>
+        </div>
+      ))}
+      <div className="ss-rsrc-desc" style={{borderColor:s.color+"55",background:s.color+"0d"}}>
+        <b style={{color:s.color}}>{s.label}</b> — {s.desc}
+      </div>
+    </div>
+  );
+}
+/* ── PUSH/FOLD PRÉFLOP (§11) — LA PREMIÈRE ZONE PRÉFLOP CALCULÉE.
+   Tout le préflop était heuristique et le CFR y est désactivé (§40). Ici les
+   ranges sont un ÉQUILIBRE DE NASH réellement calculé : tout all-in va à
+   l'abattage, donc aucune EV postflop à estimer.
+
+   Le panneau n'apparaît que là où il a un sens (préflop, tapis ≤ 25bb) et affiche
+   ses LIMITES aussi lisiblement que son résultat : heads-up, chip-EV pur, sans
+   ICM. Sans cette mention, un joueur en bulle prendrait ces ranges pour des ranges
+   de bulle — l'erreur serait invisible et coûteuse (§2). ── */
+function SolverPushFoldPanel({preflop,effStack}){
+  const [sol,setSol]=useState(null);
+  const [busy,setBusy]=useState(false);
+  const usable=preflop&&effStack>0&&effStack<=25;
+  useEffect(()=>{setSol(null);},[effStack,preflop]);
+  if(!preflop)return null;
+  const run=()=>{
+    setBusy(true);
+    setTimeout(()=>{
+      try{ setSol(solvePreflopPushFold(effStack)); }catch{ setSol(null); }
+      setBusy(false);
+    },30);
+  };
+  const meta=resultMeta(ResultSource.EXACT_CALCULATION);
+  const grid=(freqs,color)=>{
+    const hands=Object.keys(freqs).filter(k=>freqs[k].r>=50);
+    const cls=(k)=>k.length===2?"paires":k.endsWith("s")?"assorties":"dépareillées";
+    return ["paires","assorties","dépareillées"].map(c=>{
+      const list=hands.filter(h=>cls(h)===c);
+      if(!list.length)return null;
+      return(
+        <div key={c} style={{marginBottom:5}}>
+          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".06em",marginBottom:2}}>{c.toUpperCase()} ({list.length})</div>
+          <div style={{fontSize:9,color,fontFamily:T.stats,lineHeight:1.5,wordBreak:"break-word"}}>{list.join(" ")}</div>
+        </div>
+      );
+    });
+  };
+  return(
+    <div className="ss-card2">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">♠ PUSH / FOLD PRÉFLOP — ÉQUILIBRE</span>
+        {sol&&<span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>}
+      </div>
+
+      {!usable?(
+        <div className="ss-ms-note warn">
+          ⓘ Le push/fold ne s'applique qu'aux <b>tapis courts</b> (≤ 25bb).
+          Tapis effectif actuel : <b>{effStack}bb</b> — au-delà, jamer n'est plus
+          l'équilibre et le préflop reste <b>heuristique</b> (non solvé).
+        </div>
+      ):(
+        <>
+          <div className="ss-ms-bar">
+            <button className="ss-ms-solve" onClick={run} disabled={busy}>
+              {busy?"⏳ Résolution…":`▶ Résoudre l'équilibre à ${effStack}bb`}
+            </button>
+            <span className="ss-ms-meta">heads-up · blindes 0.5 / 1</span>
+          </div>
+
+          {sol&&sol.source!=="NO_SOLUTION"&&(<>
+            <div className="ss-ms-stats" style={{gridTemplateColumns:"repeat(4,1fr)"}}>
+              <div><span>SB jam</span><b style={{color:"#10D87A"}}>{sol.sbJamPct}%</b></div>
+              <div><span>BB paie</span><b style={{color:"#34B4FF"}}>{sol.bbCallPct}%</b></div>
+              <div><span>Exploitabilité</span><b style={{color:"#10D87A"}}>{sol.exploitability.bb.toFixed(5)} bb</b></div>
+              <div><span>Itérations</span><b>{sol.iters}</b></div>
+            </div>
+
+            {/* Les limites AVANT les ranges : elles conditionnent leur lecture. */}
+            <div className="ss-ms-note warn">
+              ⚠ <b>Heads-up et chip-EV pur.</b> Ces ranges ignorent totalement l'<b>ICM</b> :
+              en bulle il faut jamer et payer plus serré. Elles ne valent pas non plus
+              en multiway. Équité issue d'une matrice pré-calculée
+              (bruit ≈ ±{sol.matrix.matrixNoise.mean} pt).
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:8}}>
+              <div>
+                <div style={{fontSize:9.5,fontWeight:800,color:"#10D87A",fontFamily:T.stats,marginBottom:4}}>
+                  SB JAM · {sol.sbJamPct}%
+                </div>
+                {grid(sol.sbJam,"#10D87A")}
+              </div>
+              <div>
+                <div style={{fontSize:9.5,fontWeight:800,color:"#34B4FF",fontFamily:T.stats,marginBottom:4}}>
+                  BB PAIE · {sol.bbCallPct}%
+                </div>
+                {grid(sol.bbCall,"#34B4FF")}
+              </div>
+            </div>
+
+            <div className="ss-ms-note">
+              <b>Pourquoi c'est calculé et pas estimé</b> — tout all-in va à l'abattage,
+              donc aucune EV postflop à approcher : il ne reste qu'une matrice d'équité
+              et un jeu à somme nulle. L'<b>exploitabilité ≈ 0</b> ci-dessus prouve que
+              l'équilibre est atteint (même rôle que le NashConv postflop).
+            </div>
+          </>)}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── BIBLIOTHÈQUE DE SOLUTIONS (§16) — état + reprise en main.
+   Les solves sont conservés sur disque (IndexedDB) et rechargés instantanément.
+   Note : un solve n'est retrouvé que si sa SIGNATURE correspond (ranges, board,
+   pot, sizing, itérations, budget de combos). Les entrées produites avec d'anciens
+   réglages ne peuvent donc pas être servies à la place d'un solve courant — elles
+   deviennent simplement du poids mort, que le LRU évince. Vider est de l'hygiène,
+   pas un correctif. ── */
+function SolverLibraryPanel(){
+  const[mem,setMem]=useState(0),[disk,setDisk]=useState(null),[busy,setBusy]=useState(false);
+  const refresh=React.useCallback(()=>{
+    setMem(librarySize());
+    persistedCount().then(setDisk).catch(()=>setDisk(null));
+  },[]);
+  useEffect(()=>{refresh();const t=setInterval(refresh,4000);return()=>clearInterval(t);},[refresh]);
+  const wipe=()=>{
+    if(!window.confirm("Vider la bibliothèque de solutions ?\n\nLes solves en mémoire ET sur disque seront supprimés. Ils seront recalculés à la demande — aucune donnée personnelle n'est concernée."))return;
+    setBusy(true);clearLibrary();
+    setTimeout(()=>{refresh();setBusy(false);},400);
+  };
+  const persistent=libraryStatus.persistent;
+  return(
+    <div className="ss-card">
+      <div className="ss-panel-title" style={{marginBottom:9}}>📚 BIBLIOTHÈQUE DE SOLUTIONS</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <div style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"7px 9px"}}>
+          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".07em"}}>EN MÉMOIRE</div>
+          <div style={{fontFamily:T.brand,fontWeight:900,fontSize:15,color:T.text}}>{mem}</div>
+        </div>
+        <div style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:7,padding:"7px 9px"}}>
+          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".07em"}}>SUR DISQUE</div>
+          <div style={{fontFamily:T.brand,fontWeight:900,fontSize:15,color:persistent?T.green:T.text4}}>
+            {disk==null?"—":disk}
+          </div>
+        </div>
+      </div>
+      <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontStyle:"italic",marginBottom:8}}>
+        {persistent
+          ? "Les solves survivent au rechargement de la page et se rechargent instantanément."
+          : "Persistance indisponible sur ce navigateur — bibliothèque en mémoire uniquement, perdue au rechargement."}
+      </div>
+      <button onClick={wipe} disabled={busy||(mem===0&&!disk)}
+        style={{width:"100%",padding:"7px 10px",borderRadius:7,fontSize:9.5,fontWeight:800,fontFamily:T.stats,
+          cursor:busy||(mem===0&&!disk)?"default":"pointer",opacity:busy||(mem===0&&!disk)?.45:1,
+          border:`1px solid ${T.border}`,background:"transparent",color:T.text3}}>
+        {busy?"⏳ Vidage…":"🗑 Vider la bibliothèque"}
+      </button>
+    </div>
+  );
+}
+
+/* ── RÉSULTAT DU SPOT (§45) — distingue clairement ÉQUITÉ (part du pot à
+   l'abattage) et EV (gain espéré de l'action). Ce ne sont PAS la même chose. ── */
+function SolverSpotResultPanel({equityHero,equityVillain,foldEquity,math,evTotal,strategySource}){
+  const meta=resultMeta(strategySource);
+  const cell=(label,value,color)=>(
+    <div className="ss-res-cell"><span>{label}</span><b style={color?{color}:undefined}>{value}</b></div>
+  );
+  return(
+    <div className="ss-card">
+      <div className="ss-panel-title" style={{marginBottom:9}}>🎯 RÉSULTAT DU SPOT</div>
+      <div className="ss-res-grid">
+        {cell("Equity Hero",equityHero+"%","#34B4FF")}
+        {cell("Equity Villain",equityVillain+"%","#9B5CFF")}
+        {cell("Fold Equity",Math.round(foldEquity)+"%","#FFB020")}
+        {cell(`EV Hero (${meta.short})`,(evTotal>=0?"+":"")+evTotal+" bb",evTotal>=0?"#10D87A":"#FF5D6C")}
+        {cell("Pot actuel",(math?.pot??"—")+" bb")}
+        {cell("Pot après action","—","#7f97ba")}
+      </div>
+      <div className="ss-res-note"><b>Équité</b> = part du pot à l'abattage · <b>EV</b> = gain espéré de l'action. Ce ne sont pas la même chose.</div>
+    </div>
+  );
+}
+
+/* ══ ICM / PKO (§21, §22) — panneaux de calcul RÉEL, à provenance honnête.
+   L'équité ICM est calculée EXACTEMENT (Malmuth-Harville) ; la STRATÉGIE, elle,
+   n'est pas solvée sous contrainte ICM → provenance ICM_ESTIMATE (jamais
+   « EXACT ICM SOLVE », §21/§58). ══ */
+function SolverIcmPanel({icmParams,effStack}){
+  const p=icmParams;
+  const res=useMemo(()=>{
+    if(!p||!p.payouts||!p.payouts.length)return null;
+    const n=Math.max(2,p.playersLeft||p.payouts.length);
+    // Champ reconstruit : Hero + (n-1) joueurs au stack moyen.
+    const stacks=[p.heroStack||25,...Array.from({length:n-1},()=>p.avgStack||p.heroStack||25)];
+    return computeICM({stacks,payouts:p.payouts.slice(0,n),heroIdx:0,riskChips:Math.min(effStack||0,p.heroStack||0),villIdx:1});
+  },[p,effStack]);
+  const meta=resultMeta(ResultSource.ICM_ESTIMATE);
+  if(!p||!p.payouts||!p.payouts.length){
+    return(<div className="ss-card2"><div className="ss-card2-head"><span className="ss-panel-title">🏆 ICM</span></div>
+      <div className="ss-ms-note warn">ⓘ Renseigne les <b>payouts</b> et les stacks pour calculer l'équité ICM.</div></div>);
+  }
+  const totalChips=(p.heroStack||0)+((p.playersLeft||1)-1)*(p.avgStack||0);
+  const chipShare=totalChips?(p.heroStack||0)/totalChips:0;
+  const prize=(p.payouts||[]).reduce((a,b)=>a+b,0);
+  return(
+    <div className="ss-card2">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">🏆 ÉQUITÉ ICM (MALMUTH-HARVILLE)</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-ms-stats" style={{gridTemplateColumns:"repeat(5,1fr)"}}>
+        {/* eq est en UNITÉS DE PAYOUT → on l'exprime en part du prizepool. */}
+        <div><span>Équité ICM Hero</span><b style={{color:"#C77DFF"}}>{res&&prize?(res.heroEq/prize*100).toFixed(2)+"%":"—"}</b></div>
+        <div><span>Part de jetons</span><b>{(chipShare*100).toFixed(2)}%</b></div>
+        <div><span>Écart ICM vs jetons</span><b style={{color:res&&prize&&(res.heroEq/prize)<chipShare?"#FF5D6C":"#10D87A"}}>
+          {res&&prize?((res.heroEq/prize-chipShare)*100>=0?"+":"")+((res.heroEq/prize-chipShare)*100).toFixed(2)+" pts":"—"}</b></div>
+        {/* riskPremium / evNeutralEquity sont DÉJÀ en points de % (pas des fractions). */}
+        <div><span>Équité requise</span><b style={{color:"#34B4FF"}}>{res&&res.evNeutralEquity!=null?res.evNeutralEquity+"%":"n/d"}</b></div>
+        <div><span>Risk premium</span><b style={{color:"#FFB020"}}>{res&&res.riskPremium!=null?(res.riskPremium>=0?"+":"")+res.riskPremium+" pts":"n/d"}</b></div>
+      </div>
+      <div className="ss-ms-note">
+        <b>Lecture</b> — l'équité ICM est exprimée en part du prizepool ({prize} unités réparties).
+        Sous ICM les <b>gros tapis</b> valent <b>moins</b> que leur part de jetons et les <b>courts tapis
+        davantage</b> (chaque jeton perdu coûte plus qu'un jeton gagné ne rapporte).
+        Ici Hero est <b>{chipShare*100>=100/((p.playersLeft||1))?"au-dessus":"en-dessous"} de la moyenne</b>,
+        d'où un écart {res&&prize&&(res.heroEq/prize-chipShare)>=0?"positif":"négatif"}.
+        L'<b>équité requise</b> est le seuil brut pour qu'un affrontement à tapis soit neutre en $ ;
+        le <b>risk premium</b> est ce qu'il exige <i>au-delà</i> des 50% du ChipEV.
+        <b> {meta.label}</b> : le calcul Malmuth-Harville est exact, mais la <b>stratégie</b> n'est pas
+        solvée sous contrainte ICM (§21) — les fréquences affichées ailleurs restent heuristiques.
+      </div>
+    </div>
+  );
+}
+function SolverPkoPanel({pkoParams,potBb,heroEquity,effStack}){
+  const p=pkoParams||{};
+  const eq=(heroEquity??50)/100;
+  /* Le bounty se capture en éliminant l'adversaire : le pot pertinent est celui d'un
+     TAPIS PAYÉ (pot courant + les deux tapis), pas le pot courant. Sinon le bounty
+     écrase le pot et le « seuil d'équité » devient aberrant. */
+  const allInPot=(potBb||0)+2*(p.effectiveStack??effStack??0);
+  const res=useMemo(()=>computePKO({potBb:allInPot,heroEquity:eq,villainBounty:p.villainBounty??p.avgBounty??0,bountyRealization:p.coverage!=null?Math.min(1,p.coverage/2):0.5}),[allInPot,eq,p]);
+  const meta=resultMeta(ResultSource.PKO_ESTIMATE);
+  return(
+    <div className="ss-card2">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">🎯 VALEUR PKO (CHIPS + BOUNTY)</span>
+        <span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>
+      </div>
+      <div className="ss-ms-stats" style={{gridTemplateColumns:"repeat(5,1fr)"}}>
+        <div><span>Pot tapis payé</span><b>{Math.round(allInPot*10)/10} bb</b></div>
+        <div><span>EV chips</span><b>{res.chipEv} bb</b></div>
+        <div><span>EV bounty</span><b style={{color:"#FF9E4D"}}>{res.bountyEv} bb</b></div>
+        <div><span>EV totale</span><b style={{color:res.totalEv>=0?"#10D87A":"#FF5D6C"}}>{res.totalEv} bb</b></div>
+        <div><span>Seuil d'équité ↓</span><b style={{color:"#FF9E4D"}}>−{res.equityDiscount} pts</b></div>
+      </div>
+      <div className="ss-ms-note">
+        <b>Lecture</b> — le bounty ajoute de l'EV à tout affrontement gagné, ce qui <b>abaisse</b> le seuil
+        d'équité nécessaire pour payer (−{res.equityDiscount} pts ici) et élargit donc les ranges.
+        <b> {meta.label}</b> : valeur estimée (pas de modèle complet bounty progressif / couverture /
+        éliminations futures, §22) — la stratégie n'est pas solvée sous contrainte PKO.
+      </div>
+    </div>
+  );
+}
+
+/* ── EXPLOIT (§20) : convertit les multiplicateurs d'un profil vilain (UI) en
+   FRÉQUENCES VERROUILLÉES pour le re-solve CFR. Base d'équilibre approchée, puis
+   application des tendances du profil, puis normalisation.
+   Le modèle reste une ESTIMATION (HEURISTIC) ; c'est la stratégie Hero re-solvée
+   contre ce modèle qui est calculée (CFR_SOLVE). ── */
+function profileToLocks(prof){
+  const norm=(o)=>{const s=Object.values(o).reduce((a,b)=>a+(b>0?b:0),0)||1;const r={};for(const k in o)r[k]=Math.max(0,o[k])/s;return r;};
+  const p=prof||{foldVsRaise:1,callVsBet:1,threeBet:1,jam:1};
+  return[
+    {match:"villFacingBet",freqs:norm({F:0.45*(p.foldVsRaise??1),C:0.45*(p.callVsBet??1),R:0.10*(p.threeBet??1)})},
+    {match:"villAfterCheck",freqs:norm({X:0.55,B:0.45*(((p.threeBet??1)+(p.jam??1))/2)})},
+  ];
+}
+
+/* ── MULTI-STREET (§26) : libellés/couleurs d'action (code ACTION, ≠ provenance). ── */
+const MS_ACT={X:{l:"Check",c:"#34B4FF"},C:{l:"Call",c:"#1F8BFF"},F:{l:"Fold",c:"#7c88a4"},R:{l:"Raise",c:"#FF8A3D"}};
+function msActMeta(id,node){
+  if(MS_ACT[id])return MS_ACT[id];
+  if(id.startsWith("B")){                       // B, B0, B1… → sizings de mise
+    const bets=node.actions.filter(a=>a.startsWith("B"));
+    const k=bets.indexOf(id);
+    const cols=["#10D87A","#FFC247","#FF6B6B"];
+    return{l:bets.length>1?`Bet ${k+1}`:"Bet",c:cols[k%cols.length]};
+  }
+  return{l:id,c:"#8AA0C0"};
+}
+const MS_STREETS=["Flop","Turn","River"];
+
+/* ── PANNEAU SOLVEUR MULTI-RUE (§26) — moteur prouvé, exposé avec sa provenance
+   et son statut EXPÉRIMENTAL. Permet de naviguer l'arbre street par street. ── */
+function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath,exploitProfile,exploitLabel,tourneyMode,setTourneyMode,icmReady,bountyRate}){
+  const canSolve=board.length>=3;
+  const meta=result?resultMeta(result.source):null;
+  const res=result?result.result:null;
+  // Descend l'arbre selon `path` (les nœuds chance sont traversés automatiquement).
+  let node=res?res.tree:null;const hops=[];
+  if(node){
+    for(const step of path){
+      while(node&&node.kind==="chance")node=node.next;
+      if(!node||node.kind!=="decision"||!node.children[step]){node=null;break;}
+      hops.push({step,node});node=node.children[step];
+    }
+    while(node&&node.kind==="chance")node=node.next;
+  }
+  const streetName=(n)=>MS_STREETS[(board.length-3)+n.street]||"—";
+  const nc=result&&result.convergence?result.convergence.nashConv:null;
+
+  return(
+    <div className="ss-card2 ss-ms">
+      <div className="ss-card2-head">
+        <span className="ss-panel-title">🌳 SOLVEUR MULTI-RUE (POSTFLOP)</span>
+        <span style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span className="ss-ms-exp">EXPÉRIMENTAL</span>
+          {meta&&<span className="ss-src-tag" style={{color:meta.color,borderColor:meta.color,boxShadow:`0 0 10px ${meta.glow}`}}>{meta.label}</span>}
+        </span>
+      </div>
+
+      {!canSolve&&(
+        <div className="ss-ms-note warn">
+          ⓘ Le solveur multi-rue résout un arbre <b>postflop</b> (flop → turn → river).
+          Renseigne un <b>board</b> d'au moins 3 cartes pour l'activer.
+        </div>
+      )}
+
+      <div className="ss-ms-bar">
+        <button className="ss-ms-solve" onClick={()=>onSolve(false)} disabled={!canSolve||busy}>
+          {busy?"⏳ Résolution…":"▶ Résoudre GTO"}
+        </button>
+        {exploitProfile&&(
+          <button className="ss-ms-solve exploit" onClick={()=>onSolve(true)} disabled={!canSolve||busy}
+            title={exploitProfile.desc||""}>
+            {busy?"⏳…":`🎯 Exploiter ${exploitProfile.label}`}
+          </button>
+        )}
+        <span className="ss-ms-meta">
+          {canSolve?`${MS_STREETS.slice(board.length-3).join(" → ")} · pot ${potBb}bb · stack eff. ${effStack}bb`:"—"}
+        </span>
+      </div>
+
+      {/* §21/§22 STRATÉGIQUE — ce que le CFR OPTIMISE. Ce n'est pas un affichage :
+          le choix change la fonction d'utilité terminale, donc la stratégie. */}
+      <div style={{display:"flex",alignItems:"center",gap:6,margin:"2px 0 8px",flexWrap:"wrap"}}>
+        {[["chip","🪙 Jetons","#7f97ba"],["icm","🏆 ICM ($EQ)","#C77DFF"],["pko","💰 PKO (+ primes)","#FFB020"]]
+          .map(([id,lbl,col])=>{
+            const on=tourneyMode===id, dis=id!=="chip"&&!icmReady;
+            return(
+              <button key={id} onClick={()=>setTourneyMode(id)} disabled={dis}
+                title={dis?"Renseigne les payouts et les stacks dans les paramètres ICM":""}
+                style={{padding:"5px 10px",borderRadius:7,fontSize:9,fontWeight:800,fontFamily:T.stats,
+                  cursor:dis?"default":"pointer",opacity:dis?.35:1,
+                  border:`1px solid ${on?col:T.border}`,
+                  background:on?col+"26":"transparent",color:on?col:T.text3}}>{lbl}</button>
+            );
+          })}
+        <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontStyle:"italic",flexBasis:"100%",marginTop:2}}>
+          {!icmReady?"payouts/stacks manquants — modes ICM et PKO indisponibles"
+            :tourneyMode==="chip"?"le solveur optimise les jetons — ni l'ICM ni les primes n'influencent la stratégie"
+            :tourneyMode==="icm"?"le solveur optimise l'équité de tournoi : la pression de bulle entre dans la stratégie"
+            :`le solveur optimise $EQ + capture de prime à l'élimination${bountyRate?` · primes converties à ${bountyRate.toFixed(3)} unité de gain par bb`:""}`}
+        </span>
+      </div>
+
+      {/* Structure de gains plate → jetons sans valeur en $ → stratégie uniforme
+          dénuée de sens. On refuse de la présenter comme un solve (§2). */}
+      {result&&result.icm&&result.icm.degenerate&&(
+        <div className="ss-ms-note warn">
+          ⚠ <b>Structure de gains plate</b> — tous les joueurs restants touchent la même somme,
+          donc les jetons n'ont aucune valeur en $EQ et toutes les actions se valent.
+          La stratégie affichée est <b>uniforme et ne signifie rien</b> : repasse en utilité
+          jetons, ou renseigne des payouts réellement décroissants.
+        </div>
+      )}
+      {result&&result.icm&&result.icm.strategic&&!result.icm.degenerate&&(()=>{
+        const pko=result.icm.mode==="pko",col=pko?"#FFB020":"#C77DFF";
+        return(
+          <div className="ss-ms-exploit">
+            <span className="ss-ms-exploit-tag" style={{background:col+"2e",color:col}}>
+              {pko?"PKO · $EQ + PRIMES":"ICM · $EQ"}
+            </span>
+            <span>Stratégie <b style={{color:col}}>solvée sous contrainte {pko?"ICM + primes":"ICM"}</b> ({result.icm.model}) :
+              le CFR optimise l'équité de tournoi, pas les jetons.
+              {pko&&result.icm.bounty&&<>
+                <br/>Prime encaissée <b>uniquement à l'élimination</b> : {result.icm.bounty.heroKoGain.toFixed(2)} pour Hero
+                s'il sort le vilain ({(100*result.icm.bounty.realization).toFixed(0)}% de la tête, PKO progressif).
+                Le modèle de prime reste une <b>estimation</b> (la valeur de sa propre tête n'est pas modélisée) —
+                mais la stratégie, elle, est bien re-solvée.
+              </>}
+              <br/>NashConv est <b>masqué</b> ici : le jeu n'est pas à somme nulle
+              {pko?" (chacun encaisse une prime sur des événements disjoints)"
+                  :" hors heads-up (transférer des jetons déplace aussi l'équité des joueurs hors du coup)"},
+              donc l'indicateur d'exploitabilité n'y est pas interprétable.
+            </span>
+          </div>
+        );
+      })()}
+
+      {/* §20 : distinguer explicitement le MODÈLE (estimé) de la STRATÉGIE (calculée). */}
+      {result&&exploitLabel&&(
+        <div className="ss-ms-exploit">
+          <span className="ss-ms-exploit-tag">EXPLOIT · {exploitLabel}</span>
+          <span>Modèle de joueur <b style={{color:"#FF5D6C"}}>estimé</b> (tendances du profil verrouillées)
+            → stratégie Hero <b style={{color:"#34B4FF"}}>re-solvée par CFR</b> contre ce modèle.
+            <br/>Ici un <b>NashConv élevé est normal</b> : le vilain verrouillé est hors équilibre par
+            construction — cet écart est exactement ce que l'exploit capture.</span>
+        </div>
+      )}
+
+      {res&&(<>
+        <div className="ss-ms-stats">
+          <div><span>EV Hero</span><b style={{color:res.ev>=0?"#10D87A":"#FF5D6C"}}>{res.ev>=0?"+":""}{res.ev} bb</b></div>
+          <div><span>Combos</span><b>{res.heroList.length}×{res.villList.length}</b></div>
+          <div><span>Itérations</span><b>{res.iters}</b></div>
+          <div><span>Runouts</span><b>{res.sampled?"échantillonnés":"exacts"}</b></div>
+          <div><span>{exploitLabel?"Écart équilibre":"NashConv"}</span>
+            <b style={{color:nc==null?"#7f97ba":exploitLabel?"#FF8A3D":nc<=0.1?"#10D87A":"#FFB020"}}>{nc==null?"n/d":nc+" bb"}</b></div>
+        </div>
+        {nc==null&&(
+          <div className="ss-ms-note">
+            ⓘ Board incomplet → runouts échantillonnés : l'exploitabilité exacte n'est pas
+            calculable. Renseigne le <b>river</b> (5 cartes) pour obtenir un NashConv exact.
+          </div>
+        )}
+        {/* §8 : la solution couvre-t-elle la range saisie, ou une réduction ? */}
+        <div style={{margin:"6px 0 2px"}}><AbstractionNote abstraction={result.abstraction}/></div>
+
+        {/* Fil d'Ariane de navigation dans l'arbre */}
+        <div className="ss-ms-trail">
+          <button className={"ss-ms-crumb"+(path.length===0?" on":"")} onClick={()=>setPath([])}>Racine</button>
+          {hops.map((h,i)=>(
+            <React.Fragment key={i}>
+              <span className="ss-ms-arrow">›</span>
+              <button className={"ss-ms-crumb"+(i===hops.length-1?" on":"")}
+                onClick={()=>setPath(path.slice(0,i+1))}>
+                {streetName(h.node)} · {msActMeta(h.step,h.node).l}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Nœud courant */}
+        {node&&node.kind==="decision"?(
+          <div className="ss-ms-node">
+            <div className="ss-ms-node-head">
+              <b style={{color:node.player===0?T.cyan:T.purple}}>{node.player===0?"HERO (OOP)":"VILAIN (IP)"}</b>
+              <span>{streetName(node)} · pot {Math.round(node.pot*10)/10}bb</span>
+            </div>
+            <div className="ss-ms-acts" style={{gridTemplateColumns:`repeat(${node.actions.length},1fr)`}}>
+              {node.actions.map((a,i)=>{
+                const am=msActMeta(a,node),f=Math.round(res.aggAt(node,i)*1000)/10;
+                return(
+                  <button key={a} className="ss-ms-act" onClick={()=>setPath([...path,a])}
+                    style={{background:`linear-gradient(180deg,${am.c}26,${am.c}0a)`,borderColor:`${am.c}66`}}>
+                    <span className="ss-ms-act-l" style={{color:am.c}}>{am.l}</span>
+                    <span className="ss-ms-act-f">{f}%</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ss-ms-hint">Clique une action pour descendre dans l'arbre.</div>
+          </div>
+        ):node&&node.kind==="terminal"?(
+          <div className="ss-ms-node">
+            <div className="ss-ms-node-head"><b style={{color:T.gold}}>NŒUD TERMINAL</b>
+              <span>{node.result==="showdown"?"Abattage":node.result==="foldH"?"Hero se couche":"Vilain se couche"} · pot {Math.round(node.pot*10)/10}bb</span></div>
+            <div className="ss-ms-hint">Fin de la ligne — remonte via le fil d'Ariane.</div>
+          </div>
+        ):(
+          <div className="ss-ms-note">Ligne indisponible dans l'arbre résolu.</div>
+        )}
+
+        <div className="ss-ms-note">
+          <b>Lecture honnête</b> — stratégie <b>calculée</b> par CFR+ multi-rue sur un arbre borné
+          (2 sizings, 1 raise/rue, stacks symétriques, ranges plafonnées). Ce n'est pas un solveur
+          commercial complet : voir <i>10_SHARKSOLVER_LIMITATIONS</i>.
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,onGoReplayer=null,onInitialApplied=null}={}){
   const[scenario,setScenarioRaw]=useState(initialScenario||SOLVER_SCENARIOS[0]);
   const[mode,setMode]=useState(scenario.icmParams?"icm":scenario.pkoParams?"pko":"gto");
@@ -2557,8 +3039,15 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[boardInput,setBoardInput]=useState("");
   const[cfrBetFrac,setCfrBetFrac]=useState(0.66);
   const[cfrResult,setCfrResult]=useState(null);
+  const[cfrSource,setCfrSource]=useState(ResultSource.CFR_SOLVE); // CFR_SOLVE ou PRESOLVED_LIBRARY (§16)
   const[cfrBusy,setCfrBusy]=useState(false);
   const[cfrOverlay,setCfrOverlay]=useState(false);
+  /* ── Multi-street (§26) : solve postflop multi-rue à la demande + navigation d'arbre ── */
+  const[msResult,setMsResult]=useState(null);
+  const[msBusy,setMsBusy]=useState(false);
+  const[msPath,setMsPath]=useState([]);        // chemin d'actions dans l'arbre
+  const[msExploit,setMsExploit]=useState(null); // libellé du profil si solve exploit (§20)
+  const[msTourney,setMsTourney]=useState("chip"); // §21/§22 : "chip" | "icm" | "pko"
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
   const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
@@ -2566,7 +3055,10 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const villainParse=useMemo(()=>villainHand?parseHandToken(villainHand):null,[villainHand]);
   const boardParse=useMemo(()=>parseBoardToken(boardInput),[boardInput]);
   /* Un résultat CFR ne vaut que pour le board sur lequel il a été calculé */
-  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);},[boardInput]);
+  useEffect(()=>{setCfrResult(null);setCfrOverlay(false);setMsResult(null);setMsPath([]);setMsExploit(null);},[boardInput]);
+  /* §16 — remonte les solves des sessions précédentes en cache chaud. Idempotent,
+     best-effort : un échec de persistance laisse simplement la bibliothèque vide. */
+  useEffect(()=>{hydrateLibrary();},[]);
   const board=boardParse.valid?boardParse.cards:[];
 
   function resetSelection(){
@@ -2712,6 +3204,28 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     };
   },[heroFreqs,scenario,mode,icmResult,pkoParams,exploitDetails,stack]);
 
+  /* ── Blocs de STRATÉGIE (§41) — actions RÉELLES du moteur, honnêtes (§40).
+     Défaut = buckets heuristiques (pac / Call / Fold). Après CFR (overlay) =
+     Check / Bet small / Bet big réellement résolus. Jamais un sizing inventé. ── */
+  const strategyBlocks=useMemo(()=>{
+    if(cfrOverlay&&cfrResult){
+      return[
+        {id:"check",label:"Check",pct:cfrResult.heroCheck,color:"#34B4FF",ev:null},
+        {id:"bets",label:`Bet ${cfrResult.betSPct}%`,pct:cfrResult.heroBetS,color:"#10D87A",ev:null},
+        {id:"betb",label:`Bet ${cfrResult.betBPct}%`,pct:cfrResult.heroBetB,color:"#FF8A3D",ev:null},
+      ];
+    }
+    const b=[{id:"r",label:pac.label,pct:stats.raisedPct,color:pac.color,ev:evByBucket.r}];
+    if(stats.calledPct>0)b.push({id:"c",label:"Call",pct:stats.calledPct,color:"#1F8BFF",ev:evByBucket.c});
+    b.push({id:"f",label:"Fold",pct:stats.foldedPct,color:"#5a6a88",ev:0});
+    return b;
+  },[cfrOverlay,cfrResult,pac,stats,evByBucket]);
+  // Provenance de la stratégie affichée : CFR_SOLVE (calculé) ou PRESOLVED_LIBRARY
+  // (rechargé, §16) quand l'overlay CFR est actif ; sinon heuristique.
+  const strategySource=(cfrOverlay&&cfrResult)?(cfrSource||ResultSource.CFR_SOLVE):ResultSource.HEURISTIC_ESTIMATE;
+  const evTotalWeighted=(cfrOverlay&&cfrResult)?cfrResult.heroEV
+    :Math.round((stats.raisedPct*evByBucket.r+stats.calledPct*evByBucket.c)/100*100)/100;
+
   /* ── Math du spot : pot, SPR, pot odds, MDF (sur stack effectif) ── */
   const math=useMemo(()=>spotMath(scenario.action,effective,blinds,antes,potOverride),[scenario.action,effective,blinds,antes,potOverride]);
 
@@ -2721,25 +3235,110 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const heroComboList=useMemo(()=>sideComboList(heroMode==="hand",heroParse,heroKey,heroFreqs),[heroMode,heroParse,heroKey,heroFreqs]);
   const villainComboList=useMemo(()=>sideComboList(villainMode==="hand",villainParse,villainKey,villainFreqs),[villainMode,villainParse,villainKey,villainFreqs]);
   // moins d'itérations quand une seule combo (main vs main) → précision suffisante et rapide
-  const equityHero=useMemo(()=>monteCarloEquity(heroComboList,villainComboList,2500,board),[heroComboList,villainComboList,boardInput]);
+  // Équité : énumération EXACTE si le nombre de runouts est calculable, sinon
+  // Monte-Carlo (§10). La provenance affichée (EXACT vs APPROXIMATION) en découle.
+  const equityRes=useMemo(()=>computeEquity(heroComboList,villainComboList,board,{iters:2500}),[heroComboList,villainComboList,boardInput]);
+  // Le moteur renvoie l'équité NON ARRONDIE (nécessaire au solveur préflop) ;
+  // l'arrondi appartient à l'affichage. Au dixième : suffisant à l'écran, et sans
+  // la fausse précision d'un 46.083333%.
+  const equityHero=Math.round(equityRes.equity*10)/10;
   const equityVillain=100-equityHero;
+  const equitySource=equityRes.source; // provenance fournie par la Solver API (§17)
+
+  /* ── COACH AI (§30) : brief de FAITS SOURCÉS construit depuis la solution
+     réellement affichée (stratégie + provenance + équité + convergence).
+     Le moteur garantit qu'aucune fréquence hors solution n'y figure. ── */
+  const coachBrief=useMemo(()=>buildCoachBrief({
+    source:strategySource,
+    // ev peut être inconnue (le CFR ne fournit pas d'EV par action) → null, pas 0 :
+    // afficher « +0 bb » serait une fausse précision.
+    actions:strategyBlocks.map(b=>({id:b.id,label:b.label,freq:b.pct,ev:b.ev??null})),
+    equity:equityHero,
+    spr:math?.spr,
+    nashConv:(msResult&&msResult.convergence)?msResult.convergence.nashConv:null,
+    icm:mode==="icm",
+  }),[strategySource,strategyBlocks,equityHero,math,msResult,mode]);
 
   /* Équité de la main sélectionnée vs le camp Vilain (range ou main), sur le board courant */
   const selectedEquity=useMemo(()=>{
     if(!selectedCell)return null;
     const hList=(heroKey&&selectedCell.key===heroKey&&exactComboList(heroParse))||singleHandList(selectedCell.key);
-    return monteCarloEquity(hList,villainComboList,1800,board);
+    return Math.round(computeEquity(hList,villainComboList,board,{iters:1800}).equity*10)/10;
   },[selectedCell,heroKey,heroParse,villainComboList,boardInput]);
   const foldEquity=useMemo(()=>villainKey?(villainFreqs[villainKey]?.f||0):villainAggOf(villainFreqs).f,[villainKey,villainFreqs]);
+  /* ── Contexte de tournoi passé au solveur (§21/§22) ────────────────────────
+     PIÈGE D'UNITÉS, à ne pas reproduire : les payouts sont en UNITÉS DE GAIN
+     (24/18/14…) tandis que les primes de pkoParams sont saisies en BB (heroBounty:8).
+     Les additionner directement mélangerait deux échelles sans rapport. On convertit
+     donc les primes au taux « prize pool par jeton » : 1bb = Σpayouts / Σstacks —
+     la même conversion implicite que fait l'ICM en mappant des tapis sur des gains.
+     Le taux est affiché dans le panneau pour rester auditable.
+     Approximation assumée (→ PKO_ESTIMATE) : en PKO réel une part du prizepool EST
+     la dotation des primes, donc la traiter comme un gain de place la compte deux
+     fois. Ordre de grandeur conservé, pas une comptabilité exacte. */
+  const tourneyCtx=useMemo(()=>{
+    if(!icmParams||!icmParams.payouts||!icmParams.payouts.length)return null;
+    const n=Math.max(2,icmParams.playersLeft||icmParams.payouts.length);
+    const stacks=[icmParams.heroStack||25,
+      ...Array.from({length:n-1},()=>icmParams.avgStack||icmParams.heroStack||25)];
+    const payouts=icmParams.payouts.slice(0,n);
+    const base={stacks,payouts,heroIdx:0,villIdx:1};
+    if(msTourney!=="pko")return base;
+    const sumP=payouts.reduce((a,b)=>a+b,0),sumS=stacks.reduce((a,b)=>a+b,0);
+    const rate=sumS>0?sumP/sumS:0;                       // unités de gain par bb
+    const bb=(x)=>(x||0)*rate;
+    return{...base,
+      bounties:[bb(pkoParams?.heroBounty),bb(pkoParams?.villainBounty),
+        ...Array.from({length:Math.max(0,n-2)},()=>bb(pkoParams?.avgBounty))],
+      realization:0.5,                                   // PKO progressif standard
+      _rate:rate,
+    };
+  },[icmParams,pkoParams,msTourney]);
+
   /* ── Lancement du moteur CFR (à la demande) ── */
   function runCFR(){
     setCfrBusy(true);
     setTimeout(()=>{
       try{
-        const r=solveRiverCFR(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:50,iters:400,runouts:board.length===5?0:60});
-        setCfrResult(r);
+        // §17 : passe par la Solver API ; s.result garde la forme attendue (+ convergence).
+        // maxCombos 200 (était 50) : en dessous de 169 classes de mains, la réduction
+        // en supprime — à 50, ~100 classes disparaissaient, dont TOUS les offsuit (§8).
+        const s=solveSubgame(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:200,iters:400,runouts:board.length===5?0:60});
+        setCfrResult(s.result);setCfrSource(s.source); // §16 : CFR_SOLVE ou PRESOLVED_LIBRARY
       }catch(e){setCfrResult(null);}
       setCfrBusy(false);
+    },30);
+  }
+
+  /* ── Solve MULTI-RUE (§26) — postflop uniquement, via la Solver API (§17).
+     `exploit` : verrouille les tendances du profil vilain sélectionné et RE-SOLVE
+     la stratégie Hero contre elles (§19/§20). Le modèle de joueur reste une
+     estimation ; seule la stratégie est calculée. ── */
+  function runMultiStreet(exploit=false){
+    if(board.length<3)return;
+    setMsBusy(true);setMsPath([]);
+    setTimeout(()=>{
+      try{
+        const opts={
+          iters:board.length===5?400:180,
+          betSizes:[0.33,0.75],startPot:math.pot,
+          // 200 quelle que soit la rue (était 110/80) : couvre les 169 classes
+          // possibles, donc la range solvée garde la FORME de la range saisie (§8).
+          // Coût mesuré : river ~1.6 s, flop 3 rues ~6.3 s.
+          maxCombos:200,maxRaisesPerStreet:1,effStack:effective,
+          /* §21/§22 STRATÉGIQUE — en mode ICM/PKO le CFR optimise des $EQ et non des
+             jetons : la pression de bulle (et la prime) entrent dans la stratégie au
+             lieu d'être un affichage à côté. Contexte reconstruit comme le panneau ICM
+             (Hero + n-1 joueurs au tapis moyen). */
+          ...(msTourney!=="chip"&&tourneyCtx?{[msTourney]:tourneyCtx}:{}),
+        };
+        const s=exploit
+          ? solveNodeLocked(heroFreqs,villainFreqs,board,profileToLocks(exploitProfile),opts)
+          : solveMultiStreet(heroFreqs,villainFreqs,board,opts);
+        setMsResult(s.source==="NO_SOLUTION"?null:s);
+        setMsExploit(exploit?exploitProfile.label:null);
+      }catch(e){setMsResult(null);setMsExploit(null);}
+      setMsBusy(false);
     },30);
   }
 
@@ -2843,13 +3442,17 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     return sz?sz.sizes[0]:"";
   })();
 
+  const solveId=makeSolveId(scenario,board,mode,effective);
+  // Provenance globale = celle de la stratégie RÉELLEMENT AFFICHÉE (overlay CFR ou
+  // heuristique). Cohérente avec les blocs + le panneau Source du Résultat.
+  const resultSourceTop=strategySource;
+  const modeLabelTop={gto:"GTO",exploit:"Exploit",icm:"ICM",pko:"PKO",chipev:"ChipEV"}[mode]||"GTO";
   return(
     <div className="ss-page">
-      <div className="ss-head">
-        <span className="ss-head-title">🦈 SHARK SOLVER</span>
-        <span className="ss-head-sub">GTO · Exploit · ICM · PKO · ChipEV</span>
-        <span className="ss-head-honesty">Estimations heuristiques — pas un calcul solver exact</span>
-      </div>
+      <SolverTopBar
+        mode={mode} format={format} scenario={scenario} effective={effective}
+        solveId={solveId} cfrResult={cfrResult} resultSource={resultSourceTop}
+      />
 
       <SolverModeBar
         scenario={scenario} onUpdateScenario={onUpdateScenario}
@@ -2870,6 +3473,10 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           showCustomForm={showCustomForm} setShowCustomForm={setShowCustomForm}
           newSpot={newSpot} setNewSpot={setNewSpot}
           format={format}
+          effective={effective} math={math} board={board}
+          heroParse={heroParse} heroMode={heroMode} villainMode={villainMode}
+          heroCombosN={heroComboList.length} villainCombosN={villainComboList.length}
+          antes={antes}
         />
 
         <div className="ss-main">
@@ -2880,6 +3487,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             villainAction={villainAction} setVillainAction={setVillainAction}
             stackHero={stackHero} setStackHero={setStackHero} stackVillain={stackVillain} setStackVillain={setStackVillain}
           />
+          {/* ── STRATÉGIE — FRÉQUENCES + STATUT DU SOLVE (§41, §44) ── */}
+          <div className="ss-strat-row">
+            <SolverStrategyPanel blocks={strategyBlocks} source={strategySource} evTotal={evTotalWeighted}/>
+            <SolverSolveStatus source={strategySource} cfrResult={cfrOverlay?cfrResult:null}/>
+          </div>
           <SpotStacksBar
             stackHero={stackHero} stackVillain={stackVillain}
             blinds={blinds} setBlinds={setBlinds} antes={antes} setAntes={setAntes}
@@ -2951,8 +3563,36 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             />
           </div>
 
+          {/* ── ICM / PKO (§21, §22) — calcul réel, provenance ICM/PKO_ESTIMATE ── */}
+          {mode==="icm"&&(
+            <div style={{marginTop:12}}>
+              <SolverIcmPanel icmParams={icmParams} effStack={effective}/>
+            </div>
+          )}
+          {mode==="pko"&&(
+            <div style={{marginTop:12}}>
+              <SolverPkoPanel pkoParams={pkoParams} potBb={math.pot} heroEquity={equityHero} effStack={effective}/>
+            </div>
+          )}
+
+          {/* ── SOLVEUR MULTI-RUE (§26) — moteur CFR+ multi-street exposé ── */}
+          <div style={{marginTop:12}}>
+            <SolverMultiStreetPanel
+              board={board} potBb={math.pot} effStack={effective}
+              result={msResult} busy={msBusy} onSolve={runMultiStreet}
+              path={msPath} setPath={setMsPath}
+              exploitProfile={exploitProfile} exploitLabel={msExploit}
+              tourneyMode={msTourney} setTourneyMode={setMsTourney}
+              icmReady={!!(icmParams&&icmParams.payouts&&icmParams.payouts.length)}
+              bountyRate={tourneyCtx&&tourneyCtx._rate}
+            />
+            {/* §11 — le solveur multi-rue est postflop ; celui-ci prend le relais
+                EN AMONT, sur la seule zone préflop réellement calculable. */}
+            <SolverPushFoldPanel preflop={board.length<3} effStack={effective}/>
+          </div>
+
           <div className="ss-bottom">
-            <SolverInsightsCard scenario={scenario} heroFreqs={heroFreqs} mode={mode} onAddNote={()=>setShowNoteForm(true)}/>
+            <SolverCoachPanel brief={coachBrief} onAddNote={()=>setShowNoteForm(true)}/>
             <SolverGainsCard/>
             <SolverQuickActions onGoTrainer={handleGoTrainer} onGoReplayer={handleGoReplayer} onExport={onExport} onSave={onSave} mode={mode} setMode={setMode} onNodeLock={()=>{setNodeLockOpen(true);document.querySelector('.ss-center-col.tree')?.scrollIntoView({behavior:'smooth',block:'center'});}}/>
           </div>
@@ -2970,6 +3610,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             effective={effective} math={math} equityHero={equityHero}
             villainActionEff={villainActionEff} onReset={onReset}
           />
+          <SolverSpotResultPanel
+            equityHero={equityHero} equityVillain={equityVillain} foldEquity={foldEquity}
+            math={math} evTotal={evTotalWeighted} strategySource={strategySource}
+          />
+          <SolverResultSourcePanel strategySource={strategySource} equitySource={equitySource}/>
           <SolverEVChart
             scenario={scenario} mode={mode} pac={pac} evByBucket={evByBucket}
             selectedCell={selectedCell} heroFreqs={heroFreqs} villainFreqs={villainFreqs}
@@ -2980,10 +3625,15 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
             overlay={cfrOverlay} setOverlay={setCfrOverlay}
           />
           <SolverQualityCard cfr={cfrResult} busy={cfrBusy}/>
+          <SolverLibraryPanel/>
         </div>
       </div>
 
-      <SolverFooterBar mode={mode} validation={validation}/>
+      <SolverProvenanceLegend
+        activeSource={resultSourceTop}
+        precision={validation&&!validation.ok?"spot à corriger":cfrResult?"CFR · 1-street":"estimation"}
+        modeLabel={modeLabelTop}
+      />
     </div>
   );
 }

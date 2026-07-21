@@ -144,14 +144,172 @@ const MOBILE_SEAT_RINGS = {
   8: [{ x: 50, y: 80 }, { x: 15, y: 65 }, { x: 16, y: 41 }, { x: 34, y: 17 }, { x: 50, y: 14 }, { x: 66, y: 17 }, { x: 84, y: 41 }, { x: 85, y: 65 }],
   9: [{ x: 50, y: 81 }, { x: 13, y: 70 }, { x: 13, y: 40 }, { x: 27, y: 17 }, { x: 44, y: 14 }, { x: 56, y: 14 }, { x: 73, y: 17 }, { x: 87, y: 40 }, { x: 87, y: 70 }],
 };
+/* ── ANCRAGE CENTRALISÉ DES SIÈGES — WEB (desktop, table large paysage) ──
+   Même principe hero-centric que le mobile (index 0 = HERO bas-centre) mais
+   calibré pour l'ellipse LARGE du web : x plus étalé (≈8→92), plage verticale
+   compacte (≈14→80). Une seule source pour toutes les tailles 2→9, réutilisée
+   par le 1T web et (mise à l'échelle) par le multi-table. */
+const WEB_SEAT_RINGS = {
+  2: [{ x: 50, y: 79 }, { x: 50, y: 17 }],
+  3: [{ x: 50, y: 79 }, { x: 17, y: 31 }, { x: 83, y: 31 }],
+  4: [{ x: 50, y: 79 }, { x: 11, y: 47 }, { x: 50, y: 15 }, { x: 89, y: 47 }],
+  5: [{ x: 50, y: 79 }, { x: 12, y: 56 }, { x: 26, y: 20 }, { x: 74, y: 20 }, { x: 88, y: 56 }],
+  6: [{ x: 50, y: 79 }, { x: 9, y: 63 }, { x: 15, y: 26 }, { x: 50, y: 15 }, { x: 85, y: 26 }, { x: 91, y: 63 }],
+  /* 7-max : hero remonté (79→75) → zone de sécurité réelle sous le bloc Hero,
+     fini le contact avec le bandeau de décision (§12). Sièges hauts descendus
+     (16→18 / 27→28) → marge avec la bordure haute pour les cartes de HJ/CO (§7). */
+  7: [{ x: 50, y: 75 }, { x: 9, y: 60 }, { x: 15, y: 28 }, { x: 37, y: 18 }, { x: 63, y: 18 }, { x: 85, y: 28 }, { x: 91, y: 60 }],
+  8: [{ x: 50, y: 79 }, { x: 8, y: 61 }, { x: 12, y: 35 }, { x: 31, y: 18 }, { x: 50, y: 14 }, { x: 69, y: 18 }, { x: 88, y: 35 }, { x: 92, y: 61 }],
+  9: [{ x: 50, y: 79 }, { x: 8, y: 64 }, { x: 10, y: 40 }, { x: 25, y: 21 }, { x: 42, y: 14 }, { x: 58, y: 14 }, { x: 75, y: 21 }, { x: 90, y: 40 }, { x: 92, y: 64 }],
+};
+/* ── GÉOMÉTRIE DU FEUTRE PAR STRUCTURE (web) ──
+   Par défaut le feutre suit la géométrie du mode (1T..4T). Certaines structures
+   méritent une ellipse dédiée : le 7-max paraissait trop APLATI (ratio ~1.71).
+   Ici on rend ~+10% de hauteur (et un poil moins de largeur) → ovale horizontal
+   plus généreux, sans jamais devenir rond. Clé = nombre de joueurs, donc la
+   même géométrie s'applique en 1T/2T/3T/4T (mise à l'échelle par conteneur).
+   Les autres structures ne sont PAS modifiées (aucune clé = comportement actuel). */
+/* STANDARD 1T (maquette validée) — géométrie de feutre UNIQUE et cohérente pour
+   toutes les structures : feutre plus ÉTROIT (marges de sécurité sur les 4 côtés,
+   « davantage d'espace autour »), ovale conservé, anneau doré visible. Les sièges
+   sont TOUJOURS calculés depuis cette ellipse (WEB_ELLIPSE_BY_COUNT) → posés sur
+   l'anneau, jamais « dans le tapis ». Les tables denses (8/9) gardent un feutre un
+   peu plus large pour loger tous les sièges sans chevauchement. */
+const WEB_GEOMETRY_BY_COUNT = {
+  2: { top: 8, left: 16, right: 16, bottom: 13, railInset: 7, innerInset: 16 },
+  3: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  4: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  5: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  6: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
+  7: { top: 7, left: 12, right: 12, bottom: 12, railInset: 7, innerInset: 16 },
+  8: { top: 7, left: 10, right: 10, bottom: 12, railInset: 7, innerInset: 16 },
+  9: { top: 7, left: 8, right: 8, bottom: 12, railInset: 7, innerInset: 16 },
+};
+/* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
+   Pour ces structures, on n'utilise PLUS de coordonnées saisies à la main : les
+   sièges sont posés sur l'ellipse de l'anneau doré (rayon constant `ringFactor`),
+   répartis uniformément, Hero à 90° (bas-centre) puis l'ordre poker autour.
+   -> fini les joueurs « enfoncés » dans le tapis (HJ/CO étaient à 0.58 du rayon).
+   `heroDrop` : le Hero seul garde un retrait vertical — son bloc (cartes+avatar+
+   plaque) est haut et doit préserver la zone de sécurité sous lui (§12). */
+const WEB_ELLIPSE_BY_COUNT = {
+  /* ringFactorY < ringFactor : l'anneau est suivi pleinement en X, mais légèrement
+     comprimé en Y — sinon les sièges du haut (posés pile sur l'ellipse) collent au
+     bord et leurs cartes touchent la bordure (mesuré : marge 0px). §1 demande de
+     conserver des marges de sécurité pour UTG/LJ/HJ.
+     heroDrop : le Hero descend un peu pour ouvrir l'écart board -> cartes Hero (§3)
+     sans perdre sa zone de sécurité sous lui (§12). */
+  /* 6-max (§2) : « réduire l'écart entre chaque avatar et l'anneau » → ringFactor
+     0.9 → 0.94 (avatars plus près du rail). ringFactorY reste plus bas : le siège
+     du haut (θ=270°) rend ses cartes AU-DESSUS de lui, les coller au rail les
+     ferait sortir du conteneur (§8 « aucun chevauchement / aucun rognage »). */
+  /* 6-max : ringFactorY 0.84 -> 0.92 remonte les sièges vers le rail. Ça sert
+     DEUX besoins d'un coup :
+       · §2/§3 « rapprocher chaque avatar de l'anneau » ;
+       · le budget vertical. Mesuré : entre le bas du bloc du siège haut-centre
+         et les cartes Hero il n'y avait que 134px, alors que pot(53) + board(79)
+         + les écarts mini (8+12) en réclament 152 → déficit de 18px, d'où le pot
+         posé sur la plaque du joueur du haut. Remonter ce siège de ~18px rend
+         exactement le budget manquant, sans rogner ses cartes (marge vérifiée). */
+  /* ringFactorY 0.84 : valeur prouvée sans rognage de l'avatar du siège haut-centre
+     (au-delà de ~0.87 il est coupé par le bord). Le budget vertical n'est PAS
+     récupéré en remontant ce siège — il l'est en compactant le pot (voir CSS
+     .t1-left[data-nplayers="6"] .pf-pot-readout). */
+  6: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  7: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.665 },
+  /* Toutes les structures posent leurs sièges sur l'anneau (STANDARD 1T).
+     ringFactor ~0.94 : avatar sur le rail. ringFactorY < ringFactor : compression
+     verticale légère pour que les cartes du siège du haut ne touchent pas le bord. */
+  2: { ringFactor: 0.9, ringFactorY: 0.84, heroDrop: 0.62 },
+  3: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  4: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  5: { ringFactor: 0.94, ringFactorY: 0.84, heroDrop: 0.665 },
+  8: { ringFactor: 0.95, ringFactorY: 0.85, heroDrop: 0.665 },
+  9: { ringFactor: 0.96, ringFactorY: 0.86, heroDrop: 0.665 },
+};
+/* ── CALAGE VERTICAL DU BOARD PAR STRUCTURE (web, §1/§3) ──
+   Mesuré en 7-max : Pot→Board = 44px (cible 16-24) et Board→Cartes Hero = -17px
+   (chevauchement, cible 18-26). Le board vivait trop bas : on le remonte pour
+   consommer le vide sous le pot et rendre l'espace aux cartes Hero.
+   Clé = nombre de joueurs → les autres structures gardent leur position. */
+const WEB_BOARD_Y_BY_COUNT = {
+  /* STANDARD 1T : board centré, juste sous le pot, pour toutes les structures. */
+  2: 49, 3: 49, 4: 49, 5: 49, 6: 49, 7: 49, 8: 49, 9: 49,
+};
+/* Pot postflop remonté de concert avec le board (§1 « exploiter l'espace
+   supérieur ») : les 2 sièges hauts du 7-max sont à x≈32 et x≈68, la colonne
+   centrale (x50) est donc libre — remonter le pot ne touche pas leurs cartes. */
+/* ATTENTION — différence structurelle entre 6-max et 7-max :
+   en 7-max les deux sièges hauts sont à x≈32 et x≈68, la colonne centrale (x50)
+   est libre → le pot peut être remonté sans risque.
+   En 6-max un siège tombe PILE en haut-centre (x50), dans la colonne du pot :
+   remonter le pot le fait chevaucher sa plaque (mesuré : recouvrement de 8px).
+   Le pot doit donc rester SOUS ce siège. */
+const WEB_POT_Y_BY_COUNT = {
+  /* STANDARD 1T : pot descendu (~34%) pour passer SOUS le siège du haut même
+     lorsqu'il est actif (cartes au-dessus → bloc plus bas). Pot compact (CSS) +
+     hauteur fixe rendent la place. Board juste dessous (WEB_BOARD_Y=49). */
+  /* 2/4/8/9 : pot descendu à 38 — dans ces structures le siège haut-centre est
+     souvent le villain ACTIF (nameplate + stats + bouton R → bloc plus bas, ~348px)
+     que le pot effleurait. 6 : top-seat rarement actif → 35 suffit. 3/5/7 : pas de
+     siège au haut-centre → 34. */
+  2: 41, 3: 34, 4: 41, 5: 34, 6: 35, 7: 34, 8: 40, 9: 40,
+};
+/* Pot PRÉFLOP (pas de board) : la branche « sans board » vivait à y=50%, soit au
+   centre exact de la table — là où remontent les cartes du Hero, qui masquaient
+   la valeur du pot (vu à l'image). Sans board, la place du board est libre : on
+   y descend le pot, entre le siège du haut et les cartes du Hero. */
+const WEB_POT_Y_PREFLOP_BY_COUNT = {
+  2: 40,
+  3: 40,
+  4: 40,
+  5: 40,
+  6: 40,
+  7: 40,
+  8: 40,
+  9: 40,
+};
 function computeHeroCentricSeats(positions, heroPos, geometry, opts = {}) {
   const n = positions.length;
   const seats = {};
   if (!n) return seats;
+  // ── MODE « VUE TABLE » (canonique) ──
+  // Pas de rotation vers le héros : chaque position occupe sa place naturelle,
+  // répartie uniformément sur l'ellipse (départ à gauche = 180°, sens horaire).
+  // Reproduit le hexagone 6-max historique et se généralise à 2→9 joueurs.
+  if (opts.canonical) {
+    const g = geometry || { top: 8, left: 6, right: 6, bottom: 8 };
+    const cx = (g.left + (100 - g.right)) / 2, cy = (g.top + (100 - g.bottom)) / 2;
+    const rx = (100 - g.left - g.right) / 2, ry = (100 - g.top - g.bottom) / 2;
+    const fx = opts.web ? 0.92 : 0.9, fy = opts.web ? 0.9 : 0.92;
+    for (let i = 0; i < n; i++) {
+      const ang = (180 + i * (360 / n)) * Math.PI / 180;
+      seats[positions[i]] = { x: +(cx + fx * rx * Math.cos(ang)).toFixed(2), y: +(cy + fy * ry * Math.sin(ang)).toFixed(2) };
+    }
+    return seats;
+  }
   const heroIdx = Math.max(0, positions.indexOf(heroPos));
   const ordered = [];
   for (let i = 0; i < n; i++) ordered.push(positions[(heroIdx + i) % n]);
-  const ring = MOBILE_SEAT_RINGS[n];
+  // ── Sièges posés sur l'anneau doré (§6) : rayon constant, répartition uniforme.
+  if (opts.ellipse) {
+    const g = geometry || { top: 6, left: 4, right: 4, bottom: 10 };
+    const cx = (g.left + (100 - g.right)) / 2, cy = (g.top + (100 - g.bottom)) / 2;
+    const rx = (100 - g.left - g.right) / 2, ry = (100 - g.top - g.bottom) / 2;
+    const f = opts.ellipse.ringFactor ?? 0.9;
+    const fy = opts.ellipse.ringFactorY ?? f;
+    for (let i = 0; i < n; i++) {
+      const ang = (90 + i * (360 / n)) * Math.PI / 180;
+      seats[ordered[i]] = {
+        x: +(cx + f * rx * Math.cos(ang)).toFixed(2),
+        y: +(cy + fy * ry * Math.sin(ang)).toFixed(2),
+      };
+    }
+    // Hero : même colonne (bas-centre) mais remonté — son bloc est haut (§12).
+    seats[ordered[0]] = { x: +cx.toFixed(2), y: +(cy + (opts.ellipse.heroDrop ?? 0.64) * ry).toFixed(2) };
+    return seats;
+  }
+  const ring = (opts.web ? WEB_SEAT_RINGS : MOBILE_SEAT_RINGS)[n];
   if (ring) {
     for (let i = 0; i < n; i++) seats[ordered[i]] = { ...ring[i] };
     return seats;
@@ -274,7 +432,10 @@ function dealerAnchorPoint(layout){
   // 1T (figé) : bas-gauche. Multi : à GAUCHE du siège à hauteur d'avatar —
   // le bas-gauche chevauchait la nameplate (badge position/stack sous l'avatar)
   // sur les zones compactes ; vérifié sans collision (nameplate/cartes/mises).
-  const seat=layout.seats?.BTN||{x:50,y:50};
+  // Le bouton est sur BTN (3+ joueurs) ; en HEADS-UP il n'y a pas de BTN → le
+  // bouton est sur la SB (règle BTN=SB). Sinon on retombait sur le centre (50,50)
+  // et le jeton D flottait au milieu de la table.
+  const seat=layout.seats?.BTN||layout.seats?.SB||{x:50,y:50};
   const off={"1T":{x:7,y:9},"2T":{x:9,y:0},"3T":{x:8,y:0},"4T":{x:8,y:0}}[layout.name]||{x:9,y:0};
   return {x:Math.max(4,seat.x-off.x),y:Math.min(90,seat.y+off.y)};
 }
@@ -2465,7 +2626,7 @@ function fhBuildRecap(fhActs,spot,fhResult){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero"}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -3076,14 +3237,47 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // 1T : layout HERO-CENTRIC dynamique (nb de joueurs = spot.nplayers, héros en bas).
   // Multi-tables (2T/3T/4T) : layout statique historique (inchangé pour l'instant).
   // HERO-CENTRIC dynamique : d'abord scopé au 1T MOBILE (desktop/multi-tables inchangés pour l'instant).
-  const heroCentric=numTables===1&&isMobile;
+  // HERO-CENTRIC dynamique : le nb de joueurs (spot.nplayers) pilote réellement
+  // les sièges. Actif sur : 1T (web + mobile) ET tout le WEB multi (2T/3T/4T).
+  // Le MOBILE multi reste statique (hors périmètre : mobile = 1T uniquement).
+  const heroCentric=numTables===1||!isMobile;
   const seatOrder=(heroCentric&&spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:TRAINING_SEAT_ORDER;
   const trainingLayout=useMemo(()=>{
     if(!heroCentric)return getTrainingLayout(numTables,isMobile);
-    const cfgViz=TRAINER_VISUAL_1T_MOBILE;
+    // Sièges = rings hero-centric (% du conteneur → même source pour 1T et multi web) ;
+    // géométrie du feutre = celle du mode courant (le multi a un feutre plus plat).
+    const cfgVizBase=isMobile?TRAINER_VISUAL_1T_MOBILE
+      :numTables===1?TRAINER_VISUAL_1T
+      :numTables===2?TRAINER_VISUAL_2T
+      :numTables===3?TRAINER_VISUAL_3T
+      :TRAINER_VISUAL_4T;
     const positions=(spot?.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])?POSITIONS_BY_SIZE[spot.nplayers]:POSITIONS_BY_SIZE[6];
-    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry);
-    const layout=createTrainingTableLayout("1T-mobile-dyn",seats,cfgViz);
+    // Géométrie STANDARD (feutre étroit) : 1T WEB uniquement. En multi le
+    // conteneur de chaque table est déjà petit → on garde la géométrie multi
+    // (TRAINER_VISUAL_2T/3T/4T, plus large, qui remplit le conteneur) sinon
+    // l'anneau devient minuscule et les avatars se chevauchent. Les sièges
+    // restent calculés sur l'ellipse de CETTE géométrie (répartis, sur l'anneau).
+    const geoByCount=(!isMobile&&numTables===1)?WEB_GEOMETRY_BY_COUNT[positions.length]:null;
+    // anchorOverrides FORCÉ VIDE : les configs desktop (TRAINER_VISUAL_1T..4T)
+    // portent des ancres SB/BB/dealer/mises CODÉES EN DUR pour le layout STATIQUE
+    // à 6 sièges. En hero-centric dynamique, SB/BB ne sont plus à ces places →
+    // les blinds/mises doivent être DÉRIVÉES du siège réel (pointTowardCenter),
+    // pas prises dans ces overrides. Le mobile a toujours anchorOverrides:{}, d'où
+    // ses blinds correctes ; on aligne le web dessus.
+    const cfgViz={...cfgVizBase,...(geoByCount?{tableGeometry:geoByCount}:{}),anchorOverrides:{}};
+    // "table" = vue canonique (Hero à sa position) ; "hero" = hero-centric (bas-centre).
+    const canonical=heroLayout==="table";
+    // Structures dont les sièges sont calculés sur l'anneau (ex. 7-max) — web only.
+    const ellipseBase=(!isMobile&&!canonical)?WEB_ELLIPSE_BY_COUNT[positions.length]:null;
+    // MULTI : le feutre de chaque table est plat → les sièges du haut, posés sur
+    // l'ellipse, plongeaient leur plaque sur le pot (chevauchement 15-20px). On
+    // remonte les sièges vers le rail (ringFactorY plus haut) : ça dégage le centre
+    // (pot/board) ET rapproche les joueurs de l'anneau doré comme demandé (§2).
+    const ellipse=(ellipseBase&&numTables>=2)
+      ?{...ellipseBase,ringFactorY:Math.min(0.96,(ellipseBase.ringFactorY??0.84)+0.06)}
+      :ellipseBase;
+    const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical,ellipse});
+    const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":`${numTables}T-web-dyn`,seats,cfgViz);
     // P1 (mission premium) : ZONE POT ≠ ZONE MISES. Les mises des sièges du HAUT
     // sont déportées en diagonale (jamais sur la colonne centrale x50 où vivent
     // le pot et la plaque) → plus aucun chevauchement pot/mise/board.
@@ -3096,7 +3290,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       a.actionLabelAnchor={x:bx+4,y:st.y+22};
     });
     return layout;
-  },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos]);
+  },[heroCentric,numTables,isMobile,spot?.nplayers,spot?.hpos,heroLayout]);
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
@@ -3651,38 +3845,51 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       const bbSize=parseFloat(spot.stack)||100;
       const raiseAmt=sp.mult===999?bbSize:customBB!==null?customBB:Math.round(currentPotBb*sp.mult*10)/10;
       const neutralHints={FOLD:"Ne pas jouer",CALL:"Suivre",CHECK:"Passer",RAISE:"Relancer",BET33:"33% pot",BET50:"50% pot",BET75:"75% pot",BET100:"Pot",ALLIN:"Tapis","3BET":"3-Bet","4BET":"4-Bet","5BET":"5-Bet"};
+      // MÊME DISPOSITION sur toutes les tables (info · boutons · sizing · stepper).
+      // 1T = pleine taille ; multi = compact dérivé de cfg (adapté à la taille de
+      // chaque table). Corrige le chevauchement au niveau du stack Hero : les actions
+      // vivent dans un bandeau dédié sous le feutre, jamais sur la table.
+      const multi=numTables>1;
+      const az=multi
+        ?{pad:"4px 6px 2px",hdrMb:2,chip:Math.max(7,cfg.actFnt-4),htxt:Math.max(7,cfg.actFnt-4),
+          bgap:cfg.compact?3:4,bmb:3,lbl:cfg.actFnt,siz:Math.max(7,cfg.actFnt-3),hint:Math.max(6,cfg.actFnt-4),
+          szMb:2,stepFs:Math.max(9,cfg.actFnt-2),grid:`repeat(${spot.acts.length},minmax(0,1fr))`}
+        :{pad:"8px 10px 10px",hdrMb:7,chip:8,htxt:8.5,bgap:5,bmb:7,lbl:13,siz:10,hint:8,szMb:5,stepFs:11,grid:null};
       return(
-        <div className="mtr-actions" style={{flexShrink:0,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(255,194,71,.18)",padding:"8px 10px 10px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
-            <div style={{padding:"2px 9px",borderRadius:20,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.3)",fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,color:T.gold}}>🎮 {spot.hpos} vs {spot.vpos}</div>
+        <div className={`mtr-actions${multi?" mtr-actions-multi":""}`} style={{flexShrink:0,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(255,194,71,.18)",padding:az.pad}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:az.hdrMb}}>
+            <div style={{padding:"2px 9px",borderRadius:20,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.3)",fontFamily:"'Space Grotesk',sans-serif",fontSize:az.chip,fontWeight:800,color:T.gold}}>🎮 {spot.hpos} vs {spot.vpos}</div>
             {spotCtx.facing
-              ?<span style={{fontSize:8.5,fontFamily:T.stats,color:"#c090ff",fontWeight:700}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}{spot.toCall>0&&<span style={{color:T.amber}}> · à payer {fmt(spot.toCall)}</span>}</span>
-              :<span style={{fontSize:8.5,fontFamily:T.stats,color:T.green,fontWeight:700}}>{/^pre/i.test(spot.street||"")?"Premier à parler — ouvre ou fold":`${spot.vpos} check — à toi`}</span>}
+              ?<span style={{fontSize:az.htxt,fontFamily:T.stats,color:"#c090ff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>Face à {spotCtx.facing.label} {fmt(spotCtx.facing.amount)}{spot.toCall>0&&<span style={{color:T.amber}}> · à payer {fmt(spot.toCall)}</span>}</span>
+              :<span style={{fontSize:az.htxt,fontFamily:T.stats,color:T.green,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{/^pre/i.test(spot.street||"")?"Premier à parler — ouvre ou fold":`${spot.vpos} check — à toi`}</span>}
           </div>
-          <div style={{display:"flex",gap:5,marginBottom:7}}>
+          <div style={{display:multi?"grid":"flex",...(multi?{gridTemplateColumns:az.grid}:{}),gap:az.bgap,marginBottom:az.bmb}}>
             {spot.acts.map((a,i)=>{
-              const isRaiseBtn=["RAISE","3BET","4BET","5BET","BET33","BET50","BET75","BET100","ALLIN"].includes(a.id);
+              // Seuls RAISE/3BET/4BET/5BET suivent le sélecteur de sizing (raiseAmt).
+              // Les BET33/50/75/100 gardent leur fraction de pot propre (a.s) — sinon
+              // tous les boutons de mise afficheraient le même montant.
+              const isSizedRaise=["RAISE","3BET","4BET","5BET"].includes(a.id);
               const sIsAmount=/^\d|bb$|\$/.test(a.s||"");
-              const dynSizing=isRaiseBtn?(sp.mult===999?"Tapis":fmt(raiseAmt)):sIsAmount?a.s:"";
+              const dynSizing=isSizedRaise?(sp.mult===999?"Tapis":fmt(raiseAmt)):(a.id==="ALLIN"?"Tapis":sIsAmount?a.s:"");
               return(
-                <button key={i} className={`gto-btn gto-btn-${a.id}${errorBtn===i?" btn-error":""}`} onClick={()=>handleHeroAct(i)} style={{flex:1,minWidth:0}}>
+                <button key={i} className={`gto-btn gto-btn-${a.id}${errorBtn===i?" btn-error":""}`} onClick={()=>handleHeroAct(i)} style={multi?{minWidth:0}:{flex:1,minWidth:0}}>
                   <div className="gto-btn-inner">
-                    <span className="gto-btn-label" style={{fontSize:13}}>{a.l}</span>
-                    {dynSizing&&<span className="gto-btn-sizing" style={{fontSize:10}}>{dynSizing}</span>}
+                    <span className="gto-btn-label" style={{fontSize:az.lbl}}>{a.l}</span>
+                    {dynSizing&&<span className="gto-btn-sizing" style={{fontSize:az.siz}}>{dynSizing}</span>}
                   </div>
-                  <div className="gto-btn-hint" style={{fontSize:8}}>{neutralHints[a.id]||""}</div>
+                  <div className="gto-btn-hint" style={{fontSize:az.hint}}>{neutralHints[a.id]||""}</div>
                 </button>
               );
             })}
           </div>
-          <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:5}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:3,marginBottom:az.szMb}}>
             {SIZING_PRESETS.map((s,i)=>(
               <button key={i} className={`sizing-btn${i===raiseSzIdx&&customBB===null?" sz-active":""}${s.mult===999?" sz-allin":""}`} onClick={()=>{setRaiseSzIdx(i);setCustomBB(null);}}>{s.l}</button>
             ))}
           </div>
           <div className="sizing-custom">
             <button className="sizing-step-btn" onClick={()=>{const v=customBB!==null?customBB:raiseAmt;setCustomBB(Math.max(currentPotBb,Math.round((v-.5)*2)/2));}}>−</button>
-            <span style={{flex:1,textAlign:"center",fontFamily:T.mono,fontSize:11,color:customBB!==null?T.gold:T.text3,fontWeight:700}}>{customBB!==null?fmt(customBB):fmt(raiseAmt)} bb</span>
+            <span style={{flex:1,textAlign:"center",fontFamily:T.mono,fontSize:az.stepFs,color:customBB!==null?T.gold:T.text3,fontWeight:700}}>{customBB!==null?fmt(customBB):fmt(raiseAmt)} bb</span>
             <button className="sizing-step-btn" onClick={()=>{const v=customBB!==null?customBB:raiseAmt;setCustomBB(Math.round((v+.5)*2)/2);}}>+</button>
           </div>
           {/* ── Indice raccourcis clavier (1T) — rythme drill type GTO Wizard ── */}
@@ -4105,7 +4312,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         {/* Refonte V2 : la table occupe toute la largeur — le panneau droit est
            désormais la colonne partagée V2 rendue par le parent (même logique
            que le multi). */}
-        <div className="t1-left" style={{flex:"1 1 auto",minWidth:0,display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
+        <div className="t1-left" data-nplayers={seatOrder.length} style={{flex:"1 1 auto",minWidth:0,display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
 
          <div className="t1-table-area" style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
 
@@ -4144,7 +4351,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               const potPt=potPointFor(1,hasBoard);
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?31:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?31:(WEB_POT_Y_BY_COUNT[seatOrder.length]??potPt.y)}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4153,7 +4360,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
                    (le pot non-compact est plus haut → à 32% il chevauchait la plaque
                    du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:(WEB_POT_Y_PREFLOP_BY_COUNT[seatOrder.length]??potPt.y)}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -4163,7 +4370,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?46:boardPointFor(1).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?46:(WEB_BOARD_Y_BY_COUNT[seatOrder.length]??boardPointFor(1).y)}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -4272,7 +4479,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
             const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
             const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
-            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?5:6);
+            // Écart cartes Hero -> avatar Hero : cible 6-8px. 6-max et 7-max calibrés à 7.
+            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?((seatOrder.length===7||seatOrder.length===6)?7:5):6);
             return(
               <React.Fragment key={pos}>
 
@@ -4571,7 +4779,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         // Ratio de zone dérivé du ratio d'OVALE cible (script V1) corrigé des marges
         // de la géométrie : ovale 2T 400×310 · 3T haut 398×205 · 4T 398×176.
         const g=trainingLayout.tableGeometry;
-        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/176;
+        // 4T dé-aplati : 398/176 (≈2.26, trop plat) → 398/210 (≈1.9), même famille
+        // de ratio que le 3T. La place vient des actions compactées (1 ligne) et du
+        // doublon "main Hero" retiré ci-dessous.
+        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/210;
         const zoneAR=ovalAR*(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
         // Piloté par la LARGEUR de cellule (stable quel que soit le contenu des
         // actions) → le ratio d'ovale est identique sur toutes les tables du mode
@@ -4604,17 +4815,26 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             const boardCards=!playingFull?spot.board:fhVisBoard;
             const potPt=potPointFor(numTables,hasBoard);
             const boardPt=boardPointFor(numTables);
+            // STANDARD 1T propagé au multi : pot sous le siège du haut, board dessous,
+            // pot préflop dégagé — mêmes ancres % que le 1T (calées sur l'ellipse).
+            const n=seatOrder.length;
+            // Multi : le feutre est plus court → on ESPACE davantage pot et board
+            // (pot un poil plus bas pour dégager le siège du haut, board nettement
+            // plus bas pour la marge de 16px demandée par la maquette §5/§11).
+            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+11;
+            const potYpre=(WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y)+12;
+            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+13;
             return(
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
-                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                     <TrainingPotStack value={mainPotBb} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
                   </div>
                 ):(
-                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                     <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(mainPotBb)}</span>
@@ -4622,7 +4842,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 )}
                 {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
                 {hasBoard&&(
-                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
+                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardY}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
                     {boardCards.map((c,i)=>(
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>
@@ -4673,7 +4893,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           );
         })}
 
-        {TRAINING_SEAT_ORDER.map(pos=>{
+        {seatOrder.map(pos=>{
           const coord=trainingLayout.seats[pos];
           if(!coord)return null;
           const {x,y}=coord;
@@ -4884,57 +5104,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         </div>
       )}
 
-      {/* ── ACTIONS HERO multi-table — cfg dynamique + solution masquée ── */}
-      {phase==="hero"&&(
-        <div style={{padding:`5px 6px 7px`,background:"linear-gradient(180deg,rgba(255,194,71,.05),#040B1F,#030D2A)",borderTop:"2px solid rgba(255,194,71,.3)",flexShrink:0}}>
-          {/* Info spot */}
-          <div style={{fontFamily:"'Inter',sans-serif",fontSize:cfg.actFnt-3,fontWeight:600,color:T.text2,marginBottom:4,textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:5,flexWrap:"wrap"}}>
-            <span className="hero-turn-glow" style={{padding:"1px 6px",borderRadius:10,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.3)",fontFamily:"'Space Grotesk',sans-serif",fontSize:cfg.actFnt-4,fontWeight:800,color:T.gold}}>🎮</span>
-            <span style={{color:T.gold,fontWeight:700}}>{spot.hpos}</span>
-            <span style={{color:T.text4}}>vs</span>
-            <span style={{color:"#c090ff",fontWeight:700}}>{spot.vpos}</span>
-            {spot.toCall>0&&<span style={{color:T.amber,fontFamily:"'JetBrains Mono',monospace",fontSize:cfg.actFnt-4}}>{fmt(spot.toCall)}</span>}
-            {/* Pot Odds compact */}
-            {potOddsStr&&<span style={{marginLeft:"auto",fontSize:cfg.actFnt-5,color:T.text4,fontFamily:T.mono,padding:"1px 4px",borderRadius:3,background:"rgba(255,138,0,.08)"}}>Odds {potOddsStr}</span>}
-            {/* SPR compact */}
-            <span style={{fontSize:cfg.actFnt-5,color:"rgba(155,92,255,.7)",fontFamily:T.mono}}>SPR {spr}</span>
-          </div>
-          {/* Main Hero dans la zone d'action — 3T/4T : lisibilité garantie */}
-          {numTables>=3&&spot.hand.length>=2&&(
-            <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginBottom:5,padding:"3px 6px",background:"rgba(255,194,71,.05)",borderRadius:7,border:"1px solid rgba(255,194,71,.14)"}}>
-              <div className="hero-card-wrap" style={{display:"flex",gap:3}}>
-                {spot.hand.map((c,ci)=><Card key={ci} r={c.r} s={c.s} size={cfg.heroCard} delay={0}/>)}
-              </div>
-              <span style={{fontSize:cfg.actFnt-3,color:T.text4,fontFamily:T.stats,fontWeight:600}}>{spot.hpos} <span style={{color:T.gold}}>•</span> {fmt(currentPotBb)}</span>
-            </div>
-          )}
-          {/* Boutons — sizing neutre avant réponse */}
-          <div style={{display:"grid",gridTemplateColumns:spot.acts.length>=3?"repeat(3,1fr)":"repeat(2,1fr)",gap:cfg.compact?3:5}}>
-            {spot.acts.map((a,i)=>{
-              const sIsAmount=/^\d|bb$|\$/.test(a.s||"");
-              return(
-                <button key={i} className={`gto-btn gto-btn-${a.id}${errorBtn===i?" btn-error":""}`}
-                  style={{borderRadius:cfg.compact?7:10}}
-                  onClick={()=>handleHeroAct(i)}>
-                  <div className="gto-btn-inner" style={{padding:cfg.actPad}}>
-                    <span className="gto-btn-label" style={{fontSize:cfg.actFnt}}>{a.l}</span>
-                    {/* Afficher le montant seulement s'il est numérique */}
-                    {sIsAmount&&<span className="gto-btn-sizing" style={{fontSize:cfg.actFnt-3}}>{a.s}</span>}
-                  </div>
-                  {/* Hint pédagogique seulement si solution visible */}
-                  {(!cfg.compact&&showSol&&sIsAmount)&&<div className="gto-btn-hint" style={{fontSize:cfg.actFnt-4,padding:"3px 10px"}}>{a.s}</div>}
-                </button>
-              );
-            })}
-          </div>
-          {/* Difficulté badge compact */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,marginTop:3}}>
-            <span style={{width:5,height:5,borderRadius:"50%",background:diffCol,flexShrink:0}}/>
-            <span style={{fontSize:cfg.actFnt-5,color:T.text4,fontFamily:T.stats}}>{diffLabel}</span>
-            <span style={{fontSize:cfg.actFnt-5,color:T.text4,fontFamily:T.stats,marginLeft:4}}>POT {fmt(currentPotBb)}</span>
-          </div>
-        </div>
-      )}
+      {/* ── ACTIONS HERO multi-table — MÊME bandeau que le 1T (disposition unifiée :
+             info · boutons · sizing presets · stepper), taille adaptée par cfg.
+             Rendu par renderActionZone() → plus de chevauchement au stack Hero. ── */}
+      {phase==="hero"&&renderActionZone()}
 
       {/* ── EV RÉSULTATS MULTI-TABLE ── */}
       {answered!==null&&renderHeroFeedback()}
@@ -5562,6 +5735,7 @@ const TRAINER_CFG_DEFAULT={
   nplayers:6,stackEff:"",spotTypes:[],phase:"Toutes",icm:"Désactivée",
   fmtDetail:"Tous",vilainAdv:"Tous",field:"Standard",heroStyle:"GTO",
   adaptiveMode:"balanced",
+  heroLayout:"hero",/* placement Hero : "hero" = bas-centre (rotation) · "table" = vue canonique */
   diffLvl:0,objectives:[],objective:null,timer:0,coachLevel:"Intermédiaire",
 };
 /* ── Types de session d'entraînement (indépendant de GTO/Exploit) ── */
@@ -6306,6 +6480,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               // recadre les positions si hors du format
               const pos=POSITIONS_BY_SIZE[v]||[];if(f.hp!=="Tous"&&!pos.includes(f.hp))upd("hp","Tous");if(f.vp!=="Tous"&&!pos.includes(f.vp))upd("vp","Tous");}}
             hint={`Positions ${f.nplayers}J : ${(POSITIONS_BY_SIZE[f.nplayers]||[]).join(" · ")}`}/>
+          <PillGroup label="Placement Hero" color="#34D8FF" disabled={sessionActive}
+            options={[{id:"hero",l:"Hero en bas"},{id:"table",l:"Vue table"}]}
+            value={f.heroLayout||"hero"} onChange={v=>upd("heroLayout",v)}
+            hint={(f.heroLayout||"hero")==="hero"?"Hero toujours au siège du bas (rotation) — cartes Hero mises en avant.":"Chaque position à sa place canonique autour de la table — le Hero peut être en haut."}/>
           <div className="sbsep"/>
 
           {/* ── STACK EFFECTIF ── */}
@@ -6756,7 +6934,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
