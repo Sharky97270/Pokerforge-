@@ -20,7 +20,7 @@
    (solution analytique) + exploitabilité ≈ 0.
 ════════════════════════════════════════════════════════════════════════════ */
 import { buildPostflopTree, terminalUtility } from "./gametree.js";
-import { CHIP_UTILITY, makeIcmUtility } from "./icm.js";
+import { CHIP_UTILITY, makeIcmUtility, makePkoUtility } from "./icm.js";
 import { eval7i } from "./evaluator.js";
 import { mulberry32 } from "./equity.js";
 
@@ -205,10 +205,11 @@ export function solveTree(heroList,villList,board,opts={}){
     /* Descripteur SÉRIALISABLE de l'utilité : `utility` porte des fonctions et ne
        survit pas au structured clone de la Solution Library (§16). Ces deux champs
        suffisent à la reconstruire à la relecture (cf. rehydrateTreeSolution). */
-    // Basé sur la PRÉSENCE de paramètres ICM, pas sur zeroSum : un solve ICM
-    // heads-up est à somme nulle et resterait pourtant un solve ICM.
-    utilityKind:opts.icm?"icm":"chip",
+    // Basé sur la PRÉSENCE de paramètres, pas sur zeroSum : un solve ICM heads-up
+    // est à somme nulle et resterait pourtant un solve ICM.
+    utilityKind:opts.pko?"pko":opts.icm?"icm":"chip",
     icmParams:opts.icm||null,
+    pkoParams:opts.pko||null,
     ev:Math.round(ev*1000)/1000,
     iters,sampled:need>0,boardCards:initLen,
   };
@@ -259,7 +260,12 @@ export function rehydrateTreeSolution(plain){
      reconstruit depuis le descripteur. Une solution ICM dont les paramètres de
      tournoi manquent n'est PAS réhydratable en chip-EV — ce serait changer la
      nature du solve en silence (§2) : on la rejette, elle sera recalculée. */
-  if(plain.utilityKind==="icm"){
+  if(plain.utilityKind==="pko"){
+    if(!plain.pkoParams)return null;
+    const u=makePkoUtility(plain.pkoParams);
+    if(!u)return null;
+    plain.utility=u;
+  }else if(plain.utilityKind==="icm"){
     if(!plain.icmParams)return null;
     const u=makeIcmUtility(plain.icmParams);
     if(!u)return null;

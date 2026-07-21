@@ -16,7 +16,7 @@ import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
 import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
 import { rangeComboList, reduceRange } from "./core/combos.js";
-import { icmEquity, icmRiskPremium, pkoValue, makeIcmUtility } from "./core/icm.js";
+import { icmEquity, icmRiskPremium, pkoValue, makeIcmUtility, makePkoUtility } from "./core/icm.js";
 import { storeSolution, getSolution, getClosest, librarySize,
          hydrateLibrary, libraryStatus, persistedCount, clearLibrary } from "./library.js";
 
@@ -95,10 +95,13 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
      stratégie en $EQ ICM et non en jetons. Distinction essentielle : jusqu'ici l'ICM
      n'était qu'un affichage à côté d'une stratégie chip-EV ; ici il ENTRE dans le
      calcul. Le jeu cesse d'être à somme nulle → NashConv indisponible (cf. nashConv). */
-  const icmUtility=opts.icm?makeIcmUtility(opts.icm):null;
+  /* §22 STRATÉGIQUE — `opts.pko` ajoute la capture de prime à l'élimination par
+     dessus l'ICM. Prioritaire sur `opts.icm` : le PKO l'englobe déjà. */
+  const tourneyUtility=opts.pko?makePkoUtility(opts.pko):opts.icm?makeIcmUtility(opts.icm):null;
+  const icmUtility=tourneyUtility;
   // Le contexte ICM entre dans la SIGNATURE : mêmes ranges + mêmes stacks de
   // tournoi différents = solves différents, ils ne doivent pas partager de clé.
-  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
+  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.pko?"pko:"+JSON.stringify(opts.pko):opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   if(!opts.force){
@@ -106,11 +109,13 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
     if(cached)return{...cached,source:ResultSource.PRESOLVED_LIBRARY,fromLibrary:true};
   }
   const sol=solveTree(H,V,board,{...opts,streets:nStreets,seed,iters:opts.iters||200,
-    utility:icmUtility||undefined});
+    utility:tourneyUtility||undefined});
   const nc=sol.sampled?null:nashConv(sol);
-  // Deux raisons DISTINCTES d'absence de NashConv — les confondre induirait en erreur.
-  const convNote=icmUtility
-    ? "mode ICM : le jeu n'est pas à somme nulle, NashConv n'est pas interprétable"
+  // Raisons DISTINCTES d'absence de NashConv — les confondre induirait en erreur.
+  const convNote=tourneyUtility&&tourneyUtility.zeroSum===false
+    ? (opts.pko
+        ? "mode PKO : la capture de prime brise la somme nulle, NashConv n'est pas interprétable"
+        : "mode ICM : le jeu n'est pas à somme nulle, NashConv n'est pas interprétable")
     : "board incomplet — exploitabilité exacte indisponible (runouts échantillonnés)";
   const out={
     source:ResultSource.CFR_SOLVE,experimental:true,fromLibrary:false,
@@ -119,14 +124,21 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
     /* §21 — la stratégie est-elle solvée sous contrainte ICM, ou en jetons ?
        `icm.strategic:true` signifie que l'ICM est ENTRÉ dans le calcul de la
        stratégie, pas seulement affiché à côté. */
-    icm:icmUtility?{
-      strategic:true,model:"Malmuth-Harville",params:opts.icm,
-      baseEq:icmUtility.base,icmCalls:icmUtility.calls,
+    icm:tourneyUtility?{
+      strategic:true,
+      mode:opts.pko?"pko":"icm",
+      model:opts.pko?"Malmuth-Harville + capture de prime":"Malmuth-Harville",
+      params:opts.pko||opts.icm,
+      /* §22/§58 — la STRATÉGIE est bien re-solvée par CFR, mais le modèle de prime
+         reste une estimation (prime propre partiellement modélisée, `realization`
+         paramétrée et non calculée) : jamais « solve PKO complet ». */
+      bounty:opts.pko?{...tourneyUtility.bountySwing,model:ResultSource.PKO_ESTIMATE}:null,
+      baseEq:tourneyUtility.base,icmCalls:tourneyUtility.calls,
       /* Gains plats → les jetons n'ont aucune valeur en $ → utilité identiquement
          nulle → stratégie uniforme dénuée de sens. À ne PAS présenter comme un solve. */
-      degenerate:icmUtility.degenerate,
-      degenerateNote:icmUtility.degenerate
-        ?"structure de gains plate : les jetons n'ont pas de valeur en $EQ, la stratégie renvoyée est uniforme et ne signifie rien"
+      degenerate:tourneyUtility.degenerate,
+      degenerateNote:tourneyUtility.degenerate
+        ?"structure de gains plate et aucune prime : les jetons n'ont pas de valeur, la stratégie renvoyée est uniforme et ne signifie rien"
         :null,
     }:{strategic:false},
     /* §8/§2 — la solution porte-t-elle sur la range COMPLÈTE ? L'UI doit le dire. */

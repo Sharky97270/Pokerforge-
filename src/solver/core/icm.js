@@ -184,6 +184,76 @@ export function makeIcmUtility({stacks,payouts,heroIdx=0,villIdx=1,precision=6}=
    n'ait qu'un seul chemin de code. Somme nulle : v = -h. */
 export const CHIP_UTILITY={h:(d)=>d,v:(d)=>-d,zeroSum:true};
 
+/* ══ UTILITÉ PKO POUR LE SOLVEUR (§22 stratégique · roadmap §11) ═══════════════
+   Même démarche que makeIcmUtility, avec la spécificité qui définit le PKO : la
+   prime ne se capture QU'À L'ÉLIMINATION. Elle n'est donc pas une valeur continue
+   ajoutée partout, mais un SAUT aux seuls nœuds terminaux où un tapis tombe à zéro.
+
+   Utilité de chaque joueur pour un transfert de d jetons :
+       Hero   : ΔEQ_ICM_hero(d) + realization·bounty[vilain]  si le VILAIN est éliminé
+       Vilain : ΔEQ_ICM_vill(d) + realization·bounty[hero]    si HERO est éliminé
+
+   Le gain de prime est PUREMENT ASYMÉTRIQUE : chacun encaisse en éliminant l'autre.
+   On ne retire PAS à Hero une part de sa propre prime quand il bust — piège dans
+   lequel une première version est tombée, avec un effet mesurable et faux. Sa prime
+   n'est pas un actif qu'il détient : elle est posée sur SA tête et ne lui reviendrait
+   qu'en gagnant le tournoi. La compter comme une perte d'équité double le coût du
+   bust et INVERSE la conclusion — mesuré : la prime faisait folder DAVANTAGE
+   (88.4% → 94.9% quand elle passait de 5 à 80), au lieu d'élargir.
+
+   EFFET ATTENDU, et c'est l'inverse de l'ICM : la prime récompense la prise de
+   risque, donc elle ÉLARGIT les calls là où l'ICM les resserre. Sur un même spot
+   de bulle les deux forces s'opposent et le résultat net dépend du rapport entre
+   la prime et le saut de paiement — ce que le solveur tranche désormais au lieu
+   de le laisser à l'intuition.
+
+   CE QUE CE MODÈLE NE FAIT PAS, et qui impose PKO_ESTIMATE (§22/§58) :
+     · la valeur de sa PROPRE prime n'est pas modélisée : en PKO réel un joueur
+       encaisse sa tête restante s'il gagne le tournoi. Terme de second ordre,
+       volontairement omis — l'inclure correctement supposerait de l'intégrer aux
+       payouts, pas de le soustraire à l'élimination ;
+     · `realization` (part de la prime encaissée immédiatement, typiquement 0.5 en
+       PKO progressif, le reste grossissant sa propre tête) est un PARAMÈTRE, pas
+       un résultat de calcul ;
+     · les primes des joueurs hors du coup ne bougent pas.
+   Ce n'est donc pas un « solve PKO complet » et ne doit jamais être présenté comme
+   tel — mais la STRATÉGIE, elle, est bien re-solvée par CFR sous cette utilité.
+
+   `bounties` est dans la MÊME unité que `payouts`. Retourne la même interface que
+   makeIcmUtility, plus `bountySwing`. */
+export function makePkoUtility({stacks,payouts,heroIdx=0,villIdx=1,bounties=[],realization=0.5,precision=6}={}){
+  if(!stacks||stacks.length<2||!payouts)return null;
+  const icm=makeIcmUtility({stacks,payouts,heroIdx,villIdx,precision});
+  if(!icm)return null;
+  const bH=bounties[heroIdx]||0,bV=bounties[villIdx]||0;
+  const heroKoGain=realization*bV;   // Hero élimine le vilain → encaisse sa tête
+  const villKoGain=realization*bH;   // le vilain élimine Hero → encaisse celle de Hero
+  const sH=stacks[heroIdx],sV=stacks[villIdx];
+  /* Élimination = engagement TOTAL du tapis. `d` est le gain net de Hero : quand il
+     gagne, d vaut exactement l'engagement du vilain (sa part de pot + ses mises),
+     donc `d >= sV` teste bien la mise à zéro de son tapis — et symétriquement.
+     Attention : encore faut-il que l'arbre PRODUISE un terminal all-in. Avec un
+     sizing qui n'atteint pas le tapis, aucune élimination n'est possible et la
+     prime reste sans effet — ce n'est pas un bug mais l'absence de KO à gagner. */
+  const villOut=(d)=>sV-d<=1e-9;
+  const heroOut=(d)=>sH+d<=1e-9;
+  return{
+    h:(d)=>icm.h(d)+(villOut(d)?heroKoGain:0),
+    v:(d)=>icm.v(d)+(heroOut(d)?villKoGain:0),
+    /* Dégénéré seulement si NI l'ICM NI la prime ne créent d'écart : avec des gains
+       plats mais une vraie prime, les jetons gardent une valeur (celle du KO) et la
+       stratégie redevient signifiante — ne pas la déclarer vide à tort. */
+    degenerate:icm.degenerate&&heroKoGain===0&&villKoGain===0,
+    // Le terme de prime brise la somme nulle même en heads-up : les deux camps
+    // encaissent sur des ÉVÉNEMENTS DISJOINTS, rien ne s'annule.
+    zeroSum:icm.zeroSum&&heroKoGain===0&&villKoGain===0,
+    base:icm.base,
+    bountySwing:{heroKoGain,villKoGain,realization},
+    get calls(){return icm.calls;},
+    get memoSize(){return icm.memoSize;},
+  };
+}
+
 /* ── PKO (§22) : valeur = équité chips (part du pot) + valeur de bounty capturée.
    bountyValue = fraction du bounty adverse réalisée si Hero gagne l'affrontement.
    Estimation (pas un solve PKO complet) → PKO_ESTIMATE. ── */

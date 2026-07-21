@@ -10,7 +10,7 @@ import { monteCarloEquity, computeEquity } from "./equity.js";
 import { solveRiverCFR } from "./cfr.js";
 import { solveSubgame, solveMultiStreet, solveNodeLocked, solveExploit, computeICM, computePKO } from "../api.js";
 import { buildPostflopTree, terminalUtility, treeStats, HERO } from "./gametree.js";
-import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue, makeIcmUtility, CHIP_UTILITY } from "./icm.js";
+import { icmEquity, finishProbabilities, icmRiskPremium, pkoValue, makeIcmUtility, makePkoUtility, CHIP_UTILITY } from "./icm.js";
 import { classifyDecision, classifyLeak, buildCoachBrief, buildExercise } from "../explain.js";
 import { solveTreeFixedBoard, solveTree, nashConv, rehydrateTreeSolution } from "./multistreet.js";
 import { storeSolution, getSolution, librarySize, clearLibrary,
@@ -451,6 +451,66 @@ ok("persistance : lecture identique après réhydratation",
   Math.abs(icmSol.result.aggAt(icmSol.result.tree,0)-icmBack.aggAt(icmBack.tree,0))<1e-12);
 ok("persistance : solve ICM sans paramètres → REJETÉ (jamais rétrogradé en jetons)",
   rehydrateTreeSolution({...icmClone,icmParams:null})===null);
+
+console.log("\n[19] PKO STRATÉGIQUE (§22 · roadmap §11)");
+/* La prime ne se capture QU'À L'ÉLIMINATION : ce n'est pas une valeur continue mais
+   un SAUT aux terminaux où un tapis tombe à zéro. Les propriétés exactes ci-dessous
+   sont le vrai contrat — la stratégie qui en découle n'est testée qu'en DIRECTION
+   (voir plus bas pourquoi la monotonie n'est pas un test valide ici). */
+const pkStacks=[25,25,25,25],pkPayouts=[50,30,20,0];
+const uIcm=makeIcmUtility({stacks:pkStacks,payouts:pkPayouts,heroIdx:0,villIdx:1});
+const uPko=makePkoUtility({stacks:pkStacks,payouts:pkPayouts,heroIdx:0,villIdx:1,bounties:[30,30,30,30],realization:0.5});
+ok("PKO : aucune prime sans élimination (gain de 24bb < tapis 25)", Math.abs(uPko.h(24)-uIcm.h(24))<1e-12);
+ok("PKO : prime encaissée à l'élimination (+15 = 0.5×30)", Math.abs((uPko.h(25)-uIcm.h(25))-15)<1e-12);
+ok("PKO : le vilain encaisse symétriquement quand il élimine Hero", Math.abs((uPko.v(-25)-uIcm.v(-25))-15)<1e-12);
+/* Régression verrouillée : une première version retirait à Hero une part de SA propre
+   prime en bustant. Sa prime n'est pas un actif qu'il détient (elle est sur sa tête et
+   ne lui reviendrait qu'en gagnant le tournoi) : la compter en perte doublait le coût
+   du bust et INVERSAIT la conclusion — la prime faisait alors folder davantage. */
+ok("PKO : Hero ne perd PAS sa propre prime en bustant (régression verrouillée)", Math.abs(uPko.h(-25)-uIcm.h(-25))<1e-12);
+ok("PKO : somme nulle brisée (gains sur événements DISJOINTS)", uPko.zeroSum===false);
+const uPkoHu=makePkoUtility({stacks:[25,25],payouts:[70,30],heroIdx:0,villIdx:1,bounties:[20,20],realization:0.5});
+ok("PKO : même en heads-up la prime brise la somme nulle", uPkoHu.zeroSum===false);
+const uPkoNo=makePkoUtility({stacks:pkStacks,payouts:pkPayouts,heroIdx:0,villIdx:1,bounties:[0,0,0,0]});
+ok("PKO : sans prime, retombe exactement sur l'ICM", Math.abs(uPkoNo.h(25)-uIcm.h(25))<1e-12&&uPkoNo.zeroSum===uIcm.zeroSum);
+/* Gains plats MAIS prime réelle : les jetons gardent une valeur (celle du KO), la
+   stratégie reste signifiante — ne pas la déclarer dégénérée à tort. */
+const uFlatB=makePkoUtility({stacks:pkStacks,payouts:[25,25,25,25],heroIdx:0,villIdx:1,bounties:[20,20,20,20],realization:0.5});
+ok("PKO : gains plats + prime → NON dégénéré (le KO donne de la valeur aux jetons)", uFlatB.degenerate===false);
+const uFlatN=makePkoUtility({stacks:pkStacks,payouts:[25,25,25,25],heroIdx:0,villIdx:1,bounties:[0,0,0,0]});
+ok("PKO : gains plats SANS prime → dégénéré", uFlatN.degenerate===true);
+
+/* EFFET SUR LA STRATÉGIE. On teste la DIRECTION (la prime élargit les calls, à
+   l'inverse de l'ICM) et NON la monotonie : la fréquence de fold agrégée sur les
+   combos est une fonction EN ESCALIER — une fois les mains marginales basculées de
+   fold à call, augmenter la prime ne change plus de décision discrète. Exiger la
+   monotonie stricte testerait le bruit de convergence, pas le modèle. */
+const pkBoard=[C("K",1),C("8",2),C("4",3),C("J",1),C("2",2)];
+const pkH={AA:{r:0,c:100,f:0},KQs:{r:0,c:100,f:0},T9s:{r:0,c:100,f:0},A5s:{r:0,c:100,f:0}};
+const pkV={KK:{r:100,c:0,f:0},QQ:{r:100,c:0,f:0},A5o:{r:100,c:0,f:0},T9o:{r:100,c:0,f:0}};
+// effStack 22 = 25 − pot/2 : le sizing DOIT atteindre le tapis, sinon aucune
+// élimination n'est possible et la prime reste sans effet (piège vérifié).
+const pkOpts={iters:2000,betFrac:5,startPot:6,maxCombos:200,effStack:22,maxRaisesPerStreet:0,force:true};
+const pkFold=(r)=>{const t=r.result.tree;let n=t.children[t.actions[0]];while(n&&n.kind==="chance")n=n.next;
+  const bi=n.actions.findIndex(a=>a!=="X"&&a!=="K");let m=n.children[n.actions[bi]];
+  while(m&&m.kind==="chance")m=m.next;return r.result.aggAt(m,m.actions.indexOf("F"));};
+const fIcmOnly=pkFold(solveMultiStreet(pkH,pkV,pkBoard,{...pkOpts,icm:{stacks:pkStacks,payouts:pkPayouts,heroIdx:0,villIdx:1}}));
+const fBigBty =pkFold(solveMultiStreet(pkH,pkV,pkBoard,{...pkOpts,pko:{stacks:pkStacks,payouts:pkPayouts,heroIdx:0,villIdx:1,bounties:[100,100,100,100],realization:0.5}}));
+ok(`PKO : une grosse prime ÉLARGIT les calls (${(100*fIcmOnly).toFixed(1)}% → ${(100*fBigBty).toFixed(1)}% de fold)`, fBigBty<fIcmOnly-0.01);
+
+// Provenance + persistance, mêmes exigences que l'ICM.
+const pkSol=solveMultiStreet(pkH,pkV,pkBoard,{...pkOpts,pko:{stacks:pkStacks,payouts:pkPayouts,heroIdx:0,villIdx:1,bounties:[30,30,30,30],realization:0.5}});
+ok("API PKO : mode='pko' et provenance de prime PKO_ESTIMATE (jamais 'solve PKO complet')",
+  pkSol.icm.mode==="pko"&&pkSol.icm.bounty&&pkSol.icm.bounty.model==="PKO_ESTIMATE");
+ok("API PKO : NashConv masqué avec la raison PKO", pkSol.convergence.nashConv===null&&/prime/.test(pkSol.convergence.note));
+ok("persistance PKO : descripteur sérialisable", pkSol.result.utilityKind==="pko"&&!!pkSol.result.pkoParams);
+const pkClone={};for(const k of Object.keys(pkSol.result))if(typeof pkSol.result[k]!=="function"&&k!=="utility")pkClone[k]=pkSol.result[k];
+const pkBack=rehydrateTreeSolution(pkClone);
+ok("persistance PKO : réhydratation retrouve l'utilité de prime", !!pkBack&&pkBack.utility&&pkBack.utility.zeroSum===false);
+ok("persistance PKO : lecture identique après réhydratation",
+  Math.abs(pkSol.result.aggAt(pkSol.result.tree,0)-pkBack.aggAt(pkBack.tree,0))<1e-12);
+ok("persistance PKO : sans paramètres → REJETÉ (jamais rétrogradé en jetons)",
+  rehydrateTreeSolution({...pkClone,pkoParams:null})===null);
 
 console.log("\n────────────────────────────────────────");
 console.log(`RÉSULTAT : ${pass} ✓ / ${fail} ✗`);

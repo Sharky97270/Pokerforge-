@@ -2685,7 +2685,7 @@ const MS_STREETS=["Flop","Turn","River"];
 
 /* ── PANNEAU SOLVEUR MULTI-RUE (§26) — moteur prouvé, exposé avec sa provenance
    et son statut EXPÉRIMENTAL. Permet de naviguer l'arbre street par street. ── */
-function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath,exploitProfile,exploitLabel,icmMode,setIcmMode,icmReady}){
+function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,setPath,exploitProfile,exploitLabel,tourneyMode,setTourneyMode,icmReady,bountyRate}){
   const canSolve=board.length>=3;
   const meta=result?resultMeta(result.source):null;
   const res=result?result.result:null;
@@ -2734,22 +2734,26 @@ function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,s
         </span>
       </div>
 
-      {/* §21 STRATÉGIQUE — bascule jetons ↔ $EQ ICM. Ce n'est PAS un affichage :
-          l'ICM entre dans la fonction d'utilité que le CFR optimise. */}
-      <div style={{display:"flex",alignItems:"center",gap:8,margin:"2px 0 8px",flexWrap:"wrap"}}>
-        <button onClick={()=>setIcmMode(!icmMode)} disabled={!icmReady}
-          title={icmReady?"":"Renseigne les payouts et les stacks dans les paramètres ICM"}
-          style={{padding:"5px 11px",borderRadius:7,fontSize:9,fontWeight:800,fontFamily:T.stats,
-            cursor:icmReady?"pointer":"default",opacity:icmReady?1:.4,
-            border:`1px solid ${icmMode?"#C77DFF":T.border}`,
-            background:icmMode?"rgba(199,125,255,.15)":"transparent",
-            color:icmMode?"#C77DFF":T.text3}}>
-          {icmMode?"🏆 Utilité ICM ($EQ)":"🪙 Utilité jetons (chip-EV)"}
-        </button>
-        <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>
-          {!icmReady?"payouts/stacks manquants — mode ICM indisponible"
-            :icmMode?"le solveur optimise l'équité de tournoi : la pression de bulle entre dans la stratégie"
-            :"le solveur optimise les jetons — l'ICM n'influence pas la stratégie"}
+      {/* §21/§22 STRATÉGIQUE — ce que le CFR OPTIMISE. Ce n'est pas un affichage :
+          le choix change la fonction d'utilité terminale, donc la stratégie. */}
+      <div style={{display:"flex",alignItems:"center",gap:6,margin:"2px 0 8px",flexWrap:"wrap"}}>
+        {[["chip","🪙 Jetons","#7f97ba"],["icm","🏆 ICM ($EQ)","#C77DFF"],["pko","💰 PKO (+ primes)","#FFB020"]]
+          .map(([id,lbl,col])=>{
+            const on=tourneyMode===id, dis=id!=="chip"&&!icmReady;
+            return(
+              <button key={id} onClick={()=>setTourneyMode(id)} disabled={dis}
+                title={dis?"Renseigne les payouts et les stacks dans les paramètres ICM":""}
+                style={{padding:"5px 10px",borderRadius:7,fontSize:9,fontWeight:800,fontFamily:T.stats,
+                  cursor:dis?"default":"pointer",opacity:dis?.35:1,
+                  border:`1px solid ${on?col:T.border}`,
+                  background:on?col+"26":"transparent",color:on?col:T.text3}}>{lbl}</button>
+            );
+          })}
+        <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,fontStyle:"italic",flexBasis:"100%",marginTop:2}}>
+          {!icmReady?"payouts/stacks manquants — modes ICM et PKO indisponibles"
+            :tourneyMode==="chip"?"le solveur optimise les jetons — ni l'ICM ni les primes n'influencent la stratégie"
+            :tourneyMode==="icm"?"le solveur optimise l'équité de tournoi : la pression de bulle entre dans la stratégie"
+            :`le solveur optimise $EQ + capture de prime à l'élimination${bountyRate?` · primes converties à ${bountyRate.toFixed(3)} unité de gain par bb`:""}`}
         </span>
       </div>
 
@@ -2763,17 +2767,29 @@ function SolverMultiStreetPanel({board,potBb,effStack,result,busy,onSolve,path,s
           jetons, ou renseigne des payouts réellement décroissants.
         </div>
       )}
-      {result&&result.icm&&result.icm.strategic&&!result.icm.degenerate&&(
-        <div className="ss-ms-exploit">
-          <span className="ss-ms-exploit-tag" style={{background:"rgba(199,125,255,.18)",color:"#C77DFF"}}>ICM · $EQ</span>
-          <span>Stratégie <b style={{color:"#C77DFF"}}>solvée sous contrainte ICM</b> (Malmuth-Harville) :
-            le CFR optimise l'équité de tournoi, pas les jetons.
-            <br/>NashConv est <b>masqué</b> ici — hors heads-up le jeu n'est pas à somme nulle
-            (transférer des jetons déplace aussi l'équité des joueurs hors du coup), donc
-            l'indicateur d'exploitabilité n'y est pas interprétable.
-          </span>
-        </div>
-      )}
+      {result&&result.icm&&result.icm.strategic&&!result.icm.degenerate&&(()=>{
+        const pko=result.icm.mode==="pko",col=pko?"#FFB020":"#C77DFF";
+        return(
+          <div className="ss-ms-exploit">
+            <span className="ss-ms-exploit-tag" style={{background:col+"2e",color:col}}>
+              {pko?"PKO · $EQ + PRIMES":"ICM · $EQ"}
+            </span>
+            <span>Stratégie <b style={{color:col}}>solvée sous contrainte {pko?"ICM + primes":"ICM"}</b> ({result.icm.model}) :
+              le CFR optimise l'équité de tournoi, pas les jetons.
+              {pko&&result.icm.bounty&&<>
+                <br/>Prime encaissée <b>uniquement à l'élimination</b> : {result.icm.bounty.heroKoGain.toFixed(2)} pour Hero
+                s'il sort le vilain ({(100*result.icm.bounty.realization).toFixed(0)}% de la tête, PKO progressif).
+                Le modèle de prime reste une <b>estimation</b> (la valeur de sa propre tête n'est pas modélisée) —
+                mais la stratégie, elle, est bien re-solvée.
+              </>}
+              <br/>NashConv est <b>masqué</b> ici : le jeu n'est pas à somme nulle
+              {pko?" (chacun encaisse une prime sur des événements disjoints)"
+                  :" hors heads-up (transférer des jetons déplace aussi l'équité des joueurs hors du coup)"},
+              donc l'indicateur d'exploitabilité n'y est pas interprétable.
+            </span>
+          </div>
+        );
+      })()}
 
       {/* §20 : distinguer explicitement le MODÈLE (estimé) de la STRATÉGIE (calculée). */}
       {result&&exploitLabel&&(
@@ -2909,7 +2925,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[msBusy,setMsBusy]=useState(false);
   const[msPath,setMsPath]=useState([]);        // chemin d'actions dans l'arbre
   const[msExploit,setMsExploit]=useState(null); // libellé du profil si solve exploit (§20)
-  const[msIcm,setMsIcm]=useState(false);        // §21 : solver en $EQ ICM plutôt qu'en jetons
+  const[msTourney,setMsTourney]=useState("chip"); // §21/§22 : "chip" | "icm" | "pko"
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
   const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
@@ -3125,6 +3141,35 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     return computeEquity(hList,villainComboList,board,{iters:1800}).equity;
   },[selectedCell,heroKey,heroParse,villainComboList,boardInput]);
   const foldEquity=useMemo(()=>villainKey?(villainFreqs[villainKey]?.f||0):villainAggOf(villainFreqs).f,[villainKey,villainFreqs]);
+  /* ── Contexte de tournoi passé au solveur (§21/§22) ────────────────────────
+     PIÈGE D'UNITÉS, à ne pas reproduire : les payouts sont en UNITÉS DE GAIN
+     (24/18/14…) tandis que les primes de pkoParams sont saisies en BB (heroBounty:8).
+     Les additionner directement mélangerait deux échelles sans rapport. On convertit
+     donc les primes au taux « prize pool par jeton » : 1bb = Σpayouts / Σstacks —
+     la même conversion implicite que fait l'ICM en mappant des tapis sur des gains.
+     Le taux est affiché dans le panneau pour rester auditable.
+     Approximation assumée (→ PKO_ESTIMATE) : en PKO réel une part du prizepool EST
+     la dotation des primes, donc la traiter comme un gain de place la compte deux
+     fois. Ordre de grandeur conservé, pas une comptabilité exacte. */
+  const tourneyCtx=useMemo(()=>{
+    if(!icmParams||!icmParams.payouts||!icmParams.payouts.length)return null;
+    const n=Math.max(2,icmParams.playersLeft||icmParams.payouts.length);
+    const stacks=[icmParams.heroStack||25,
+      ...Array.from({length:n-1},()=>icmParams.avgStack||icmParams.heroStack||25)];
+    const payouts=icmParams.payouts.slice(0,n);
+    const base={stacks,payouts,heroIdx:0,villIdx:1};
+    if(msTourney!=="pko")return base;
+    const sumP=payouts.reduce((a,b)=>a+b,0),sumS=stacks.reduce((a,b)=>a+b,0);
+    const rate=sumS>0?sumP/sumS:0;                       // unités de gain par bb
+    const bb=(x)=>(x||0)*rate;
+    return{...base,
+      bounties:[bb(pkoParams?.heroBounty),bb(pkoParams?.villainBounty),
+        ...Array.from({length:Math.max(0,n-2)},()=>bb(pkoParams?.avgBounty))],
+      realization:0.5,                                   // PKO progressif standard
+      _rate:rate,
+    };
+  },[icmParams,pkoParams,msTourney]);
+
   /* ── Lancement du moteur CFR (à la demande) ── */
   function runCFR(){
     setCfrBusy(true);
@@ -3156,20 +3201,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
           // possibles, donc la range solvée garde la FORME de la range saisie (§8).
           // Coût mesuré : river ~1.6 s, flop 3 rues ~6.3 s.
           maxCombos:200,maxRaisesPerStreet:1,effStack:effective,
-          /* §21 STRATÉGIQUE — quand le mode ICM est actif, le CFR optimise des $EQ
-             et non des jetons : la pression de bulle entre dans la stratégie au lieu
-             d'être un simple affichage à côté. Le contexte de tournoi est reconstruit
-             comme dans le panneau ICM (Hero + n-1 joueurs au tapis moyen). */
-          ...(msIcm&&icmParams&&icmParams.payouts&&icmParams.payouts.length?{
-            icm:(()=>{
-              const n=Math.max(2,icmParams.playersLeft||icmParams.payouts.length);
-              return{
-                stacks:[icmParams.heroStack||25,
-                  ...Array.from({length:n-1},()=>icmParams.avgStack||icmParams.heroStack||25)],
-                payouts:icmParams.payouts.slice(0,n),heroIdx:0,villIdx:1,
-              };
-            })(),
-          }:{}),
+          /* §21/§22 STRATÉGIQUE — en mode ICM/PKO le CFR optimise des $EQ et non des
+             jetons : la pression de bulle (et la prime) entrent dans la stratégie au
+             lieu d'être un affichage à côté. Contexte reconstruit comme le panneau ICM
+             (Hero + n-1 joueurs au tapis moyen). */
+          ...(msTourney!=="chip"&&tourneyCtx?{[msTourney]:tourneyCtx}:{}),
         };
         const s=exploit
           ? solveNodeLocked(heroFreqs,villainFreqs,board,profileToLocks(exploitProfile),opts)
@@ -3421,8 +3457,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               result={msResult} busy={msBusy} onSolve={runMultiStreet}
               path={msPath} setPath={setMsPath}
               exploitProfile={exploitProfile} exploitLabel={msExploit}
-              icmMode={msIcm} setIcmMode={setMsIcm}
+              tourneyMode={msTourney} setTourneyMode={setMsTourney}
               icmReady={!!(icmParams&&icmParams.payouts&&icmParams.payouts.length)}
+              bountyRate={tourneyCtx&&tourneyCtx._rate}
             />
           </div>
 
