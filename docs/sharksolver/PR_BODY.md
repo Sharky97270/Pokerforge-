@@ -55,6 +55,12 @@ chacun encaisse en éliminant l'autre. Le modèle de prime reste `PKO_ESTIMATE`.
 - `cfr.js` faisait `opts.maxCombos||50` : le mode non plafonné (`0`) était inatteignable.
 - `solveSubgame` calculait son défaut pour la **signature de cache** sans le passer au
   solve — la clé annonçait 200 pendant que 50 était calculé.
+- **(hors solveur) Trainer `_checksum` orphelin** — laissé dans `TrainerTab.jsx` lors du
+  refactor 3.3 alors que `stats.js` l'appelle. `safeStore` jetait un `ReferenceError`
+  avalé à chaque fin de session : la couche de stockage intègre (`pf_stats_s` /
+  `pf_hands_s` / `pf_history_s`) n'écrivait jamais rien. Définition rapatriée dans
+  `stats.js`, copie morte supprimée. Vérifié : round-trip `saveStatsSafe`/`loadStatsSafe`
+  OK, console propre, `test-trainer-engine.mjs` passe.
 
 ## Tests
 
