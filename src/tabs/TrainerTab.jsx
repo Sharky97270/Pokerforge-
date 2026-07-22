@@ -14,6 +14,15 @@ import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
+import { buildTrainingConfig, trainingConfigToFilters, trainingConfigToEngineOpts, saveTrainingConfig } from "../trainingConfig.js";
+import { resolveTrainingConstraints } from "../constraintEngine.js";
+import { finalizeTrainingSpots } from "../spotSchema.js";
+import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
+import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
+import { createAnimationQueue } from "../immersionEngine.js";
+import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
+import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
+import { applySolverStrategy } from "../trainerStrategyProvider.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -1976,12 +1985,6 @@ function saveHistory(h){try{localStorage.setItem("pf_history",JSON.stringify(h.s
 // ── Obfuscation clé API (symétrique XOR simple, jamais en clair) ──────────
 
 // ── Checksum intégrité des données localStorage ───────────────────────────
-function _checksum(str){
-  let h=0;
-  for(let i=0;i<str.length;i++){h=Math.imul(31,h)+str.charCodeAt(i)|0;}
-  return(h>>>0).toString(16);
-}
-
 // ── Sanitisation des inputs utilisateur ──────────────────────────────────
 function sanitizeText(raw,maxLen=500){
   if(typeof raw!=="string")return "";
@@ -2660,6 +2663,24 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const currentPotRef=useRef(roundBb(spot?.pot||1.5));
   const settledRef=useRef(false);
   const fullPending=useRef(false); // true = une main complète va suivre → ne pas régler la table tout de suite
+  // AnimationQueue par table (§62/§64) : ordonne la révélation Villain, interruptible
+  // (§63) et bornée par un timeout de sécurité (§61). Une instance par SingleTable.
+  const animQRef=useRef(null);
+  if(!animQRef.current)animQRef.current=createAnimationQueue({tableId:spotIndex,run:(ev)=>ev.perform?.(),speed:"NORMAL"});
+  // Timers d'animation fire-and-forget (jetons, pot pulse, phase flash) : suivis
+  // pour être ANNULÉS au changement de spot / démontage (§61/§63) — plus aucun
+  // setTimeout périmé qui tire un setState sur la main suivante. Timing inchangé.
+  const animTimersRef=useRef(new Set());
+  const schedAnim=useCallback((fn,ms)=>{
+    const id=setTimeout(()=>{animTimersRef.current.delete(id);fn();},ms);
+    animTimersRef.current.add(id);
+    return id;
+  },[]);
+  const clearAnimTimers=useCallback(()=>{
+    for(const id of animTimersRef.current)clearTimeout(id);
+    animTimersRef.current.clear();
+  },[]);
+  useEffect(()=>()=>{animQRef.current?.cancel();clearAnimTimers();},[]); // §63 : annule au démontage
   // ── Mobile v9 : solution plein écran + swipe ──
   const isMobile=useIsMobile();
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
@@ -2682,7 +2703,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const[fhVilThink,setFhVilThink]=useState(false);
   const[fhResult,setFhResult]=useState(null);
   const FH_STREETS=["flop","turn","river"];
-  const fhVisBoard=fhStreet==="flop"?fhBoardRef.slice(0,3):fhStreet==="turn"?fhBoardRef.slice(0,4):fhBoardRef.slice(0,5);
+  // État autoritatif du moteur de main complète (fullHandEngine). Les states fh*
+  // ci-dessus en sont la projection pour le rendu.
+  const fhStateRef=useRef(null);
+  // Board visible = board progressif du moteur (flop 3 · turn 4 · river 5).
+  const fhVisBoard=fhBoardRef;
   const isSmall=numTables>1;
   const fmt=v=>unit==="BB"?`${v}bb`:`${(v*2).toFixed(0)}$`;
   const nextLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Main suivante";
@@ -2718,6 +2743,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   },[spot,spotImpossible,spotErrors,strictSpotValidation.snapshot,spotCtx,callNext]);
 
   useEffect(()=>{
+    animQRef.current?.cancel(); // §63 : coupe toute révélation Villain en cours du spot précédent
+    clearAnimTimers(); // §61 : annule les timers d'animation jetons/pot du spot précédent
     setAnswered(null);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
     setErrorFlash(false);setErrorBtn(null);setTimerPct(100);setShowToast(spotImpossible?"Spot invalide detecte - generation d'une nouvelle main":null);
     setHeroChip(null);setVilChip(null);setChipMove(null);setPotAnim(false);setPhaseFlash(false);
@@ -2730,6 +2757,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // Reset full-hand state quand le spot change
     setPlayingFull(false);setFhBoardRef([]);setFhStreet("flop");setFhPhase("hero");
     setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);
+    fhStateRef.current=null; // reset moteur main complète au changement de spot
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
     // full/session = toujours · mix = 50% · spot/street = jamais (défaut legacy = 30%)
@@ -2768,22 +2796,22 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
   function fireChip(label){
     setChipAnim(label);
-    setTimeout(()=>setChipAnim(null),600);
+    schedAnim(()=>setChipAnim(null),600);
   }
   function fireHeroChip(label){
     setHeroChip(label);
-    setTimeout(()=>setHeroChip(null),550);
+    schedAnim(()=>setHeroChip(null),550);
     // Pot pulse quand chip arrive
-    setTimeout(()=>{setPotAnim(true);setTimeout(()=>setPotAnim(false),450);},380);
+    schedAnim(()=>{setPotAnim(true);schedAnim(()=>setPotAnim(false),450);},380);
   }
   function fireVilChip(label){
     setVilChip(label);
-    setTimeout(()=>setVilChip(null),550);
-    setTimeout(()=>{setPotAnim(true);setTimeout(()=>setPotAnim(false),450);},380);
+    schedAnim(()=>setVilChip(null),550);
+    schedAnim(()=>{setPotAnim(true);schedAnim(()=>setPotAnim(false),450);},380);
   }
   function triggerPhaseFlash(){
     setPhaseFlash(true);
-    setTimeout(()=>setPhaseFlash(false),400);
+    schedAnim(()=>setPhaseFlash(false),400);
   }
 
   function setPotWithDelta(next,delta){
@@ -2793,8 +2821,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       const d={id:Date.now()+Math.random(),amount:roundBb(delta)};
       setPotDelta(d);
       setPotAnim(true);
-      setTimeout(()=>setPotAnim(false),450);
-      setTimeout(()=>setPotDelta(x=>x?.id===d.id?null:x),780);
+      schedAnim(()=>setPotAnim(false),450);
+      schedAnim(()=>setPotDelta(x=>x?.id===d.id?null:x),780);
     }
   }
 
@@ -2903,9 +2931,22 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     if(!heroFeedback)return null;
     const cls=heroFeedback.result==="correct"?"hf-ok":heroFeedback.result==="approx"?"hf-warn":"hf-ko";
     const main=heroFeedback.result==="correct"?"correct":heroFeedback.result==="approx"?"approx":"erreur";
+    // Badge de provenance (§2/§28) : dire d'où vient la solution — solveur (exact)
+    // ou heuristique (template). Honnêteté : ne jamais présenter une heuristique
+    // comme un résultat GTO calculé.
+    const solved=spot.strategySource==="solver";
+    const provBadge=spot.strategySource?(
+      <span title={spot.strategyNote||(solved?"Solution calculée par le solveur":"Solution heuristique (template)")}
+        style={{fontFamily:T.stats,fontSize:8,fontWeight:800,letterSpacing:".04em",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",
+          color:solved?"#10D87A":T.text4,background:solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+          border:`1px solid ${solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+        {solved?"🦈 Solveur":"≈ Heuristique"}
+      </span>
+    ):null;
     return(
       <div className="hero-feedback-strip">
         <span className={`hf-main ${cls}`}>{heroFeedback.heroAction} {main}</span>
+        {provBadge}
         {showSol?(
           <>
             <span>EV {heroFeedback.evDiff>=0?"+":""}{heroFeedback.evDiff.toFixed(2)}bb</span>
@@ -2962,7 +3003,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     setActivePlayerId("villain");
     setThinking(true);
     const delay=villainThinkDelay(spot.vtype,a.id,trainerMode);
-    setTimeout(()=>{
+    // Révélation Villain via l'AnimationQueue (§62) : un temps de réflexion puis
+    // le commit. Si l'utilisateur clique « Main suivante » pendant la réflexion,
+    // le changement de spot appelle animQRef.cancel() → le commit est ignoré
+    // (invalidé par la génération de la queue) : plus de tir sur la nouvelle main.
+    const performVillain=()=>{
       const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
       const boardLen=(spot.board||[]).length;
       const v=villainDecide(spot.street,a.id,spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,boardLen,field);
@@ -2982,7 +3027,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       } else {
         triggerPhaseFlash();setPhase("hero_reply");setActivePlayerId("hero");
       }
-    },delay);
+    };
+    animQRef.current.enqueue([
+      {type:"VILLAIN_THINK",duration:delay},   // temps de réflexion (dots animés déjà affichés)
+      {type:"VILLAIN_ACT",duration:0,perform:performVillain}, // commit — sauté si annulé (§63)
+    ]);
   }
 
   function handleHeroReply(act){
@@ -3004,122 +3053,112 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // Hero a relancé → vilain répond une dernière fois avant fin de spot
     setThinking(true);triggerPhaseFlash();setPhase("villain_thinking");setActivePlayerId("villain");
     const delay=villainThinkDelay(spot.vtype,"RAISE",trainerMode);
-    setTimeout(()=>{
-      const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
-      const v2=villainDecide(spot.street,"RAISE",spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-      const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?replyCommit.amountBb:undefined});
-      setThinking(false);
-      setTl(t=>[...t,{pos:spot.vpos,act:v2.action,lbl:v2.label,hero:false,amt:v2Commit.amountBb}]);
-      if(v2.action!=="FOLD"&&v2.action!=="CHECK"&&v2.action!=="WIN"){
-        fireVilChip(v2.label);fireChip(v2.label);
-      }
-      finishTable();
-    },delay);
-  }
-
-  function startFullHand(){
-    const board=genBoard(spot.hand||[]);
-    const startPot=roundBb(currentPotRef.current||spot.pot||15);
-    const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
-    setFhBoardRef(board);setFhStreet("flop");setFhPhase(firstActor==="hero"?"hero":"villain_thinking");
-    setFhActs([]);setFhPot(startPot);setFhVilAct(null);setFhResult(null);
-    setActivePlayerId(firstActor);
-    setPlayingFull(true);
-    if(firstActor==="villain"){
-      setFhVilThink(true);
-      setTimeout(()=>{
-        const spr=startPot>0?parseFloat(spot.stack||100)/startPot:8;
-        const vd=villainDecide("flop","CHECK",spot.vtype,startPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,3,field);
-        const action=vd.action||"CHECK";
-        const amount=roundBb(vd.amount||((action==="BET"||action==="RAISE")?Math.max(1,Math.round(startPot*.5)):0));
-        const resolved={...vd,amount};
-        setFhVilThink(false);
-        setFhVilAct(resolved);
-        setFhActs([{street:"flop",actor:"Villain",action}]);
-        if(action!=="CHECK"&&action!=="FOLD"&&action!=="WIN"){
-          fireVilChip(resolved.label||action);
-          fireChip(resolved.label||action);
+    // Révélation via l'AnimationQueue (§62/63) : annulée si le spot change.
+    animQRef.current.enqueue([
+      {type:"VILLAIN_THINK",duration:delay},
+      {type:"VILLAIN_ACT",duration:0,perform:()=>{
+        const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
+        const v2=villainDecide(spot.street,"RAISE",spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
+        const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?replyCommit.amountBb:undefined});
+        setThinking(false);
+        setTl(t=>[...t,{pos:spot.vpos,act:v2.action,lbl:v2.label,hero:false,amt:v2Commit.amountBb}]);
+        if(v2.action!=="FOLD"&&v2.action!=="CHECK"&&v2.action!=="WIN"){
+          fireVilChip(v2.label);fireChip(v2.label);
         }
-        if(action==="BET"||action==="RAISE"){
-          if(amount>0)setFhPot(p=>roundBb(p+amount));
-          setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
-        }
-        if(action==="FOLD"||action==="WIN"){
-          setActivePlayerId(null);setFhResult(action==="FOLD"?"win":"lose");setFhPhase("done");return;
-        }
-        setFhPhase("hero");setActivePlayerId("hero");
-      },620+Math.random()*420);
-    }
+        finishTable();
+      }},
+    ]);
   }
 
   function fhFireChip(lbl){fireChip(lbl);}
 
-  function fhHeroAct(act){
-    vibrate(VIB.tap);
-    const nActs=[...fhActs,{street:fhStreet,actor:"Hero",action:act}];
-    setFhActs(nActs);
-    if(act==="FOLD"){setActivePlayerId(null);setFhResult("lose");setFhPhase("done");return;}
-    if(act!=="CHECK")fhFireChip(act==="BET"?"Bet ½":"Bet PSB");
-    setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
-    setTimeout(()=>{
-      setFhVilThink(false);
-      const spr=fhPot>0?parseFloat(spot.stack)/fhPot:8;
-      const vd=villainDecide(fhStreet,act,spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-      const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
-      setFhActs(updated);setFhVilAct(vd);
-      if(vd.action==="FOLD"||vd.action==="WIN"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
-      if(vd.action!=="CHECK")fhFireChip(vd.label);
-      // Vilain bet/raise → Hero doit répondre avant de passer à la street suivante
-      if(vd.action==="BET"||vd.action==="RAISE"){
-        if(vd.amount)setFhPot(p=>p+Math.round(vd.amount));
-        setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
-      }
-      // Vilain check/call → avancer la street
-      if(act==="BET"||act==="RAISE")setFhPot(p=>p+(p*.5|0));
-      const idx=FH_STREETS.indexOf(fhStreet);
-      if(idx<FH_STREETS.length-1){
-        setTimeout(()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");},400);
-      } else {
-        const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-      }
-    },500+Math.random()*500);
+  /* ── MOTEUR DE MAIN COMPLÈTE (fullHandEngine) ──
+     Le Héro joue TOUT le coup street par street contre le Villain, avec de vraies
+     règles et un showdown réel (plus de résultat aléatoire). fhStateRef détient
+     l'état autoritatif ; fhSync le projette vers les states de rendu. */
+  function fhVillainPolicy(st){return defaultVillainPolicy(st,{random:Math.random});}
+
+  function fhSync(st){
+    fhStateRef.current=st;
+    setFhBoardRef(st.board);
+    setFhPot(roundBb(st.pot));
+    setFhStreet(st.street==="done"?(st.board.length>=5?"river":st.board.length>=4?"turn":"flop"):st.street);
+    setFhActs(st.history.map(h=>({street:h.street,actor:h.actor==="hero"?"Hero":"Villain",action:h.action,amount:h.amount})));
+    const lastVil=[...st.history].reverse().find(h=>h.actor==="villain");
+    if(st.done){
+      fullPending.current=false;
+      setFhPhase("done");
+      setFhResult(st.result.winner==="villain"?"lose":"win"); // hero win / split → "win"
+      setActivePlayerId(null);
+    }else if(st.toAct==="hero"){
+      const toCall=fhAmountToCall(st,"hero");
+      setFhVilAct(lastVil&&toCall>0?{label:lastVil.action,amount:lastVil.amount,color:T.purple}:null);
+      setFhPhase(toCall>0?"hero_facing_bet":"hero");
+      setActivePlayerId("hero");
+    }else{
+      setFhPhase("villain_thinking");setActivePlayerId("villain");
+    }
   }
 
-  function fhHeroFaceBet(act){
-    vibrate(VIB.tap);
-    const nActs=[...fhActs,{street:fhStreet,actor:"Hero",action:act}];
-    setFhActs(nActs);
-    if(act==="FOLD"){setActivePlayerId(null);setFhResult("lose");setFhPhase("done");return;}
-    if(act!=="CALL")fhFireChip("Raise");
-    if(act==="CALL"&&fhVilAct?.amount)setFhPot(p=>p+Math.round(fhVilAct.amount));
-    // Hero raise → villain doit répondre avant d'avancer la street
-    if(act==="RAISE"){
-      const raiseAmt=Math.round((fhVilAct?.amount||Math.round(fhPot*.5))*2.5);
-      setFhPot(p=>p+raiseAmt);
-      setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
-      setTimeout(()=>{
+  /* Fait jouer le Villain (potentiellement plusieurs fois d'affilée si l'OOP est
+     le Villain sur une nouvelle street) jusqu'à ce que ce soit au Héro / fin. */
+  function fhAdvanceVillain(){
+    const st=fhStateRef.current;
+    if(!st||st.done||st.toAct!=="villain")return;
+    setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
+    animQRef.current.enqueue([
+      {type:"VILLAIN_THINK",duration:520+Math.random()*380},
+      {type:"VILLAIN_ACT",duration:0,perform:()=>{
         setFhVilThink(false);
-        const spr=fhPot>0?parseFloat(spot.stack||100)/fhPot:8;
-        const vd=villainDecide(fhStreet,"RAISE",spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-        const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
-        setFhActs(updated);setFhVilAct(vd);
-        if(vd.action==="FOLD"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
-        if(vd.action!=="CHECK")fhFireChip(vd.label||vd.action);
-        const idx2=FH_STREETS.indexOf(fhStreet);
-        if(idx2<FH_STREETS.length-1){
-          setTimeout(()=>{setFhStreet(FH_STREETS[idx2+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");},400);
-        } else {
-          const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-        }
-      },500+Math.random()*500);
-      return;
-    }
-    const idx=FH_STREETS.indexOf(fhStreet);
-    if(idx<FH_STREETS.length-1){
-      setTimeout(()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");},400);
-    } else {
-      const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-    }
+        const after=fhPlayVillain(fhStateRef.current,fhVillainPolicy);
+        const lastVil=[...after.history].reverse().find(h=>h.actor==="villain");
+        if(lastVil&&lastVil.action!=="CHECK"&&lastVil.action!=="FOLD"){fireVilChip(lastVil.action);fireChip(lastVil.action);}
+        fhSync(after);
+        fhAdvanceVillain(); // le Villain peut reparler en premier sur la street suivante
+      }},
+    ]);
+  }
+
+  function startFullHand(){
+    const heroHand=spot.hand||[];
+    const fullBoard=genBoard(heroHand);                               // 5 cartes (exclut la main Héro)
+    const villHand=genBoard([...heroHand,...fullBoard]).slice(0,2);   // 2 cartes (exclut Héro + board)
+    const startPot=roundBb(currentPotRef.current||spot.pot||15);
+    const stackBb=parseFloat(spot.stack)||100;
+    const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
+    const st=createFullHand({heroHand,villHand,fullBoard,startPot,heroStack:stackBb,villStack:stackBb,firstToAct:firstActor});
+    setPlayingFull(true);setFhVilAct(null);setFhResult(null);
+    fhSync(st);
+    fhAdvanceVillain(); // si l'OOP est le Villain, il ouvre l'action
+  }
+
+  /* Héro agit quand rien à payer : CHECK · Bet ½ (BET) · PSB (bouton "RAISE") · FOLD. */
+  function fhHeroAct(ui){
+    const st=fhStateRef.current; if(!st||st.done||st.toAct!=="hero")return;
+    vibrate(VIB.tap);
+    let action;
+    if(ui==="FOLD")action={type:"FOLD"};
+    else if(ui==="CHECK")action={type:"CHECK"};
+    else if(ui==="BET")action={type:"BET",amount:Math.max(1,roundBb(st.pot*0.5))};
+    else action={type:"BET",amount:Math.max(1,roundBb(st.pot))}; // bouton "PSB" (mappé RAISE dans l'UI)
+    if(ui!=="CHECK"&&ui!=="FOLD")fhFireChip(ui==="BET"?"Bet ½":"Bet PSB");
+    const after=fhApplyAction(st,"hero",action);
+    fhSync(after);
+    fhAdvanceVillain();
+  }
+
+  /* Héro répond à une mise Villain : FOLD · CALL · RAISE. */
+  function fhHeroFaceBet(ui){
+    const st=fhStateRef.current; if(!st||st.done||st.toAct!=="hero")return;
+    vibrate(VIB.tap);
+    let action;
+    if(ui==="FOLD")action={type:"FOLD"};
+    else if(ui==="CALL")action={type:"CALL"};
+    else action={type:"RAISE"};
+    if(ui!=="FOLD")fhFireChip(ui==="CALL"?"Call":"Raise");
+    const after=fhApplyAction(st,"hero",action);
+    fhSync(after);
+    fhAdvanceVillain();
   }
 
   // Haptique fin de main complète (victoire/défaite)
@@ -3362,7 +3401,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div className="pf-solfull-hdr" style={{position:"relative"}} onTouchStart={solTStart} onTouchMove={solTMove} onTouchEnd={solTEnd}>
             <div className="pf-solfull-grip"/>
             <div style={{minWidth:0,flex:1}}>
-              <div className="pf-solfull-title">💡 SOLUTION</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div className="pf-solfull-title">💡 SOLUTION</div>
+                {/* Provenance (§2/§28) : d'où vient la solution ? */}
+                {spot.strategySource&&(
+                  <span title={spot.strategyNote||""} style={{fontFamily:T.stats,fontSize:7.5,fontWeight:800,letterSpacing:".03em",padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
+                    color:spot.strategySource==="solver"?"#10D87A":T.text4,background:spot.strategySource==="solver"?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+                    border:`1px solid ${spot.strategySource==="solver"?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+                    {spot.strategySource==="solver"?"🦈 Solveur":"≈ Heuristique"}
+                  </span>
+                )}
+              </div>
               <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"#6F81A8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{spot.desc}</div>
             </div>
             <span className={`gto-quality ${qualityCls}`} style={{flexShrink:0,fontSize:9,padding:"3px 8px"}}>{qualityLabel}</span>
@@ -3475,8 +3524,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* Footer : rejouer + suivante */}
           <div className="pf-solfull-foot">
             <button className="gto-btn-secondary" style={{padding:"12px 16px",fontSize:15}} title="Rejouer ce spot" onClick={resetSpot}>↺</button>
-            <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);setSolOpen(false);if(numTables===1)callNext();}}>
-              {numTables===1?`${nextLabel} ▶`:"✓ Fermer"}
+            <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);setSolOpen(false);callNext();}}>
+              {`${numTables===1?nextLabel:nextShortLabel} ▶`}
             </button>
           </div>
         </div>
@@ -3539,12 +3588,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 }}>{isBest?"✓":"✗"}</div>
               </span>
             </div>
-            {/* Next zone uniquement */}
+            {/* Next zone — Main suivante PAR TABLE (§44) : chaque table avance
+                indépendamment, y compris en multi-table. */}
             <div className="gto-next-zone">
-              {numTables===1
-                ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
-                :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
-              }
+              <button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{numTables===1?nextLabel:nextShortLabel} ▶</button>
               <button className="gto-btn-secondary" style={{padding:"12px 14px",fontSize:16}} title="Rejouer ce spot"
                 onClick={resetSpot}>↺</button>
             </div>
@@ -3806,12 +3853,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             )}
           </div>
 
-          {/* ── Next zone (collante en bas du panel scrollable) ── */}
+          {/* ── Next zone (collante) — Main suivante PAR TABLE (§44) ── */}
           <div className="gto-next-zone" style={{position:"sticky",bottom:0,background:"#030D2A"}}>
-            {numTables===1
-              ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
-              :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
-            }
+            <button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{numTables===1?nextLabel:nextShortLabel} ▶</button>
             {spot.hand?.length>=2&&(
               <button className="gto-btn-secondary" onClick={startFullHand} title="River">▶ River</button>
             )}
@@ -4661,6 +4705,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
             {phase==="hero_reply"&&vact&&renderHeroReply()}
             {phase==="hero"&&renderActionZone()}
+            {/* Main complète (Full Hand) : le Héro joue flop→turn→river sur DESKTOP
+                aussi (auparavant seulement dans la zone mobile → boutons invisibles). */}
+            {playingFull&&renderFhActions()}
           </div>
 
         </div>{/* ── fin COLONNE GAUCHE ── */}
@@ -5814,8 +5861,109 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
   useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
-  // Persiste la config Trainer (réglages pro) entre les sessions
-  useEffect(()=>{try{localStorage.setItem("pf_trainer_cfg",JSON.stringify(f));}catch{}},[f]);
+  /* ── SOURCE UNIQUE DE VÉRITÉ (Mission Master §3) ──
+     Assemble le TrainingConfig canonique à partir de `f` + des states frères.
+     Tout le pipeline de génération lit désormais CET objet (via les mappers
+     purs de trainingConfig.js), et non plus les sources éparses. */
+  const trainingConfig=useMemo(()=>buildTrainingConfig({
+    f,smode,ntables,trainerMode,platform,trainMode,streetStart,
+  }),[f,smode,ntables,trainerMode,platform,trainMode,streetStart]);
+  /* Génère une queue à partir d'un TrainingConfig canonique (point d'entrée
+     unique §3 : les options passent toutes par le config, jamais par un
+     assemblage ad-hoc). `overrideFilters` permet aux drills de patcher `f`
+     sans reconstruire tout le config ; `extraOpts` porte le contexte seed. */
+  const lastConstraintsRef=useRef(null); // dernière résolution de contraintes (§25)
+  // Tag §28 : applique la solution solveur (ou marque heuristique) à chaque spot.
+  // Utilisé par TOUS les chemins de queue (start, resume, import HH, similaires).
+  const stampStrategy=useCallback((arr)=>{(arr||[]).forEach(s=>{if(s)try{applySolverStrategy(s);}catch{}});return arr;},[]);
+  // ── AI Training Orchestrator (§57) : demande en langage naturel → config ──
+  const[aiRequest,setAiRequest]=useState("");
+  const[aiUnderstanding,setAiUnderstanding]=useState(null); // {text, ok}
+  const buildQFromConfig=useCallback((cfg,{overrideFilters=null,extraOpts={}}={})=>{
+    // ConstraintEngine (§25) : détecte + AUTO-RÉSOUT les incompatibilités
+    // (positions impossibles, phase×structure, cash×ICM, type de spot…) AVANT
+    // toute génération. Le générateur ne reçoit qu'un config jouable (§72).
+    const res=resolveTrainingConstraints(cfg);
+    const rc=res.resolved;
+    if(res.hadConflicts){
+      lastConstraintsRef.current=res;
+      if(typeof console!=="undefined")console.debug("PF Trainer — contraintes auto-résolues:",res.conflicts.map(c=>c.message));
+    }
+    const filters=overrideFilters||trainingConfigToFilters(rc);
+    const opts={...trainingConfigToEngineOpts(rc),...extraOpts};
+    const q=buildQ(filters,rc.sessionLength,opts);
+    // StrategyProvider (§28) : brancher le SOLVEUR pour la solution des spots
+    // résolubles (push/fold préflop HU) — « le solveur calcule, l'IA explique »
+    // (§6). Les spots non résolubles gardent leur solution template (provenance
+    // honnête). Solve = lookup instantané (table pré-solvée 1-25bb).
+    stampStrategy(q);
+    // SpotGenerator (§26) : chaque spot émis porte le contrat canonique complet
+    // (spotId, generationSeed, schema §26) — sans retirer aucun champ legacy.
+    return finalizeTrainingSpots(q,{config:rc,meta:res.meta});
+  },[]);
+  /* ══ MULTI-TABLE : pointeurs INDÉPENDANTS par table (Mission Master §44) ══
+     Chaque table possède son propre index dans la queue. « Main suivante »
+     n'agit QUE sur la table concernée et ne réinitialise jamais les autres.
+     `tableIdx[t]` = index de queue affiché par la table t. Un curseur monotone
+     (`spotCursorRef`) distribue les prochains spots sans collision. */
+  const[tableIdx,setTableIdx]=useState([0]);
+  const[sessionEpoch,setSessionEpoch]=useState(0); // incrémenté à chaque (re)démarrage de session
+  const sessionBaseRef=useRef(0);             // index de queue de départ (0, ou resume.idx)
+  const spotCursorRef=useRef(1);              // prochain index de queue à distribuer
+  const nextTableLockRef=useRef({});          // anti-double-clic PAR table (§45)
+  const recoveryRef=useRef(createSpotRecoveryManager()); // SpotRecoveryManager (§42)
+  // Signale un nouveau lot/session : réinitialise les pointeurs par table.
+  const bumpSession=useCallback((base=0)=>{sessionBaseRef.current=base;setSessionEpoch(e=>e+1);},[]);
+  // (Ré)initialise les pointeurs à chaque nouvelle session ou changement du nb de
+  // tables. NE dépend PAS de `queue` (l'ajout à la demande ne doit pas réinitialiser
+  // les pointeurs) ni de `idx` (idx est désormais DÉRIVÉ de tableIdx).
+  useEffect(()=>{
+    const base=sessionBaseRef.current||0;
+    setTableIdx(Array.from({length:ntables},(_,t)=>base+t));
+    spotCursorRef.current=base+ntables;
+    nextTableLockRef.current={};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[sessionEpoch,ntables]);
+  // `idx` (curseur de session, utilisé par tous les affichages) = plancher des
+  // pointeurs par table. Garde la compatibilité avec le code existant basé sur idx.
+  useEffect(()=>{
+    if(!tableIdx.length)return;
+    const m=Math.min(...tableIdx.filter(v=>typeof v==="number"));
+    if(Number.isFinite(m))setIdx(v=>v!==m?m:v);
+  },[tableIdx]);
+  const tblIdx=useCallback((t)=>{const v=tableIdx[t];return typeof v==="number"?v:idx+t;},[tableIdx,idx]);
+  /* Génère UN spot valide à la demande (§26/§42) — utilisé quand la queue est
+     épuisée ou qu'un spot doit être remplacé. Retourne le spot finalisé ou null. */
+  const generateReplacementSpot=useCallback(()=>{
+    try{
+      const cfg=buildTrainingConfig({f,smode,ntables,trainerMode,platform,trainMode,streetStart});
+      const fresh=buildQFromConfig(cfg);
+      const rec=recoveryRef.current;
+      for(const s of (fresh||[])){
+        if(!s)continue;
+        const g=rec.guard(s,s.ctx||{},{status:RECOVERY_STATUS.INVALID});
+        if(g.playable)return s;
+      }
+      return (fresh&&fresh[0])||null;
+    }catch(err){if(typeof console!=="undefined")console.error("PF Trainer — génération à la demande échouée",err);return null;}
+  },[f,smode,ntables,trainerMode,platform,trainMode,streetStart,buildQFromConfig]);
+  /* Alloue le prochain index de queue pour une table ; régénère à la demande si
+     la queue pré-générée est épuisée (session jamais bloquée §42). */
+  const allocNextSpotIndex=useCallback(()=>{
+    const cursor=spotCursorRef.current;
+    if(cursor<queue.length){spotCursorRef.current=cursor+1;return cursor;}
+    // Queue épuisée → génération à la demande : on l'ajoute en fin de queue.
+    const spot=generateReplacementSpot();
+    if(!spot)return -1;
+    const newIndex=queue.length;            // le spot ajouté occupe cet index
+    setQueue(q=>[...q,spot]);
+    spotCursorRef.current=newIndex+1;
+    return newIndex;
+  },[queue,generateReplacementSpot]);
+  // Persiste la config Trainer (réglages pro) entre les sessions — persistance
+  // UNIFIÉE : écrit le snapshot canonique `pf_training_config` ET les clés
+  // legacy (`pf_trainer_cfg`, `pf_train_mode`) pour compatibilité descendante.
+  useEffect(()=>{saveTrainingConfig(trainingConfig);},[trainingConfig]);
   // Décision time tracking (temps moyen par spot)
   const spotStartRef=useRef(Date.now());
   const[decisionTimes,setDecisionTimes]=useState([]);
@@ -5826,8 +5974,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // État de session : true = session en cours → filtres verrouillés
   const sessionActive=started&&!done;
   const curSpot=queue[idx]||null;
+  // Spot affiché par la table active (pointeurs par table §44).
   // Multi-table : spot de la table active (panneau droit partagé + raccourcis)
-  const activeSpot=queue[idx+(ntables>1?activeTable:0)]||curSpot;
+  const activeSpot=queue[tblIdx(ntables>1?activeTable:0)]||curSpot;
 
   /* ══ Leak Hunter — basé sur les stats persistées (sessions précédentes) ══ */
   const trainerStats=useMemo(()=>loadStats(),[done,started]);
@@ -5924,7 +6073,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTrainerMode(resume.trainerMode||"gto");setPlatform(resume.platform||"pokerstars");
     if(resume.trainMode)setTrainMode(resume.trainMode);if(resume.streetStart)setStreetStart(resume.streetStart);
     setShowSol(!!resume.showSol);
-    setQueue(q);setIdx(Math.min(resume.idx,q.length-1));setResults(res);setTableAns({});setTableSettled({});
+    // §26 : garantir le contrat canonique sur la queue reprise (mutation en place,
+    // les références de byQueueId/res restent valides).
+    stampStrategy(q); // §28 : provenance solveur/heuristique sur la queue reprise
+    setQueue(finalizeTrainingSpots(q,{config:trainingConfig,meta:{}}));setIdx(Math.min(resume.idx,q.length-1));setResults(res);setTableAns({});setTableSettled({});
+    bumpSession(Math.min(resume.idx,q.length-1)); // pointeurs par table depuis l'index repris (§44)
     setStarted(true);setDone(false);setStoppedEarly(false);setResume(null);
     vibrate(VIB.next);
   }
@@ -6045,17 +6198,39 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     sheetTouch.current={y:0,dy:0};
   }
 
+  /* Redistribue un TrainingConfig canonique (§3) vers les states fragmentés —
+     inverse de buildTrainingConfig. Utilisé par l'AI Orchestrator (§57). */
+  function applyTrainingConfig(cfg){
+    if(!cfg)return;
+    setSmode(cfg.sessionLength);
+    setNtables(cfg.tableCount);
+    setTrainerMode(cfg.trainingMode);
+    setPlatform(cfg.platform);
+    setTrainMode(cfg.sessionType);
+    if(cfg.streetStart)setStreetStart(cfg.streetStart);
+    setF(prev=>({...prev,...trainingConfigToFilters(cfg)}));
+  }
+  /* AI Training Orchestrator (§57) : demande NL → TrainingConfig → contraintes,
+     puis applique aux filtres. Ne lance pas la session (l'utilisateur relit puis
+     clique « Lancer »). N'invente jamais de solution GTO (§6/§28). */
+  function runOrchestrator(){
+    const text=(aiRequest||"").trim();
+    if(!text||sessionActive)return;
+    const r=orchestrateTrainingRequest(text,trainingConfig);
+    applyTrainingConfig(r.config);
+    setAiUnderstanding({text:describeUnderstanding(r.matched),ok:r.understood});
+    vibrate(VIB.tap);
+  }
+
   function start(retry=false){
     if(mobileTrainingSingleTableOnly&&ntables!==1)setNtables(1);
     let q;
     if(retry){const pool=results.filter(r=>!r.correct).map(r=>r.spot);if(pool.length){let a=[];while(a.length<smode)a=[...a,...shuffle(pool)];q=a.slice(0,smode);}}
-    // Options de queue selon le type de session
-    const qOpts=(trainMode==="full"||trainMode==="session")?{onlyPreflop:true,preferFlop:true}
-      :trainMode==="street"?{onlyStreet:streetStart}
-      :{};
-    const engineOpts={...qOpts,trainerMode,trainMode,platform};
-    if(!q)q=buildQ(f,smode,engineOpts);
-    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});setStarted(true);setDone(false);setStoppedEarly(false);
+    // Génération pilotée par la SOURCE UNIQUE (§3) : les options de queue
+    // (onlyPreflop/preferFlop/onlyStreet) et le contexte moteur sont dérivés du
+    // TrainingConfig canonique, plus aucun assemblage ad-hoc ici.
+    if(!q)q=buildQFromConfig(trainingConfig);
+    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);setStarted(true);setDone(false);setStoppedEarly(false);
     setDecisionTimes([]);spotStartRef.current=Date.now();
     setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
     vibrate(VIB.next);
@@ -6065,8 +6240,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(mobileTrainingSingleTableOnly&&ntables!==1)setNtables(1);
     const ef={...f,...patchF,spotTypes:[],objectives:[]};
     setF(ef);
-    const q=buildQ(ef,smode,{...(opts||{}),trainerMode,trainMode,platform});
-    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});
+    // Config canonique dérivé de la config de drill (§3) ; les opts seed
+    // (onlyStreet/onlyPreflop) sont fusionnés par-dessus le contexte moteur.
+    const cfg=buildTrainingConfig({f:ef,smode,ntables,trainerMode,platform,trainMode,streetStart});
+    const q=buildQFromConfig(cfg,{overrideFilters:ef,extraOpts:opts||{}});
+    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
     setStarted(true);setDone(false);setStoppedEarly(false);setDecisionTimes([]);
     spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
     setReviewOpen(false);vibrate(VIB.next);
@@ -6078,7 +6256,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       const pool=results.filter(r=>!r.correct).map(r=>r.spot);
       if(pool.length){
         let a=[];while(a.length<smode)a=[...a,...shuffle(pool)];
-        setQueue(a.slice(0,smode));setIdx(0);setResults([]);setTableAns({});setTableSettled({});
+        setQueue(a.slice(0,smode));setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setStarted(true);setDone(false);setStoppedEarly(false);setDecisionTimes([]);spotStartRef.current=Date.now();vibrate(VIB.next);return;
       }
       // 2) sinon : cibler les leaks dominants de l'historique
@@ -6097,12 +6275,34 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // ── Handoff entrant : un spot envoyé depuis le Replayer ou Coach AI configure et lance un drill ──
   function applyTrainerSeed(sd){
     if(!sd||typeof sd!=="object")return;
+    // ── §51/§52 : « Générer des spots similaires » / « Créer une session depuis
+    // cette main » → variantes pédagogiques d'une vraie main, transformées en
+    // spots valides puis finalisées (§26). ──
+    if(sd.similar||sd.mode==="similar"||sd.session==="similar"){
+      const variants=sd.session==="similar"||sd.fullSession
+        ? buildSimilarSession(sd,{perGroup:5})
+        : generateSimilarSpots(sd,{count:sd.count||10,mode:sd.similarMode||"similar"});
+      const built=variants
+        .map(v=>{const spot=createTrainingSpotFromHand(v);const val=validateTrainerSpot(spot);return val.valid?{...spot,ctx:val.ctx}:null;})
+        .filter(Boolean);
+      if(built.length){
+        stampStrategy(built); // §28
+        const q=finalizeTrainingSpots(built,{config:trainingConfig,meta:{}});
+        setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
+        setSmode(q.length>=20?50:20);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
+        setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
+        vibrate(VIB.next);
+        return;
+      }
+    }
     const importedSpot=createTrainingSpotFromHand(sd);
     const looksLikeHand=!!(sd.hand||sd.actions||sd.handId||sd.rawHand||sd.board||sd.toCall!=null);
     if(looksLikeHand&&importedSpot){
       const v=validateTrainerSpot(importedSpot);
       if(v.valid){
-        setQueue([{...importedSpot,ctx:v.ctx}]);setIdx(0);setResults([]);setTableAns({});setTableSettled({});
+        // §12/§26 : le spot importé d'une main réelle porte aussi le contrat canonique.
+        const importedQ=stampStrategy(finalizeTrainingSpots([{...importedSpot,ctx:v.ctx}],{config:trainingConfig,meta:{}}));
+        setQueue(importedQ);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setSmode(1);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
         setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
         vibrate(VIB.next);
@@ -6138,11 +6338,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setDone(false);setStoppedEarly(false);setStarted(true);setTableAns({});setTableSettled({});
   }
   function handleAns(tid,correct,ua){
-    const spot=queue[idx+tid];if(!spot)return;
+    const qi=tblIdx(tid);
+    const spot=queue[qi];if(!spot)return;
     const dt=(Date.now()-spotStartRef.current)/1000;
     if(dt>0&&dt<120)setDecisionTimes(d=>[...d,dt]);
     setTableAns(a=>({...a,[tid]:{correct,ua}}));
-    setResults(r=>[...r,{spot,correct,ua,qi:idx+tid}]); // qi = position dans la queue (timeline)
+    setResults(r=>[...r,{spot,correct,ua,qi}]); // qi = position dans la queue (timeline)
     appendPlayedSpot(spot,correct,ua,trainerMode); // sauvegarde dans pf_played_spots
     try{
       const chosen=spot.acts?.[ua];
@@ -6162,6 +6363,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   function handleTableSettled(tid){
     setTableSettled(s=>({...s,[tid]:true}));
   }
+  // Avance TOUTES les tables vers le lot suivant (bouton « Tables suivantes » /
+   // Main suivante en 1T). N'utilise plus idx directement : déplace les pointeurs
+   // par table (idx reste dérivé = min(tableIdx)).
   function handleNext(){
     if(nextTransitionRef.current)return;
     nextTransitionRef.current=true;
@@ -6170,9 +6374,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     try{
       setExpandedT(null); // referme la table agrandie (mobile)
       spotStartRef.current=Date.now(); // chrono du spot suivant
-      const next=idx+ntables;
-      if(next>=Math.min(smode===999?queue.length:smode,queue.length)){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
-      else{setIdx(next);setTableAns({});setTableSettled({});}
+      const effLimit=smode===999?Infinity:smode;
+      const cur=spotCursorRef.current;
+      if(results.length>=effLimit||cur>=queue.length){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
+      else{
+        const bases=Array.from({length:ntables},(_,t)=>Math.min(cur+t,queue.length-1));
+        spotCursorRef.current=cur+ntables;
+        setTableIdx(bases);setTableAns({});setTableSettled({});
+      }
       if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
       nextTransitionTimer.current=setTimeout(()=>{
         nextTransitionRef.current=false;
@@ -6183,6 +6392,32 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       setNextTransitioning(false);
       setNextError("Generation impossible. Reessayez.");
       if(typeof console!=="undefined")console.error("PF Trainer next hand failed",err);
+    }
+  }
+  /* Main suivante PAR TABLE (§44) : n'avance QUE la table `t`, laisse les autres
+     intactes. Anti-double-clic par table (§45). Régénère à la demande si la
+     queue est épuisée (§42) → l'utilisateur n'est jamais bloqué. */
+  function handleNextTable(t){
+    if(nextTableLockRef.current[t])return;
+    nextTableLockRef.current[t]=true;
+    setNextError(null);
+    try{
+      // Fin de session atteinte (hors illimité) : bascule sur les résultats.
+      const effLimit=smode===999?Infinity:smode;
+      if(results.length>=effLimit){setDone(true);setStoppedEarly(false);vibrate(VIB.win);return;}
+      const ni=allocNextSpotIndex();
+      if(ni<0){setNextError("Génération impossible. Réessayez.");return;} // jamais bloquant : le bouton reste
+      setTableIdx(arr=>{const a=[...arr];a[t]=ni;return a;});
+      setTableAns(a=>{const n={...a};delete n[t];return n;});
+      setTableSettled(s=>{const n={...s};delete n[t];return n;});
+      if(t===activeTable||ntables===1)spotStartRef.current=Date.now();
+      setExpandedT(null);
+      vibrate(VIB.next);
+    }catch(err){
+      setNextError("Génération impossible. Réessayez.");
+      if(typeof console!=="undefined")console.error("PF Trainer next-table failed",err);
+    }finally{
+      setTimeout(()=>{nextTableLockRef.current[t]=false;},260);
     }
   }
   function handleSave(sess){
@@ -6223,7 +6458,6 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const actRows=acts.map((a,i)=>({a,i,freq:Math.round(Number(s.freq?.[a.id]||0)),ev:Number(s.ev?.[a.id]||0),best:i===s.ok,chosen:ans&&i===ans.ua}));
     const barCol=(a)=>{const t=trainerActionType(a);return t==="FOLD"?"#E5485D":t==="ALLIN"?"#FF4D6D":t==="CALL"?"#20CFFF":t==="CHECK"||t==="CHECK_BACK"?"#25D487":"#FFB800";};
     const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
-    const batchNextLabel=nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Main suivante";
     return(
       <div className="pf-p2">
         {/* Bandeau chips : contexte */}
@@ -6274,6 +6508,17 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
                 </div>
               )}
+              {/* Provenance de la solution (§2/§28) : solveur (exact) ou heuristique */}
+              {s.strategySource&&(
+                <div title={s.strategyNote||""} style={{display:"flex",alignItems:"center",gap:6,margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,
+                  background:s.strategySource==="solver"?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)",
+                  border:`1px solid ${s.strategySource==="solver"?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)"}`}}>
+                  <span style={{fontSize:11}}>{s.strategySource==="solver"?"🦈":"≈"}</span>
+                  <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:s.strategySource==="solver"?"#10D87A":T.text3}}>
+                    {s.strategySource==="solver"?"SOLUTION SOLVEUR — calcul exact":"SOLUTION HEURISTIQUE — template"}
+                  </span>
+                </div>
+              )}
               <div className="pf-p2-actlist">
                 {actRows.map(r=>(
                   <div key={r.i} className={`pf-p2-actrow${r.best?" best":""}${r.chosen?" chosen":""}`}>
@@ -6321,9 +6566,18 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div className="pf-p2-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
           <div className="pf-p2-tl-row">
             <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
-            <button className="pf-p2-next" disabled={!allSettled||nextTransitioning} onClick={handleNext}>
-              {allSettled?`${batchNextLabel} ▶`:"Decision en cours..."}
-            </button>
+            {/* Main suivante PAR TABLE ACTIVE (§44) : disponible dès que CETTE
+                table est répondue, sans attendre les autres tables. */}
+            {(()=>{
+              const activeAns=!!tableAns[activeTable];
+              const busy=!!nextTableLockRef.current[activeTable];
+              const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":`Table ${activeTable+1} suivante`;
+              return(
+                <button className="pf-p2-next" disabled={!activeAns||busy} onClick={()=>handleNextTable(activeTable)}>
+                  {activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
+                </button>
+              );
+            })()}
           </div>
         </section>
       </div>
@@ -6366,6 +6620,32 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:T.gold,fontWeight:600}}>Session active — filtres verrouillés</span>
             </div>
           )}
+          {/* ── AI Training Orchestrator (§57) : décris ta session en langage naturel ── */}
+          <div className="sb" style={{opacity:sessionActive?.5:1}}>
+            <div className="sblbl">🤖 Coach IA — décris ta session</div>
+            <textarea
+              value={aiRequest}
+              disabled={sessionActive}
+              onChange={e=>setAiRequest(e.target.value)}
+              onKeyDown={e=>{if((e.key==="Enter"&&(e.metaKey||e.ctrlKey))){e.preventDefault();runOrchestrator();}}}
+              placeholder="Ex : BB vs BTN 20-30bb en MTT · prépare-moi sur mes leaks · je joue une TF ce soir"
+              rows={2}
+              style={{width:"100%",resize:"vertical",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.14)",borderRadius:8,color:T.text,fontFamily:"'Inter',sans-serif",fontSize:10,padding:"7px 9px",lineHeight:1.45,outline:"none"}}
+            />
+            <button
+              onClick={runOrchestrator}
+              disabled={sessionActive||!aiRequest.trim()}
+              style={{width:"100%",marginTop:5,padding:"7px 10px",borderRadius:8,border:"1px solid rgba(52,216,255,.4)",background:aiRequest.trim()&&!sessionActive?"linear-gradient(180deg,rgba(52,216,255,.18),rgba(52,216,255,.08))":"rgba(255,255,255,.04)",color:aiRequest.trim()&&!sessionActive?T.cyan:T.text4,fontFamily:"'Space Grotesk',sans-serif",fontSize:10,fontWeight:800,cursor:aiRequest.trim()&&!sessionActive?"pointer":"not-allowed"}}>
+              ✨ Configurer depuis ma demande
+            </button>
+            {aiUnderstanding&&(
+              <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:aiUnderstanding.ok?"rgba(16,216,122,.08)":"rgba(255,194,71,.08)",border:`1px solid ${aiUnderstanding.ok?"rgba(16,216,122,.28)":"rgba(255,194,71,.28)"}`,fontFamily:"'Inter',sans-serif",fontSize:8.5,color:aiUnderstanding.ok?T.green:T.gold,lineHeight:1.5}}>
+                {aiUnderstanding.text}
+                {aiUnderstanding.ok&&<span style={{display:"block",marginTop:3,color:T.text3}}>Vérifie les filtres puis « Lancer la session ».</span>}
+              </div>
+            )}
+          </div>
+          <div className="sbsep"/>
           <div className="sb">
             <div className="sblbl">Session</div>
             {SMODES.map(m=>(
@@ -6907,13 +7187,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
             <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
-                const spot=queue[idx+t];if(!spot)return null;
+                const spot=queue[tblIdx(t)];if(!spot)return null;
                 const isAns=!!tableAns[t];
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
                 const isActiveT=ntables>1&&activeTable===t;
                 return(
-                  <div key={`${idx}-${t}`}
+                  <div key={`${tblIdx(t)}-${t}`}
                     className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}${isActiveT?" mt-slot-focus":""}`}
                     style={ntables>1?{display:"flex",flexDirection:"column"}:undefined}
                     onMouseDown={ntables>1&&!isMobile?()=>setActiveTable(t):undefined}
@@ -6934,7 +7214,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -7205,3 +7485,4 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     </div>
   );
 }
+
