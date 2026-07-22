@@ -19,6 +19,7 @@ import { resolveTrainingConstraints } from "../constraintEngine.js";
 import { finalizeTrainingSpots } from "../spotSchema.js";
 import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
+import { createAnimationQueue } from "../immersionEngine.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -2659,6 +2660,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const currentPotRef=useRef(roundBb(spot?.pot||1.5));
   const settledRef=useRef(false);
   const fullPending=useRef(false); // true = une main complète va suivre → ne pas régler la table tout de suite
+  // AnimationQueue par table (§62/§64) : ordonne la révélation Villain, interruptible
+  // (§63) et bornée par un timeout de sécurité (§61). Une instance par SingleTable.
+  const animQRef=useRef(null);
+  if(!animQRef.current)animQRef.current=createAnimationQueue({tableId:spotIndex,run:(ev)=>ev.perform?.(),speed:"NORMAL"});
+  useEffect(()=>()=>{animQRef.current?.cancel();},[]); // §63 : annule au démontage
   // ── Mobile v9 : solution plein écran + swipe ──
   const isMobile=useIsMobile();
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
@@ -2717,6 +2723,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   },[spot,spotImpossible,spotErrors,strictSpotValidation.snapshot,spotCtx,callNext]);
 
   useEffect(()=>{
+    animQRef.current?.cancel(); // §63 : coupe toute révélation Villain en cours du spot précédent
     setAnswered(null);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
     setErrorFlash(false);setErrorBtn(null);setTimerPct(100);setShowToast(spotImpossible?"Spot invalide detecte - generation d'une nouvelle main":null);
     setHeroChip(null);setVilChip(null);setChipMove(null);setPotAnim(false);setPhaseFlash(false);
@@ -2961,7 +2968,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     setActivePlayerId("villain");
     setThinking(true);
     const delay=villainThinkDelay(spot.vtype,a.id,trainerMode);
-    setTimeout(()=>{
+    // Révélation Villain via l'AnimationQueue (§62) : un temps de réflexion puis
+    // le commit. Si l'utilisateur clique « Main suivante » pendant la réflexion,
+    // le changement de spot appelle animQRef.cancel() → le commit est ignoré
+    // (invalidé par la génération de la queue) : plus de tir sur la nouvelle main.
+    const performVillain=()=>{
       const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
       const boardLen=(spot.board||[]).length;
       const v=villainDecide(spot.street,a.id,spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,boardLen,field);
@@ -2981,7 +2992,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       } else {
         triggerPhaseFlash();setPhase("hero_reply");setActivePlayerId("hero");
       }
-    },delay);
+    };
+    animQRef.current.enqueue([
+      {type:"VILLAIN_THINK",duration:delay},   // temps de réflexion (dots animés déjà affichés)
+      {type:"VILLAIN_ACT",duration:0,perform:performVillain}, // commit — sauté si annulé (§63)
+    ]);
   }
 
   function handleHeroReply(act){
