@@ -20,6 +20,7 @@ import { finalizeTrainingSpots } from "../spotSchema.js";
 import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
 import { createAnimationQueue } from "../immersionEngine.js";
+import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -2687,7 +2688,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const[fhVilThink,setFhVilThink]=useState(false);
   const[fhResult,setFhResult]=useState(null);
   const FH_STREETS=["flop","turn","river"];
-  const fhVisBoard=fhStreet==="flop"?fhBoardRef.slice(0,3):fhStreet==="turn"?fhBoardRef.slice(0,4):fhBoardRef.slice(0,5);
+  // État autoritatif du moteur de main complète (fullHandEngine). Les states fh*
+  // ci-dessus en sont la projection pour le rendu.
+  const fhStateRef=useRef(null);
+  // Board visible = board progressif du moteur (flop 3 · turn 4 · river 5).
+  const fhVisBoard=fhBoardRef;
   const isSmall=numTables>1;
   const fmt=v=>unit==="BB"?`${v}bb`:`${(v*2).toFixed(0)}$`;
   const nextLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Main suivante";
@@ -2736,6 +2741,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // Reset full-hand state quand le spot change
     setPlayingFull(false);setFhBoardRef([]);setFhStreet("flop");setFhPhase("hero");
     setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);
+    fhStateRef.current=null; // reset moteur main complète au changement de spot
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
     // full/session = toujours · mix = 50% · spot/street = jamais (défaut legacy = 30%)
@@ -3035,128 +3041,95 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     ]);
   }
 
-  function startFullHand(){
-    const board=genBoard(spot.hand||[]);
-    const startPot=roundBb(currentPotRef.current||spot.pot||15);
-    const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
-    setFhBoardRef(board);setFhStreet("flop");setFhPhase(firstActor==="hero"?"hero":"villain_thinking");
-    setFhActs([]);setFhPot(startPot);setFhVilAct(null);setFhResult(null);
-    setActivePlayerId(firstActor);
-    setPlayingFull(true);
-    if(firstActor==="villain"){
-      setFhVilThink(true);
-      animQRef.current.enqueue([
-        {type:"VILLAIN_THINK",duration:620+Math.random()*420},
-        {type:"VILLAIN_ACT",duration:0,perform:()=>{
-          const spr=startPot>0?parseFloat(spot.stack||100)/startPot:8;
-          const vd=villainDecide("flop","CHECK",spot.vtype,startPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,3,field);
-          const action=vd.action||"CHECK";
-          const amount=roundBb(vd.amount||((action==="BET"||action==="RAISE")?Math.max(1,Math.round(startPot*.5)):0));
-          const resolved={...vd,amount};
-          setFhVilThink(false);
-          setFhVilAct(resolved);
-          setFhActs([{street:"flop",actor:"Villain",action}]);
-          if(action!=="CHECK"&&action!=="FOLD"&&action!=="WIN"){
-            fireVilChip(resolved.label||action);
-            fireChip(resolved.label||action);
-          }
-          if(action==="BET"||action==="RAISE"){
-            if(amount>0)setFhPot(p=>roundBb(p+amount));
-            setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
-          }
-          if(action==="FOLD"||action==="WIN"){
-            setActivePlayerId(null);setFhResult(action==="FOLD"?"win":"lose");setFhPhase("done");return;
-          }
-          setFhPhase("hero");setActivePlayerId("hero");
-        }},
-      ]);
+  function fhFireChip(lbl){fireChip(lbl);}
+
+  /* ── MOTEUR DE MAIN COMPLÈTE (fullHandEngine) ──
+     Le Héro joue TOUT le coup street par street contre le Villain, avec de vraies
+     règles et un showdown réel (plus de résultat aléatoire). fhStateRef détient
+     l'état autoritatif ; fhSync le projette vers les states de rendu. */
+  function fhVillainPolicy(st){return defaultVillainPolicy(st,{random:Math.random});}
+
+  function fhSync(st){
+    fhStateRef.current=st;
+    setFhBoardRef(st.board);
+    setFhPot(roundBb(st.pot));
+    setFhStreet(st.street==="done"?(st.board.length>=5?"river":st.board.length>=4?"turn":"flop"):st.street);
+    setFhActs(st.history.map(h=>({street:h.street,actor:h.actor==="hero"?"Hero":"Villain",action:h.action,amount:h.amount})));
+    const lastVil=[...st.history].reverse().find(h=>h.actor==="villain");
+    if(st.done){
+      fullPending.current=false;
+      setFhPhase("done");
+      setFhResult(st.result.winner==="villain"?"lose":"win"); // hero win / split → "win"
+      setActivePlayerId(null);
+    }else if(st.toAct==="hero"){
+      const toCall=fhAmountToCall(st,"hero");
+      setFhVilAct(lastVil&&toCall>0?{label:lastVil.action,amount:lastVil.amount,color:T.purple}:null);
+      setFhPhase(toCall>0?"hero_facing_bet":"hero");
+      setActivePlayerId("hero");
+    }else{
+      setFhPhase("villain_thinking");setActivePlayerId("villain");
     }
   }
 
-  function fhFireChip(lbl){fireChip(lbl);}
-
-  function fhHeroAct(act){
-    vibrate(VIB.tap);
-    const nActs=[...fhActs,{street:fhStreet,actor:"Hero",action:act}];
-    setFhActs(nActs);
-    if(act==="FOLD"){setActivePlayerId(null);setFhResult("lose");setFhPhase("done");return;}
-    if(act!=="CHECK")fhFireChip(act==="BET"?"Bet ½":"Bet PSB");
+  /* Fait jouer le Villain (potentiellement plusieurs fois d'affilée si l'OOP est
+     le Villain sur une nouvelle street) jusqu'à ce que ce soit au Héro / fin. */
+  function fhAdvanceVillain(){
+    const st=fhStateRef.current;
+    if(!st||st.done||st.toAct!=="villain")return;
     setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
     animQRef.current.enqueue([
-      {type:"VILLAIN_THINK",duration:500+Math.random()*500},
+      {type:"VILLAIN_THINK",duration:520+Math.random()*380},
       {type:"VILLAIN_ACT",duration:0,perform:()=>{
         setFhVilThink(false);
-        const spr=fhPot>0?parseFloat(spot.stack)/fhPot:8;
-        const vd=villainDecide(fhStreet,act,spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-        const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
-        setFhActs(updated);setFhVilAct(vd);
-        if(vd.action==="FOLD"||vd.action==="WIN"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
-        if(vd.action!=="CHECK")fhFireChip(vd.label);
-        // Vilain bet/raise → Hero doit répondre avant de passer à la street suivante
-        if(vd.action==="BET"||vd.action==="RAISE"){
-          if(vd.amount)setFhPot(p=>p+Math.round(vd.amount));
-          setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
-        }
-        // Vilain check/call → avancer la street (§35 : collecte → carte suivante)
-        if(act==="BET"||act==="RAISE")setFhPot(p=>p+(p*.5|0));
-        const idx=FH_STREETS.indexOf(fhStreet);
-        if(idx<FH_STREETS.length-1){
-          // §34-36 : collecte (pause) puis distribution de la carte suivante.
-          animQRef.current.enqueue([
-            {type:"MOVE_BETS_TO_POT",duration:400},
-            {type:"DEAL_"+FH_STREETS[idx+1].toUpperCase(),duration:0,perform:()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");}},
-          ]);
-        } else {
-          const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-        }
+        const after=fhPlayVillain(fhStateRef.current,fhVillainPolicy);
+        const lastVil=[...after.history].reverse().find(h=>h.actor==="villain");
+        if(lastVil&&lastVil.action!=="CHECK"&&lastVil.action!=="FOLD"){fireVilChip(lastVil.action);fireChip(lastVil.action);}
+        fhSync(after);
+        fhAdvanceVillain(); // le Villain peut reparler en premier sur la street suivante
       }},
     ]);
   }
 
-  function fhHeroFaceBet(act){
+  function startFullHand(){
+    const heroHand=spot.hand||[];
+    const fullBoard=genBoard(heroHand);                               // 5 cartes (exclut la main Héro)
+    const villHand=genBoard([...heroHand,...fullBoard]).slice(0,2);   // 2 cartes (exclut Héro + board)
+    const startPot=roundBb(currentPotRef.current||spot.pot||15);
+    const stackBb=parseFloat(spot.stack)||100;
+    const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
+    const st=createFullHand({heroHand,villHand,fullBoard,startPot,heroStack:stackBb,villStack:stackBb,firstToAct:firstActor});
+    setPlayingFull(true);setFhVilAct(null);setFhResult(null);
+    fhSync(st);
+    fhAdvanceVillain(); // si l'OOP est le Villain, il ouvre l'action
+  }
+
+  /* Héro agit quand rien à payer : CHECK · Bet ½ (BET) · PSB (bouton "RAISE") · FOLD. */
+  function fhHeroAct(ui){
+    const st=fhStateRef.current; if(!st||st.done||st.toAct!=="hero")return;
     vibrate(VIB.tap);
-    const nActs=[...fhActs,{street:fhStreet,actor:"Hero",action:act}];
-    setFhActs(nActs);
-    if(act==="FOLD"){setActivePlayerId(null);setFhResult("lose");setFhPhase("done");return;}
-    if(act!=="CALL")fhFireChip("Raise");
-    if(act==="CALL"&&fhVilAct?.amount)setFhPot(p=>p+Math.round(fhVilAct.amount));
-    // Hero raise → villain doit répondre avant d'avancer la street
-    if(act==="RAISE"){
-      const raiseAmt=Math.round((fhVilAct?.amount||Math.round(fhPot*.5))*2.5);
-      setFhPot(p=>p+raiseAmt);
-      setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
-      animQRef.current.enqueue([
-        {type:"VILLAIN_THINK",duration:500+Math.random()*500},
-        {type:"VILLAIN_ACT",duration:0,perform:()=>{
-          setFhVilThink(false);
-          const spr=fhPot>0?parseFloat(spot.stack||100)/fhPot:8;
-          const vd=villainDecide(fhStreet,"RAISE",spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-          const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
-          setFhActs(updated);setFhVilAct(vd);
-          if(vd.action==="FOLD"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
-          if(vd.action!=="CHECK")fhFireChip(vd.label||vd.action);
-          const idx2=FH_STREETS.indexOf(fhStreet);
-          if(idx2<FH_STREETS.length-1){
-            animQRef.current.enqueue([
-              {type:"MOVE_BETS_TO_POT",duration:400},
-              {type:"DEAL_"+FH_STREETS[idx2+1].toUpperCase(),duration:0,perform:()=>{setFhStreet(FH_STREETS[idx2+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");}},
-            ]);
-          } else {
-            const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-          }
-        }},
-      ]);
-      return;
-    }
-    const idx=FH_STREETS.indexOf(fhStreet);
-    if(idx<FH_STREETS.length-1){
-      animQRef.current.enqueue([
-        {type:"MOVE_BETS_TO_POT",duration:400},
-        {type:"DEAL_"+FH_STREETS[idx+1].toUpperCase(),duration:0,perform:()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");}},
-      ]);
-    } else {
-      const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-    }
+    let action;
+    if(ui==="FOLD")action={type:"FOLD"};
+    else if(ui==="CHECK")action={type:"CHECK"};
+    else if(ui==="BET")action={type:"BET",amount:Math.max(1,roundBb(st.pot*0.5))};
+    else action={type:"BET",amount:Math.max(1,roundBb(st.pot))}; // bouton "PSB" (mappé RAISE dans l'UI)
+    if(ui!=="CHECK"&&ui!=="FOLD")fhFireChip(ui==="BET"?"Bet ½":"Bet PSB");
+    const after=fhApplyAction(st,"hero",action);
+    fhSync(after);
+    fhAdvanceVillain();
+  }
+
+  /* Héro répond à une mise Villain : FOLD · CALL · RAISE. */
+  function fhHeroFaceBet(ui){
+    const st=fhStateRef.current; if(!st||st.done||st.toAct!=="hero")return;
+    vibrate(VIB.tap);
+    let action;
+    if(ui==="FOLD")action={type:"FOLD"};
+    else if(ui==="CALL")action={type:"CALL"};
+    else action={type:"RAISE"};
+    if(ui!=="FOLD")fhFireChip(ui==="CALL"?"Call":"Raise");
+    const after=fhApplyAction(st,"hero",action);
+    fhSync(after);
+    fhAdvanceVillain();
   }
 
   // Haptique fin de main complète (victoire/défaite)
@@ -4693,6 +4666,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
             {phase==="hero_reply"&&vact&&renderHeroReply()}
             {phase==="hero"&&renderActionZone()}
+            {/* Main complète (Full Hand) : le Héro joue flop→turn→river sur DESKTOP
+                aussi (auparavant seulement dans la zone mobile → boutons invisibles). */}
+            {playingFull&&renderFhActions()}
           </div>
 
         </div>{/* ── fin COLONNE GAUCHE ── */}
