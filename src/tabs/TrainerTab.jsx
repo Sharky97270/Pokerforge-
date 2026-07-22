@@ -14,6 +14,10 @@ import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
+import { buildTrainingConfig, trainingConfigToFilters, trainingConfigToEngineOpts, saveTrainingConfig } from "../trainingConfig.js";
+import { resolveTrainingConstraints } from "../constraintEngine.js";
+import { finalizeTrainingSpots } from "../spotSchema.js";
+import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -3469,8 +3473,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           {/* Footer : rejouer + suivante */}
           <div className="pf-solfull-foot">
             <button className="gto-btn-secondary" style={{padding:"12px 16px",fontSize:15}} title="Rejouer ce spot" onClick={resetSpot}>↺</button>
-            <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);setSolOpen(false);if(numTables===1)callNext();}}>
-              {numTables===1?`${nextLabel} ▶`:"✓ Fermer"}
+            <button className="gto-next-btn" style={{flex:1}} disabled={nextBusy} onClick={()=>{vibrate(VIB.next);setSolOpen(false);callNext();}}>
+              {`${numTables===1?nextLabel:nextShortLabel} ▶`}
             </button>
           </div>
         </div>
@@ -3533,12 +3537,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 }}>{isBest?"✓":"✗"}</div>
               </span>
             </div>
-            {/* Next zone uniquement */}
+            {/* Next zone — Main suivante PAR TABLE (§44) : chaque table avance
+                indépendamment, y compris en multi-table. */}
             <div className="gto-next-zone">
-              {numTables===1
-                ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
-                :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
-              }
+              <button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{numTables===1?nextLabel:nextShortLabel} ▶</button>
               <button className="gto-btn-secondary" style={{padding:"12px 14px",fontSize:16}} title="Rejouer ce spot"
                 onClick={resetSpot}>↺</button>
             </div>
@@ -3800,12 +3802,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             )}
           </div>
 
-          {/* ── Next zone (collante en bas du panel scrollable) ── */}
+          {/* ── Next zone (collante) — Main suivante PAR TABLE (§44) ── */}
           <div className="gto-next-zone" style={{position:"sticky",bottom:0,background:"#030D2A"}}>
-            {numTables===1
-              ?<button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{nextLabel} ▶</button>
-              :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9,color:T.green,padding:"6px 14px",background:"rgba(16,216,122,.1)",borderRadius:6,border:"1px solid rgba(16,216,122,.25)"}}>✓ Répondu — attente des autres tables</span>
-            }
+            <button className="gto-next-btn" disabled={nextBusy} onClick={callNext}>{numTables===1?nextLabel:nextShortLabel} ▶</button>
             {spot.hand?.length>=2&&(
               <button className="gto-btn-secondary" onClick={startFullHand} title="River">▶ River</button>
             )}
@@ -5808,8 +5807,98 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
   useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
-  // Persiste la config Trainer (réglages pro) entre les sessions
-  useEffect(()=>{try{localStorage.setItem("pf_trainer_cfg",JSON.stringify(f));}catch{}},[f]);
+  /* ── SOURCE UNIQUE DE VÉRITÉ (Mission Master §3) ──
+     Assemble le TrainingConfig canonique à partir de `f` + des states frères.
+     Tout le pipeline de génération lit désormais CET objet (via les mappers
+     purs de trainingConfig.js), et non plus les sources éparses. */
+  const trainingConfig=useMemo(()=>buildTrainingConfig({
+    f,smode,ntables,trainerMode,platform,trainMode,streetStart,
+  }),[f,smode,ntables,trainerMode,platform,trainMode,streetStart]);
+  /* Génère une queue à partir d'un TrainingConfig canonique (point d'entrée
+     unique §3 : les options passent toutes par le config, jamais par un
+     assemblage ad-hoc). `overrideFilters` permet aux drills de patcher `f`
+     sans reconstruire tout le config ; `extraOpts` porte le contexte seed. */
+  const lastConstraintsRef=useRef(null); // dernière résolution de contraintes (§25)
+  const buildQFromConfig=useCallback((cfg,{overrideFilters=null,extraOpts={}}={})=>{
+    // ConstraintEngine (§25) : détecte + AUTO-RÉSOUT les incompatibilités
+    // (positions impossibles, phase×structure, cash×ICM, type de spot…) AVANT
+    // toute génération. Le générateur ne reçoit qu'un config jouable (§72).
+    const res=resolveTrainingConstraints(cfg);
+    const rc=res.resolved;
+    if(res.hadConflicts){
+      lastConstraintsRef.current=res;
+      if(typeof console!=="undefined")console.debug("PF Trainer — contraintes auto-résolues:",res.conflicts.map(c=>c.message));
+    }
+    const filters=overrideFilters||trainingConfigToFilters(rc);
+    const opts={...trainingConfigToEngineOpts(rc),...extraOpts};
+    const q=buildQ(filters,rc.sessionLength,opts);
+    // SpotGenerator (§26) : chaque spot émis porte le contrat canonique complet
+    // (spotId, generationSeed, schema §26) — sans retirer aucun champ legacy.
+    return finalizeTrainingSpots(q,{config:rc,meta:res.meta});
+  },[]);
+  /* ══ MULTI-TABLE : pointeurs INDÉPENDANTS par table (Mission Master §44) ══
+     Chaque table possède son propre index dans la queue. « Main suivante »
+     n'agit QUE sur la table concernée et ne réinitialise jamais les autres.
+     `tableIdx[t]` = index de queue affiché par la table t. Un curseur monotone
+     (`spotCursorRef`) distribue les prochains spots sans collision. */
+  const[tableIdx,setTableIdx]=useState([0]);
+  const[sessionEpoch,setSessionEpoch]=useState(0); // incrémenté à chaque (re)démarrage de session
+  const sessionBaseRef=useRef(0);             // index de queue de départ (0, ou resume.idx)
+  const spotCursorRef=useRef(1);              // prochain index de queue à distribuer
+  const nextTableLockRef=useRef({});          // anti-double-clic PAR table (§45)
+  const recoveryRef=useRef(createSpotRecoveryManager()); // SpotRecoveryManager (§42)
+  // Signale un nouveau lot/session : réinitialise les pointeurs par table.
+  const bumpSession=useCallback((base=0)=>{sessionBaseRef.current=base;setSessionEpoch(e=>e+1);},[]);
+  // (Ré)initialise les pointeurs à chaque nouvelle session ou changement du nb de
+  // tables. NE dépend PAS de `queue` (l'ajout à la demande ne doit pas réinitialiser
+  // les pointeurs) ni de `idx` (idx est désormais DÉRIVÉ de tableIdx).
+  useEffect(()=>{
+    const base=sessionBaseRef.current||0;
+    setTableIdx(Array.from({length:ntables},(_,t)=>base+t));
+    spotCursorRef.current=base+ntables;
+    nextTableLockRef.current={};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[sessionEpoch,ntables]);
+  // `idx` (curseur de session, utilisé par tous les affichages) = plancher des
+  // pointeurs par table. Garde la compatibilité avec le code existant basé sur idx.
+  useEffect(()=>{
+    if(!tableIdx.length)return;
+    const m=Math.min(...tableIdx.filter(v=>typeof v==="number"));
+    if(Number.isFinite(m))setIdx(v=>v!==m?m:v);
+  },[tableIdx]);
+  const tblIdx=useCallback((t)=>{const v=tableIdx[t];return typeof v==="number"?v:idx+t;},[tableIdx,idx]);
+  /* Génère UN spot valide à la demande (§26/§42) — utilisé quand la queue est
+     épuisée ou qu'un spot doit être remplacé. Retourne le spot finalisé ou null. */
+  const generateReplacementSpot=useCallback(()=>{
+    try{
+      const cfg=buildTrainingConfig({f,smode,ntables,trainerMode,platform,trainMode,streetStart});
+      const fresh=buildQFromConfig(cfg);
+      const rec=recoveryRef.current;
+      for(const s of (fresh||[])){
+        if(!s)continue;
+        const g=rec.guard(s,s.ctx||{},{status:RECOVERY_STATUS.INVALID});
+        if(g.playable)return s;
+      }
+      return (fresh&&fresh[0])||null;
+    }catch(err){if(typeof console!=="undefined")console.error("PF Trainer — génération à la demande échouée",err);return null;}
+  },[f,smode,ntables,trainerMode,platform,trainMode,streetStart,buildQFromConfig]);
+  /* Alloue le prochain index de queue pour une table ; régénère à la demande si
+     la queue pré-générée est épuisée (session jamais bloquée §42). */
+  const allocNextSpotIndex=useCallback(()=>{
+    const cursor=spotCursorRef.current;
+    if(cursor<queue.length){spotCursorRef.current=cursor+1;return cursor;}
+    // Queue épuisée → génération à la demande : on l'ajoute en fin de queue.
+    const spot=generateReplacementSpot();
+    if(!spot)return -1;
+    const newIndex=queue.length;            // le spot ajouté occupe cet index
+    setQueue(q=>[...q,spot]);
+    spotCursorRef.current=newIndex+1;
+    return newIndex;
+  },[queue,generateReplacementSpot]);
+  // Persiste la config Trainer (réglages pro) entre les sessions — persistance
+  // UNIFIÉE : écrit le snapshot canonique `pf_training_config` ET les clés
+  // legacy (`pf_trainer_cfg`, `pf_train_mode`) pour compatibilité descendante.
+  useEffect(()=>{saveTrainingConfig(trainingConfig);},[trainingConfig]);
   // Décision time tracking (temps moyen par spot)
   const spotStartRef=useRef(Date.now());
   const[decisionTimes,setDecisionTimes]=useState([]);
@@ -5820,8 +5909,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // État de session : true = session en cours → filtres verrouillés
   const sessionActive=started&&!done;
   const curSpot=queue[idx]||null;
+  // Spot affiché par la table active (pointeurs par table §44).
   // Multi-table : spot de la table active (panneau droit partagé + raccourcis)
-  const activeSpot=queue[idx+(ntables>1?activeTable:0)]||curSpot;
+  const activeSpot=queue[tblIdx(ntables>1?activeTable:0)]||curSpot;
 
   /* ══ Leak Hunter — basé sur les stats persistées (sessions précédentes) ══ */
   const trainerStats=useMemo(()=>loadStats(),[done,started]);
@@ -5919,6 +6009,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(resume.trainMode)setTrainMode(resume.trainMode);if(resume.streetStart)setStreetStart(resume.streetStart);
     setShowSol(!!resume.showSol);
     setQueue(q);setIdx(Math.min(resume.idx,q.length-1));setResults(res);setTableAns({});setTableSettled({});
+    bumpSession(Math.min(resume.idx,q.length-1)); // pointeurs par table depuis l'index repris (§44)
     setStarted(true);setDone(false);setStoppedEarly(false);setResume(null);
     vibrate(VIB.next);
   }
@@ -6043,13 +6134,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(mobileTrainingSingleTableOnly&&ntables!==1)setNtables(1);
     let q;
     if(retry){const pool=results.filter(r=>!r.correct).map(r=>r.spot);if(pool.length){let a=[];while(a.length<smode)a=[...a,...shuffle(pool)];q=a.slice(0,smode);}}
-    // Options de queue selon le type de session
-    const qOpts=(trainMode==="full"||trainMode==="session")?{onlyPreflop:true,preferFlop:true}
-      :trainMode==="street"?{onlyStreet:streetStart}
-      :{};
-    const engineOpts={...qOpts,trainerMode,trainMode,platform};
-    if(!q)q=buildQ(f,smode,engineOpts);
-    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});setStarted(true);setDone(false);setStoppedEarly(false);
+    // Génération pilotée par la SOURCE UNIQUE (§3) : les options de queue
+    // (onlyPreflop/preferFlop/onlyStreet) et le contexte moteur sont dérivés du
+    // TrainingConfig canonique, plus aucun assemblage ad-hoc ici.
+    if(!q)q=buildQFromConfig(trainingConfig);
+    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);setStarted(true);setDone(false);setStoppedEarly(false);
     setDecisionTimes([]);spotStartRef.current=Date.now();
     setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
     vibrate(VIB.next);
@@ -6059,8 +6148,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(mobileTrainingSingleTableOnly&&ntables!==1)setNtables(1);
     const ef={...f,...patchF,spotTypes:[],objectives:[]};
     setF(ef);
-    const q=buildQ(ef,smode,{...(opts||{}),trainerMode,trainMode,platform});
-    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});
+    // Config canonique dérivé de la config de drill (§3) ; les opts seed
+    // (onlyStreet/onlyPreflop) sont fusionnés par-dessus le contexte moteur.
+    const cfg=buildTrainingConfig({f:ef,smode,ntables,trainerMode,platform,trainMode,streetStart});
+    const q=buildQFromConfig(cfg,{overrideFilters:ef,extraOpts:opts||{}});
+    setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
     setStarted(true);setDone(false);setStoppedEarly(false);setDecisionTimes([]);
     spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
     setReviewOpen(false);vibrate(VIB.next);
@@ -6072,7 +6164,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       const pool=results.filter(r=>!r.correct).map(r=>r.spot);
       if(pool.length){
         let a=[];while(a.length<smode)a=[...a,...shuffle(pool)];
-        setQueue(a.slice(0,smode));setIdx(0);setResults([]);setTableAns({});setTableSettled({});
+        setQueue(a.slice(0,smode));setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setStarted(true);setDone(false);setStoppedEarly(false);setDecisionTimes([]);spotStartRef.current=Date.now();vibrate(VIB.next);return;
       }
       // 2) sinon : cibler les leaks dominants de l'historique
@@ -6096,7 +6188,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(looksLikeHand&&importedSpot){
       const v=validateTrainerSpot(importedSpot);
       if(v.valid){
-        setQueue([{...importedSpot,ctx:v.ctx}]);setIdx(0);setResults([]);setTableAns({});setTableSettled({});
+        setQueue([{...importedSpot,ctx:v.ctx}]);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setSmode(1);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
         setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
         vibrate(VIB.next);
@@ -6132,11 +6224,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setDone(false);setStoppedEarly(false);setStarted(true);setTableAns({});setTableSettled({});
   }
   function handleAns(tid,correct,ua){
-    const spot=queue[idx+tid];if(!spot)return;
+    const qi=tblIdx(tid);
+    const spot=queue[qi];if(!spot)return;
     const dt=(Date.now()-spotStartRef.current)/1000;
     if(dt>0&&dt<120)setDecisionTimes(d=>[...d,dt]);
     setTableAns(a=>({...a,[tid]:{correct,ua}}));
-    setResults(r=>[...r,{spot,correct,ua,qi:idx+tid}]); // qi = position dans la queue (timeline)
+    setResults(r=>[...r,{spot,correct,ua,qi}]); // qi = position dans la queue (timeline)
     appendPlayedSpot(spot,correct,ua,trainerMode); // sauvegarde dans pf_played_spots
     try{
       const chosen=spot.acts?.[ua];
@@ -6156,6 +6249,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   function handleTableSettled(tid){
     setTableSettled(s=>({...s,[tid]:true}));
   }
+  // Avance TOUTES les tables vers le lot suivant (bouton « Tables suivantes » /
+   // Main suivante en 1T). N'utilise plus idx directement : déplace les pointeurs
+   // par table (idx reste dérivé = min(tableIdx)).
   function handleNext(){
     if(nextTransitionRef.current)return;
     nextTransitionRef.current=true;
@@ -6164,9 +6260,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     try{
       setExpandedT(null); // referme la table agrandie (mobile)
       spotStartRef.current=Date.now(); // chrono du spot suivant
-      const next=idx+ntables;
-      if(next>=Math.min(smode===999?queue.length:smode,queue.length)){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
-      else{setIdx(next);setTableAns({});setTableSettled({});}
+      const effLimit=smode===999?Infinity:smode;
+      const cur=spotCursorRef.current;
+      if(results.length>=effLimit||cur>=queue.length){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
+      else{
+        const bases=Array.from({length:ntables},(_,t)=>Math.min(cur+t,queue.length-1));
+        spotCursorRef.current=cur+ntables;
+        setTableIdx(bases);setTableAns({});setTableSettled({});
+      }
       if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
       nextTransitionTimer.current=setTimeout(()=>{
         nextTransitionRef.current=false;
@@ -6177,6 +6278,32 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       setNextTransitioning(false);
       setNextError("Generation impossible. Reessayez.");
       if(typeof console!=="undefined")console.error("PF Trainer next hand failed",err);
+    }
+  }
+  /* Main suivante PAR TABLE (§44) : n'avance QUE la table `t`, laisse les autres
+     intactes. Anti-double-clic par table (§45). Régénère à la demande si la
+     queue est épuisée (§42) → l'utilisateur n'est jamais bloqué. */
+  function handleNextTable(t){
+    if(nextTableLockRef.current[t])return;
+    nextTableLockRef.current[t]=true;
+    setNextError(null);
+    try{
+      // Fin de session atteinte (hors illimité) : bascule sur les résultats.
+      const effLimit=smode===999?Infinity:smode;
+      if(results.length>=effLimit){setDone(true);setStoppedEarly(false);vibrate(VIB.win);return;}
+      const ni=allocNextSpotIndex();
+      if(ni<0){setNextError("Génération impossible. Réessayez.");return;} // jamais bloquant : le bouton reste
+      setTableIdx(arr=>{const a=[...arr];a[t]=ni;return a;});
+      setTableAns(a=>{const n={...a};delete n[t];return n;});
+      setTableSettled(s=>{const n={...s};delete n[t];return n;});
+      if(t===activeTable||ntables===1)spotStartRef.current=Date.now();
+      setExpandedT(null);
+      vibrate(VIB.next);
+    }catch(err){
+      setNextError("Génération impossible. Réessayez.");
+      if(typeof console!=="undefined")console.error("PF Trainer next-table failed",err);
+    }finally{
+      setTimeout(()=>{nextTableLockRef.current[t]=false;},260);
     }
   }
   function handleSave(sess){
@@ -6217,7 +6344,6 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const actRows=acts.map((a,i)=>({a,i,freq:Math.round(Number(s.freq?.[a.id]||0)),ev:Number(s.ev?.[a.id]||0),best:i===s.ok,chosen:ans&&i===ans.ua}));
     const barCol=(a)=>{const t=trainerActionType(a);return t==="FOLD"?"#E5485D":t==="ALLIN"?"#FF4D6D":t==="CALL"?"#20CFFF":t==="CHECK"||t==="CHECK_BACK"?"#25D487":"#FFB800";};
     const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
-    const batchNextLabel=nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Main suivante";
     return(
       <div className="pf-p2">
         {/* Bandeau chips : contexte */}
@@ -6315,9 +6441,18 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div className="pf-p2-tl-track"><i style={{width:`${Math.min(100,(idx/Math.max(1,(smode===999?queue.length:smode)))*100)}%`}}/></div>
           <div className="pf-p2-tl-row">
             <span className="cnt">{Math.min(idx+1,smode===999?idx+1:smode)}/{smode===999?"∞":smode}</span>
-            <button className="pf-p2-next" disabled={!allSettled||nextTransitioning} onClick={handleNext}>
-              {allSettled?`${batchNextLabel} ▶`:"Decision en cours..."}
-            </button>
+            {/* Main suivante PAR TABLE ACTIVE (§44) : disponible dès que CETTE
+                table est répondue, sans attendre les autres tables. */}
+            {(()=>{
+              const activeAns=!!tableAns[activeTable];
+              const busy=!!nextTableLockRef.current[activeTable];
+              const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":`Table ${activeTable+1} suivante`;
+              return(
+                <button className="pf-p2-next" disabled={!activeAns||busy} onClick={()=>handleNextTable(activeTable)}>
+                  {activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
+                </button>
+              );
+            })()}
           </div>
         </section>
       </div>
@@ -6901,13 +7036,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
             <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
-                const spot=queue[idx+t];if(!spot)return null;
+                const spot=queue[tblIdx(t)];if(!spot)return null;
                 const isAns=!!tableAns[t];
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
                 const isActiveT=ntables>1&&activeTable===t;
                 return(
-                  <div key={`${idx}-${t}`}
+                  <div key={`${tblIdx(t)}-${t}`}
                     className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}${isActiveT?" mt-slot-focus":""}`}
                     style={ntables>1?{display:"flex",flexDirection:"column"}:undefined}
                     onMouseDown={ntables>1&&!isMobile?()=>setActiveTable(t):undefined}
@@ -6928,7 +7063,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={handleNext} isLast={idx+ntables>=(smode===999?queue.length:smode)} nextBusy={nextTransitioning} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -7199,3 +7334,4 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     </div>
   );
 }
+
