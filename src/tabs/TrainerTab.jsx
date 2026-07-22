@@ -22,6 +22,7 @@ import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTraining
 import { createAnimationQueue } from "../immersionEngine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
+import { applySolverStrategy } from "../trainerStrategyProvider.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -5865,6 +5866,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const filters=overrideFilters||trainingConfigToFilters(rc);
     const opts={...trainingConfigToEngineOpts(rc),...extraOpts};
     const q=buildQ(filters,rc.sessionLength,opts);
+    // StrategyProvider (§28) : brancher le SOLVEUR pour la solution des spots
+    // résolubles (push/fold préflop HU) — « le solveur calcule, l'IA explique »
+    // (§6). Les spots non résolubles gardent leur solution template (provenance
+    // honnête). Solve = lookup instantané (table pré-solvée 1-25bb).
+    q.forEach(s=>{if(s)try{applySolverStrategy(s);}catch{}});
     // SpotGenerator (§26) : chaque spot émis porte le contrat canonique complet
     // (spotId, generationSeed, schema §26) — sans retirer aucun champ legacy.
     return finalizeTrainingSpots(q,{config:rc,meta:res.meta});
