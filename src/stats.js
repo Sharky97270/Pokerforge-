@@ -81,6 +81,13 @@ export function buildDailyProgram(stats){
 export function loadHands(){try{const s=localStorage.getItem("pf_hands");return s?JSON.parse(s):[];}catch{return [];}}
 export function saveHands(h){try{localStorage.setItem("pf_hands",JSON.stringify(h.slice(0,100)));}catch{}}
 
+// Empreinte 32 bits d'une chaîne (intégrité du stockage local, non cryptographique)
+function _checksum(str){
+  let h=0;
+  for(let i=0;i<str.length;i++){h=Math.imul(31,h)+str.charCodeAt(i)|0;}
+  return(h>>>0).toString(16);
+}
+
 export function safeStore(key,obj){
   try{
     const json=JSON.stringify(obj);

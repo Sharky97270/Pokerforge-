@@ -1976,12 +1976,6 @@ function saveHistory(h){try{localStorage.setItem("pf_history",JSON.stringify(h.s
 // ── Obfuscation clé API (symétrique XOR simple, jamais en clair) ──────────
 
 // ── Checksum intégrité des données localStorage ───────────────────────────
-function _checksum(str){
-  let h=0;
-  for(let i=0;i<str.length;i++){h=Math.imul(31,h)+str.charCodeAt(i)|0;}
-  return(h>>>0).toString(16);
-}
-
 // ── Sanitisation des inputs utilisateur ──────────────────────────────────
 function sanitizeText(raw,maxLen=500){
   if(typeof raw!=="string")return "";
