@@ -2666,7 +2666,20 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // (§63) et bornée par un timeout de sécurité (§61). Une instance par SingleTable.
   const animQRef=useRef(null);
   if(!animQRef.current)animQRef.current=createAnimationQueue({tableId:spotIndex,run:(ev)=>ev.perform?.(),speed:"NORMAL"});
-  useEffect(()=>()=>{animQRef.current?.cancel();},[]); // §63 : annule au démontage
+  // Timers d'animation fire-and-forget (jetons, pot pulse, phase flash) : suivis
+  // pour être ANNULÉS au changement de spot / démontage (§61/§63) — plus aucun
+  // setTimeout périmé qui tire un setState sur la main suivante. Timing inchangé.
+  const animTimersRef=useRef(new Set());
+  const schedAnim=useCallback((fn,ms)=>{
+    const id=setTimeout(()=>{animTimersRef.current.delete(id);fn();},ms);
+    animTimersRef.current.add(id);
+    return id;
+  },[]);
+  const clearAnimTimers=useCallback(()=>{
+    for(const id of animTimersRef.current)clearTimeout(id);
+    animTimersRef.current.clear();
+  },[]);
+  useEffect(()=>()=>{animQRef.current?.cancel();clearAnimTimers();},[]); // §63 : annule au démontage
   // ── Mobile v9 : solution plein écran + swipe ──
   const isMobile=useIsMobile();
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
@@ -2730,6 +2743,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
   useEffect(()=>{
     animQRef.current?.cancel(); // §63 : coupe toute révélation Villain en cours du spot précédent
+    clearAnimTimers(); // §61 : annule les timers d'animation jetons/pot du spot précédent
     setAnswered(null);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
     setErrorFlash(false);setErrorBtn(null);setTimerPct(100);setShowToast(spotImpossible?"Spot invalide detecte - generation d'une nouvelle main":null);
     setHeroChip(null);setVilChip(null);setChipMove(null);setPotAnim(false);setPhaseFlash(false);
@@ -2781,22 +2795,22 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
   function fireChip(label){
     setChipAnim(label);
-    setTimeout(()=>setChipAnim(null),600);
+    schedAnim(()=>setChipAnim(null),600);
   }
   function fireHeroChip(label){
     setHeroChip(label);
-    setTimeout(()=>setHeroChip(null),550);
+    schedAnim(()=>setHeroChip(null),550);
     // Pot pulse quand chip arrive
-    setTimeout(()=>{setPotAnim(true);setTimeout(()=>setPotAnim(false),450);},380);
+    schedAnim(()=>{setPotAnim(true);schedAnim(()=>setPotAnim(false),450);},380);
   }
   function fireVilChip(label){
     setVilChip(label);
-    setTimeout(()=>setVilChip(null),550);
-    setTimeout(()=>{setPotAnim(true);setTimeout(()=>setPotAnim(false),450);},380);
+    schedAnim(()=>setVilChip(null),550);
+    schedAnim(()=>{setPotAnim(true);schedAnim(()=>setPotAnim(false),450);},380);
   }
   function triggerPhaseFlash(){
     setPhaseFlash(true);
-    setTimeout(()=>setPhaseFlash(false),400);
+    schedAnim(()=>setPhaseFlash(false),400);
   }
 
   function setPotWithDelta(next,delta){
@@ -2806,8 +2820,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       const d={id:Date.now()+Math.random(),amount:roundBb(delta)};
       setPotDelta(d);
       setPotAnim(true);
-      setTimeout(()=>setPotAnim(false),450);
-      setTimeout(()=>setPotDelta(x=>x?.id===d.id?null:x),780);
+      schedAnim(()=>setPotAnim(false),450);
+      schedAnim(()=>setPotDelta(x=>x?.id===d.id?null:x),780);
     }
   }
 
