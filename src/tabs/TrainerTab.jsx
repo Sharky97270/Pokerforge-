@@ -18,6 +18,7 @@ import { buildTrainingConfig, trainingConfigToFilters, trainingConfigToEngineOpt
 import { resolveTrainingConstraints } from "../constraintEngine.js";
 import { finalizeTrainingSpots } from "../spotSchema.js";
 import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
+import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -5819,6 +5820,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
      assemblage ad-hoc). `overrideFilters` permet aux drills de patcher `f`
      sans reconstruire tout le config ; `extraOpts` porte le contexte seed. */
   const lastConstraintsRef=useRef(null); // dernière résolution de contraintes (§25)
+  // ── AI Training Orchestrator (§57) : demande en langage naturel → config ──
+  const[aiRequest,setAiRequest]=useState("");
+  const[aiUnderstanding,setAiUnderstanding]=useState(null); // {text, ok}
   const buildQFromConfig=useCallback((cfg,{overrideFilters=null,extraOpts={}}={})=>{
     // ConstraintEngine (§25) : détecte + AUTO-RÉSOUT les incompatibilités
     // (positions impossibles, phase×structure, cash×ICM, type de spot…) AVANT
@@ -6128,6 +6132,30 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(sheetRef.current)sheetRef.current.style.transform="";
     if(dy>70){vibrate(VIB.tap);setSheetTab(null);}
     sheetTouch.current={y:0,dy:0};
+  }
+
+  /* Redistribue un TrainingConfig canonique (§3) vers les states fragmentés —
+     inverse de buildTrainingConfig. Utilisé par l'AI Orchestrator (§57). */
+  function applyTrainingConfig(cfg){
+    if(!cfg)return;
+    setSmode(cfg.sessionLength);
+    setNtables(cfg.tableCount);
+    setTrainerMode(cfg.trainingMode);
+    setPlatform(cfg.platform);
+    setTrainMode(cfg.sessionType);
+    if(cfg.streetStart)setStreetStart(cfg.streetStart);
+    setF(prev=>({...prev,...trainingConfigToFilters(cfg)}));
+  }
+  /* AI Training Orchestrator (§57) : demande NL → TrainingConfig → contraintes,
+     puis applique aux filtres. Ne lance pas la session (l'utilisateur relit puis
+     clique « Lancer »). N'invente jamais de solution GTO (§6/§28). */
+  function runOrchestrator(){
+    const text=(aiRequest||"").trim();
+    if(!text||sessionActive)return;
+    const r=orchestrateTrainingRequest(text,trainingConfig);
+    applyTrainingConfig(r.config);
+    setAiUnderstanding({text:describeUnderstanding(r.matched),ok:r.understood});
+    vibrate(VIB.tap);
   }
 
   function start(retry=false){
@@ -6497,6 +6525,32 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               <span style={{fontFamily:"'Inter',sans-serif",fontSize:8,color:T.gold,fontWeight:600}}>Session active — filtres verrouillés</span>
             </div>
           )}
+          {/* ── AI Training Orchestrator (§57) : décris ta session en langage naturel ── */}
+          <div className="sb" style={{opacity:sessionActive?.5:1}}>
+            <div className="sblbl">🤖 Coach IA — décris ta session</div>
+            <textarea
+              value={aiRequest}
+              disabled={sessionActive}
+              onChange={e=>setAiRequest(e.target.value)}
+              onKeyDown={e=>{if((e.key==="Enter"&&(e.metaKey||e.ctrlKey))){e.preventDefault();runOrchestrator();}}}
+              placeholder="Ex : BB vs BTN 20-30bb en MTT · prépare-moi sur mes leaks · je joue une TF ce soir"
+              rows={2}
+              style={{width:"100%",resize:"vertical",background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.14)",borderRadius:8,color:T.text,fontFamily:"'Inter',sans-serif",fontSize:10,padding:"7px 9px",lineHeight:1.45,outline:"none"}}
+            />
+            <button
+              onClick={runOrchestrator}
+              disabled={sessionActive||!aiRequest.trim()}
+              style={{width:"100%",marginTop:5,padding:"7px 10px",borderRadius:8,border:"1px solid rgba(52,216,255,.4)",background:aiRequest.trim()&&!sessionActive?"linear-gradient(180deg,rgba(52,216,255,.18),rgba(52,216,255,.08))":"rgba(255,255,255,.04)",color:aiRequest.trim()&&!sessionActive?T.cyan:T.text4,fontFamily:"'Space Grotesk',sans-serif",fontSize:10,fontWeight:800,cursor:aiRequest.trim()&&!sessionActive?"pointer":"not-allowed"}}>
+              ✨ Configurer depuis ma demande
+            </button>
+            {aiUnderstanding&&(
+              <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:aiUnderstanding.ok?"rgba(16,216,122,.08)":"rgba(255,194,71,.08)",border:`1px solid ${aiUnderstanding.ok?"rgba(16,216,122,.28)":"rgba(255,194,71,.28)"}`,fontFamily:"'Inter',sans-serif",fontSize:8.5,color:aiUnderstanding.ok?T.green:T.gold,lineHeight:1.5}}>
+                {aiUnderstanding.text}
+                {aiUnderstanding.ok&&<span style={{display:"block",marginTop:3,color:T.text3}}>Vérifie les filtres puis « Lancer la session ».</span>}
+              </div>
+            )}
+          </div>
+          <div className="sbsep"/>
           <div className="sb">
             <div className="sblbl">Session</div>
             {SMODES.map(m=>(
