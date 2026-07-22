@@ -2388,6 +2388,26 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     onClick={()=>{if(onGoTrainer){const h2=hand.seats.find(s=>s.isHero);const v=hand.seats.find(s=>!s.isHero);onGoTrainer({hpos:h2?.pos||"BTN",vpos:v?.pos||"BB",street:cur?.street||"Preflop",tableSize:hand.seats.length});}}}>
                     🎯 Travailler ce spot dans le Trainer
                   </button>
+                  {/* §48/§51/§52 — Replayer → Trainer : spots similaires + session depuis cette main */}
+                  {onGoTrainer&&(()=>{
+                    const h2=hand.seats.find(s=>s.isHero),v=hand.seats.find(s=>!s.isHero);
+                    const seed=()=>({
+                      hpos:h2?.pos||"BTN",vpos:v?.pos||"BB",heroPos:h2?.pos||"BTN",villainPos:v?.pos||"BB",
+                      street:cur?.street||"Preflop",board:cur?.board||[],hand:h2?.hole||[],
+                      stack:Math.round(h2?.stack||40),toCall:cur?.amt||0,pot:Math.round((cur?.pot||0)/2),
+                      tableSize:hand.seats.length,vtype:v?.profile||"Reg",
+                      actionHistory:(hand.steps||[]).slice(0,(cur?.step??0)+1).map(s=>({position:s.actor,actionType:(s.action||"").split(" ")[0].toUpperCase()})),
+                    });
+                    const btn=(bg,bd,col,hov,label,extra)=>(
+                      <button style={{width:"100%",marginTop:6,padding:"8px",borderRadius:7,border:`1px solid ${bd}`,background:bg,color:col,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:T.stats,letterSpacing:".04em",transition:"all .15s",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
+                        onMouseEnter={e=>e.currentTarget.style.background=hov} onMouseLeave={e=>e.currentTarget.style.background=bg}
+                        onClick={()=>onGoTrainer({...seed(),...extra})}>{label}</button>
+                    );
+                    return(<>
+                      {btn("rgba(52,216,255,.05)","rgba(52,216,255,.25)","#34D8FF","rgba(52,216,255,.12)","🃏 Générer 10 spots similaires",{similar:true,count:10})}
+                      {btn("rgba(16,216,122,.05)","rgba(16,216,122,.25)","#10D87A","rgba(16,216,122,.12)","🎬 Créer une session (20 variantes)",{session:"similar"})}
+                    </>);
+                  })()}
                   {onGoCoach&&(hand.raw||hh)&&(
                     <button style={{width:"100%",marginTop:6,padding:"8px",borderRadius:7,border:"1px solid rgba(155,92,255,.3)",
                       background:"rgba(155,92,255,.07)",color:"#B69BFF",fontSize:10,fontWeight:700,cursor:"pointer",

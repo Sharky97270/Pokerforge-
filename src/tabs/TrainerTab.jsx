@@ -21,6 +21,7 @@ import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
 import { createAnimationQueue } from "../immersionEngine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
+import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -6026,7 +6027,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTrainerMode(resume.trainerMode||"gto");setPlatform(resume.platform||"pokerstars");
     if(resume.trainMode)setTrainMode(resume.trainMode);if(resume.streetStart)setStreetStart(resume.streetStart);
     setShowSol(!!resume.showSol);
-    setQueue(q);setIdx(Math.min(resume.idx,q.length-1));setResults(res);setTableAns({});setTableSettled({});
+    // §26 : garantir le contrat canonique sur la queue reprise (mutation en place,
+    // les références de byQueueId/res restent valides).
+    setQueue(finalizeTrainingSpots(q,{config:trainingConfig,meta:{}}));setIdx(Math.min(resume.idx,q.length-1));setResults(res);setTableAns({});setTableSettled({});
     bumpSession(Math.min(resume.idx,q.length-1)); // pointeurs par table depuis l'index repris (§44)
     setStarted(true);setDone(false);setStoppedEarly(false);setResume(null);
     vibrate(VIB.next);
@@ -6225,6 +6228,25 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   // ── Handoff entrant : un spot envoyé depuis le Replayer ou Coach AI configure et lance un drill ──
   function applyTrainerSeed(sd){
     if(!sd||typeof sd!=="object")return;
+    // ── §51/§52 : « Générer des spots similaires » / « Créer une session depuis
+    // cette main » → variantes pédagogiques d'une vraie main, transformées en
+    // spots valides puis finalisées (§26). ──
+    if(sd.similar||sd.mode==="similar"||sd.session==="similar"){
+      const variants=sd.session==="similar"||sd.fullSession
+        ? buildSimilarSession(sd,{perGroup:5})
+        : generateSimilarSpots(sd,{count:sd.count||10,mode:sd.similarMode||"similar"});
+      const built=variants
+        .map(v=>{const spot=createTrainingSpotFromHand(v);const val=validateTrainerSpot(spot);return val.valid?{...spot,ctx:val.ctx}:null;})
+        .filter(Boolean);
+      if(built.length){
+        const q=finalizeTrainingSpots(built,{config:trainingConfig,meta:{}});
+        setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
+        setSmode(q.length>=20?50:20);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
+        setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
+        vibrate(VIB.next);
+        return;
+      }
+    }
     const importedSpot=createTrainingSpotFromHand(sd);
     const looksLikeHand=!!(sd.hand||sd.actions||sd.handId||sd.rawHand||sd.board||sd.toCall!=null);
     if(looksLikeHand&&importedSpot){
