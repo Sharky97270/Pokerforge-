@@ -3018,17 +3018,21 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // Hero a relancé → vilain répond une dernière fois avant fin de spot
     setThinking(true);triggerPhaseFlash();setPhase("villain_thinking");setActivePlayerId("villain");
     const delay=villainThinkDelay(spot.vtype,"RAISE",trainerMode);
-    setTimeout(()=>{
-      const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
-      const v2=villainDecide(spot.street,"RAISE",spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-      const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?replyCommit.amountBb:undefined});
-      setThinking(false);
-      setTl(t=>[...t,{pos:spot.vpos,act:v2.action,lbl:v2.label,hero:false,amt:v2Commit.amountBb}]);
-      if(v2.action!=="FOLD"&&v2.action!=="CHECK"&&v2.action!=="WIN"){
-        fireVilChip(v2.label);fireChip(v2.label);
-      }
-      finishTable();
-    },delay);
+    // Révélation via l'AnimationQueue (§62/63) : annulée si le spot change.
+    animQRef.current.enqueue([
+      {type:"VILLAIN_THINK",duration:delay},
+      {type:"VILLAIN_ACT",duration:0,perform:()=>{
+        const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
+        const v2=villainDecide(spot.street,"RAISE",spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
+        const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?replyCommit.amountBb:undefined});
+        setThinking(false);
+        setTl(t=>[...t,{pos:spot.vpos,act:v2.action,lbl:v2.label,hero:false,amt:v2Commit.amountBb}]);
+        if(v2.action!=="FOLD"&&v2.action!=="CHECK"&&v2.action!=="WIN"){
+          fireVilChip(v2.label);fireChip(v2.label);
+        }
+        finishTable();
+      }},
+    ]);
   }
 
   function startFullHand(){
@@ -3041,28 +3045,31 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     setPlayingFull(true);
     if(firstActor==="villain"){
       setFhVilThink(true);
-      setTimeout(()=>{
-        const spr=startPot>0?parseFloat(spot.stack||100)/startPot:8;
-        const vd=villainDecide("flop","CHECK",spot.vtype,startPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,3,field);
-        const action=vd.action||"CHECK";
-        const amount=roundBb(vd.amount||((action==="BET"||action==="RAISE")?Math.max(1,Math.round(startPot*.5)):0));
-        const resolved={...vd,amount};
-        setFhVilThink(false);
-        setFhVilAct(resolved);
-        setFhActs([{street:"flop",actor:"Villain",action}]);
-        if(action!=="CHECK"&&action!=="FOLD"&&action!=="WIN"){
-          fireVilChip(resolved.label||action);
-          fireChip(resolved.label||action);
-        }
-        if(action==="BET"||action==="RAISE"){
-          if(amount>0)setFhPot(p=>roundBb(p+amount));
-          setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
-        }
-        if(action==="FOLD"||action==="WIN"){
-          setActivePlayerId(null);setFhResult(action==="FOLD"?"win":"lose");setFhPhase("done");return;
-        }
-        setFhPhase("hero");setActivePlayerId("hero");
-      },620+Math.random()*420);
+      animQRef.current.enqueue([
+        {type:"VILLAIN_THINK",duration:620+Math.random()*420},
+        {type:"VILLAIN_ACT",duration:0,perform:()=>{
+          const spr=startPot>0?parseFloat(spot.stack||100)/startPot:8;
+          const vd=villainDecide("flop","CHECK",spot.vtype,startPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,3,field);
+          const action=vd.action||"CHECK";
+          const amount=roundBb(vd.amount||((action==="BET"||action==="RAISE")?Math.max(1,Math.round(startPot*.5)):0));
+          const resolved={...vd,amount};
+          setFhVilThink(false);
+          setFhVilAct(resolved);
+          setFhActs([{street:"flop",actor:"Villain",action}]);
+          if(action!=="CHECK"&&action!=="FOLD"&&action!=="WIN"){
+            fireVilChip(resolved.label||action);
+            fireChip(resolved.label||action);
+          }
+          if(action==="BET"||action==="RAISE"){
+            if(amount>0)setFhPot(p=>roundBb(p+amount));
+            setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
+          }
+          if(action==="FOLD"||action==="WIN"){
+            setActivePlayerId(null);setFhResult(action==="FOLD"?"win":"lose");setFhPhase("done");return;
+          }
+          setFhPhase("hero");setActivePlayerId("hero");
+        }},
+      ]);
     }
   }
 
@@ -3075,28 +3082,35 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     if(act==="FOLD"){setActivePlayerId(null);setFhResult("lose");setFhPhase("done");return;}
     if(act!=="CHECK")fhFireChip(act==="BET"?"Bet ½":"Bet PSB");
     setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
-    setTimeout(()=>{
-      setFhVilThink(false);
-      const spr=fhPot>0?parseFloat(spot.stack)/fhPot:8;
-      const vd=villainDecide(fhStreet,act,spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-      const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
-      setFhActs(updated);setFhVilAct(vd);
-      if(vd.action==="FOLD"||vd.action==="WIN"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
-      if(vd.action!=="CHECK")fhFireChip(vd.label);
-      // Vilain bet/raise → Hero doit répondre avant de passer à la street suivante
-      if(vd.action==="BET"||vd.action==="RAISE"){
-        if(vd.amount)setFhPot(p=>p+Math.round(vd.amount));
-        setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
-      }
-      // Vilain check/call → avancer la street
-      if(act==="BET"||act==="RAISE")setFhPot(p=>p+(p*.5|0));
-      const idx=FH_STREETS.indexOf(fhStreet);
-      if(idx<FH_STREETS.length-1){
-        setTimeout(()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");},400);
-      } else {
-        const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-      }
-    },500+Math.random()*500);
+    animQRef.current.enqueue([
+      {type:"VILLAIN_THINK",duration:500+Math.random()*500},
+      {type:"VILLAIN_ACT",duration:0,perform:()=>{
+        setFhVilThink(false);
+        const spr=fhPot>0?parseFloat(spot.stack)/fhPot:8;
+        const vd=villainDecide(fhStreet,act,spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
+        const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
+        setFhActs(updated);setFhVilAct(vd);
+        if(vd.action==="FOLD"||vd.action==="WIN"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
+        if(vd.action!=="CHECK")fhFireChip(vd.label);
+        // Vilain bet/raise → Hero doit répondre avant de passer à la street suivante
+        if(vd.action==="BET"||vd.action==="RAISE"){
+          if(vd.amount)setFhPot(p=>p+Math.round(vd.amount));
+          setFhPhase("hero_facing_bet");setActivePlayerId("hero");return;
+        }
+        // Vilain check/call → avancer la street (§35 : collecte → carte suivante)
+        if(act==="BET"||act==="RAISE")setFhPot(p=>p+(p*.5|0));
+        const idx=FH_STREETS.indexOf(fhStreet);
+        if(idx<FH_STREETS.length-1){
+          // §34-36 : collecte (pause) puis distribution de la carte suivante.
+          animQRef.current.enqueue([
+            {type:"MOVE_BETS_TO_POT",duration:400},
+            {type:"DEAL_"+FH_STREETS[idx+1].toUpperCase(),duration:0,perform:()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");}},
+          ]);
+        } else {
+          const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
+        }
+      }},
+    ]);
   }
 
   function fhHeroFaceBet(act){
@@ -3111,26 +3125,35 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       const raiseAmt=Math.round((fhVilAct?.amount||Math.round(fhPot*.5))*2.5);
       setFhPot(p=>p+raiseAmt);
       setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
-      setTimeout(()=>{
-        setFhVilThink(false);
-        const spr=fhPot>0?parseFloat(spot.stack||100)/fhPot:8;
-        const vd=villainDecide(fhStreet,"RAISE",spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
-        const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
-        setFhActs(updated);setFhVilAct(vd);
-        if(vd.action==="FOLD"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
-        if(vd.action!=="CHECK")fhFireChip(vd.label||vd.action);
-        const idx2=FH_STREETS.indexOf(fhStreet);
-        if(idx2<FH_STREETS.length-1){
-          setTimeout(()=>{setFhStreet(FH_STREETS[idx2+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");},400);
-        } else {
-          const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
-        }
-      },500+Math.random()*500);
+      animQRef.current.enqueue([
+        {type:"VILLAIN_THINK",duration:500+Math.random()*500},
+        {type:"VILLAIN_ACT",duration:0,perform:()=>{
+          setFhVilThink(false);
+          const spr=fhPot>0?parseFloat(spot.stack||100)/fhPot:8;
+          const vd=villainDecide(fhStreet,"RAISE",spot.vtype,fhPot,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,(spot.board||[]).length,field);
+          const updated=[...nActs,{street:fhStreet,actor:"Villain",action:vd.action}];
+          setFhActs(updated);setFhVilAct(vd);
+          if(vd.action==="FOLD"){setActivePlayerId(null);setFhResult("win");setFhPhase("done");return;}
+          if(vd.action!=="CHECK")fhFireChip(vd.label||vd.action);
+          const idx2=FH_STREETS.indexOf(fhStreet);
+          if(idx2<FH_STREETS.length-1){
+            animQRef.current.enqueue([
+              {type:"MOVE_BETS_TO_POT",duration:400},
+              {type:"DEAL_"+FH_STREETS[idx2+1].toUpperCase(),duration:0,perform:()=>{setFhStreet(FH_STREETS[idx2+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");}},
+            ]);
+          } else {
+            const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
+          }
+        }},
+      ]);
       return;
     }
     const idx=FH_STREETS.indexOf(fhStreet);
     if(idx<FH_STREETS.length-1){
-      setTimeout(()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");},400);
+      animQRef.current.enqueue([
+        {type:"MOVE_BETS_TO_POT",duration:400},
+        {type:"DEAL_"+FH_STREETS[idx+1].toUpperCase(),duration:0,perform:()=>{setFhStreet(FH_STREETS[idx+1]);setFhPhase("hero");setFhVilAct(null);setActivePlayerId("hero");}},
+      ]);
     } else {
       const won=Math.random()>.45;setActivePlayerId(null);setFhResult(won?"win":"lose");setFhPhase("done");
     }
