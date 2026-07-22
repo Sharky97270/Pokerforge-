@@ -2931,9 +2931,22 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     if(!heroFeedback)return null;
     const cls=heroFeedback.result==="correct"?"hf-ok":heroFeedback.result==="approx"?"hf-warn":"hf-ko";
     const main=heroFeedback.result==="correct"?"correct":heroFeedback.result==="approx"?"approx":"erreur";
+    // Badge de provenance (§2/§28) : dire d'où vient la solution — solveur (exact)
+    // ou heuristique (template). Honnêteté : ne jamais présenter une heuristique
+    // comme un résultat GTO calculé.
+    const solved=spot.strategySource==="solver";
+    const provBadge=spot.strategySource?(
+      <span title={spot.strategyNote||(solved?"Solution calculée par le solveur":"Solution heuristique (template)")}
+        style={{fontFamily:T.stats,fontSize:8,fontWeight:800,letterSpacing:".04em",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",
+          color:solved?"#10D87A":T.text4,background:solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+          border:`1px solid ${solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+        {solved?"🦈 Solveur":"≈ Heuristique"}
+      </span>
+    ):null;
     return(
       <div className="hero-feedback-strip">
         <span className={`hf-main ${cls}`}>{heroFeedback.heroAction} {main}</span>
+        {provBadge}
         {showSol?(
           <>
             <span>EV {heroFeedback.evDiff>=0?"+":""}{heroFeedback.evDiff.toFixed(2)}bb</span>
@@ -3388,7 +3401,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           <div className="pf-solfull-hdr" style={{position:"relative"}} onTouchStart={solTStart} onTouchMove={solTMove} onTouchEnd={solTEnd}>
             <div className="pf-solfull-grip"/>
             <div style={{minWidth:0,flex:1}}>
-              <div className="pf-solfull-title">💡 SOLUTION</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div className="pf-solfull-title">💡 SOLUTION</div>
+                {/* Provenance (§2/§28) : d'où vient la solution ? */}
+                {spot.strategySource&&(
+                  <span title={spot.strategyNote||""} style={{fontFamily:T.stats,fontSize:7.5,fontWeight:800,letterSpacing:".03em",padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
+                    color:spot.strategySource==="solver"?"#10D87A":T.text4,background:spot.strategySource==="solver"?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+                    border:`1px solid ${spot.strategySource==="solver"?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+                    {spot.strategySource==="solver"?"🦈 Solveur":"≈ Heuristique"}
+                  </span>
+                )}
+              </div>
               <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"#6F81A8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{spot.desc}</div>
             </div>
             <span className={`gto-quality ${qualityCls}`} style={{flexShrink:0,fontSize:9,padding:"3px 8px"}}>{qualityLabel}</span>
@@ -5850,6 +5873,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
      assemblage ad-hoc). `overrideFilters` permet aux drills de patcher `f`
      sans reconstruire tout le config ; `extraOpts` porte le contexte seed. */
   const lastConstraintsRef=useRef(null); // dernière résolution de contraintes (§25)
+  // Tag §28 : applique la solution solveur (ou marque heuristique) à chaque spot.
+  // Utilisé par TOUS les chemins de queue (start, resume, import HH, similaires).
+  const stampStrategy=useCallback((arr)=>{(arr||[]).forEach(s=>{if(s)try{applySolverStrategy(s);}catch{}});return arr;},[]);
   // ── AI Training Orchestrator (§57) : demande en langage naturel → config ──
   const[aiRequest,setAiRequest]=useState("");
   const[aiUnderstanding,setAiUnderstanding]=useState(null); // {text, ok}
@@ -5870,7 +5896,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     // résolubles (push/fold préflop HU) — « le solveur calcule, l'IA explique »
     // (§6). Les spots non résolubles gardent leur solution template (provenance
     // honnête). Solve = lookup instantané (table pré-solvée 1-25bb).
-    q.forEach(s=>{if(s)try{applySolverStrategy(s);}catch{}});
+    stampStrategy(q);
     // SpotGenerator (§26) : chaque spot émis porte le contrat canonique complet
     // (spotId, generationSeed, schema §26) — sans retirer aucun champ legacy.
     return finalizeTrainingSpots(q,{config:rc,meta:res.meta});
@@ -6049,6 +6075,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setShowSol(!!resume.showSol);
     // §26 : garantir le contrat canonique sur la queue reprise (mutation en place,
     // les références de byQueueId/res restent valides).
+    stampStrategy(q); // §28 : provenance solveur/heuristique sur la queue reprise
     setQueue(finalizeTrainingSpots(q,{config:trainingConfig,meta:{}}));setIdx(Math.min(resume.idx,q.length-1));setResults(res);setTableAns({});setTableSettled({});
     bumpSession(Math.min(resume.idx,q.length-1)); // pointeurs par table depuis l'index repris (§44)
     setStarted(true);setDone(false);setStoppedEarly(false);setResume(null);
@@ -6259,6 +6286,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         .map(v=>{const spot=createTrainingSpotFromHand(v);const val=validateTrainerSpot(spot);return val.valid?{...spot,ctx:val.ctx}:null;})
         .filter(Boolean);
       if(built.length){
+        stampStrategy(built); // §28
         const q=finalizeTrainingSpots(built,{config:trainingConfig,meta:{}});
         setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setSmode(q.length>=20?50:20);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
@@ -6273,7 +6301,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       const v=validateTrainerSpot(importedSpot);
       if(v.valid){
         // §12/§26 : le spot importé d'une main réelle porte aussi le contrat canonique.
-        const importedQ=finalizeTrainingSpots([{...importedSpot,ctx:v.ctx}],{config:trainingConfig,meta:{}});
+        const importedQ=stampStrategy(finalizeTrainingSpots([{...importedSpot,ctx:v.ctx}],{config:trainingConfig,meta:{}}));
         setQueue(importedQ);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setSmode(1);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
         setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
@@ -6478,6 +6506,17 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 <div className={`pf-p2-verdict ${ans.correct?"ok":"ko"}`}>
                   <strong>{chosen?.l||"—"} {ans.correct?"✓ correct":"✕ à revoir"}</strong>
                   <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
+                </div>
+              )}
+              {/* Provenance de la solution (§2/§28) : solveur (exact) ou heuristique */}
+              {s.strategySource&&(
+                <div title={s.strategyNote||""} style={{display:"flex",alignItems:"center",gap:6,margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,
+                  background:s.strategySource==="solver"?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)",
+                  border:`1px solid ${s.strategySource==="solver"?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)"}`}}>
+                  <span style={{fontSize:11}}>{s.strategySource==="solver"?"🦈":"≈"}</span>
+                  <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:s.strategySource==="solver"?"#10D87A":T.text3}}>
+                    {s.strategySource==="solver"?"SOLUTION SOLVEUR — calcul exact":"SOLUTION HEURISTIQUE — template"}
+                  </span>
                 </div>
               )}
               <div className="pf-p2-actlist">
