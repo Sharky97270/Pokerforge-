@@ -6188,7 +6188,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(looksLikeHand&&importedSpot){
       const v=validateTrainerSpot(importedSpot);
       if(v.valid){
-        setQueue([{...importedSpot,ctx:v.ctx}]);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
+        // §12/§26 : le spot importé d'une main réelle porte aussi le contrat canonique.
+        const importedQ=finalizeTrainingSpots([{...importedSpot,ctx:v.ctx}],{config:trainingConfig,meta:{}});
+        setQueue(importedQ);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
         setSmode(1);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
         setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
         vibrate(VIB.next);
