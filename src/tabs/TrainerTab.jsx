@@ -9,6 +9,9 @@ import { SPOTS, POKER_EVENTS, POSITIONS_BY_SIZE } from "../data/content.js";
 import { Card, CardBack, HeroHoleCards, VillainBackCards } from "../components/table/Cards.jsx";
 import { CHIP_THEMES, BlindChipStack, TrainingPotStack, SeatActionZone, PlayerSeat } from "../components/table/Chips.jsx";
 import { trainerAvatarKey, trainerSeatAvatarProfile, PlayerAvatarPremium } from "../components/table/Avatars.jsx";
+import { useRangeTheme } from "../components/range/useRangeTheme.js";
+import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorSettings.jsx";
+import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
@@ -1103,24 +1106,12 @@ function buildRangeFreqs(pos,action,stackBB=100){
 }
 
 /* Couleurs par action — GTO Wizard style */
-const RANGE_ACTION_COLORS={
-  r:    {bg:"rgba(155,92,255,.75)",  label:"Raise/Bet",     col:"#9B5CFF"},
-  "3b": {bg:"rgba(255,45,117,.75)",  label:"3-Bet/Shove",   col:"#FF2D75"},
-  c:    {bg:"rgba(46,204,113,.7)",   label:"Call/Check",    col:"#2ECC71"},
-  b33:  {bg:"rgba(52,152,219,.7)",   label:"Bet 33%",       col:"#3498DB"},
-  b50:  {bg:"rgba(241,196,15,.7)",   label:"Bet 50%",       col:"#F1C40F"},
-  b75:  {bg:"rgba(230,126,34,.75)",  label:"Bet 75%",       col:"#E67E22"},
-  allin:{bg:"rgba(231,76,60,.8)",    label:"All-in",        col:"#E74C3C"},
-  rc:   {bg:"linear-gradient(135deg,rgba(155,92,255,.65) 50%,rgba(46,204,113,.65) 50%)",label:"Raise/Call mix",col:"#9B5CFF"},
-  rf:   {bg:"linear-gradient(135deg,rgba(155,92,255,.65) 50%,rgba(50,50,80,.7) 50%)",  label:"Raise/Fold mix",col:"#9B5CFF"},
-  cf:   {bg:"linear-gradient(135deg,rgba(46,204,113,.65) 50%,rgba(50,50,80,.7) 50%)",  label:"Call/Fold mix", col:"#2ECC71"},
-  f:    {bg:"rgba(14,14,30,.85)",    label:"Fold",          col:"#6F81A8"},
-};
 
 export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTables=1,onOpenSolver,modal=false}){
   const[viewMode,setViewMode]=useState("hero");
   const[hov,setHov]=useState(null);
   const[sel,setSel]=useState(null);
+  const rangeTheme=useRangeTheme("trainer");
 
   const displayPos=viewMode==="villain"?(spot?.vpos||pos):pos;
   const displayAction=viewMode==="villain"?"3bet":(action||"open");
@@ -1157,17 +1148,22 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
   const panelWidth=modalRange?260:numTables===1?148:120;
 
   // ── Background cellule (dégradé vertical selon fréquences) ──
+  // Couleurs issues du thème PARTAGÉ (personnalisable) ; les PROPORTIONS
+  // restent pilotées uniquement par les fréquences (§6).
+  const C_RAISE=rangeRgba(rangeTheme.colors.raise,.86);
+  const C_CALL =rangeRgba(rangeTheme.colors.call,.78);
+  const C_FOLD =rangeRgba(rangeTheme.colors.fold,.82);
   function cellBg(d){
     if(!d)return"rgba(7,18,38,.88)";
     const f=d.freq;
-    if(f.r>=95)return"rgba(255,184,0,.86)";
-    if(f.c>=95)return"rgba(32,207,255,.78)";
-    if(f.f>=95)return"rgba(42,16,24,.82)";
+    if(f.r>=95)return C_RAISE;
+    if(f.c>=95)return C_CALL;
+    if(f.f>=95)return C_FOLD;
     const segs=[];let acc=0;
-    if(f.r>0){segs.push(`rgba(255,184,0,.86) ${acc}%`);acc+=f.r;segs.push(`rgba(255,184,0,.86) ${acc}%`);}
-    if(f.c>0){segs.push(`rgba(32,207,255,.78) ${acc}%`);acc+=f.c;segs.push(`rgba(32,207,255,.78) ${acc}%`);}
-    if(f.f>0){segs.push(`rgba(42,16,24,.82) ${acc}%`);acc+=f.f;segs.push(`rgba(42,16,24,.82) ${acc}%`);}
-    return segs.length>1?`linear-gradient(to bottom,${segs.join(",")})`:segs[0]||"rgba(42,16,24,.82)";
+    if(f.r>0){segs.push(`${C_RAISE} ${acc}%`);acc+=f.r;segs.push(`${C_RAISE} ${acc}%`);}
+    if(f.c>0){segs.push(`${C_CALL} ${acc}%`);acc+=f.c;segs.push(`${C_CALL} ${acc}%`);}
+    if(f.f>0){segs.push(`${C_FOLD} ${acc}%`);acc+=f.f;segs.push(`${C_FOLD} ${acc}%`);}
+    return segs.length>1?`linear-gradient(to bottom,${segs.join(",")})`:segs[0]||C_FOLD;
   }
 
   // ── Couleur dominante pour action badge ──
@@ -1202,13 +1198,14 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
   const panelHand=sel||hov;
   const panelD=selD||hovD;
 
+  // Légende dynamique, synchronisée avec le thème partagé (§7)
   const LEGEND=[
-    {bg:"rgba(255,184,0,.86)",l:"Raise"},
-    {bg:"rgba(32,207,255,.78)",l:"Call"},
-    {bg:"linear-gradient(to bottom,rgba(255,184,0,.86) 50%,rgba(32,207,255,.78) 50%)",l:"Mix R/C"},
-    {bg:"linear-gradient(to bottom,rgba(255,184,0,.86) 50%,rgba(42,16,24,.82) 50%)",l:"Mix R/F"},
-    {bg:"linear-gradient(to bottom,rgba(32,207,255,.78) 50%,rgba(42,16,24,.82) 50%)",l:"Mix C/F"},
-    {bg:"rgba(42,16,24,.82)",l:"Fold"},
+    {bg:C_RAISE,l:"Raise"},
+    {bg:C_CALL,l:"Call"},
+    {bg:`linear-gradient(to bottom,${C_RAISE} 50%,${C_CALL} 50%)`,l:"Mix R/C"},
+    {bg:`linear-gradient(to bottom,${C_RAISE} 50%,${C_FOLD} 50%)`,l:"Mix R/F"},
+    {bg:`linear-gradient(to bottom,${C_CALL} 50%,${C_FOLD} 50%)`,l:"Mix C/F"},
+    {bg:C_FOLD,l:"Fold"},
   ];
 
   return(
@@ -1220,6 +1217,8 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
           <span style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:LP,color:T.gold,fontWeight:800,letterSpacing:".06em"}}>{label||"RANGE GTO"}</span>
           <span style={{padding:"1px 6px",borderRadius:8,background:"rgba(31,139,255,.1)",border:"1px solid rgba(31,139,255,.2)",fontSize:LP-2,color:T.blue,fontFamily:"'Space Grotesk',sans-serif",fontWeight:700}}>{displayPos}</span>
           <span style={{fontSize:LP-3,color:T.text4,fontFamily:"'JetBrains Mono',monospace"}}>{stackBB}bb</span>
+          {/* 🎨 Personnalisation des couleurs — système partagé */}
+          <RangeColorSettings moduleId="trainer" usedActions={["raise","call","fold"]} compact/>
         </div>
         {(showToggle||spot)&&(
           <div style={{marginLeft:"auto",display:"flex",gap:1.5,background:"rgba(0,0,0,.4)",padding:"2px 3px",borderRadius:20,border:"1px solid rgba(255,255,255,.05)"}}>
@@ -1309,7 +1308,7 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
               <div style={{height:5,borderRadius:2.5,overflow:"hidden",display:"flex",marginBottom:5,background:"rgba(255,255,255,.07)"}}>
                 {hovD.freq.r>0&&<div style={{flex:hovD.freq.r,background:"rgba(255,184,0,.88)"}}/>}
                 {hovD.freq.c>0&&<div style={{flex:hovD.freq.c,background:"rgba(32,207,255,.82)"}}/>}
-                {hovD.freq.f>0&&<div style={{flex:hovD.freq.f,background:"rgba(42,16,24,.82)"}}/>}
+                {hovD.freq.f>0&&<div style={{flex:hovD.freq.f,background:C_FOLD}}/>}
               </div>
               {[{l:"Raise",v:hovD.freq.r+"%",c:"#FFB800"},{l:"Call",v:hovD.freq.c+"%",c:"#20CFFF"},{l:"Fold",v:hovD.freq.f+"%",c:"#E5485D"}].filter(x=>parseFloat(x.v)>0).map(({l,v,c})=>(
                 <div key={l} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:2}}>
@@ -1376,8 +1375,8 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
               {/* Barre composite R/C/F */}
               <div style={{height:6,borderRadius:3,overflow:"hidden",display:"flex",marginBottom:5,gap:0}}>
                 {rP>0&&<div style={{flex:rP,background:"rgba(255,184,0,.88)"}}/>}
-                {cP>0&&<div style={{flex:cP,background:"rgba(32,207,255,.78)"}}/>}
-                {fP>0&&<div style={{flex:fP,background:"rgba(42,16,24,.82)"}}/>}
+                {cP>0&&<div style={{flex:cP,background:C_CALL}}/>}
+                {fP>0&&<div style={{flex:fP,background:C_FOLD}}/>}
               </div>
               {[{l:"Raise",v:rP,vs:rP+"%",c:"#FFB800"},{l:"Call",v:cP,vs:cP+"%",c:"#20CFFF"},{l:"Fold",v:fP,vs:fP+"%",c:"#E5485D"}].map(({l,v,vs,c})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
@@ -1423,9 +1422,9 @@ export function RangeGrid({pos,action,stackBB,label,spot,showToggle=false,numTab
         {!showRightPanel&&(
           <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:2}}>
             <div style={{height:4,borderRadius:2,overflow:"hidden",display:"flex",marginBottom:2}}>
-              {rP>0&&<div style={{flex:rP,background:"rgba(255,184,0,.86)"}}/>}
-              {cP>0&&<div style={{flex:cP,background:"rgba(32,207,255,.78)"}}/>}
-              {fP>0&&<div style={{flex:fP,background:"rgba(42,16,24,.82)"}}/>}
+              {rP>0&&<div style={{flex:rP,background:C_RAISE}}/>}
+              {cP>0&&<div style={{flex:cP,background:C_CALL}}/>}
+              {fP>0&&<div style={{flex:fP,background:C_FOLD}}/>}
             </div>
             {[{l:"Raise",v:rP+"%",c:"#FFB800"},{l:"Call",v:cP+"%",c:"#20CFFF"},{l:"Fold",v:fP+"%",c:"#E5485D"},null,{l:"Combos",v:playCombos,c:T.text2},{l:"EV",v:(parseFloat(avgEV)>=0?"+":"")+avgEV,c:T.gold},{l:"Equity",v:avgEQ+"%",c:T.blue},{l:"EQR",v:avgEQR,c:"#FFC247"}].map((s,idx)=>
               s===null?<div key={idx} style={{height:1,background:"rgba(255,255,255,.05)",margin:"1px 0"}}/>:
