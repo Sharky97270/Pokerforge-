@@ -1,6 +1,7 @@
 // PokerForge — composants cartes (extraits de App.jsx, Phase 3.2)
 import React, { useState, useEffect } from "react";
 import { getSuitStyle, getActiveDeck } from "./deck.js";
+import { T } from "../../theme.js";
 
 /* ═══════════════════════════════════════
    CARD COMPONENTS

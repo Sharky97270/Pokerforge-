@@ -6,6 +6,38 @@ import { loadStats, saveStats, saveStatsSafe, loadHands, saveHands } from "../st
 import { POSITIONS_BY_SIZE, SPOTS } from "../data/content.js";
 import { MiniCard, Card, CardFlip } from "../components/table/Cards.jsx";
 import RangesTab from "./RangesTab.jsx";
+/* ── Replayer refonte v1 : moteur normalisé + table immersive ── */
+import { parseSession as pfParseSessionV2 } from "../replayer/handModel.js";
+import { computeSnapshot, computeAllSnapshots } from "../replayer/stateEngine.js";
+import { heroCentricSeatRing, seatActionPoint, feltGeometry } from "../components/table/geometry.js";
+import ReplayTableImmersive from "../replayer/ReplayTableImmersive.jsx";
+import { useReplayAnimation } from "../replayer/useReplayAnimation.js";
+
+/* Enrichit un NormalizedHand de champs de compatibilité (seats/actions/site…)
+   pour les panneaux existants (header, solveur, analyse), et pré-calcule les
+   snapshots (mémoïsés) → pas de reparse au changement d'étape (§34).
+   Le `step` indexe désormais les ÉVÉNEMENTS (blinds/deals/actions). */
+function hydrateReplayHand(nh){
+  if(!nh || !nh.valid) return nh;
+  const snaps = computeAllSnapshots(nh);
+  const nameOf = id => nh.players.find(p=>p.id===id)?.name || "";
+  const cap = s => s ? s[0].toUpperCase()+s.slice(1) : s;
+  const actions = nh.events.map((e,i)=>{
+    const snap = snaps[i] || {};
+    return {
+      street: cap(e.street), actor: nameOf(e.playerId), action: e.label,
+      type: e.type, amt: e.amount ?? null, pot: snap.potTotal ?? 0,
+      board: snap.board || [], isHero: e.playerId===nh.heroId, isErr:false, note:null, step:i,
+    };
+  });
+  const seats = nh.players.map(p=>({
+    name:p.name, stack:p.stackStart, seat:p.seat, pos:p.pos,
+    isHero:p.isHero, hole:p.hole, shown:p.shown, stats:p.stats,
+    profile: p.isHero?"Hero":undefined,
+  }));
+  return { ...nh, site:nh.room, fmt:nh.format, bb:nh.bbSize, hasShowdown:!!nh.showdown,
+    seats, actions, steps:actions, _snaps:snaps };
+}
 
 /* Notes du Replayer par main (clé = handId), persistées + synchro cloud (pf_*) */
 function repLoadNotes(){try{return JSON.parse(localStorage.getItem("pf_rep_notes")||"{}");}catch{return {};}}
@@ -121,32 +153,6 @@ Hero: checks
 Villain: bets $60
 Hero: folds`;
 
-const SAMPLE_HAND={
-  site:"PokerStars",fmt:"Cash 6-max NL100",gameType:"cash",
-  seats:[
-    {id:1,name:"Hero",stack:200.5,pos:"SB",isHero:true,hole:[{r:"Q",s:"♠"},{r:"J",s:"♥"}],
-     stats:{vpip:24,pfr:18,threeBet:7}},
-    {id:3,name:"Villain",stack:187,pos:"BTN",isHero:false,hole:[],
-     stats:{vpip:32,pfr:22,threeBet:9}},
-    {id:5,name:"Player5",stack:243,pos:"BB",isHero:false,hole:[],
-     stats:{vpip:18,pfr:14,threeBet:4}},
-  ],
-  actions:[
-    {step:0,street:"Preflop",actor:"Villain",action:"Raise 3bb",amt:6,pot:9,board:[],ev:null,isHero:false,isErr:false},
-    {step:1,street:"Preflop",actor:"Hero",action:"Call",amt:5,pot:14,board:[],ev:"+0.2bb",isHero:true,isErr:false},
-    {step:2,street:"Preflop",actor:"Player5",action:"Fold",amt:null,pot:14,board:[],ev:null,isHero:false,isErr:false},
-    {step:3,street:"Flop",actor:"Hero",action:"Check",amt:null,pot:14,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"}],ev:"ok",isHero:true,isErr:false},
-    {step:4,street:"Flop",actor:"Villain",action:"Bet 7$",amt:7,pot:21,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"}],ev:null,isHero:false,isErr:false},
-    {step:5,street:"Flop",actor:"Hero",action:"Call",amt:7,pot:28,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"}],ev:"-0.8bb",isHero:true,isErr:true,note:"Call marginal — equity ~28% vs cbet range."},
-    {step:6,street:"Turn",actor:"Hero",action:"Check",amt:null,pot:28,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"},{r:"2",s:"♠"}],ev:"ok",isHero:true,isErr:false},
-    {step:7,street:"Turn",actor:"Villain",action:"Bet 19$",amt:19,pot:47,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"},{r:"2",s:"♠"}],ev:null,isHero:false,isErr:false},
-    {step:8,street:"Turn",actor:"Hero",action:"Call",amt:19,pot:66,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"},{r:"2",s:"♠"}],ev:"-2.1bb",isHero:true,isErr:true,note:"Double barrel = range value forte."},
-    {step:9,street:"River",actor:"Hero",action:"Check",amt:null,pot:66,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"},{r:"2",s:"♠"},{r:"9",s:"♥"}],ev:"ok",isHero:true,isErr:false},
-    {step:10,street:"River",actor:"Villain",action:"Bet 60$",amt:60,pot:126,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"},{r:"2",s:"♠"},{r:"9",s:"♥"}],ev:null,isHero:false,isErr:false},
-    {step:11,street:"River",actor:"Hero",action:"Fold",amt:null,pot:63,board:[{r:"A",s:"♥"},{r:"K",s:"♦"},{r:"7",s:"♣"},{r:"2",s:"♠"},{r:"9",s:"♥"}],ev:"correct",isHero:true,isErr:false,note:"Fold correct — equity 18% < pot odds 27%."},
-  ],
-};
-
 /* Detection Cash vs MTT dans le hand history */
 function detectGameType(txt){
   const t=txt.toLowerCase();
@@ -164,280 +170,6 @@ function quickAnalysis(hh){
   if(!lines.includes("raise")&&!lines.includes("3-bet"))errors.push("Aucun 3-bet detecte — frequence optimale ?");
   if(gameType==="mtt"&&lines.includes("fold"))errors.push("ICM bubble factor — fold equity reduite en MTT");
   return{score:Math.max(3,score-errors.length),errors,note:`Analyse rapide patterns (${gameType==="mtt"?"MTT":"Cash Game"})`,gameType};
-}
-
-/* ── Positions des sièges autour de la table (% container) ── */
-const REP_SEAT_LAYOUT={
-  "BTN":{x:88,y:46},"CO":{x:74,y:12},"HJ":{x:50,y:7},
-  "LJ":{x:26,y:12},"UTG":{x:12,y:46},"EP":{x:12,y:46},
-  "SB":{x:26,y:82},"BB":{x:74,y:82},
-};
-
-/* ══════════════════════════════════════════════════════
-   REPLAY TABLE v2 — Feutre immersif + timeline intégrée
-══════════════════════════════════════════════════════ */
-function ReplayTable2({hand,step,fmt,playing,setStep,setPlaying,playSpeed,setPlaySpeed,hideTimeline}){
-  if(!hand)return null;
-  const cur=hand.actions[Math.max(0,Math.min(step,hand.actions.length-1))];
-  const streets=["Preflop","Flop","Turn","River"];
-  const curSI=streets.indexOf(cur.street);
-  const pct=hand.actions.length>1?Math.round(step/(hand.actions.length-1)*100):0;
-
-  const stStatus=s=>{const si=streets.indexOf(s);return si<curSI?"done":si===curSI?"cur":"todo";};
-  const goStreet=s=>{const i=hand.actions.findIndex(a=>a.street===s);if(i>=0){setStep(i);setPlaying(false);}};
-  const onProgClick=e=>{
-    const r=e.currentTarget.getBoundingClientRect();
-    setStep(Math.max(0,Math.min(hand.actions.length-1,Math.round(((e.clientX-r.left)/r.width)*(hand.actions.length-1)))));
-    setPlaying(false);
-  };
-
-  return(
-    <div style={{position:"relative",width:"100%",paddingBottom:"56%",flexShrink:0}}>
-      {/* ── FEUTRE OVAL ── */}
-      <div style={{
-        position:"absolute",inset:0,
-        background:"radial-gradient(ellipse 90% 80% at 50% 42%,#1e5c35 0%,#0d2b18 55%,#071B44 100%)",
-        borderRadius:"46%",border:"4px solid #1a2a48",
-        boxShadow:"0 0 80px rgba(0,0,0,.9),inset 0 0 100px rgba(0,0,0,.4)",
-        overflow:"hidden",
-      }}>
-        {/* Bordure intérieure décorative */}
-        <div style={{position:"absolute",inset:6,border:"1.5px solid rgba(255,194,71,.1)",borderRadius:"46%",pointerEvents:"none"}}/>
-
-        {/* ── BOARD centre ── */}
-        <div style={{position:"absolute",top:"36%",left:"50%",transform:"translate(-50%,-50%)",display:"flex",gap:5,zIndex:3,alignItems:"center"}}>
-          {cur.board.length>0
-            ?cur.board.map((c,i)=><Card key={`${step}-${i}`} r={c.r} s={c.s} size="md" delay={i*.07}/>)
-            :<div style={{fontSize:10,color:"rgba(255,255,255,.18)",fontFamily:T.stats,letterSpacing:".08em"}}>{cur.street==="Preflop"?"PRÉFLOP":""}</div>
-          }
-        </div>
-
-        {/* ── POT ── */}
-        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",fontFamily:T.stats,fontSize:12,fontWeight:700,color:T.gold,textShadow:`0 0 10px ${T.goldGlow}`,zIndex:3,whiteSpace:"nowrap"}}>
-          🪙 {fmt(cur.pot/2)}
-        </div>
-
-        {/* ── SIÈGES ── */}
-        {hand.seats.map((seat,i)=>{
-          const pos=REP_SEAT_LAYOUT[seat.pos]||{x:50,y:50};
-          const isActor=cur.actor===seat.name;
-          const isHero=seat.isHero;
-          return(
-            <div key={i} style={{
-              position:"absolute",left:pos.x+"%",top:pos.y+"%",
-              transform:"translate(-50%,-50%)",
-              display:"flex",flexDirection:"column",alignItems:"center",gap:2,zIndex:4,
-            }}>
-              <div style={{
-                width:70,height:70,borderRadius:"50%",
-                background:isHero?"rgba(255,194,71,.16)":isActor?"rgba(155,92,255,.22)":"rgba(0,0,0,.55)",
-                border:`2px solid ${isHero?T.gold:isActor?T.purple:"rgba(255,255,255,.13)"}`,
-                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                boxShadow:isHero?`0 0 24px ${T.goldGlow}`:isActor?`0 0 18px ${T.purpleGlow}`:"none",
-                animation:isActor?"seatPulse 1.8s infinite":"none",
-              }}>
-                <span style={{fontFamily:T.brand,fontSize:10,fontWeight:700,color:isHero?T.gold:isActor?T.purple:T.text3}}>{seat.pos}</span>
-                <span style={{fontFamily:T.stats,fontSize:11,fontWeight:700,color:isHero?T.gold:T.text2}}>{fmt(seat.stack/2)}</span>
-              </div>
-              <span style={{fontFamily:T.stats,fontSize:10,fontWeight:700,color:isHero?T.gold:T.text2,maxWidth:85,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{seat.name}</span>
-              {isHero&&seat.hole?.length>0&&(
-                <div style={{display:"flex",gap:2,marginTop:1}}>{seat.hole.map((c,j)=><Card key={j} r={c.r} s={c.s} size="sm"/>)}</div>
-              )}
-              {seat.stats&&(
-                <div style={{display:"flex",gap:2,marginTop:1}}>
-                  <span className="vstat-pill" style={{fontSize:7.5,padding:"1px 4px"}}>V{seat.stats.vpip}</span>
-                  <span className="vstat-pill" style={{fontSize:7.5,padding:"1px 4px",background:"rgba(31,139,255,.1)",color:T.blue,borderColor:"rgba(31,139,255,.2)"}}>P{seat.stats.pfr}</span>
-                  <span className="vstat-pill" style={{fontSize:7.5,padding:"1px 4px",background:"rgba(255,194,71,.08)",color:T.gold,borderColor:"rgba(255,194,71,.2)"}}>3B{seat.stats.threeBet}</span>
-                </div>
-              )}
-              {isActor&&(
-                <div style={{
-                  padding:"3px 9px",borderRadius:5,fontSize:10,fontWeight:700,
-                  background:cur.isErr?T.redDim:isHero?T.goldDim:"rgba(155,92,255,.18)",
-                  color:cur.isErr?T.red:isHero?T.gold:T.purple,
-                  border:`1px solid ${cur.isErr?"rgba(255,69,96,.4)":isHero?"rgba(255,194,71,.4)":"rgba(155,92,255,.4)"}`,
-                  fontFamily:T.stats,whiteSpace:"nowrap",animation:"vilActIn .25s",marginTop:2,
-                }}>{cur.action}</div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* ══ TIMELINE COMPACTE — visible uniquement si !hideTimeline ══ */}
-        {!hideTimeline&&<div style={{
-          position:"absolute",bottom:0,left:0,right:0,
-          background:"rgba(3,7,18,.9)",
-          backdropFilter:"blur(8px)",
-          borderTop:"1px solid rgba(255,194,71,.2)",
-          padding:"7px 12px 8px",zIndex:10,
-        }}>
-          {/* Rang 1 : boutons lecture + vitesse */}
-          <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:5}}>
-            {[
-              {l:"⏮",f:()=>{setStep(0);setPlaying(false);}},
-              {l:"⏪",f:()=>setStep(s=>Math.max(0,s-1))},
-              {l:playing?"⏸":"▶",f:()=>setPlaying(p=>!p),active:true},
-              {l:"⏩",f:()=>setStep(s=>Math.min(hand.actions.length-1,s+1))},
-              {l:"⏭",f:()=>{setStep(hand.actions.length-1);setPlaying(false);}},
-            ].map((b,i)=>(
-              <button key={i} onClick={b.f} style={{
-                width:26,height:26,borderRadius:5,fontSize:12,cursor:"pointer",
-                background:b.active&&playing?"rgba(255,194,71,.2)":"rgba(255,255,255,.07)",
-                border:`1px solid ${b.active&&playing?"rgba(255,194,71,.5)":"rgba(255,255,255,.12)"}`,
-                color:b.active&&playing?T.gold:T.text2,
-                display:"flex",alignItems:"center",justifyContent:"center",transition:"all .12s",
-              }}>{b.l}</button>
-            ))}
-            <div style={{flex:1}}/>
-            <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,marginRight:4}}>Vitesse</span>
-            {[.5,1,2,4].map(s=>(
-              <button key={s} onClick={()=>setPlaySpeed(s)} style={{
-                padding:"2px 6px",borderRadius:4,fontSize:8.5,fontWeight:700,cursor:"pointer",
-                background:playSpeed===s?"rgba(255,194,71,.18)":"rgba(255,255,255,.05)",
-                border:`1px solid ${playSpeed===s?"rgba(255,194,71,.45)":"rgba(255,255,255,.08)"}`,
-                color:playSpeed===s?T.gold:T.text4,fontFamily:T.stats,transition:"all .12s",
-              }}>{s}×</button>
-            ))}
-          </div>
-
-          {/* Rang 2 : streets + action courante */}
-          <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5,flexWrap:"wrap"}}>
-            {streets.map(s=>{
-              const st=stStatus(s);
-              if(!hand.actions.some(a=>a.street===s))return null;
-              return(
-                <div key={s} onClick={()=>goStreet(s)} style={{
-                  display:"flex",alignItems:"center",gap:3,cursor:"pointer",
-                  padding:"2px 8px",borderRadius:20,fontSize:8.5,fontWeight:700,
-                  background:st==="done"?"rgba(16,216,122,.12)":st==="cur"?"rgba(255,194,71,.14)":"rgba(255,255,255,.04)",
-                  border:`1px solid ${st==="done"?"rgba(16,216,122,.32)":st==="cur"?"rgba(255,194,71,.38)":"rgba(255,255,255,.07)"}`,
-                  color:st==="done"?T.green:st==="cur"?T.gold:T.text4,
-                  fontFamily:T.stats,transition:"all .14s",
-                }}>
-                  {s}
-                  {st==="done"&&<span style={{fontSize:7}}>✓</span>}
-                  {st==="cur"&&<span style={{width:5,height:5,borderRadius:"50%",background:T.gold,display:"inline-block",marginLeft:1}}/>}
-                </div>
-              );
-            })}
-            <div style={{marginLeft:"auto",fontSize:9,fontFamily:T.stats,fontWeight:700,
-              color:cur.isErr?T.red:cur.isHero?T.gold:T.text2,whiteSpace:"nowrap",
-            }}>
-              <span style={{color:T.text4}}>{cur.actor}</span>
-              {" "}{cur.action}{cur.amt?` · ${cur.amt}$`:""}
-              {cur.isErr&&<span style={{color:T.red,marginLeft:4}}>⚠</span>}
-            </div>
-          </div>
-
-          {/* Rang 3 : barre de progression */}
-          <div style={{height:5,background:"rgba(255,255,255,.08)",borderRadius:3,cursor:"pointer",overflow:"hidden",marginBottom:2}} onClick={onProgClick}>
-            <div style={{height:"100%",width:pct+"%",background:`linear-gradient(90deg,${T.blue},${T.gold})`,borderRadius:3,transition:"width .18s"}}/>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:7.5,color:T.text4,fontFamily:T.stats}}>
-            <span>Action {step+1} / {hand.actions.length}</span>
-            <span>{pct}%</span>
-          </div>
-        </div>}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   REPLAY TIMELINE — Bandeau indépendant sous la table
-══════════════════════════════════════════════════════ */
-function ReplayTimeline({hand,step,setStep,playing,setPlaying,playSpeed,setPlaySpeed}){
-  if(!hand)return null;
-  const cur=hand.actions[Math.max(0,Math.min(step,hand.actions.length-1))];
-  const streets=["Preflop","Flop","Turn","River"];
-  const curSI=streets.indexOf(cur.street);
-  const pct=hand.actions.length>1?(step/(hand.actions.length-1)*100):0;
-  const stStatus=s=>{const si=streets.indexOf(s);return si<curSI?"done":si===curSI?"cur":"todo";};
-  const goStreet=s=>{const i=hand.actions.findIndex(a=>a.street===s);if(i>=0){setStep(i);setPlaying(false);}};
-  const onBarClick=e=>{
-    const r=e.currentTarget.getBoundingClientRect();
-    setStep(Math.max(0,Math.min(hand.actions.length-1,Math.round(((e.clientX-r.left)/r.width)*(hand.actions.length-1)))));
-    setPlaying(false);
-  };
-  const activeStreets=streets.filter(s=>hand.actions.some(a=>a.street===s));
-  const streetMarkers=activeStreets.map(s=>({
-    s,pct:hand.actions.length>1?hand.actions.findIndex(a=>a.street===s)/(hand.actions.length-1)*100:0
-  })).filter(m=>m.pct>0);
-
-  return(
-    <div style={{background:"#050E28",border:"1px solid #152D6E",borderRadius:10,padding:"10px 16px 12px",marginTop:8}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:9}}>
-        <div style={{display:"flex",gap:3,flexShrink:0}}>
-          {[
-            {l:"⏮",f:()=>{setStep(0);setPlaying(false);}},
-            {l:"⏪",f:()=>setStep(s=>Math.max(0,s-1))},
-            {l:playing?"⏸":"▶",f:()=>setPlaying(p=>!p),primary:true},
-            {l:"⏩",f:()=>setStep(s=>Math.min(hand.actions.length-1,s+1))},
-            {l:"⏭",f:()=>{setStep(hand.actions.length-1);setPlaying(false);}},
-          ].map((b,i)=>(
-            <button key={i} onClick={b.f} style={{
-              width:b.primary?36:28,height:b.primary?36:28,borderRadius:b.primary?8:5,
-              fontSize:b.primary?16:12,cursor:"pointer",flexShrink:0,
-              background:b.primary?(playing?"rgba(255,194,71,.22)":"rgba(255,255,255,.09)"):"rgba(255,255,255,.05)",
-              border:`1px solid ${b.primary?(playing?"rgba(255,194,71,.5)":"rgba(255,255,255,.18)"):"rgba(255,255,255,.1)"}`,
-              color:b.primary?(playing?T.gold:T.text):T.text3,
-              display:"flex",alignItems:"center",justifyContent:"center",transition:"all .12s",
-              boxShadow:b.primary&&playing?"0 0 12px rgba(255,194,71,.25)":"none",
-            }}>{b.l}</button>
-          ))}
-        </div>
-        <div style={{flex:1,display:"flex",justifyContent:"center",gap:5}}>
-          {activeStreets.map(s=>{
-            const st=stStatus(s);
-            return(
-              <button key={s} onClick={()=>goStreet(s)} style={{
-                padding:"4px 14px",borderRadius:20,fontSize:10,fontWeight:700,cursor:"pointer",
-                background:st==="done"?"rgba(16,216,122,.1)":st==="cur"?"rgba(255,194,71,.14)":"rgba(255,255,255,.04)",
-                border:`1px solid ${st==="done"?"rgba(16,216,122,.3)":st==="cur"?"rgba(255,194,71,.35)":"rgba(255,255,255,.08)"}`,
-                color:st==="done"?T.green:st==="cur"?T.gold:T.text4,
-                fontFamily:T.stats,transition:"all .14s",display:"flex",alignItems:"center",gap:5,
-              }}>
-                <span style={{width:6,height:6,borderRadius:"50%",flexShrink:0,
-                  background:st==="done"?T.green:st==="cur"?T.gold:"rgba(255,255,255,.15)",
-                  boxShadow:st==="cur"?`0 0 6px ${T.goldGlow}`:"none",display:"inline-block",
-                }}/>
-                {s}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
-          <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,marginRight:2}}>Vitesse</span>
-          {[.5,1,2,4].map(s=>(
-            <button key={s} onClick={()=>setPlaySpeed(s)} style={{
-              padding:"3px 8px",borderRadius:5,fontSize:9.5,fontWeight:700,cursor:"pointer",
-              background:playSpeed===s?"rgba(255,194,71,.18)":"rgba(255,255,255,.05)",
-              border:`1px solid ${playSpeed===s?"rgba(255,194,71,.45)":"rgba(255,255,255,.08)"}`,
-              color:playSpeed===s?T.gold:T.text4,fontFamily:T.stats,transition:"all .12s",
-            }}>{s}×</button>
-          ))}
-        </div>
-      </div>
-      <div style={{position:"relative",height:10,background:"rgba(255,255,255,.07)",borderRadius:5,cursor:"pointer",marginBottom:5,userSelect:"none"}} onClick={onBarClick}>
-        <div style={{height:"100%",width:pct+"%",background:"linear-gradient(90deg,#1F8BFF,#FFC247)",borderRadius:5,transition:"width .15s",position:"relative"}}>
-          <div style={{position:"absolute",right:-5,top:"50%",transform:"translateY(-50%)",width:12,height:12,borderRadius:"50%",background:T.gold,boxShadow:"0 0 8px rgba(255,194,71,.7)",border:"2px solid rgba(0,0,0,.5)"}}/>
-        </div>
-        {streetMarkers.map(m=>(
-          <div key={m.s} style={{position:"absolute",left:m.pct+"%",top:0,bottom:0,width:2,background:"rgba(255,255,255,.28)",transform:"translateX(-50%)",pointerEvents:"none",borderRadius:1}}/>
-        ))}
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:9,color:T.text4,fontFamily:T.stats}}>Action {step+1} / {hand.actions.length}</span>
-        <div style={{fontSize:11,fontFamily:T.stats,fontWeight:700,color:cur.isErr?T.red:cur.isHero?T.gold:T.text2,display:"flex",alignItems:"center",gap:6}}>
-          <span style={{color:T.text4,fontWeight:400,fontSize:9.5}}>{cur.actor}</span>
-          <span style={{color:T.text4}}>·</span>
-          <span>{cur.action}{cur.amt?` ${cur.amt}$`:""}</span>
-          {cur.isErr&&<span style={{color:T.red}}>⚠</span>}
-        </div>
-        <span style={{fontSize:9,color:T.text4,fontFamily:T.stats}}>{Math.round(pct)}%</span>
-      </div>
-    </div>
-  );
 }
 
 /* ══════════════════════════════════════════════════════
@@ -522,343 +254,6 @@ function DonutChart({call=35,raise=25,fold=40,size=76}){
       })}
       <circle cx={cx} cy={cy} r={21} fill="#050E28"/>
     </svg>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   REPLAYER — Positions dynamiques + reconstruction des mises
-   (Hero en bas, sens horaire ; jetons + stacks step-by-step)
-══════════════════════════════════════════════════════ */
-/* Positions sur l'oval : index 0 = bas (Hero), puis sens horaire.
-   Oval calibré pour que les sièges du haut ne soient JAMAIS rognés. */
-function repRingCoords(n){
-  const cx=50, cy=52, rx=43, ry=31;
-  const out=[];
-  for(let i=0;i<n;i++){
-    const ang=Math.PI/2 - (i*2*Math.PI/n); // bas → sens horaire
-    out.push({x:+(cx+rx*Math.cos(ang)).toFixed(2), y:+(cy+ry*Math.sin(ang)).toFixed(2)});
-  }
-  return out;
-}
-/* Sièges ordonnés autour de la table : Hero en bas, autres dans l'ordre des sièges. */
-function repOrderedSeats(hand){
-  const seats=[...(hand.seats||[])];
-  if(seats.length&&seats.every(s=>Number.isFinite(s.seat)))seats.sort((a,b)=>a.seat-b.seat);
-  const hi=seats.findIndex(s=>s.isHero);
-  const start=hi>=0?hi:0;
-  const ring=[];
-  for(let i=0;i<seats.length;i++)ring.push(seats[(start+i)%seats.length]);
-  return ring;
-}
-/* État des mises à l'étape `step` :
-   committed = jetons devant chaque joueur sur la street courante (pas encore collectés),
-   invested  = total investi sur la main (pour décrémenter les stacks),
-   folded    = joueurs couchés, curStreet = street affichée, lastBySeat = dernière action par siège. */
-function repBetState(hand,step){
-  const acts=hand?.actions||[];
-  const k=Math.max(0,Math.min(step,acts.length-1));
-  const invested={};const folded=new Set();const lastBySeat={};const postedBlind={};
-  let committed={};let streetMax=0;let prevStreet=null;let collected=0;
-  const curStreet=acts[k]?.street||"Preflop";
-  const sweep=()=>{collected+=Object.values(committed).reduce((a,b)=>a+b,0);committed={};streetMax=0;};
-  const seedBlinds=()=>{
-    (hand.seats||[]).forEach(s=>{
-      if(s.pos==="SB"){committed[s.name]=0.5;invested[s.name]=(invested[s.name]||0)+0.5;streetMax=Math.max(streetMax,0.5);postedBlind[s.name]=0.5;}
-      if(s.pos==="BB"){committed[s.name]=1;invested[s.name]=(invested[s.name]||0)+1;streetMax=Math.max(streetMax,1);postedBlind[s.name]=1;}
-    });
-  };
-  for(let i=0;i<=k;i++){
-    const a=acts[i];if(!a)continue;
-    if(a.street!==prevStreet){sweep();if(/^pre/i.test(a.street))seedBlinds();prevStreet=a.street;}
-    const lab=a.action||"";const amt=a.amt;
-    lastBySeat[a.actor]={label:lab,street:a.street,isErr:a.isErr};
-    if(/Fold/i.test(lab)){
-      // jetons déjà engagés par le foldeur → balayés au pot (dead money)
-      collected+=committed[a.actor]||0;delete committed[a.actor];
-      folded.add(a.actor);continue;
-    }
-    if(/Check/i.test(lab))continue;
-    if(amt==null)continue;
-    if(/Raise|All-?in|Bet/i.test(lab)){
-      const delta=Math.max(0,amt-(committed[a.actor]||0));
-      invested[a.actor]=(invested[a.actor]||0)+delta;
-      committed[a.actor]=amt;streetMax=Math.max(streetMax,amt);
-    }else if(/Call/i.test(lab)){
-      const target=streetMax>0?streetMax:(committed[a.actor]||0)+amt;
-      const delta=Math.max(0,target-(committed[a.actor]||0));
-      invested[a.actor]=(invested[a.actor]||0)+delta;
-      committed[a.actor]=target;
-    }
-  }
-  const liveCommitted=Object.values(committed).reduce((a,b)=>a+b,0);
-  const pot=collected+liveCommitted; // pot total contesté = collecté + mises en cours
-  return {committed,invested,folded,curStreet,lastBySeat,collected,pot,postedBlind};
-}
-/* Petite pile de jetons + montant devant un joueur.
-   posLabel renseigné (SB/BB) → variante « blinde postée » (teinte cyan, label discret). */
-function RepBetChips({amount,fmt,color="#FFC247",posLabel,scale=1}){
-  if(!(amount>0))return null;
-  const PAL={
-    "#FFC247":["#FFD24A","#E8A317","#C8860B"],   // mise Hero (or)
-    "#9B5CFF":["#9B5CFF","#7D3DCC","#5E2E99"],   // mise vilain (violet)
-    "#34D8FF":["#5EC8FF","#2E9BD8","#1E6FA8"],   // blinde postée (cyan)
-  };
-  const cols=PAL[color]||PAL["#FFC247"];
-  const count=Math.min(6,Math.max(2,Math.ceil(amount/2.5)));
-  const csz=16, gap=4;
-  return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,transform:`scale(${scale})`,transformOrigin:"center"}}>
-      {posLabel&&<span style={{fontSize:7.5,fontWeight:800,fontFamily:T.stats,color:"#BDEBFF",letterSpacing:".06em",
-        background:"rgba(52,216,255,.18)",border:"1px solid rgba(52,216,255,.5)",padding:"0 6px",borderRadius:10,
-        whiteSpace:"nowrap",lineHeight:1.6,boxShadow:"0 0 8px rgba(52,216,255,.3)"}}>{posLabel}</span>}
-      <div style={{position:"relative",width:csz,height:csz+(count-1)*gap,filter:`drop-shadow(0 4px 7px ${color}77)`}}>
-        {[...Array(count)].map((_,ci)=>(
-          <div key={ci} style={{position:"absolute",bottom:ci*gap,left:0,width:csz,height:csz,borderRadius:"50%",
-            background:cols[ci%cols.length],border:`2px solid ${cols[2]}`,
-            boxShadow:"inset 0 -2px 2.5px rgba(0,0,0,.55),inset 0 2px 2px rgba(255,255,255,.3)"}}>
-            <div style={{position:"absolute",inset:0,borderRadius:"50%",background:"radial-gradient(circle at 35% 28%,rgba(255,255,255,.45) 0%,transparent 56%)"}}/>
-            <div style={{position:"absolute",inset:2.5,borderRadius:"50%",border:`1px dashed ${color}55`}}/>
-          </div>
-        ))}
-      </div>
-      <span style={{fontFamily:T.mono,fontSize:11,fontWeight:900,color,textShadow:`0 0 7px ${color}99`,whiteSpace:"nowrap",
-        background:"rgba(5,12,30,.72)",padding:"0 5px",borderRadius:6,marginTop:1}}>{fmt(roundBb(amount))}</span>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   REPLAY TABLE 3 — Version Premium (GTO Wizard style)
-   Table dominante, héro en bleu électrique, stats VPIP/PFR
-══════════════════════════════════════════════════════ */
-function ReplayTable3({hand,step,fmt}){
-  const[fly,setFly]=useState([]);          // jetons en vol vers le pot
-  const[potPulse,setPotPulse]=useState(false);
-  const prevStepRef=useRef(step);
-  // Mesure de la table → échelle adaptative des jetons/dealer (px fixes sur table %) : stable à toute largeur.
-  const wrapRef=useRef(null);
-  const[tw,setTw]=useState(660);
-  useEffect(()=>{
-    const el=wrapRef.current;if(!el||typeof ResizeObserver==="undefined")return;
-    const ro=new ResizeObserver(es=>{const w=es[0]?.contentRect?.width;if(w)setTw(w);});
-    ro.observe(el);return()=>ro.disconnect();
-  },[]);
-  const chipScale=Math.max(0.74,Math.min(1.18,tw/660));
-  // Détecte les transitions de street → anime la collecte des jetons vers le pot
-  useEffect(()=>{
-    if(!hand){prevStepRef.current=step;return;}
-    const prev=prevStepRef.current;prevStepRef.current=step;
-    if(step===prev)return;
-    const prevBs=repBetState(hand,prev),curBs=repBetState(hand,step);
-    const timers=[];
-    if(Math.abs(curBs.pot-prevBs.pot)>0.01){setPotPulse(true);timers.push(setTimeout(()=>setPotPulse(false),360));}
-    if(step>prev&&prevBs.curStreet!==curBs.curStreet){
-      const ring=repOrderedSeats(hand),coords=repRingCoords(ring.length);
-      const flies=ring.map((s,i)=>{
-        let fx,fy;
-        if(i===0){fx=40;fy=71;}
-        else{const dx=coords[i].x-50, dy=coords[i].y-52, ang=Math.atan2(dy,dx);fx=50+32*Math.cos(ang);fy=52+19*Math.sin(ang);}
-        return {name:s.name,amount:prevBs.committed[s.name]||0,x:fx,y:fy,hero:s.isHero};
-      }).filter(f=>f.amount>0).map((f,idx)=>({...f,id:`${step}-${idx}`,moved:false}));
-      if(flies.length){
-        setFly(flies);
-        requestAnimationFrame(()=>requestAnimationFrame(()=>setFly(fs=>fs.map(f=>({...f,moved:true})))));
-        timers.push(setTimeout(()=>setFly([]),720));
-      }
-    }
-    return()=>timers.forEach(clearTimeout);
-  },[step,hand]);
-  if(!hand)return null;
-  const cur=hand.actions[Math.max(0,Math.min(step,hand.actions.length-1))];
-  const bs=repBetState(hand,step);
-  const lastStep=hand.actions.length-1;
-  const isShowdown=!!(hand.hasShowdown&&step>=lastStep);
-  // Zone de mise Hero : à GAUCHE de l'avatar (l'avatar+cartes remplit la hauteur sous le board).
-  // Offset calculé en px → robuste à toute largeur de table.
-  const heroAvR=36;                          // rayon avatar Hero (sz 72 / 2)
-  const heroBetX=50-(heroAvR/tw)*100-(16*chipScale/tw)*100-1.5;
-  const heroBetY=71;
-  return(
-    <div ref={wrapRef} style={{position:"relative",width:"100%",paddingBottom:"58%"}}>
-      <div style={{position:"absolute",inset:-6,borderRadius:"47%",background:"transparent",
-        boxShadow:"0 0 90px rgba(31,139,255,.1),0 0 50px rgba(0,0,0,.85),0 30px 100px rgba(0,0,0,.95)",
-        pointerEvents:"none",zIndex:0}}/>
-      <div style={{
-        position:"absolute",inset:0,zIndex:1,
-        background:"radial-gradient(ellipse 88% 76% at 50% 44%,#1a5c34 0%,#0f3220 40%,#081c12 70%,#050e28 100%)",
-        borderRadius:"46%",
-        border:"5px solid #071228",
-        boxShadow:"0 0 0 1.5px rgba(31,139,255,.07),inset 0 0 120px rgba(0,0,0,.6),0 24px 90px rgba(0,0,0,.95)",
-        overflow:"hidden",
-      }}>
-        <div style={{position:"absolute",inset:10,border:"1.5px solid rgba(255,194,71,.07)",borderRadius:"45%",pointerEvents:"none"}}/>
-        <div style={{position:"absolute",top:"54%",left:"50%",transform:"translate(-50%,-50%)",
-          fontFamily:T.brand,fontSize:22,fontWeight:900,color:"rgba(255,255,255,.025)",
-          letterSpacing:".35em",userSelect:"none",pointerEvents:"none",whiteSpace:"nowrap"}}>POKERFORGE</div>
-
-        {/* ── POT (au-dessus du board, duo visuel central) ── */}
-        <div style={{position:"absolute",top:"30%",left:"50%",transform:`translate(-50%,-50%) scale(${potPulse?1.12:1})`,
-          zIndex:6,pointerEvents:"none",transition:"transform .35s cubic-bezier(.34,1.56,.64,1)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,padding:"3px 12px 3px 8px",borderRadius:20,
-            background:"rgba(5,14,30,.82)",border:"1px solid rgba(255,194,71,.34)",
-            boxShadow:"0 4px 18px rgba(0,0,0,.55),0 0 18px rgba(255,194,71,.14)"}}>
-            {/* mini cluster de jetons */}
-            <div style={{position:"relative",width:16,height:13}}>
-              {["#FFD24A","#E8A317","#C8860B"].map((cc,ci)=>(
-                <div key={ci} style={{position:"absolute",left:ci*4,bottom:0,width:11,height:11,borderRadius:"50%",
-                  background:cc,border:"1.2px solid #8a5e08",boxShadow:"inset 0 -1px 1.5px rgba(0,0,0,.5),inset 0 1px 1px rgba(255,255,255,.3)"}}/>
-              ))}
-            </div>
-            <span style={{fontFamily:T.stats,fontSize:13,fontWeight:800,color:T.gold,whiteSpace:"nowrap",
-              textShadow:"0 0 14px rgba(255,194,71,.6)"}}>Pot : {fmt(roundBb(bs.pot))}</span>
-          </div>
-        </div>
-
-        {/* ── BOARD (centre de gravité, position stable street→street) ── */}
-        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-          display:"flex",gap:6,zIndex:5,alignItems:"center",justifyContent:"center"}}>
-          {cur.board.length>0
-            ?cur.board.map((c,i)=><Card key={`${step}-b${i}`} r={c.r} s={c.s} size="lg" delay={i*.07}/>)
-            :<span style={{fontSize:11,color:"rgba(255,255,255,.16)",fontFamily:T.stats,letterSpacing:".22em",fontWeight:700}}>PRÉFLOP</span>}
-        </div>
-
-        {/* ── SIÈGES (positions dynamiques : Hero en bas, sens horaire) ── */}
-        {(()=>{
-          const ring=repOrderedSeats(hand);
-          const coords=repRingCoords(ring.length);
-          const bb=hand.bb||1;
-          const btnSeat=ring.find(s=>s.pos==="BTN");
-          return(
-            <>
-              {/* DEALER BUTTON — ancré sur le CÔTÉ du siège BTN (tangentiel) : jamais sur Hero, ses cartes ou sa zone de mise */}
-              {btnSeat&&(()=>{
-                const bi=ring.indexOf(btnSeat);const bc=coords[bi];
-                const ang=Math.atan2(bc.y-52,bc.x-50);
-                // décalage tangentiel (perpendiculaire au rayon) + léger retrait vers le centre
-                const tang=ang-Math.PI/2;
-                const offX=9.5, offY=7;
-                const bx=bc.x+Math.cos(tang)*offX+(50-bc.x)*0.08;
-                const by=bc.y+Math.sin(tang)*offY+(52-bc.y)*0.08;
-                const dsz=Math.round(19*chipScale);
-                return <div className="dealer-btn" style={{left:`${bx}%`,top:`${by}%`,width:dsz,height:dsz,fontSize:9.5*chipScale,zIndex:6,
-                  boxShadow:"0 2px 8px rgba(0,0,0,.6),0 0 10px rgba(255,194,71,.3)"}}>D</div>;
-              })()}
-
-              {ring.map((seat,i)=>{
-                const c=coords[i];
-                const isActor=cur.actor===seat.name;
-                const isHero=seat.isHero;
-                const isFolded=bs.folded.has(seat.name);
-                const sz=isHero?72:60;
-                const stackBb=Math.max(0,(seat.stack/bb)-(bs.invested[seat.name]||0));
-                const committed=bs.committed[seat.name]||0;
-                // Zone de mise : Hero (index 0, toujours en bas) = zone dédiée entre le board et son avatar ;
-                // autres sièges = anneau elliptique entre board (centre) et sièges → safe-area, zéro chevauchement.
-                let cpx, cpy;
-                // Hero (index 0, en bas) : l'avatar+cartes occupe toute la hauteur sous le board → zone de mise placée
-                // À CÔTÉ de l'avatar (offset horizontal calculé en px, robuste à toute largeur). Espace libre garanti.
-                if(i===0){ cpx=heroBetX; cpy=heroBetY; }
-                else { const dx=c.x-50, dy=c.y-52, ang=Math.atan2(dy,dx); const betRx=32, betRy=19; cpx=50+betRx*Math.cos(ang); cpy=52+betRy*Math.sin(ang); }
-                const last=bs.lastBySeat[seat.name];
-                // Blinde postée = préflop, montant == blinde, aucune action volontaire encore → affichage distinct (cyan + label SB/BB)
-                const postedBlind=bs.postedBlind[seat.name]||0;
-                const isJustBlind=/^pre/i.test(bs.curStreet)&&postedBlind>0&&Math.abs(committed-postedBlind)<0.001&&!last;
-                return(
-                  <React.Fragment key={i}>
-                    {/* mise/blinde du joueur (sur l'anneau, vers le centre) */}
-                    {committed>0&&(
-                      <div style={{position:"absolute",left:`${cpx}%`,top:`${cpy}%`,transform:"translate(-50%,-50%)",zIndex:5}}>
-                        {isJustBlind
-                          ?<RepBetChips amount={committed} fmt={fmt} color="#34D8FF" posLabel={seat.pos} scale={chipScale}/>
-                          :<RepBetChips amount={committed} fmt={fmt} color={isHero?"#FFC247":"#9B5CFF"} scale={chipScale}/>}
-                      </div>
-                    )}
-                    <div style={{position:"absolute",left:`${c.x}%`,top:`${c.y}%`,
-                      transform:"translate(-50%,-50%)",display:"flex",flexDirection:"column",
-                      alignItems:"center",gap:3,zIndex:4,opacity:isFolded?0.4:1,transition:"opacity .25s"}}>
-                      <div style={{position:"relative",flexShrink:0}}>
-                        {isHero&&!isFolded&&<div style={{position:"absolute",inset:-4,borderRadius:"50%",
-                          background:"transparent",
-                          boxShadow:"0 0 32px rgba(31,139,255,.55),0 0 14px rgba(31,139,255,.35)",
-                          animation:"seatPulse 2.2s infinite",zIndex:0}}/>}
-                        <div style={{
-                          width:sz,height:sz,borderRadius:"50%",zIndex:1,position:"relative",
-                          background:isHero?"rgba(31,139,255,.18)":isActor?"rgba(155,92,255,.2)":"rgba(0,0,0,.62)",
-                          border:`${isHero?3:2}px solid ${isHero?"#1F8BFF":isActor?T.purple:"rgba(255,255,255,.11)"}`,
-                          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                          boxShadow:isActor&&!isHero?`0 0 22px ${T.purpleGlow}`:"none",
-                          animation:isActor?"seatPulse 1.8s infinite":"none",
-                          filter:isFolded?"grayscale(1)":"none",
-                        }}>
-                          {isHero&&<div style={{position:"absolute",top:-11,left:"50%",transform:"translateX(-50%)",
-                            fontSize:6.5,fontWeight:800,fontFamily:T.stats,color:"#1F8BFF",letterSpacing:".1em",
-                            background:"rgba(31,139,255,.16)",padding:"1px 7px",borderRadius:20,
-                            border:"1px solid rgba(31,139,255,.35)",whiteSpace:"nowrap"}}>HERO</div>}
-                          <span style={{fontFamily:T.brand,fontSize:isHero?10:9,fontWeight:700,
-                            color:isHero?"#7EB8FF":isActor?T.purple:T.text3,letterSpacing:".02em"}}>{seat.pos}</span>
-                          <span style={{fontFamily:T.stats,fontSize:isHero?11:10,fontWeight:700,
-                            color:isHero?"#fff":T.text2,marginTop:1}}>{fmt(roundBb(stackBb))}</span>
-                        </div>
-                      </div>
-                      <span style={{fontFamily:T.stats,fontSize:9,fontWeight:isHero?700:500,
-                        color:isHero?"#7EB8FF":T.text3,maxWidth:82,overflow:"hidden",
-                        textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{seat.name}</span>
-                      {seat.stats&&!isFolded&&(
-                        <div style={{display:"flex",gap:3}}>
-                          <span style={{fontSize:7,background:"rgba(255,255,255,.06)",color:T.text4,
-                            padding:"0 4px",borderRadius:3,fontFamily:T.stats}}>V{seat.stats.vpip}</span>
-                          <span style={{fontSize:7,background:"rgba(31,139,255,.08)",color:T.blue,
-                            padding:"0 4px",borderRadius:3,fontFamily:T.stats}}>P{seat.stats.pfr}</span>
-                          {seat.stats.threeBet&&<span style={{fontSize:7,background:"rgba(255,194,71,.07)",
-                            color:T.amber,padding:"0 4px",borderRadius:3,fontFamily:T.stats}}>3B{seat.stats.threeBet}</span>}
-                        </div>
-                      )}
-                      {isHero&&seat.hole?.length>0&&(
-                        <div style={{display:"flex",gap:3}}>{seat.hole.map((c2,j)=><Card key={j} r={c2.r} s={c2.s} size="sm"/>)}</div>
-                      )}
-                      {/* Showdown : révélation des cartes montrées par les vilains */}
-                      {!isHero&&isShowdown&&!isFolded&&seat.shown?.length>=2&&(
-                        <div style={{display:"flex",gap:3,filter:"drop-shadow(0 0 8px rgba(255,194,71,.4))"}}>
-                          {seat.shown.map((c2,j)=><CardFlip key={`sd-${j}`} r={c2.r} s={c2.s} size="sm" faceDown={false} delay={j*.12}/>)}
-                        </div>
-                      )}
-                      {/* badge action : actif = action courante en surbrillance ; sinon dernière action de la street */}
-                      {(isActor||(last&&last.street===bs.curStreet&&!committed))&&(()=>{
-                        const lbl=isActor?cur.action:last.label;
-                        const err=isActor?cur.isErr:last?.isErr;
-                        const fold=/Fold/i.test(lbl);
-                        return(
-                          <div style={{padding:"3px 10px",borderRadius:20,fontSize:9.5,fontWeight:700,
-                            background:err?"rgba(255,69,96,.18)":fold?"rgba(120,140,170,.16)":isHero?"rgba(31,139,255,.18)":"rgba(155,92,255,.15)",
-                            color:err?T.red:fold?T.text3:isHero?"#60A5FA":T.purple,
-                            border:`1px solid ${err?"rgba(255,69,96,.4)":fold?"rgba(120,140,170,.3)":isHero?"rgba(31,139,255,.4)":"rgba(155,92,255,.35)"}`,
-                            fontFamily:T.stats,whiteSpace:"nowrap",animation:isActor?"vilActIn .25s":"none",
-                            backdropFilter:"blur(4px)",marginTop:1,
-                          }}>{lbl}{isActor&&err?" ⚠":""}</div>
-                        );
-                      })()}
-                    </div>
-                  </React.Fragment>
-                );
-              })}
-            </>
-          );
-        })()}
-
-        {/* ── JETONS EN VOL VERS LE POT (collecte de fin de street) ── */}
-        {fly.map(f=>(
-          <div key={f.id} style={{
-            position:"absolute",
-            left:`${f.moved?50:f.x}%`,top:`${f.moved?30:f.y}%`,
-            transform:"translate(-50%,-50%)",zIndex:7,pointerEvents:"none",
-            opacity:f.moved?0:1,
-            transition:"left .65s cubic-bezier(.4,.55,.3,1),top .65s cubic-bezier(.4,.55,.3,1),opacity .65s ease-in",
-          }}>
-            <RepBetChips amount={f.amount} fmt={fmt} color={f.hero?"#FFC247":"#9B5CFF"} scale={chipScale}/>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -1368,227 +763,6 @@ function RepEmptyState({handList,onImport,onGoTrainer,apiKey}){
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   REPLAYER — PARSER MAINS (multi-format, évolutif PS/Winamax/GG/888/PMU)
-   Architecture : pfParseCard · pfSplitHands · pfParseHand · pfParseSession
-   Produit des mains normalisées compatibles ReplayTable2 (seats + actions),
-   + champs liste/résumé (heroCards, heroPos, spot, keyAction, resultBb).
-═══════════════════════════════════════════════════════════════ */
-const PF_SUIT={s:"♠",h:"♥",d:"♦",c:"♣","♠":"♠","♥":"♥","♦":"♦","♣":"♣"};
-function pfParseCard(tok){
-  if(!tok)return null;
-  let t=String(tok).trim().replace(/^10/,"T");
-  const r=(t[0]||"").toUpperCase();
-  const sc=t[1]||"";
-  const s=PF_SUIT[sc]||PF_SUIT[sc.toLowerCase()];
-  if(!"23456789TJQKA".includes(r)||!s)return null;
-  return{r,s};
-}
-function pfParseCards(str){
-  if(!str)return[];
-  const m=String(str).replace(/[[\]]/g," ").match(/(?:10|[2-9TJQKAtjqka])[shdc♠♥♦♣]/g)||[];
-  return m.map(pfParseCard).filter(Boolean);
-}
-function pfDetectSite(t){
-  if(/winamax/i.test(t))return"Winamax";
-  if(/pokerstars/i.test(t))return"PokerStars";
-  if(/gg ?poker|natural8/i.test(t))return"GGPoker";
-  if(/888 ?poker|888poker|pacific/i.test(t))return"888";
-  if(/\bpmu\b/i.test(t))return"PMU";
-  return"Inconnu";
-}
-/* Découpe un fichier en blocs-mains (en-têtes connus, sinon lignes vides) */
-function pfSplitHands(text){
-  if(!text||!text.trim())return[];
-  const re=/(?=(?:PokerStars (?:Hand|Game|Zoom Hand)|Winamax Poker|GGPoker Hand|Game Hand #|Poker Hand #|#Game No|Hand\s*#\s*\d|Ignition Hand|Bovada Hand|PMU(?:\.fr)? Poker))/g;
-  let parts=text.split(re).map(s=>s.trim()).filter(s=>s.length>20);
-  if(parts.length<=1){
-    parts=text.split(/\n\s*\n(?:\s*\n)*/).map(s=>s.trim()).filter(s=>s.split("\n").length>=3);
-  }
-  if(parts.length===0&&text.trim().length>20)parts=[text.trim()];
-  return parts;
-}
-/* Position lisible → label compatible REP_SEAT_LAYOUT */
-function pfNormPos(p){
-  const u=(p||"").toUpperCase().replace(/\s/g,"");
-  if(["BTN","BU","BUTTON","D"].includes(u))return"BTN";
-  if(["SB"].includes(u))return"SB";if(["BB"].includes(u))return"BB";
-  if(["CO"].includes(u))return"CO";if(["HJ","MP2"].includes(u))return"HJ";
-  if(["LJ","MP","MP1"].includes(u))return"LJ";
-  if(["UTG","UTG+1","UTG+2","EP","EP1"].includes(u))return"UTG";
-  return null;
-}
-/* Assigne des positions par anneau si non explicites.
-   Size-aware via POSITIONS_BY_SIZE : 6-max → SB,BB,UTG,HJ,CO (plus de "LJ" parasite). */
-function pfRingPositions(seats,btnIdx){
-  const n=seats.length;if(n<2)return;
-  if(n===2){seats[btnIdx].pos="SB";seats[(btnIdx+1)%n].pos="BB";return;}
-  seats[btnIdx].pos="BTN";
-  const base=POSITIONS_BY_SIZE[n];
-  let order;
-  if(base&&base.length===n){
-    const bi=base.indexOf("BTN");
-    order=[];for(let k=1;k<n;k++)order.push(base[(bi+k)%n]);
-  }else{
-    order=["SB","BB","UTG","UTG+1","MP","LJ","HJ","CO"]; // fallback générique
-  }
-  for(let k=1;k<n;k++){seats[(btnIdx+k)%n].pos=order[k-1]||"HJ";}
-}
-/* Parse une main brute → objet normalisé */
-function pfParseHand(block,idx){
-  try{
-    const site=pfDetectSite(block);
-    const gameType=detectGameType(block);
-    const lines=block.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    const idm=block.match(/(?:Hand|Game|No)\s*[:#]?\s*([0-9]{4,})/i)||block.match(/#\s*([0-9]{4,})/);
-    const handId=idm?idm[1]:String(100000+idx);
-    const dm=block.match(/(\d{4}\/\d{2}\/\d{2}[^\n]*\d{2}:\d{2})/)||block.match(/(\d{2}\/\d{2}\/\d{4}[^\n]*\d{2}:\d{2})/)||block.match(/(\d{4}\/\d{2}\/\d{2})/);
-    const dateStr=dm?dm[1].slice(0,19):"";
-    // big blind (pour conversion bb) — défaut 1 si déjà en bb
-    let bb=1;const bbUnit=/bb\b/.test(block);
-    const bbm=block.match(/[Bb]ig blind[^0-9]*([0-9.]+)/)||block.match(/\([0-9.]+\s*[€$]?\/\s*([0-9.]+)/)||block.match(/\/\s*([0-9.]+)\s*[€$]?\s*\)/);
-    if(bbm&&!bbUnit)bb=parseFloat(bbm[1])||1;
-    const toBb=v=>bb>0?Math.round((v/bb)*100)/100:v;
-
-    // ── Joueurs (Seat lines) ──
-    const players={};const order=[];
-    const seatRe=/Seat\s+(\d+):\s+(.+?)\s+\(\s*[€$£]?\s*([0-9][0-9.,]*)/g;let sm;
-    while((sm=seatRe.exec(block))){
-      const name=sm[2].trim();const stack=parseFloat(sm[3].replace(/,/g,""))||100;
-      if(!players[name]){players[name]={name,stack,seat:parseInt(sm[1]),pos:null,isHero:false,hole:[]};order.push(name);}
-    }
-    // Bouton
-    const btnm=block.match(/Seat\s+#?(\d+)\s+is the button/i);
-    const btnSeat=btnm?parseInt(btnm[1]):null;
-    // Hero + cartes
-    let heroName=null;
-    const dealt=block.match(/Dealt to\s+(.+?)\s+\[([^\]]+)\]/i);
-    if(dealt){heroName=dealt[1].trim();}
-    const heroTok=block.match(/(\S[^\n(]*?)\s*\(Hero\)/);
-    if(!heroName&&heroTok)heroName=heroTok[1].trim();
-    let heroCards=dealt?pfParseCards(dealt[2]):[];
-
-    // ── Streets + board + actions ──
-    const actions=[];let street="Preflop";let board=[];let pot=0;
-    // pot initial = blinds
-    const sbm=block.match(/[Ss]mall blind[^0-9]*([0-9.]+)/);const sbv=sbm?parseFloat(sbm[1]):bb/2;
-    pot=(bbUnit?(0.5+1):(sbv+bb));
-    const actorRe=/^(.+?)\s+(folds?|calls?|checks?|bets?|raises?|posts?|shoves?|all-in|is all-in)\b(.*)$/i;
-    function pushSeatFromActor(tok){
-      let name=tok.replace(/\(Hero\)/i,"").replace(/:\s*$/,"").trim();
-      if(!players[name]){players[name]={name,stack:100,seat:order.length+1,pos:pfNormPos(name),isHero:false,hole:[]};order.push(name);}
-      return name;
-    }
-    for(const ln of lines){
-      const fl=ln.match(/\*\*\*\s*FLOP\s*\*\*\*\s*\[([^\]]+)\]/i);
-      const tl=ln.match(/\*\*\*\s*TURN\s*\*\*\*.*\[([^\]]+)\]/i);
-      const rl=ln.match(/\*\*\*\s*RIVER\s*\*\*\*.*\[([^\]]+)\]/i);
-      if(/\*\*\*\s*(HOLE CARDS|PRE-?FLOP)/i.test(ln)){street="Preflop";continue;}
-      if(fl){street="Flop";board=pfParseCards(fl[1]);continue;}
-      if(tl){street="Turn";board=pfParseCards(ln);continue;}
-      if(rl){street="River";board=pfParseCards(ln);continue;}
-      if(/\*\*\*\s*SHOW ?DOWN|\*\*\*\s*SUMMARY/i.test(ln))break;
-      const am=ln.match(actorRe);
-      if(am){
-        const actorTok=am[1].trim();
-        if(/^(Dealt|Board|Total pot|Seat \d|Uncalled|\*\*\*)/i.test(actorTok))continue;
-        const verb=am[2].toLowerCase();const rest=am[3]||"";
-        if(/^posts?$/.test(verb))continue; // blinds déjà comptées
-        const name=pushSeatFromActor(actorTok);
-        if(heroName&&name===heroName)players[name].isHero=true;
-        if(/\(hero\)/i.test(ln)){players[name].isHero=true;heroName=name;}
-        // montant : "raises X to Y" → Y ; "calls X" / "bets X" → X
-        // (devise optionnelle : "raises $7 to $10" → 10)
-        let amt=null;
-        const toM=rest.match(/to\s+[€$£]?\s*([0-9.,]+)/i);
-        const num=rest.match(/[€$£]?\s*([0-9][0-9.,]*)/);
-        if(toM)amt=parseFloat(toM[1].replace(/,/g,""));
-        else if(num)amt=parseFloat(num[1].replace(/,/g,""));
-        let label;
-        if(/fold/.test(verb))label="Fold";
-        else if(/check/.test(verb))label="Check";
-        else if(/call/.test(verb))label="Call"+(amt!=null?` ${bbUnit?amt:toBb(amt)}${bbUnit?"bb":"bb"}`:"");
-        else if(/raise/.test(verb))label=(street==="Preflop"?"Raise":"Raise")+(amt!=null?` ${bbUnit?amt:toBb(amt)}bb`:"");
-        else if(/bet/.test(verb))label="Bet"+(amt!=null?` ${bbUnit?amt:toBb(amt)}bb`:"");
-        else if(/shove|all-?in/.test(verb))label="All-in"+(amt!=null?` ${bbUnit?amt:toBb(amt)}bb`:"");
-        else label=verb;
-        if(amt!=null&&!/fold|check/.test(verb))pot+=bbUnit?amt:amt;
-        actions.push({street,actor:name,action:label,amt:amt!=null?(bbUnit?amt:toBb(amt)):null,
-          pot:Math.round((bbUnit?pot:toBb(pot))*2*10)/10,board:board.slice(),ev:null,isHero:!!players[name].isHero,isErr:false});
-      }
-    }
-    // ── Seats finaux ──
-    const seatArr=order.map(n=>players[n]);
-    if(btnSeat!=null){const bi=seatArr.findIndex(s=>s.seat===btnSeat);if(bi>=0&&seatArr.some(s=>!s.pos))pfRingPositions(seatArr,bi);}
-    // Bouton d'abord, puis blinds postées (autoritaires sur SB/BB)
-    if(btnSeat!=null){const bs=seatArr.find(s=>s.seat===btnSeat);if(bs&&seatArr.length>2)bs.pos="BTN";}
-    const blindRe=/^(.+?):?\s+posts (small|big) blind/gim;let bmm;
-    while((bmm=blindRe.exec(block))){const nm=bmm[1].replace(/:$/,"").trim();const sx=seatArr.find(x=>x.name===nm);if(sx)sx.pos=bmm[2].toLowerCase()==="small"?"SB":"BB";}
-    // ── Cartes montrées au showdown (« Name: shows [Xx Yy] » / « Seat N: Name showed [..] ») ──
-    const shownMap={};const hasShowdown=/\*\*\*\s*SHOW ?DOWN/i.test(block);
-    const showRe=/^(?:Seat\s+\d+:\s+)?(.+?)\s+(?:shows?|showed|mucks and shows?)\s+\[([^\]]+)\]/gim;let shm;
-    while((shm=showRe.exec(block))){const nm=shm[1].replace(/\(.*?\)/g,"").replace(/:$/,"").trim();const cs=pfParseCards(shm[2]);if(cs.length>=2)shownMap[nm]=cs.slice(0,2);}
-    seatArr.forEach(s=>{if(!s.pos)s.pos=pfNormPos(s.name)||"BB";if(heroName&&s.name===heroName){s.isHero=true;s.hole=heroCards;}
-      if(shownMap[s.name])s.shown=shownMap[s.name];
-      s.stats={vpip:20+((s.name.length*7)%18),pfr:14+((s.name.length*5)%14),threeBet:5+((s.name.length*3)%8)};});
-    let hero=seatArr.find(s=>s.isHero);
-    if(!hero&&seatArr.length){hero=seatArr[0];hero.isHero=true;hero.hole=heroCards;}
-    // ── Champs liste/résumé ──
-    const heroPos=hero?hero.pos:"?";
-    const heroActs=actions.filter(a=>a.isHero);
-    // villain principal = agresseur non-hero (≠ position Hero), sinon 1er autre siège
-    const aggr=actions.find(a=>!a.isHero&&/Raise|Bet|All-in/i.test(a.action)&&seatArr.find(s=>s.name===a.actor)?.pos!==heroPos);
-    let vilPos=aggr?(seatArr.find(s=>s.name===aggr.actor)?.pos):null;
-    if(!vilPos||vilPos===heroPos){const other=seatArr.find(s=>!s.isHero&&s.pos!==heroPos);vilPos=other?other.pos:(seatArr.find(s=>!s.isHero)?.pos||"?");}
-    const spot=`${heroPos} vs ${vilPos}`;
-    const lastHero=heroActs[heroActs.length-1];
-    const keyAction=lastHero?lastHero.action:"—";
-    // résultat bb hero
-    let resultBb=0;
-    const heroEsc=(heroName||"Hero").replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    const colRe=new RegExp(heroEsc+"[^\\n]*?(?:collected|won|gagne)[^0-9]*([0-9.,]+)","i");
-    const colm=block.match(colRe);
-    // mise non payée rendue (PokerStars/GG) → ne compte pas comme investie
-    const uncm=block.match(new RegExp("Uncalled bet\\s*\\(?[€$£]?([0-9.,]+)\\)?\\s*returned to\\s+"+heroEsc,"i"));
-    const unc=uncm?(bbUnit?parseFloat(uncm[1]):toBb(parseFloat(uncm[1].replace(/,/g,"")))):0;
-    // blinds + antes postées par Hero = investies (important en MTT avec antes)
-    let posted=0;const postRe=new RegExp("^"+heroEsc+"\\s+posts[^0-9]*([0-9.,]+)","gim");let pm;
-    while((pm=postRe.exec(block))){const v=parseFloat(pm[1].replace(/,/g,""));posted+=bbUnit?v:toBb(v);}
-    let inv=heroActs.reduce((a,b)=>a+(b.amt&&/Call|Raise|Bet|All-in/i.test(b.action)?b.amt:0),0)+posted-unc;
-    if(inv<0)inv=0;
-    if(colm){const won=bbUnit?parseFloat(colm[1]):toBb(parseFloat(colm[1].replace(/,/g,"")));resultBb=Math.round((won-inv)*100)/100;}
-    else{resultBb=Math.round((-inv)*100)/100;} // pas de gain trouvé → perte des mises (fold)
-    if(!actions.length){return{valid:false,error:"Aucune action détectée",site,handId,raw:block};}
-    const parsed={
-      id:"H"+idx+"_"+handId,valid:true,error:null,
-      site,gameType,fmt:`${site} ${gameType==="mtt"?"MTT":"Cash"}`,handId,dateStr,bb,
-      seats:seatArr,actions,hasShowdown,
-      heroCards,heroPos,vilPos,spot,keyAction,resultBb,
-      players:seatArr.length,
-    };
-    // Garde-fous dev (non bloquant) : séquence d'actions + mises visibles cohérentes
-    const seqV=validateReplayActionSequence(parsed),betV=validateVisibleBetSequence(parsed);
-    if(!seqV.valid||!betV.valid)console.warn(`[Replayer] main #${handId} incohérences:`,[...seqV.errors,...betV.errors]);
-    return parsed;
-  }catch(e){return{valid:false,error:e.message||"Parse error",raw:block,handId:String(idx)};}
-}
-/* Parse un fichier complet → session */
-function pfParseSession(text){
-  const blocks=pfSplitHands(text);
-  const hands=[];const errors=[];
-  blocks.forEach((b,i)=>{const h=pfParseHand(b,i);if(h&&h.valid)hands.push(h);else errors.push({i,error:h?.error||"invalide"});});
-  const site=hands[0]?.site||pfDetectSite(text);
-  const gameType=hands[0]?.gameType||detectGameType(text);
-  return{
-    hands,errors,count:hands.length,
-    site,gameType,fmt:`${site} ${gameType==="mtt"?"MTT":"Cash"}`,
-    date:hands[0]?.dateStr||"",
-    players:hands[0]?.players||0,
-    single:hands.length===1,
-  };
-}
-
-
 /* ── HandHistoryList : liste des mains importées (pagination, surlignage, click) ── */
 function HandHistoryList({session,activeIdx,onSelect,unit}){
   const[page,setPage]=useState(0);
@@ -1680,7 +854,7 @@ function SingleHandSummary({hand,unit}){
   return(
     <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
       <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Informations de la main</div>
-      {[["Site",hand.site],["Format",hand.fmt],["Joueurs",`${hand.players} joueurs`],["Main ID",`#${hand.handId}`],["Spot",hand.spot],["Date",hand.dateStr||"—"]].map(([l,v])=>(
+      {[["Site",hand.site],["Format",hand.fmt],["Joueurs",`${hand.tableSize??(hand.seats?.length||0)} joueurs`],["Main ID",`#${hand.handId}`],["Spot",hand.spot],["Date",hand.dateStr||"—"]].map(([l,v])=>(
         <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
           <span style={{fontSize:8.5,color:T.text4,fontFamily:T.stats}}>{l}</span>
           <span style={{fontSize:8.5,fontWeight:600,color:T.text2,fontFamily:T.stats,maxWidth:"60%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{String(v)}</span>
@@ -1709,23 +883,22 @@ const RSOLV_FORMATS=["Cash","MTT","KO","PKO"];
 const SOLVER_POS=["UTG","HJ","CO","BTN","SB","BB"];
 function ceBoardCount(str){ try{return parseBoardToken(str).length;}catch{return 0;} }
 function scenarioFromHand(hand,step){
-  if(!hand)return null;
+  if(!hand||!hand.events)return null;
   try{
-    const bs=repBetState(hand,step);
-    const cur=hand.actions[Math.max(0,Math.min(step,hand.actions.length-1))];
-    const bb=hand.bb||1; const seats=hand.seats||[];
-    const hero=seats.find(s=>s.isHero)||seats[0];
+    const snap=computeSnapshot(hand,step);
+    const cap=s=>s?s[0].toUpperCase()+s.slice(1):s;
+    const hero=snap.players.find(p=>p.isHero)||snap.players[0];
     const heroPos=hero?.pos||hand.heroPos||"BTN";
-    const heroStack=hero?Math.max(0,Math.round((hero.stack/bb)-(bs.invested[hero.name]||0))):100;
-    let vil=seats.find(s=>!s.isHero&&s.pos===hand.vilPos)||seats.find(s=>!s.isHero&&!bs.folded.has(s.name))||seats.find(s=>!s.isHero);
+    const heroStack=Math.max(0,Math.round(hero?.stack||100));
+    let vil=snap.players.find(p=>!p.isHero&&p.pos===hand.vilPos)||snap.players.find(p=>!p.isHero&&!p.folded)||snap.players.find(p=>!p.isHero);
     const vilPos=vil?.pos||hand.vilPos||"BB";
-    const vilStack=vil?Math.max(0,Math.round((vil.stack/bb)-(bs.invested[vil.name]||0))):100;
-    const street=cur?.street||"Preflop";
-    const board=(cur?.board||[]).map(c=>c.r+c.s).join(" ");
+    const vilStack=Math.max(0,Math.round(vil?.stack||100));
+    const street=cap(snap.street)||"Preflop";
+    const board=(snap.board||[]).map(c=>c.r+c.s).join(" ");
     const heroCards=(hero?.hole||[]).map(c=>c.r+c.s).join(" ");
-    const last=bs.lastBySeat[vil?.name]; const prevAction=last&&last.street===street?last.label:"—";
-    return {format:hand.gameType==="mtt"?"MTT":"Cash",players:seats.length,heroPos,vilPos,
-      heroStack,vilStack,potBb:Math.round(bs.pot*10)/10,board,heroCards,street,prevAction,
+    const la=snap.lastAction; const prevAction=(la&&vil&&la.playerId===vil.id)?la.label:"—";
+    return {format:hand.gameType==="mtt"?"MTT":"Cash",players:snap.players.length,heroPos,vilPos,
+      heroStack,vilStack,potBb:Math.round(snap.potTotal*10)/10,board,heroCards,street,prevAction,
       villainProfile:"Reg",mode:"gto"};
   }catch{return null;}
 }
@@ -2057,8 +1230,9 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   /* Charge un texte (fichier complet OU main collée) → session + 1ʳᵉ main */
   function loadFromText(txt,forceSingle){
     if(!txt||txt.trim().length<20){showToast("⚠ Texte trop court ou vide","warn");return;}
-    const sess=pfParseSession(txt);
-    if(!sess.count){showToast("❌ Aucune main valide détectée","error");return;}
+    const parsed=pfParseSessionV2(txt);
+    if(!parsed.count){showToast("❌ Aucune main valide détectée","error");return;}
+    const sess={...parsed, site:parsed.room, hands:parsed.hands.map(hydrateReplayHand)};
     const finalSess=forceSingle?{...sess,hands:sess.hands.slice(0,1),count:1,single:true}:sess;
     setSession(finalSess);setHandIdx(0);
     setHand(finalSess.hands[0]);setStep(0);setAiResult(null);
@@ -2150,6 +1324,24 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   }
 
   const cur=hand?.actions[Math.max(0,Math.min(step,(hand?.actions?.length||1)-1))];
+
+  /* ── Moteur de rejeu immersif : snapshots + animations (§10–18/§37) ── */
+  const snaps=hand?._snaps||null;
+  const stepMax=snaps?snaps.length-1:0;
+  const snapStep=snaps?Math.max(0,Math.min(step,stepMax)):0;
+  const snap=snaps?snaps[snapStep]:null;
+  const prevSnap=snaps?(snaps[snapStep-1]||null):null;
+  const seatAnchors=useMemo(()=>{
+    if(!hand?.players)return {};
+    const players=[...hand.players].sort((a,b)=>a.seat-b.seat);
+    const ring=heroCentricSeatRing(players.map(p=>p.pos),players.find(p=>p.isHero)?.pos,{geometry:feltGeometry()});
+    const hasBoard=(snap?.board?.length||0)>0;
+    const m={};players.forEach(p=>{const c=ring[p.pos]||{x:50,y:50};m[p.id]=seatActionPoint(c,{hasBoard});});
+    return m;
+  },[hand,snap?.board?.length]);
+  const replayAnim=useReplayAnimation(snap,prevSnap,{speed:playSpeed,anchorOf:pid=>seatAnchors[pid]});
+  const sampleHand=useMemo(()=>{const s=pfParseSessionV2(SAMPLE_HH);return s.hands[0]?hydrateReplayHand(s.hands[0]):null;},[]);
+
   const NAV_TABS=[
     {id:"replay",l:"▶ Replay"},{id:"ai",l:"⚡ Analyse IA"},
     {id:"solver",l:"🎯 Solver"},{id:"ranges",l:"📊 Ranges"},
@@ -2308,7 +1500,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                 <div style={{flex:1,overflowY:"auto"}}>
                   {filteredLib.length===0&&<div style={{color:T.text4,fontSize:9,textAlign:"center",padding:"10px 0",fontFamily:T.stats}}>Aucune main trouvée</div>}
                   {filteredLib.map(h=>(
-                    <div key={h.id} className={`handit${selHand===h.id?" on":""}`} style={{marginBottom:3}} onClick={()=>{setSelHand(h.id);setHand(SAMPLE_HAND);setStep(0);}}>
+                    <div key={h.id} className={`handit${selHand===h.id?" on":""}`} style={{marginBottom:3}} onClick={()=>{setSelHand(h.id);setHand(sampleHand);setStep(0);}}>
                       <span className="tag tag-b" style={{fontSize:7}}>{h.site}</span>
                       <span style={{flex:1,color:T.text,fontFamily:T.stats,fontSize:9,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.desc}</span>
                       <span className="tag tag-gold" style={{fontSize:7,flexShrink:0}}>{h.score}/10</span>
@@ -2364,9 +1556,9 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                 </div>
               </div>);})()}
 
-              {/* Table zone */}
-              <div style={{flex:1,overflow:"auto",padding:cinema?"14px 24px 0":"10px 16px 0",minHeight:0}}>
-                <ReplayTable3 hand={hand} step={step} fmt={fmt}/>
+              {/* Table zone — table immersive (moteur de snapshots) */}
+              <div style={{flex:1,overflow:"hidden",padding:cinema?"14px 24px 0":"10px 16px 0",minHeight:0}}>
+                <ReplayTableImmersive hand={hand} snapshot={snap} fmt={fmt} flies={replayAnim.flies} potPulse={replayAnim.potPulse}/>
               </div>
 
               {/* Contrôles */}
