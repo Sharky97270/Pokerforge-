@@ -36,7 +36,7 @@ const RANKS=["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
    SORTIE PRÉVUE : bibliothèque de ranges pré-solvées → RangeSource.PRESOLVED
    (déjà défini dans provenance.js, encore inutilisé). Le préflop ne se solve pas
    en direct dans un navigateur ; il s'embarque pré-calculé. */
-function buildSolverFreqs(heroPos, action, stack=100, vsPos="BB"){
+export function buildSolverFreqs(heroPos, action, stack=100, vsPos="BB"){
   const deep=stack>=80, mid=stack>=40&&stack<80, short=stack<40;
   const posIdx={UTG:0,LJ:0,HJ:1,CO:2,BTN:3,SB:4,BB:5}[heroPos]||0;
   const posBonus=posIdx; // 0=UTG tight, 3=BTN loose, 4=SB medium

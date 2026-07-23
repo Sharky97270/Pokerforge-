@@ -6,12 +6,16 @@ import { loadStats, saveStats, saveStatsSafe, loadHands, saveHands } from "../st
 import { POSITIONS_BY_SIZE, SPOTS } from "../data/content.js";
 import { MiniCard, Card, CardFlip } from "../components/table/Cards.jsx";
 import RangesTab from "./RangesTab.jsx";
+/* Ranges heuristiques du solveur — source unique (SharkSolver). `solveScenario`
+   les utilisait sans les importer → ReferenceError silencieuse (bug préexistant). */
+import { buildSolverFreqs } from "./SharkSolverTab.jsx";
 /* ── Replayer refonte v1 : moteur normalisé + table immersive ── */
 import { parseSession as pfParseSessionV2 } from "../replayer/handModel.js";
 import { computeSnapshot, computeAllSnapshots } from "../replayer/stateEngine.js";
 import { heroCentricSeatRing, seatActionPoint, feltGeometry } from "../components/table/geometry.js";
 import ReplayTableImmersive from "../replayer/ReplayTableImmersive.jsx";
 import { useReplayAnimation } from "../replayer/useReplayAnimation.js";
+import DecisionPanel from "../replayer/DecisionPanel.jsx";
 
 /* Enrichit un NormalizedHand de champs de compatibilité (seats/actions/site…)
    pour les panneaux existants (header, solveur, analyse), et pré-calcule les
@@ -180,91 +184,6 @@ function quickAnalysis(hh){
 }
 
 /* ══════════════════════════════════════════════════════
-   QUICK ANALYSIS PANEL — Zone analyse centrale
-══════════════════════════════════════════════════════ */
-function QuickAnalysisPanel({quickRes,aiResult,analyzing}){
-  if(!quickRes&&!aiResult&&!analyzing)return null;
-  return(
-    <div style={{background:"#050E28",border:"1px solid #152D6E",borderRadius:10,padding:"10px 14px 12px",marginTop:8}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-        <div style={{fontSize:9,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",fontWeight:700,textTransform:"uppercase"}}>Analyse Rapide</div>
-        {quickRes&&(
-          <div style={{display:"flex",alignItems:"center",gap:7}}>
-            <div style={{fontFamily:T.brand,fontSize:21,fontWeight:900,color:quickRes.score>=7?T.green:quickRes.score>=5?T.gold:T.red}}>
-              {quickRes.score}<span style={{fontSize:11,color:T.text4,fontFamily:T.stats}}>/10</span>
-            </div>
-            <span className={`fmt-badge ${quickRes.gameType==="mtt"?"fmt-mtt":"fmt-cash"}`}>{quickRes.gameType==="mtt"?"MTT":"Cash"}</span>
-          </div>
-        )}
-      </div>
-      {quickRes&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginBottom:8}}>
-          {["Preflop","Flop","Turn","River"].map(s=>{
-            const hasErr=quickRes.errors.some(e=>e.toLowerCase().includes(s.toLowerCase()));
-            return(
-              <div key={s} style={{textAlign:"center",padding:"6px 4px",
-                background:hasErr?"rgba(255,194,71,.06)":"rgba(16,216,122,.05)",
-                border:`1px solid ${hasErr?"rgba(255,194,71,.18)":"rgba(16,216,122,.14)"}`,borderRadius:7,
-              }}>
-                <div style={{fontSize:15,marginBottom:2}}>{hasErr?"⚠":"✔"}</div>
-                <div style={{fontSize:8.5,fontFamily:T.stats,fontWeight:700,color:hasErr?T.gold:T.green}}>{s}</div>
-                <div style={{fontSize:7.5,fontFamily:T.stats,color:T.text4,marginTop:1}}>{hasErr?"Attention":"Correct"}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {analyzing&&(
-        <div style={{display:"flex",gap:5,alignItems:"center",padding:"5px 0"}}>
-          <div className="aidot"/><div className="aidot"/><div className="aidot"/>
-          <span style={{fontSize:9.5,color:T.text3,fontFamily:T.stats,marginLeft:3}}>Analyse IA en cours...</span>
-        </div>
-      )}
-      {aiResult&&!analyzing&&(
-        <div style={{background:"rgba(31,139,255,.04)",border:"1px solid rgba(31,139,255,.13)",borderRadius:7,padding:"8px 10px",marginBottom:8}}>
-          <div style={{fontSize:8,color:T.blue,fontFamily:T.stats,fontWeight:700,letterSpacing:".1em",marginBottom:4}}>ANALYSE GTO</div>
-          <div style={{fontSize:9,color:T.text2,fontFamily:T.stats,lineHeight:1.7,whiteSpace:"pre-wrap",maxHeight:110,overflow:"auto"}}>{aiResult}</div>
-        </div>
-      )}
-      {quickRes&&quickRes.errors.length>0&&(
-        <div style={{display:"flex",flexDirection:"column",gap:3}}>
-          {quickRes.errors.map((e,i)=>(
-            <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",padding:"4px 7px",background:T.redDim,borderRadius:5,border:"1px solid rgba(255,69,96,.15)"}}>
-              <span style={{color:T.red,fontSize:11,marginTop:1,flexShrink:0}}>⚠</span>
-              <span style={{fontSize:9,color:T.text2,fontFamily:T.stats,lineHeight:1.5}}>{e}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   DONUT CHART — SVG rotatif pour fréquences GTO
-══════════════════════════════════════════════════════ */
-function DonutChart({call=35,raise=25,fold=40,size=76}){
-  const r=34,cx=50,cy=50,C=2*Math.PI*r;
-  const segs=[{v:call,c:"#10D87A"},{v:raise,c:"#1F8BFF"},{v:fold,c:"#FF4560"}];
-  let cum=0;
-  return(
-    <svg viewBox="0 0 100 100" width={size} height={size} style={{flexShrink:0}}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#0a1428" strokeWidth="14"/>
-      {segs.map((s,i)=>{
-        if(s.v<=0)return null;
-        const dash=(s.v/100)*C;
-        const rot=-90+(cum/100*360);
-        cum+=s.v;
-        return<circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.c} strokeWidth="14"
-          strokeDasharray={`${dash} ${C-dash}`}
-          style={{transformOrigin:`${cx}px ${cy}px`,transform:`rotate(${rot}deg)`,transition:"all .4s ease"}}/>;
-      })}
-      <circle cx={cx} cy={cy} r={21} fill="#050E28"/>
-    </svg>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
    REPLAY TIMELINE V2 — Barre de progression style GTO Wizard
 ══════════════════════════════════════════════════════ */
 function ReplayTimelineV2({hand,step,setStep,playing,setPlaying}){
@@ -378,158 +297,6 @@ function ReplayControlBar({hand,step,setStep,playing,setPlaying,playSpeed,setPla
         <span style={{fontSize:12}}>{cinema?"⊠":"⊡"}</span>
         <span style={{fontSize:8.5,fontWeight:700}}>{cinema?"Normal":"Cinéma"}</span>
       </button>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   AI ANALYSIS 4 CARDS — Cockpit d'analyse GTO complet
-══════════════════════════════════════════════════════ */
-function AIAnalysis4Cards({quickRes,aiResult,analyzing,hand,step}){
-  if(!quickRes&&!aiResult&&!analyzing)return null;
-  const cur=hand?.actions[Math.max(0,Math.min(step,(hand?.actions?.length||1)-1))];
-  const sc=quickRes?.score||5;
-  const evBase=(sc-5)*0.12;
-  const streetEV={Preflop:+(evBase+0.12).toFixed(2),Flop:+(evBase-0.18).toFixed(2),Turn:+(evBase-0.46).toFixed(2),River:+(evBase+0.86).toFixed(2)};
-  const totalEV=+(Object.values(streetEV).reduce((a,b)=>a+b,0)).toFixed(2);
-  const percentile=Math.min(99,Math.max(1,Math.round(sc*9.5)));
-  const act=(cur?.action||"").toLowerCase();
-  const gto=act.includes("fold")?{call:30,raise:2,fold:68}:
-    (act.includes("raise")||act.includes("bet"))?{call:22,raise:58,fold:20}:
-    act.includes("call")?{call:48,raise:17,fold:35}:
-    {call:33,raise:22,fold:45};
-  const stSt=s=>{
-    const ev=streetEV[s];
-    return ev>0.05?{icon:"✓",col:T.green,lbl:"Correct"}:
-      ev>-0.08?{icon:"~",col:T.amber,lbl:"Proche GTO"}:
-      ev>-0.25?{icon:"⚠",col:"#FF9A3C",lbl:"Marginal"}:
-      {icon:"✗",col:T.red,lbl:"Erreur"};
-  };
-  // ── Synchronisation sur la street affichée ──
-  const curStreet=cur?.street||"Preflop";
-  const presentStreets=["Preflop","Flop","Turn","River"].filter(s=>hand?.actions?.some(a=>a.street===s));
-  const curIdx=presentStreets.indexOf(curStreet);
-  const curStreetEV=streetEV[curStreet];
-  const CW=({title,badge,children})=>(
-    <div style={{flex:1,minWidth:0,background:"#050E28",border:"1px solid #152D6E",borderRadius:10,
-      padding:"10px 12px",display:"flex",flexDirection:"column",gap:5,overflow:"hidden"}}>
-      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:1,flexShrink:0}}>
-        <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".13em",
-          fontWeight:700,textTransform:"uppercase"}}>{title}</span>
-        {badge&&<span style={{fontSize:6.5,background:T.amber,color:"#000",
-          borderRadius:3,padding:"1px 5px",fontWeight:800,flexShrink:0}}>{badge}</span>}
-      </div>
-      {children}
-    </div>
-  );
-  return(
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:8,flexShrink:0}}>
-      <CW title="Résumé" badge={curStreet}>
-        <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-          <span style={{fontFamily:T.brand,fontSize:20,fontWeight:900,
-            color:totalEV>=0?T.green:T.red,lineHeight:1}}>{totalEV>=0?"+":""}{totalEV}</span>
-          <span style={{fontSize:9,color:T.text4,fontFamily:T.stats}}>bb EV</span>
-        </div>
-        {/* street affichée — synchronisée avec le replayer */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:4,marginTop:3,
-          padding:"3px 7px",borderRadius:6,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.22)"}}>
-          <span style={{fontSize:8,color:T.gold,fontFamily:T.stats,fontWeight:700,letterSpacing:".04em"}}>▸ {curStreet}</span>
-          <span style={{fontSize:9.5,fontWeight:800,color:curStreetEV>=0?T.green:T.red,fontFamily:T.stats}}>{curStreetEV>=0?"+":""}{curStreetEV}bb</span>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:2}}>
-          {[
-            {l:"Score",v:`${sc}/10`,c:sc>=7?T.green:sc>=5?T.gold:T.red,big:true},
-            {l:"Percentile",v:`${percentile}ème`,c:T.text},
-            {l:"Classement",v:`Top ${100-percentile}%`,c:T.blue},
-          ].map(r=>(
-            <div key={r.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-              padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-              <span style={{fontSize:8.5,color:T.text4,fontFamily:T.stats}}>{r.l}</span>
-              <span style={{fontSize:r.big?13:10,fontWeight:700,color:r.c,fontFamily:r.big?T.brand:T.stats}}>{r.v}</span>
-            </div>
-          ))}
-        </div>
-        {analyzing&&<div style={{display:"flex",gap:4,marginTop:4}}><div className="aidot"/><div className="aidot"/><div className="aidot"/></div>}
-      </CW>
-
-      <CW title="Décisions par street" badge={curStreet}>
-        {presentStreets.map((s,i)=>{
-          const st=stSt(s);const ev=streetEV[s];
-          const active=s===curStreet;const upcoming=i>curIdx;
-          return(
-            <div key={s} style={{display:"flex",alignItems:"center",gap:4,
-              padding:active?"3px 6px":"3px 0",margin:active?"1px 0":0,borderRadius:active?6:0,
-              opacity:upcoming?0.4:1,
-              background:active?"rgba(255,194,71,.1)":"transparent",
-              borderLeft:active?"2px solid #FFC247":"2px solid transparent",
-              borderBottom:active?"none":"1px solid rgba(255,255,255,.04)",transition:"all .15s"}}>
-              <span style={{fontSize:11,color:st.col,flexShrink:0,lineHeight:1}}>{st.icon}</span>
-              <span style={{fontSize:8.5,color:active?T.gold:T.text3,fontWeight:active?700:400,fontFamily:T.stats,flex:1,
-                minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{s}{active?" ◂":""}</span>
-              <span style={{fontSize:8,fontWeight:600,color:st.col,fontFamily:T.stats,
-                flexShrink:0,whiteSpace:"nowrap"}}>{st.lbl}</span>
-              <span style={{fontSize:8.5,fontWeight:700,color:ev>=0?T.green:T.red,
-                fontFamily:T.stats,flexShrink:0,marginLeft:3,minWidth:42,textAlign:"right"}}>
-                {ev>=0?"+":""}{ev}bb</span>
-            </div>
-          );
-        })}
-      </CW>
-
-      <CW title="Fréquences GTO" badge={cur?.street||"Preflop"}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <DonutChart call={gto.call} raise={gto.raise} fold={gto.fold} size={70}/>
-          <div style={{display:"flex",flexDirection:"column",gap:5,flex:1}}>
-            {[
-              {l:"Call",v:gto.call,c:"#10D87A"},
-              {l:"Raise",v:gto.raise,c:"#1F8BFF"},
-              {l:"Fold",v:gto.fold,c:"#FF4560"},
-            ].map(f=>(
-              <div key={f.l} style={{display:"flex",alignItems:"center",gap:5}}>
-                <div style={{width:7,height:7,borderRadius:"50%",background:f.c,flexShrink:0}}/>
-                <span style={{fontSize:8.5,color:T.text3,fontFamily:T.stats,flex:1}}>{f.l}</span>
-                <span style={{fontSize:10,fontWeight:700,color:f.c,fontFamily:T.stats}}>{f.v}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{display:"flex",gap:6,marginTop:2}}>
-          {[
-            {l:"Pot odds",v:`${Math.round(cur?.pot?Math.min(99,100/(cur.pot*2+1)):28)}%`},
-            {l:"SPR",v:hand?.seats?.[0]?Number(((hand.seats[0].stack/2)/Math.max(1,cur?.pot/2||1))).toFixed(1):"—"},
-          ].map(m=>(
-            <div key={m.l} style={{flex:1,padding:"4px 6px",background:"rgba(255,255,255,.04)",
-              borderRadius:5,textAlign:"center"}}>
-              <div style={{fontSize:7,color:T.text4,fontFamily:T.stats}}>{m.l}</div>
-              <div style={{fontSize:10,fontWeight:700,color:T.text,fontFamily:T.stats}}>{m.v}</div>
-            </div>
-          ))}
-        </div>
-      </CW>
-
-      <CW title="Notes IA">
-        {analyzing&&(
-          <div style={{display:"flex",gap:4,alignItems:"center",padding:"4px 0"}}>
-            <div className="aidot"/><div className="aidot"/><div className="aidot"/>
-            <span style={{fontSize:9,color:T.text4,fontFamily:T.stats,marginLeft:4}}>Analyse IA en cours...</span>
-          </div>
-        )}
-        {!analyzing&&aiResult&&(
-          <div style={{fontSize:8.5,color:T.text2,fontFamily:T.stats,lineHeight:1.75,
-            whiteSpace:"pre-wrap",overflowY:"auto",maxHeight:110}}>{aiResult.slice(0,320)}</div>
-        )}
-        {!analyzing&&!aiResult&&quickRes?.errors?.length>0&&quickRes.errors.map((e,i)=>(
-          <div key={i} style={{display:"flex",gap:5,fontSize:8.5,color:T.text2,
-            fontFamily:T.stats,lineHeight:1.5,padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-            <span style={{color:T.amber,flexShrink:0}}>●</span><span style={{flex:1}}>{e}</span>
-          </div>
-        ))}
-        {!analyzing&&!aiResult&&!quickRes?.errors?.length&&(
-          <div style={{fontSize:8.5,color:T.text4,fontFamily:T.stats,lineHeight:1.7,padding:"4px 0"}}>
-            Lancez une analyse IA pour obtenir des notes GTO ciblées.
-          </div>
-        )}
-      </CW>
     </div>
   );
 }
@@ -981,7 +748,14 @@ const SOLVER_VPROFILES=[
 const RSOLV_MODES=[["gto","GTO"],["exploit","Exploit"],["icm","ICM"],["chipev","ChipEV"]];
 const RSOLV_FORMATS=["Cash","MTT","KO","PKO"];
 const SOLVER_POS=["UTG","HJ","CO","BTN","SB","BB"];
-function ceBoardCount(str){ try{return parseBoardToken(str).length;}catch{return 0;} }
+/* Board "A♥ K♦ 7♣" ou "Ah Kd 7c" → [{r,s}]. Local et tolérant : `parseBoardToken`
+   (SharkSolver) n'était pas importé ici ET renvoie {valid,cards:[ints]}, pas un
+   tableau — d'où un comptage toujours nul (« board incomplet ») en postflop. */
+function ceParseBoardCards(str){
+  const m=String(str||"").replace(/10/g,"T").match(/[2-9TJQKAtjqka][shdc♠♥♦♣]/g)||[];
+  return m.map(tok=>({r:tok[0].toUpperCase(),s:tok[1]}));
+}
+function ceBoardCount(str){ return ceParseBoardCards(str).length; }
 function scenarioFromHand(hand,step){
   if(!hand||!hand.events)return null;
   try{
@@ -996,7 +770,14 @@ function scenarioFromHand(hand,step){
     const street=cap(snap.street)||"Preflop";
     const board=(snap.board||[]).map(c=>c.r+c.s).join(" ");
     const heroCards=(hero?.hole||[]).map(c=>c.r+c.s).join(" ");
-    const la=snap.lastAction; const prevAction=(la&&vil&&la.playerId===vil.id)?la.label:"—";
+    /* Action précédente = dernière action d'un ADVERSAIRE sur la MÊME street,
+       avant l'étape courante (et non l'action de Hero lui-même — sinon le
+       moteur croyait Hero « non confronté » et proposait des alternatives
+       d'ouverture face à une mise). */
+    const prevEv=hand.events.slice(0,step).reverse()
+      .find(e=>["bet","raise","allin","call","check"].includes(e.type)
+        && e.playerId!==hand.heroId && e.street===snap.street);
+    const prevAction=prevEv?prevEv.label:"—";
     return {format:hand.gameType==="mtt"?"MTT":"Cash",players:snap.players.length,heroPos,vilPos,
       heroStack,vilStack,potBb:Math.round(snap.potTotal*10)/10,board,heroCards,street,prevAction,
       villainProfile:"Reg",mode:"gto"};
@@ -1044,7 +825,7 @@ function solveScenario(sc){
     }
   } else {
     heroAct="rfi"; heroLabel="Range (continuation)"; vilAct="rfi"; vilLabel="Range estimée";
-    const tex=(()=>{try{const cs=parseBoardToken(sc.board).slice(0,3);const rk=cs.map(c=>c.r);const su=cs.map(c=>c.s);const paired=rk[0]===rk[1]||rk[1]===rk[2];const mono=su[0]===su[1]&&su[1]===su[2];return paired?"appariée":mono?"monocolore":"dispersée";}catch{return "—";}})();
+    const tex=(()=>{try{const cs=ceParseBoardCards(sc.board).slice(0,3);if(cs.length<3)return "—";const rk=cs.map(c=>c.r);const su=cs.map(c=>c.s);const paired=rk[0]===rk[1]||rk[1]===rk[2]||rk[0]===rk[2];const mono=su[0]===su[1]&&su[1]===su[2];return paired?"appariée":mono?"monocolore":"dispersée";}catch{return "—";}})();
     const wet=tex!=="dispersée";
     if(facing){
       const toCall=Math.max(0.5,sc.potBb*0.5); const potOdds=Math.round(toCall/(sc.potBb+toCall)*100);
@@ -1464,6 +1245,9 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   },[hand,snap?.board?.length]);
   const replayAnim=useReplayAnimation(snap,prevSnap,{speed:playSpeed,anchorOf:pid=>seatAnchors[pid]});
   const sampleHand=useMemo(()=>{const s=pfParseSessionV2(SAMPLE_HH);return s.hands[0]?hydrateReplayHand(s.hands[0]):null;},[]);
+  /* Contexte d'analyse (§22) : le scénario vient du snapshot, la référence
+     stratégique du solveur quand c'est solvable, sinon du moteur heuristique. */
+  const analysisCtx=useMemo(()=>({buildScenario:scenarioFromHand,solve:solveScenario}),[]);
 
   const NAV_TABS=[
     {id:"replay",l:"▶ Replay"},{id:"ai",l:"⚡ Analyse IA"},
@@ -1473,8 +1257,6 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const isRangesMode=repTab==="ranges";
   const isSolverMode=repTab==="solver";
   const gridCols=isRangesMode?"minmax(210px,22%) minmax(0,1fr) 0px":cinema?"44px 1fr 44px":"minmax(210px,22%) 1fr minmax(210px,22%)";
-  const evBase=quickRes?((quickRes.score-5)*0.12):0;
-  const streetEVLeft={Preflop:+(evBase+0.12).toFixed(2),Flop:+(evBase-0.18).toFixed(2),Turn:+(evBase-0.46).toFixed(2),River:+(evBase+0.86).toFixed(2)};
   const filteredLib=handList.filter(h=>!libQuery||h.desc.toLowerCase().includes(libQuery.toLowerCase())||h.site?.toLowerCase().includes(libQuery.toLowerCase()));
 
   return(
@@ -1597,18 +1379,10 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     <span style={{fontSize:11,color:T.text4,fontFamily:T.stats,lineHeight:1,marginLeft:-2}}>/10</span>
                     <div style={{flex:1,fontSize:8.5,color:T.text3,fontFamily:T.stats,lineHeight:1.5}}>{quickRes.note}</div>
                   </div>
-                  {["Preflop","Flop","Turn","River"].map(s=>{
-                    const ev=streetEVLeft[s];
-                    const icon=ev>0.05?"✓":ev>-0.08?"~":ev>-0.25?"⚠":"✗";
-                    const col=ev>0.05?T.green:ev>-0.08?T.amber:ev>-0.25?"#FF9A3C":T.red;
-                    return(
-                      <div key={s} style={{display:"flex",alignItems:"center",gap:5,padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                        <span style={{fontSize:10,color:col,flexShrink:0,lineHeight:1}}>{icon}</span>
-                        <span style={{fontSize:8.5,color:T.text3,fontFamily:T.stats,flex:1}}>{s}</span>
-                        <span style={{fontSize:8.5,fontWeight:700,color:ev>=0?T.green:T.red,fontFamily:T.stats}}>{ev>=0?"+":""}{ev}bb</span>
-                      </div>
-                    );
-                  })}
+                  <div style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic",lineHeight:1.45}}>
+                    Détection de motifs (non-GTO). L'évaluation chiffrée des décisions
+                    se trouve sous la table — voir « Évaluation de la décision ».
+                  </div>
                 </div>
               )}
 
@@ -1693,7 +1467,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                   playSpeed={playSpeed} setPlaySpeed={setPlaySpeed}
                   onCinema={()=>setCinema(c=>!c)} cinema={cinema}
                 />
-                <AIAnalysis4Cards quickRes={quickRes} aiResult={aiResult} analyzing={analyzing} hand={hand} step={step}/>
+                <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes}/>
                 <div style={{marginTop:8}}>
                   <button style={{width:"100%",padding:"8px",borderRadius:7,border:"1px solid rgba(255,194,71,.25)",
                     background:"rgba(255,194,71,.05)",color:T.gold,fontSize:10,fontWeight:700,cursor:"pointer",
