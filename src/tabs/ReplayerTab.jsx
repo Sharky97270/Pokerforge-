@@ -35,7 +35,14 @@ function hydrateReplayHand(nh){
     isHero:p.isHero, hole:p.hole, shown:p.shown, stats:p.stats,
     profile: p.isHero?"Hero":undefined,
   }));
+  // Champs filtrables pour la bibliothèque (§8)
+  const preflopRaises = nh.events.filter(e=>e.street==="preflop" && (e.type==="raise"||e.type==="allin")).length;
+  const potType = preflopRaises>=3?"4Bet+":preflopRaises===2?"3Bet":preflopRaises===1?"SRP":"Limped";
+  const lastEv = [...nh.events].reverse().find(e=>["fold","check","call","bet","raise","allin"].includes(e.type));
+  const lastStreet = cap(lastEv?.street||"preflop");
+  const hasAllin = nh.events.some(e=>e.type==="allin");
   return { ...nh, site:nh.room, fmt:nh.format, bb:nh.bbSize, hasShowdown:!!nh.showdown,
+    potType, lastStreet, hasAllin,
     seats, actions, steps:actions, _snaps:snaps };
 }
 
@@ -764,20 +771,98 @@ function RepEmptyState({handList,onImport,onGoTrainer,apiKey}){
 }
 
 /* ── HandHistoryList : liste des mains importées (pagination, surlignage, click) ── */
-function HandHistoryList({session,activeIdx,onSelect,unit}){
+/* Petit sélecteur de filtre (pills). */
+function HHFilter({label,options,value,onChange}){
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:3,flexWrap:"wrap"}}>
+      <span style={{fontSize:7,color:T.text4,fontFamily:T.stats,letterSpacing:".06em",fontWeight:700,minWidth:34}}>{label}</span>
+      {options.map(o=>{
+        const on=value===o.v;
+        return(
+          <button key={String(o.v)} onClick={()=>onChange(o.v)} style={{
+            padding:"1px 7px",borderRadius:20,fontSize:8,fontWeight:700,cursor:"pointer",fontFamily:T.stats,
+            background:on?"rgba(255,194,71,.14)":"transparent",
+            border:`1px solid ${on?"rgba(255,194,71,.4)":"rgba(255,255,255,.08)"}`,
+            color:on?T.gold:T.text4,transition:"all .1s"}}>{o.l}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
   const[page,setPage]=useState(0);
+  const[fPos,setFPos]=useState("all");
+  const[fStreet,setFStreet]=useState("all");
+  const[fResult,setFResult]=useState("all");
+  const[fPot,setFPot]=useState("all");
+  const[fShow,setFShow]=useState("all");
   const PER=12;
   const hands=session?.hands||[];
-  useEffect(()=>{setPage(Math.floor(activeIdx/PER));},[activeIdx]);
-  const pages=Math.max(1,Math.ceil(hands.length/PER));
-  const slice=hands.slice(page*PER,page*PER+PER);
   const fmtRes=v=>unit==="BB"?`${v>=0?"+":""}${v}bb`:`${v>=0?"+":""}${(v*2).toFixed(1)}$`;
+
+  // Options dynamiques selon les mains présentes (§8 : ne pas afficher ce qui n'existe pas)
+  const posOpts=useMemo(()=>{
+    const set=[...new Set(hands.map(h=>h.heroPos).filter(Boolean))];
+    return [{v:"all",l:"Toutes"},...set.map(p=>({v:p,l:p}))];
+  },[hands]);
+  const potOpts=useMemo(()=>{
+    const set=[...new Set(hands.map(h=>h.potType).filter(Boolean))];
+    return [{v:"all",l:"Tous"},...set.map(p=>({v:p,l:p}))];
+  },[hands]);
+
+  const filtered=useMemo(()=>hands.filter(h=>{
+    if(fPos!=="all"&&h.heroPos!==fPos)return false;
+    if(fStreet!=="all"&&h.lastStreet!==fStreet)return false;
+    if(fResult==="win"&&!(h.resultBb>0))return false;
+    if(fResult==="loss"&&!(h.resultBb<0))return false;
+    if(fPot!=="all"&&h.potType!==fPot)return false;
+    if(fShow==="yes"&&!h.hasShowdown)return false;
+    if(fShow==="no"&&h.hasShowdown)return false;
+    return true;
+  }),[hands,fPos,fStreet,fResult,fPot,fShow]);
+
+  useEffect(()=>{setPage(0);},[fPos,fStreet,fResult,fPot,fShow]);
+  const pages=Math.max(1,Math.ceil(filtered.length/PER));
+  const safePage=Math.min(page,pages-1);
+  const slice=filtered.slice(safePage*PER,safePage*PER+PER);
+  const lotCount=session?.lotCount||1;
+  const lotIndex=session?.lotIndex||0;
+
   return(
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",borderBottom:"1px solid #152D6E",flexShrink:0}}>
-        <span style={{fontFamily:T.brand,fontSize:10,fontWeight:900,color:T.text2,letterSpacing:".08em"}}>HISTORIQUE DES MAINS</span>
-        <span style={{fontSize:9,color:T.text4,fontFamily:T.stats}}>{hands.length} main{hands.length>1?"s":""}</span>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px 6px",borderBottom:"1px solid #152D6E",flexShrink:0}}>
+        <span style={{fontFamily:T.brand,fontSize:10,fontWeight:900,color:T.text2,letterSpacing:".08em"}}>BIBLIOTHÈQUE DES MAINS</span>
+        <span style={{fontSize:9,color:T.text4,fontFamily:T.stats}}>{filtered.length===hands.length?`${hands.length}`:`${filtered.length}/${hands.length}`} main{hands.length>1?"s":""}</span>
       </div>
+
+      {/* Sélecteur de lot (§4) */}
+      {lotCount>1&&onSwitchLot&&(
+        <div style={{display:"flex",alignItems:"center",gap:4,padding:"6px 10px",borderBottom:"1px solid #0F2258",flexShrink:0,flexWrap:"wrap"}}>
+          <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,fontWeight:700}}>LOT</span>
+          {Array.from({length:lotCount}).map((_,i)=>(
+            <button key={i} onClick={()=>onSwitchLot(i)} style={{
+              padding:"2px 8px",borderRadius:6,fontSize:8.5,fontWeight:700,cursor:"pointer",fontFamily:T.stats,
+              background:i===lotIndex?"rgba(52,216,255,.14)":"transparent",
+              border:`1px solid ${i===lotIndex?"rgba(52,216,255,.4)":"rgba(255,255,255,.08)"}`,
+              color:i===lotIndex?"#34D8FF":T.text4}}>{i+1}</button>
+          ))}
+        </div>
+      )}
+
+      {/* Barre de filtres (§8) */}
+      {hands.length>1&&(
+        <div style={{display:"flex",flexDirection:"column",gap:4,padding:"6px 10px",borderBottom:"1px solid #0F2258",flexShrink:0}}>
+          <HHFilter label="POS" options={posOpts} value={fPos} onChange={setFPos}/>
+          <HHFilter label="STREET" options={[{v:"all",l:"Toutes"},{v:"Preflop",l:"PF"},{v:"Flop",l:"Flop"},{v:"Turn",l:"Turn"},{v:"River",l:"River"}]} value={fStreet} onChange={setFStreet}/>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <HHFilter label="RÉSULT" options={[{v:"all",l:"Tous"},{v:"win",l:"Gagné"},{v:"loss",l:"Perdu"}]} value={fResult} onChange={setFResult}/>
+            <HHFilter label="SD" options={[{v:"all",l:"Tous"},{v:"yes",l:"Oui"},{v:"no",l:"Non"}]} value={fShow} onChange={setFShow}/>
+          </div>
+          {potOpts.length>2&&<HHFilter label="POT" options={potOpts} value={fPot} onChange={setFPot}/>}
+        </div>
+      )}
+
       <div style={{flex:1,overflowY:"auto",padding:"6px"}}>
         {slice.map((h)=>{
           const gi=hands.indexOf(h);const on=gi===activeIdx;
@@ -793,20 +878,27 @@ function HandHistoryList({session,activeIdx,onSelect,unit}){
                 {(h.heroCards&&h.heroCards.length>=2)?h.heroCards.slice(0,2).map((c,i)=><MiniCard key={i} r={c.r} s={c.s}/>):<span style={{fontSize:8,color:T.text4}}>??</span>}
               </span>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:9.5,fontWeight:700,color:on?T.text:T.text2,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.spot}</div>
-                <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.keyAction}</div>
+                <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
+                  <span style={{fontSize:9.5,fontWeight:700,color:on?T.text:T.text2,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.spot}</span>
+                  {h.potType&&h.potType!=="SRP"&&h.potType!=="Limped"&&<span style={{fontSize:6.5,fontWeight:800,color:"#C090FF",background:"rgba(155,92,255,.12)",border:"1px solid rgba(155,92,255,.3)",borderRadius:3,padding:"0 3px",flexShrink:0}}>{h.potType}</span>}
+                  {h.hasAllin&&<span style={{fontSize:6.5,fontWeight:800,color:T.red,background:"rgba(255,69,96,.12)",border:"1px solid rgba(255,69,96,.3)",borderRadius:3,padding:"0 3px",flexShrink:0}}>AI</span>}
+                </div>
+                <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {h.lastStreet} · {h.fmt}{h.hasShowdown?" · SD":""}
+                </div>
               </div>
               <span style={{fontFamily:T.brand,fontSize:10,fontWeight:800,color:col,flexShrink:0}}>{fmtRes(h.resultBb)}</span>
             </div>
           );
         })}
         {hands.length===0&&<div style={{textAlign:"center",color:T.text4,fontSize:9.5,padding:"20px 0",fontFamily:T.stats}}>Aucune main chargée.</div>}
+        {hands.length>0&&filtered.length===0&&<div style={{textAlign:"center",color:T.text4,fontSize:9.5,padding:"20px 0",fontFamily:T.stats}}>Aucune main ne correspond aux filtres.</div>}
       </div>
       {pages>1&&(
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"6px",borderTop:"1px solid #152D6E",flexShrink:0}}>
-          <button onClick={()=>setPage(p=>Math.max(0,p-1))} disabled={page===0} style={{padding:"3px 9px",borderRadius:6,border:"1px solid #1A3A80",background:"transparent",color:page===0?T.text4:T.text2,fontSize:11,cursor:page===0?"default":"pointer"}}>‹</button>
-          <span style={{fontSize:9,color:T.text3,fontFamily:T.stats}}>{page+1} / {pages}</span>
-          <button onClick={()=>setPage(p=>Math.min(pages-1,p+1))} disabled={page>=pages-1} style={{padding:"3px 9px",borderRadius:6,border:"1px solid #1A3A80",background:"transparent",color:page>=pages-1?T.text4:T.text2,fontSize:11,cursor:page>=pages-1?"default":"pointer"}}>›</button>
+          <button onClick={()=>setPage(p=>Math.max(0,p-1))} disabled={safePage===0} style={{padding:"3px 9px",borderRadius:6,border:"1px solid #1A3A80",background:"transparent",color:safePage===0?T.text4:T.text2,fontSize:11,cursor:safePage===0?"default":"pointer"}}>‹</button>
+          <span style={{fontSize:9,color:T.text3,fontFamily:T.stats}}>{safePage+1} / {pages}</span>
+          <button onClick={()=>setPage(p=>Math.min(pages-1,p+1))} disabled={safePage>=pages-1} style={{padding:"3px 9px",borderRadius:6,border:"1px solid #1A3A80",background:"transparent",color:safePage>=pages-1?T.text4:T.text2,fontSize:11,cursor:safePage>=pages-1?"default":"pointer"}}>›</button>
         </div>
       )}
     </div>
@@ -825,12 +917,20 @@ function SessionSummary({session,unit}){
   return(
     <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
       <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Résumé de la session</div>
-      {[["Site",session.site],["Format",session.fmt],["Joueurs",`${session.players} joueurs`],["Mains",`${session.count} mains`],["Date",session.date||"—"]].map(([l,v])=>(
+      {[["Site",session.site||session.room],["Format",session.format||session.fmt],["Joueurs",`${session.players} joueurs`],["Mains",session.lotCount>1?`${session.count} (lot ${(session.lotIndex||0)+1}/${session.lotCount}) · ${session.total} total`:`${session.total??session.count} mains`],["Date",session.date||"—"]].map(([l,v])=>(
         <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
           <span style={{fontSize:8.5,color:T.text4,fontFamily:T.stats}}>{l}</span>
           <span style={{fontSize:8.5,fontWeight:600,color:T.text2,fontFamily:T.stats,maxWidth:"60%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{String(v)}</span>
         </div>
       ))}
+      {/* Comptes de validation à l'import (§6/§31) */}
+      {(session.duplicates>0||session.incomplete>0)&&(
+        <div style={{display:"flex",gap:6,marginTop:7,flexWrap:"wrap"}}>
+          <span style={{fontSize:8,fontWeight:700,color:T.green,background:"rgba(16,216,122,.1)",border:"1px solid rgba(16,216,122,.25)",borderRadius:5,padding:"2px 6px",fontFamily:T.stats}}>✓ {session.imported} importées</span>
+          {session.duplicates>0&&<span style={{fontSize:8,fontWeight:700,color:T.gold,background:"rgba(255,194,71,.1)",border:"1px solid rgba(255,194,71,.25)",borderRadius:5,padding:"2px 6px",fontFamily:T.stats}}>⧉ {session.duplicates} doublon{session.duplicates>1?"s":""}</span>}
+          {session.incomplete>0&&<span style={{fontSize:8,fontWeight:700,color:T.red,background:"rgba(255,69,96,.1)",border:"1px solid rgba(255,69,96,.25)",borderRadius:5,padding:"2px 6px",fontFamily:T.stats}}>⚠ {session.incomplete} incomplète{session.incomplete>1?"s":""}</span>}
+        </div>
+      )}
       <div style={{display:"flex",gap:6,marginTop:8}}>
         <div style={{flex:1,textAlign:"center",background:"rgba(0,0,0,.25)",borderRadius:6,padding:"6px 4px"}}>
           <div style={{fontFamily:T.brand,fontSize:14,fontWeight:900,color:totalBb>=0?T.green:T.red}}>{fmtV(totalBb)}</div>
@@ -1216,7 +1316,10 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const[dragOver,setDragOver]=useState(false);
   const[cinema,setCinema]=useState(false);
   const[libQuery,setLibQuery]=useState("");
-  const[session,setSession]=useState(null);   // replayerStore : session parsée
+  const[session,setSession]=useState(null);   // replayerStore : session parsée (lot actif)
+  const[lotsRaw,setLotsRaw]=useState(null);    // §4 : tous les lots (mains brutes non hydratées)
+  const[lotIdx,setLotIdx]=useState(0);         // lot actif
+  const[importInfo,setImportInfo]=useState(null); // §6/§31 : comptes de validation
   const[handIdx,setHandIdx]=useState(0);       // index de la main active
   const[importMode,setImportMode]=useState("session"); // "session" | "single"
   const[analyzeScope,setAnalyzeScope]=useState("hand"); // "hand" | "session"
@@ -1228,18 +1331,38 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   function saveApiKeyLocal(k){const clean=k.trim().slice(0,200);setApiKey(clean);storeApiKey(clean);}
 
   /* Charge un texte (fichier complet OU main collée) → session + 1ʳᵉ main */
+  /* Hydrate un lot (mains brutes → mains prêtes pour le rejeu). */
+  function activateLot(lots,li,parsed,forceSingle){
+    const raw=lots[li]||[];
+    const hands=(forceSingle?raw.slice(0,1):raw).map(hydrateReplayHand);
+    const sess={...parsed, site:parsed.room, hands, count:hands.length,
+      single:forceSingle||parsed.total<=1, lotIndex:li, lotCount:lots.length};
+    setSession(sess);setLotIdx(li);setHandIdx(0);
+    setHand(hands[0]);setStep(0);setAiResult(null);setPlaying(false);
+    setQuickRes(quickAnalysis(hands[0]?.raw||""));
+    setImportMode(sess.single?"single":"session");
+    return sess;
+  }
+  function switchLot(li){
+    if(!lotsRaw||li<0||li>=lotsRaw.length||li===lotIdx)return;
+    activateLot(lotsRaw,li,importInfo?.parsed||session,false);
+    showToast(`Lot ${li+1}/${lotsRaw.length} — ${lotsRaw[li].length} mains`,"info");
+  }
   function loadFromText(txt,forceSingle){
     if(!txt||txt.trim().length<20){showToast("⚠ Texte trop court ou vide","warn");return;}
     const parsed=pfParseSessionV2(txt);
-    if(!parsed.count){showToast("❌ Aucune main valide détectée","error");return;}
-    const sess={...parsed, site:parsed.room, hands:parsed.hands.map(hydrateReplayHand)};
-    const finalSess=forceSingle?{...sess,hands:sess.hands.slice(0,1),count:1,single:true}:sess;
-    setSession(finalSess);setHandIdx(0);
-    setHand(finalSess.hands[0]);setStep(0);setAiResult(null);
-    setQuickRes(quickAnalysis(finalSess.hands[0].raw||txt));
-    setImportMode(finalSess.single?"single":"session");
-    const errMsg=sess.errors.length?` (${sess.errors.length} ignorée${sess.errors.length>1?"s":""})`:"";
-    showToast(`✓ ${finalSess.count} main${finalSess.count>1?"s chargées":" chargée"}${errMsg} — ${sess.site}`,"success");
+    if(!parsed.imported){showToast("❌ Aucune main valide détectée","error");return;}
+    const lots=forceSingle?[parsed.hands.slice(0,1)]:parsed.lots;
+    setLotsRaw(lots);
+    setImportInfo({detected:parsed.detected,imported:parsed.imported,duplicates:parsed.duplicates,
+      incomplete:parsed.incomplete,lotCount:lots.length,site:parsed.site,parsed});
+    activateLot(lots,0,parsed,forceSingle);
+    // Résumé de validation (§6/§31)
+    const parts=[`${forceSingle?1:parsed.imported} main${(forceSingle?1:parsed.imported)>1?"s":""} importée${(forceSingle?1:parsed.imported)>1?"s":""}`];
+    if(parsed.duplicates)parts.push(`${parsed.duplicates} doublon${parsed.duplicates>1?"s":""} ignoré${parsed.duplicates>1?"s":""}`);
+    if(parsed.incomplete)parts.push(`${parsed.incomplete} incomplète${parsed.incomplete>1?"s":""}`);
+    if(!forceSingle&&lots.length>1)parts.push(`${lots.length} lots`);
+    showToast(`✓ ${parts.join(" · ")} — ${parsed.site}`,"success");
   }
   function loadHandAt(i){
     if(!session||i<0||i>=session.hands.length)return;
@@ -1375,7 +1498,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
             <>
               <span className={`fmt-badge ${hand.gameType==="mtt"?"fmt-mtt":"fmt-cash"}`}>{hand.gameType==="mtt"?"MTT":"Cash"}</span>
               <span style={{fontSize:9.5,color:T.text2,fontFamily:T.stats}}>{hand.site}</span>
-              <button className="btn btns" style={{fontSize:8,padding:"2px 7px"}} onClick={()=>{setHand(null);setHh("");setSession(null);setHandIdx(0);setAiResult(null);setQuickRes(null);setStep(0);}}>✕ Fermer</button>
+              <button className="btn btns" style={{fontSize:8,padding:"2px 7px"}} onClick={()=>{setHand(null);setHh("");setSession(null);setLotsRaw(null);setImportInfo(null);setLotIdx(0);setHandIdx(0);setAiResult(null);setQuickRes(null);setStep(0);}}>✕ Fermer</button>
             </>
           )}
         </div>
@@ -1642,7 +1765,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
 
               {rightTab==="history"&&(
                 session
-                  ?<HandHistoryList session={session} activeIdx={handIdx} onSelect={loadHandAt} unit={unit}/>
+                  ?<HandHistoryList session={session} activeIdx={handIdx} onSelect={loadHandAt} unit={unit} onSwitchLot={switchLot}/>
                   :<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",textAlign:"center"}}>
                      <div style={{color:T.text4,fontFamily:T.stats,fontSize:10,lineHeight:1.7}}>Aucune main importée.<br/>Charge un fichier ou colle une main à gauche.</div>
                    </div>

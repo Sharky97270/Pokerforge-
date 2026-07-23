@@ -58,7 +58,10 @@ export function detectGameType(txt){
 /* Découpe un fichier en blocs-mains (en-têtes connus, sinon lignes vides) */
 export function pfSplitHands(text){
   if(!text || !text.trim()) return [];
-  const re = /(?=(?:PokerStars (?:Hand|Game|Zoom Hand)|Winamax Poker|GGPoker Hand|Game Hand #|Poker Hand #|#Game No|Hand\s*#\s*\d|Ignition Hand|Bovada Hand|PMU(?:\.fr)? Poker))/g;
+  // NB : les en-têtes de main commencent en DÉBUT DE LIGNE (flag m + ^). Sans
+  // l'ancre, l'alternative générique « Hand #\d » coupe AUSSI à l'intérieur de
+  // « PokerStars Hand #… », ce qui amputait le préfixe room (→ room "Inconnu").
+  const re = /(?=^(?:PokerStars (?:Hand|Game|Zoom Hand)|Winamax Poker|GGPoker Hand|Game Hand #|Poker Hand #|#Game No|Hand\s*#\s*\d|Ignition Hand|Bovada Hand|PMU(?:\.fr)? Poker))/gm;
   let parts = text.split(re).map(s=>s.trim()).filter(s=>s.length>20);
   if(parts.length<=1){
     parts = text.split(/\n\s*\n(?:\s*\n)*/).map(s=>s.trim()).filter(s=>s.split("\n").length>=3);
@@ -371,24 +374,60 @@ export function parseHand(block, idx=0){
 
 function fmtBb(v){ if(v==null) return ""; const n=rb(v); return (Number.isInteger(n)?n:n.toFixed(1))+"bb"; }
 
+/* Clé d'unicité d'une main (déduplication §32). */
+export function handKey(h){
+  return `${h.room||"?"}|${h.tournamentId||""}|${h.handId||""}`;
+}
+
+export const REPLAYER_MAX_PER_LOT = 1500; // §4 — limite par lot de traitement
+
 /* ═══════════════════════════════════════════════════════════════
-   parseSession(text) → { hands, errors, count, room, ... }
+   parseSession(text, opts) → session normalisée
+   • déduplication (§32) par handKey
+   • découpage en lots de `maxPerLot` mains (§4)
+   • comptes de validation (§6/§31) : detected / imported / duplicates / incomplete
+   Rétro-compat : `hands` = 1er lot, `count` = taille 1er lot, `errors`, `site`.
 ═══════════════════════════════════════════════════════════════ */
-export function parseSession(text){
+export function parseSession(text, opts={}){
+  const maxPerLot = opts.maxPerLot || REPLAYER_MAX_PER_LOT;
+  const dedup = opts.dedup !== false;
   const blocks = pfSplitHands(text);
-  const hands = []; const errors = [];
+  const parsed = []; const errors = [];
   blocks.forEach((b,i)=>{
     const h = parseHand(b,i);
-    if(h && h.valid) hands.push(h);
+    if(h && h.valid) parsed.push(h);
     else errors.push({ i, error:h?.error||"invalide" });
   });
-  const room = hands[0]?.room || pfDetectSite(text);
-  const gameType = hands[0]?.gameType || detectGameType(text);
+
+  // Déduplication
+  let duplicates = 0;
+  const seen = new Set(); const unique = [];
+  for(const h of parsed){
+    const key = handKey(h);
+    if(dedup && seen.has(key)){ duplicates++; continue; }
+    seen.add(key); unique.push(h);
+  }
+
+  // Découpage en lots (§4)
+  const lots = [];
+  for(let i=0;i<unique.length;i+=maxPerLot) lots.push(unique.slice(i,i+maxPerLot));
+
+  const room = unique[0]?.room || pfDetectSite(text);
+  const gameType = unique[0]?.gameType || detectGameType(text);
   return {
-    hands, errors, count:hands.length,
-    room, gameType, format:`${room} ${gameType==="mtt"?"MTT":"Cash"}`,
-    date: hands[0]?.dateStr || "",
-    players: hands[0]?.tableSize || 0,
-    single: hands.length===1,
+    hands: lots[0] || [],            // 1er lot actif (rétro-compat)
+    lots,                            // tous les lots (§4)
+    lotCount: lots.length,
+    errors, duplicates,
+    detected: blocks.length,        // blocs détectés
+    imported: unique.length,        // mains valides & dédupliquées
+    incomplete: errors.length,      // mains invalides/incomplètes
+    total: unique.length,
+    count: (lots[0] || []).length,
+    room, site:room, gameType, format:`${room} ${gameType==="mtt"?"MTT":"Cash"}`,
+    date: unique[0]?.dateStr || "",
+    players: unique[0]?.tableSize || 0,
+    single: unique.length===1,
+    maxPerLot,
   };
 }

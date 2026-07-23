@@ -155,6 +155,34 @@ section("Session multi-mains");
   const sess = parseSession(HH_FOLD + "\n\n" + HH_SHOW);
   ok(sess.count===2, "2 mains parsées");
   ok(sess.hands.every(h=>h.valid), "toutes valides");
+  ok(sess.detected>=2 && sess.imported===2 && sess.incomplete===0, "comptes de validation (detected/imported/incomplete)");
+  // Régression : le split multi-mains ne doit pas amputer le préfixe room
+  ok(sess.room==="PokerStars", `room détectée en multi-mains (obtenu ${sess.room})`);
+  ok(sess.hands.every(h=>h.room==="PokerStars"), "chaque main garde sa room");
+}
+
+/* ── 8. Déduplication (§32) ── */
+section("Déduplication");
+{
+  // même main HH_FOLD répétée 3× → 1 seule importée, 2 doublons
+  const sess = parseSession([HH_FOLD, HH_FOLD, HH_FOLD, HH_SHOW].join("\n\n"));
+  ok(sess.imported===2, `dédup : 2 mains uniques (obtenu ${sess.imported})`);
+  ok(sess.duplicates===2, `dédup : 2 doublons comptés (obtenu ${sess.duplicates})`);
+  const noDedup = parseSession([HH_FOLD, HH_FOLD].join("\n\n"), { dedup:false });
+  ok(noDedup.imported===2, "dedup:false conserve les doublons");
+}
+
+/* ── 9. Découpage en lots (§4) ── */
+section("Découpage en lots (limite maxPerLot)");
+{
+  // 5 mains distinctes, maxPerLot=2 → lots de [2,2,1]
+  const distinct = [];
+  for(let i=0;i<5;i++) distinct.push(HH_FOLD.replace("#234589012", "#"+(900000+i)));
+  const sess = parseSession(distinct.join("\n\n"), { maxPerLot:2 });
+  ok(sess.imported===5, `5 mains distinctes importées (obtenu ${sess.imported})`);
+  ok(sess.lotCount===3, `3 lots (obtenu ${sess.lotCount})`);
+  ok(sess.lots[0].length===2 && sess.lots[2].length===1, "lots [2,2,1]");
+  ok(sess.count===2, "count = taille du 1er lot");
 }
 
 console.log(`\n${failed===0 ? "✅" : "❌"} Replayer State Engine : ${passed} ok, ${failed} échec(s)`);
