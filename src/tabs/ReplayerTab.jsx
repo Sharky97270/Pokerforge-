@@ -1079,7 +1079,7 @@ function ReplayerSolverTab({hand,step,unit,onGoTrainer,onGoRanges}){
 export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initialText,onInitialApplied,initialTab="replay",onInitialTabApplied}){
   const REPLAYER_ACTIVE_TABS=["replay","ai","solver","ranges","notes"];
   const[repTab,setRepTab]=useState(REPLAYER_ACTIVE_TABS.includes(initialTab)?initialTab:"replay");
-  const[rightTab,setRightTab]=useState("history");
+  const[rightTab,setRightTab]=useState("ai");
   const[notes,setNotes]=useState(()=>repLoadNotes());
   const[hh,setHh]=useState("");
   const[hand,setHand]=useState(null);
@@ -1386,24 +1386,30 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                 </div>
               )}
 
-              {/* Bibliothèque */}
-              <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px",flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
-                <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,marginBottom:7,flexShrink:0}}>Bibliothèque ({handList.length})</div>
-                {handList.length>3&&(
-                  <input value={libQuery} onChange={e=>setLibQuery(e.target.value)} placeholder="🔍 Rechercher..."
-                    style={{width:"100%",background:"#071B44",border:"1px solid #1A3A80",color:T.text2,borderRadius:6,
-                      padding:"4px 8px",fontSize:8.5,outline:"none",fontFamily:T.stats,boxSizing:"border-box",marginBottom:6,flexShrink:0}}/>
-                )}
-                <div style={{flex:1,overflowY:"auto"}}>
-                  {filteredLib.length===0&&<div style={{color:T.text4,fontSize:9,textAlign:"center",padding:"10px 0",fontFamily:T.stats}}>Aucune main trouvée</div>}
-                  {filteredLib.map(h=>(
-                    <div key={h.id} className={`handit${selHand===h.id?" on":""}`} style={{marginBottom:3}} onClick={()=>{setSelHand(h.id);setHand(sampleHand);setStep(0);}}>
-                      <span className="tag tag-b" style={{fontSize:7}}>{h.site}</span>
-                      <span style={{flex:1,color:T.text,fontFamily:T.stats,fontSize:9,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.desc}</span>
-                      <span className="tag tag-gold" style={{fontSize:7,flexShrink:0}}>{h.score}/10</span>
-                    </div>
-                  ))}
-                </div>
+              {/* ── BIBLIOTHÈQUE DES MAINS IMPORTÉES (panneau gauche, §7/§40) ── */}
+              <div style={{border:"1px solid #0F2258",borderRadius:8,overflow:"hidden",flex:1,minHeight:180,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)"}}>
+                {session
+                  ? <HandHistoryList session={session} activeIdx={handIdx} onSelect={loadHandAt} unit={unit} onSwitchLot={switchLot}/>
+                  : (
+                    <>
+                      <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,padding:"9px 11px 6px",flexShrink:0}}>Analyses sauvegardées ({handList.length})</div>
+                      {handList.length>3&&(
+                        <input value={libQuery} onChange={e=>setLibQuery(e.target.value)} placeholder="🔍 Rechercher..."
+                          style={{margin:"0 9px 6px",background:"#071B44",border:"1px solid #1A3A80",color:T.text2,borderRadius:6,
+                            padding:"4px 8px",fontSize:8.5,outline:"none",fontFamily:T.stats,boxSizing:"border-box",flexShrink:0}}/>
+                      )}
+                      <div style={{flex:1,overflowY:"auto",padding:"0 9px 9px"}}>
+                        {filteredLib.length===0&&<div style={{color:T.text4,fontSize:9,textAlign:"center",padding:"14px 0",fontFamily:T.stats}}>Importe des mains pour construire ta bibliothèque.</div>}
+                        {filteredLib.map(h=>(
+                          <div key={h.id} className={`handit${selHand===h.id?" on":""}`} style={{marginBottom:3}} onClick={()=>{setSelHand(h.id);setHand(sampleHand);setStep(0);}}>
+                            <span className="tag tag-b" style={{fontSize:7}}>{h.site}</span>
+                            <span style={{flex:1,color:T.text,fontFamily:T.stats,fontSize:9,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.desc}</span>
+                            <span className="tag tag-gold" style={{fontSize:7,flexShrink:0}}>{h.score}/10</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
               </div>
 
             </div>
@@ -1523,12 +1529,12 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"12px 0",overflow:"hidden"}}>
               <button onClick={()=>setCinema(false)} title="Afficher le panneau"
                 style={{width:30,height:30,borderRadius:6,border:"1px solid #152D6E",background:"rgba(255,255,255,.05)",color:T.text3,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>
-              <div style={{writingMode:"vertical-rl",fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".1em",opacity:.45,marginTop:6}}>HISTORIQUE</div>
+              <div style={{writingMode:"vertical-rl",fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".1em",opacity:.45,marginTop:6}}>ANALYSE</div>
             </div>
           ):(
             <>
               <div style={{display:"flex",borderBottom:"1px solid #152D6E",flexShrink:0,background:"rgba(5,14,40,.6)"}}>
-                {[{id:"history",l:"📋 Historique"},{id:"ai",l:"⚡ Analyse IA"},{id:"notes",l:"📝 Notes"}].map(t=>(
+                {[{id:"ai",l:"⚡ Analyse IA"},{id:"notes",l:"📝 Notes"}].map(t=>(
                   <button key={t.id} style={{flex:1,padding:"7px 4px",fontSize:9,fontWeight:700,border:"none",
                     borderBottom:`2px solid ${rightTab===t.id?T.gold:"transparent"}`,
                     background:"transparent",color:rightTab===t.id?T.gold:T.text4,
@@ -1536,14 +1542,6 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     onClick={()=>setRightTab(t.id)}>{t.l}</button>
                 ))}
               </div>
-
-              {rightTab==="history"&&(
-                session
-                  ?<HandHistoryList session={session} activeIdx={handIdx} onSelect={loadHandAt} unit={unit} onSwitchLot={switchLot}/>
-                  :<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",textAlign:"center"}}>
-                     <div style={{color:T.text4,fontFamily:T.stats,fontSize:10,lineHeight:1.7}}>Aucune main importée.<br/>Charge un fichier ou colle une main à gauche.</div>
-                   </div>
-              )}
 
               {rightTab==="ai"&&(
                 <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:8}}>
