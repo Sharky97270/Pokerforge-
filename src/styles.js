@@ -5539,17 +5539,24 @@ export const CSS_TABLE=`
    position quels que soient le spot, la street, la phase (§9). Contenu aligné en
    haut : les boutons restent collés sous la table, l'espace libre en phase done
    reste sous eux. (.t1-actions-under est masqué sur mobile → sans effet.) */
-.t1-actions-under{min-height:206px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;}
-.t1-actions-under .mtr-actions{padding:6px 10px 7px!important;}
-.t1-actions-under .mtr-actions>div{margin-bottom:5px!important;}
-.t1-actions-under .gto-btn{min-height:62px!important;}
-.t1-actions-under .gto-btn .gto-btn-inner{padding:8px 8px 6px!important;}
-.t1-actions-under .gto-btn-label{font-size:14px!important;}
-.t1-actions-under .gto-btn-sizing{font-size:9.5px!important;}
-.t1-actions-under .gto-btn-hint{font-size:7.5px!important;}
-.t1-actions-under .sizing-btn{min-height:19px!important;}
-.t1-actions-under .sizing-custom{margin-top:3px!important;}
-.t1-actions-under .sizing-step-btn{height:27px!important;}
+/* DESKTOP UNIQUEMENT (min-width:769px) : ces règles forçaient display:flex +
+   min-height:206px sur .t1-actions-under de façon GLOBALE, ce qui ré-affichait la
+   zone sur mobile (où elle DOIT être masquée, cf. .t1-actions-under{display:none}
+   du bloc mobile) → double bandeau de décision + table étranglée à 185px. On les
+   scope au desktop pour que le display:none mobile l'emporte enfin. */
+@media (min-width:769px){
+  .t1-actions-under{min-height:206px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;}
+  .t1-actions-under .mtr-actions{padding:6px 10px 7px!important;}
+  .t1-actions-under .mtr-actions>div{margin-bottom:5px!important;}
+  .t1-actions-under .gto-btn{min-height:62px!important;}
+  .t1-actions-under .gto-btn .gto-btn-inner{padding:8px 8px 6px!important;}
+  .t1-actions-under .gto-btn-label{font-size:14px!important;}
+  .t1-actions-under .gto-btn-sizing{font-size:9.5px!important;}
+  .t1-actions-under .gto-btn-hint{font-size:7.5px!important;}
+  .t1-actions-under .sizing-btn{min-height:19px!important;}
+  .t1-actions-under .sizing-custom{margin-top:3px!important;}
+  .t1-actions-under .sizing-step-btn{height:27px!important;}
+}
 
 /* ═══ 7-MAX — CARTES HERO -5% (§2) ═══
    Scopé via [data-nplayers="7"] : les autres structures gardent leur taille.

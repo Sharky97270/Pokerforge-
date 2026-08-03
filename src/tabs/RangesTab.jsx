@@ -1,6 +1,15 @@
 // PokerForge — onglet Ranges GTO 13x13 (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect } from "react";
 import { T } from "../theme.js";
+import { useRangeTheme } from "../components/range/useRangeTheme.js";
+import RangeColorSettings from "../components/range/RangeColorSettings.jsx";
+import { rgba as rangeRgba } from "../rangeColorTheme.js";
+
+/* Action affichée (filtre) → clé d'action canonique du thème partagé. */
+const RANGE_ACTION_KEY={
+  Open:"raise", Call:"call", "3Bet":"threebet", "4Bet":"threebet",
+  Defense:"call", Jam:"allin",
+};
 
 /* ═══════════════════════════════════════════════════════════════
    RANGES POKERFORGE — Grilles 13×13 programmatiques
@@ -224,10 +233,15 @@ function FilterPills({label,options,value,onChange,colors}){
   );
 }
 
-function HandMatrix({grid,small,selectedKey,onSelect,actionLabel="Range"}){
+function HandMatrix({grid,small,selectedKey,onSelect,actionLabel="Range",actionKey="raise"}){
   const cSz=small?24:34;
   const fSz=small?5.5:8;
   const pct=calcHPct(grid);
+  /* Couleurs issues du thème PARTAGÉ : la teinte suit l'ACTION affichée,
+     l'intensité suit la FRÉQUENCE (les données ne changent jamais). */
+  const theme=useRangeTheme("replayer");
+  const actCol=theme.colors[actionKey]||theme.colors.raise;
+  const foldCol=theme.colors.fold;
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
       <div style={{
@@ -254,13 +268,13 @@ function HandMatrix({grid,small,selectedKey,onSelect,actionLabel="Range"}){
               const selected=selectedKey===lbl;
               let bg,tc,brd;
               if(f<=0){
-                bg="rgba(3,10,28,.7)";tc="rgba(255,255,255,.12)";brd="rgba(255,255,255,.035)";
-              }else if(isPair){
-                bg=`rgba(18,58,32,${0.2+f*0.7})`;tc=f<0.4?"#1d8a4e":"#2ECC71";brd=`rgba(46,204,113,${0.18+f*0.45})`;
-              }else if(isSuited){
-                bg=`rgba(8,52,72,${0.2+f*0.7})`;tc=f<0.4?"#1a9ab8":"#34D8FF";brd=`rgba(52,216,255,${0.15+f*0.4})`;
+                bg=rangeRgba(foldCol,.22);tc="rgba(255,255,255,.14)";brd=rangeRgba(foldCol,.16);
               }else{
-                bg=`rgba(58,36,8,${0.2+f*0.7})`;tc=f<0.4?"#a07515":"#FFC247";brd=`rgba(255,194,71,${0.15+f*0.4})`;
+                // suited/paires légèrement plus lumineuses (lisibilité), même teinte d'action
+                const boost=isPair?0.10:isSuited?0.05:0;
+                bg=rangeRgba(actCol,0.18+f*0.68+boost);
+                tc=f<0.4?rangeRgba(actCol,.85):"#FFFFFF";
+                brd=rangeRgba(actCol,0.18+f*0.45);
               }
               return(
                 <div key={col} title={`${lbl} · ${f>0?`${Math.round(f*100)}% ${actionLabel}`:"Fold"}`} style={{
@@ -376,7 +390,9 @@ export default function RangesTab({onGoCoach,embedded=false}){
           <div style={{fontSize:12,fontWeight:900,color:T.gold,fontFamily:"'Space Grotesk',sans-serif",letterSpacing:".1em"}}>📊 RANGES POKERFORGE</div>
           <div style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,marginTop:1}}>Ranges, equity & stratégies GTO · 6 positions · MTT, Cash & KO/PKO · Grille 13×13 interactive</div>
         </div>
-        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+          {/* 🎨 Personnalisation des couleurs — système partagé */}
+          <RangeColorSettings moduleId="replayer" usedActions={[RANGE_ACTION_KEY[action]||"raise","fold"]}/>
           <button onClick={()=>onGoCoach&&onGoCoach()} style={{
             padding:"5px 13px",borderRadius:8,cursor:"pointer",fontSize:9.5,fontWeight:700,
             fontFamily:"'Space Grotesk',sans-serif",letterSpacing:".05em",transition:"all .15s",
@@ -458,7 +474,7 @@ export default function RangesTab({onGoCoach,embedded=false}){
               <span style={{fontSize:9,color:T.text3,fontFamily:"'JetBrains Mono',monospace"}}>{depth}bb</span>
               <span style={{fontSize:8,color:T.text4,fontFamily:T.stats}}>{fmt}</span>
             </div>
-            <HandMatrix grid={grid1} small={cmpOn} selectedKey={selectedHand} onSelect={setSelectedHand} actionLabel={action}/>
+            <HandMatrix grid={grid1} small={cmpOn} selectedKey={selectedHand} onSelect={setSelectedHand} actionLabel={action} actionKey={RANGE_ACTION_KEY[action]||"raise"}/>
             {selectedInfo&&(
               <div style={{display:"grid",gridTemplateColumns:"auto auto auto auto",gap:8,alignItems:"center",padding:"6px 10px",
                 background:"rgba(5,14,40,.86)",border:"1px solid rgba(52,216,255,.16)",borderRadius:8,
@@ -483,7 +499,7 @@ export default function RangesTab({onGoCoach,embedded=false}){
                   <span style={{fontSize:9,color:T.text3,fontFamily:"'JetBrains Mono',monospace"}}>{depth2}bb</span>
                   <span style={{fontSize:8,color:T.text4,fontFamily:T.stats}}>{fmt}</span>
                 </div>
-                <HandMatrix grid={grid2} small selectedKey={selectedHand} onSelect={setSelectedHand} actionLabel={action}/>
+                <HandMatrix grid={grid2} small selectedKey={selectedHand} onSelect={setSelectedHand} actionLabel={action} actionKey={RANGE_ACTION_KEY[action]||"raise"}/>
               </div>
             </>
           )}
