@@ -1079,7 +1079,7 @@ function ReplayerSolverTab({hand,step,unit,onGoTrainer,onGoRanges}){
 export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initialText,onInitialApplied,initialTab="replay",onInitialTabApplied}){
   const REPLAYER_ACTIVE_TABS=["replay","ai","solver","ranges","notes"];
   const[repTab,setRepTab]=useState(REPLAYER_ACTIVE_TABS.includes(initialTab)?initialTab:"replay");
-  const[rightTab,setRightTab]=useState("ai");
+  const[rightTab,setRightTab]=useState("analyse");
   const[notes,setNotes]=useState(()=>repLoadNotes());
   const[hh,setHh]=useState("");
   const[hand,setHand]=useState(null);
@@ -1473,7 +1473,6 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                   playSpeed={playSpeed} setPlaySpeed={setPlaySpeed}
                   onCinema={()=>setCinema(c=>!c)} cinema={cinema}
                 />
-                <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes}/>
                 <div style={{marginTop:8}}>
                   <button style={{width:"100%",padding:"8px",borderRadius:7,border:"1px solid rgba(255,194,71,.25)",
                     background:"rgba(255,194,71,.05)",color:T.gold,fontSize:10,fontWeight:700,cursor:"pointer",
@@ -1534,7 +1533,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
           ):(
             <>
               <div style={{display:"flex",borderBottom:"1px solid #152D6E",flexShrink:0,background:"rgba(5,14,40,.6)"}}>
-                {[{id:"ai",l:"⚡ Analyse IA"},{id:"notes",l:"📝 Notes"}].map(t=>(
+                {[{id:"analyse",l:"📊 Analyse"},{id:"ai",l:"⚡ Analyse IA"},{id:"notes",l:"📝 Notes"}].map(t=>(
                   <button key={t.id} style={{flex:1,padding:"7px 4px",fontSize:9,fontWeight:700,border:"none",
                     borderBottom:`2px solid ${rightTab===t.id?T.gold:"transparent"}`,
                     background:"transparent",color:rightTab===t.id?T.gold:T.text4,
@@ -1542,6 +1541,14 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     onClick={()=>setRightTab(t.id)}>{t.l}</button>
                 ))}
               </div>
+
+              {rightTab==="analyse"&&(
+                <div style={{flex:1,overflowY:"auto",padding:"10px 10px 14px"}}>
+                  {hand
+                    ? <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes}/>
+                    : <div style={{textAlign:"center",padding:"30px 12px",color:T.text4,fontFamily:T.stats,fontSize:10,lineHeight:1.7}}>Charge une main pour voir l'évaluation des décisions, les fréquences et l'analyse complète.</div>}
+                </div>
+              )}
 
               {rightTab==="ai"&&(
                 <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:8}}>
