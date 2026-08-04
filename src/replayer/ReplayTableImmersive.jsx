@@ -91,7 +91,7 @@ export default function ReplayTableImmersive({ hand, snapshot, fmt=defaultFmt, f
                style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:6,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
             {board.map((c,i)=>(
               <div key={`${i}-${c.r}${c.s}`} className="board-card-in" style={{animationDelay:`${i*0.09}s`}}>
-                <Card r={c.r} s={c.s} size="1t-board" delay={0}/>
+                <Card r={c.r} s={c.s} size="lg" delay={0}/>
               </div>
             ))}
           </div>
@@ -132,23 +132,23 @@ export default function ReplayTableImmersive({ hand, snapshot, fmt=defaultFmt, f
           <React.Fragment key={p.id}>
             <PlayerSeat pos={p.pos} mode="1T" style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform,gap:0,zIndex:20}}>
 
-              {/* Cartes au-dessus du siège */}
+              {/* Cartes au-dessus du siège — l'espace est TOUJOURS réservé pour les
+                  villains (même pliés) afin que tous les avatars s'alignent sur
+                  l'anneau (sinon un siège plié « remonte » : cf. bug BTN/BB). */}
               {isH ? (
                 <HeroHoleCards cards={p.hole} size={isTop?"1t-hero-top":"1t-hero-bottom"} gap={isTop?5:8}
                   style={{marginBottom:isTop?4:6,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
-              ) : !p.folded && (
-                showFace ? (
-                  <div style={{display:"flex",gap:3,marginBottom:5}}>
-                    {p.hole.slice(0,2).map((c,i)=><Card key={i} r={c.r} s={c.s} size="1t-villain" delay={i*0.05} revealed/>)}
-                  </div>
-                ) : (
-                  <div style={{marginBottom:5}}><VillainBackCards size="1t-villain" gap={3}/></div>
-                )
+              ) : (
+                <div style={{minHeight:52,marginBottom:5,display:"flex",alignItems:"flex-end",gap:3}}>
+                  {!p.folded && (showFace
+                    ? p.hole.slice(0,2).map((c,i)=><Card key={i} r={c.r} s={c.s} size="1t-villain" delay={i*0.05} revealed/>)
+                    : <VillainBackCards size="1t-villain" gap={3}/>)}
+                </div>
               )}
 
               {/* Carte joueur (avatar + plaque) */}
               <div className={`player-card-1t${isH?" hero":" villain"}${isActing?(isH?" active-hero":" active-vil"):""}${p.folded?" seat-folded":""}`}>
-                <PlayerAvatarPremium isHero={isH} isVillain={!isH} profile={profile} size={isH?70:64} active={isActing}/>
+                <PlayerAvatarPremium isHero={isH} isVillain={!isH} profile={profile} size={isH?54:48} active={isActing}/>
                 {isH && <span className="pf-seat-hero-chip">HERO</span>}
                 <div className="pf-seat-nameplate">
                   <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{p.pos}</span>

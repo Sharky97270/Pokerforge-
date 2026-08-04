@@ -73,11 +73,22 @@ try {
   await page.waitForSelector('.pf-player-seat', { timeout: 5000 });
   await sleep(400);
 
-  // Avance jusqu'à la street voulue
-  const label = { flop: 'Flop', turn: 'Turn', river: 'River' }[STREET];
-  if (label) {
-    await page.evaluate((l) => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === l)?.click(), label);
+  // Navigation : soit --step=N (N clics « action suivante » depuis le début),
+  // soit --street=flop|turn|river (saut de street).
+  const STEP = arg('step', null);
+  if (STEP != null) {
+    await page.evaluate((n) => {
+      const btn = t => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t);
+      btn('⏮')?.click();
+      for (let i = 0; i < n; i++) btn('▶▶')?.click();
+    }, +STEP);
     await sleep(500);
+  } else {
+    const label = { flop: 'Flop', turn: 'Turn', river: 'River' }[STREET];
+    if (label) {
+      await page.evaluate((l) => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === l)?.click(), label);
+      await sleep(500);
+    }
   }
 
   // Fige les animations pour une frame stable
@@ -97,9 +108,24 @@ try {
     if (board) seats.forEach((s, i) => { if (ov(s, board) > 120) issues.push(`siège ${i + 1} × board (${ov(s, board)}px²)`); });
     if (board && pot && ov(board, pot) > 80) issues.push(`pot × board (${ov(board, pot)}px²)`);
     const overflow = container ? seats.filter(s => s.bottom > container.bottom + 2 || s.top < container.top - 2).length : 0;
+    const feltRect = felt ? felt.getBoundingClientRect() : null;
+    const seatCenters = [...document.querySelectorAll('.pf-player-seat')].map(s => {
+      const av = s.querySelector('.player-card-1t') || s;
+      const r = av.getBoundingClientRect();
+      return { pos: s.getAttribute('data-seat'), cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2) };
+    });
+    const betZones = [...document.querySelectorAll('.pf-seat-action-zone')];
+    const boardCards = document.querySelectorAll('.pf-board-zone .card');
+    const avatars = [...document.querySelectorAll('.player-card-1t')].map(e => { const r = g(e); return { w: Math.round(r.width), h: Math.round(r.height) }; });
     return {
       containerH: container ? Math.round(container.height) : null,
       seats: seats.length, board: !!board, pot: !!pot,
+      step: (document.body.innerText.match(/Step \d+\/\d+/) || [])[0] || null,
+      felt: feltRect ? { cx: Math.round(feltRect.left + feltRect.width / 2), cy: Math.round(feltRect.top + feltRect.height / 2), w: Math.round(feltRect.width), h: Math.round(feltRect.height) } : null,
+      seatCenters,
+      betChipsVisible: betZones.length,
+      boardCardSize: boardCards[0] ? { w: Math.round(boardCards[0].getBoundingClientRect().width), h: Math.round(boardCards[0].getBoundingClientRect().height) } : null,
+      avatarSizes: avatars,
       overlaps: issues.length ? issues : 'aucun',
       seatsOverflowingContainer: overflow,
     };
