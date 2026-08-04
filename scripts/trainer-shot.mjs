@@ -94,7 +94,13 @@ try {
         .find(x => rx.test(x.textContent) && !/Fold/i.test(x.textContent));
       if (b) { b.click(); return b.textContent.trim().slice(0, 14); } return null;
     }, re);
-    await heroAct('Call|Suivre|Open 2\\.5|Limp'); await sleep(2600);
+    await heroAct('Call|Suivre|Open 2\\.5|Limp'); await sleep(2200);
+    // 1b) si toujours preflop (ex. Villain a 3-bet), Hero suit pour aller au flop.
+    for (let i = 0; i < 2; i++) {
+      const onFlop = await page.evaluate(() => [...document.querySelectorAll('button.ab,button[class*="ab-"]')].some(x => x.getBoundingClientRect().width > 0));
+      if (onFlop) break;
+      await heroAct('Call|Suivre'); await sleep(2000);
+    }
     // 2) sur le flop : mise 1/2 pot pour declencher le feedback + les jetons.
     await page.evaluate(() => {
       const b = [...document.querySelectorAll('button.ab,button[class*="ab-"]')]
@@ -102,7 +108,8 @@ try {
       const bet = b.find(x => /^Bet ½/.test(x.textContent.trim())) || b.find(x => /^Check/.test(x.textContent.trim()));
       if (bet) bet.click();
     });
-    await sleep(300); // le badge est visible ~1.6s ; on capture pendant
+    await sleep(120); // capture le moment "Hero vient de miser" (jetons au betAnchor,
+    // badge visible, AVANT la reponse Villain qui collecterait les mises ~520ms+).
   } else if (STREET === 'postflop') {
     for (let i = 0; i < 10; i++) {
       if (await page.evaluate(() => !!document.querySelector('.pf-board-zone'))) break;
@@ -116,7 +123,7 @@ try {
 
   // Fige les animations : sinon la capture attrape une frame instable.
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
-  await sleep(400);
+  await sleep(flag('fh') ? 120 : 400);
 
   const info = await page.evaluate(() => {
     const seats = [...document.querySelectorAll('.pf-player-seat')];
