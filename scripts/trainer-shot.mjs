@@ -73,9 +73,37 @@ try {
   // Les filtres sont verrouilles pendant une session : on choisit AVANT de lancer.
   await click(TABLES); await sleep(150);
   await click(STRUCT); await sleep(250);
+  // Mode Full Hand : pilote un coup complet jusqu'a un etat "flop avec mise + badge".
+  if (flag('fh')) {
+    // Le type de session "Full Hand" est un div cliquable (pas un button/.ntab).
+    await page.evaluate(() => {
+      const el = [...document.querySelectorAll('div,span')].find(e => e.children.length === 0 && /^🃏?\s*Full Hand$/i.test(e.textContent.trim()));
+      let n = el; for (let i = 0; i < 4 && n; i++) { n.click && n.click(); n = n.parentElement; }
+    });
+    await sleep(250);
+  }
   await click('Lancer la session', false); await sleep(1200);
 
-  if (STREET === 'postflop') {
+  if (flag('fh')) {
+    // 1) entre dans le coup : action Hero non-fold (Call defense ou Open) — le
+    //    Villain est force a suivre en Full Hand (fix), donc on atteint le flop.
+    const heroAct = (re) => page.evaluate((r) => {
+      const rx = new RegExp(r, 'i');
+      const b = [...document.querySelectorAll('button.gto-btn,button[class*="gto-btn-"]')]
+        .filter(x => x.getBoundingClientRect().width > 0)
+        .find(x => rx.test(x.textContent) && !/Fold/i.test(x.textContent));
+      if (b) { b.click(); return b.textContent.trim().slice(0, 14); } return null;
+    }, re);
+    await heroAct('Call|Suivre|Open 2\\.5|Limp'); await sleep(2600);
+    // 2) sur le flop : mise 1/2 pot pour declencher le feedback + les jetons.
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('button.ab,button[class*="ab-"]')]
+        .filter(x => x.getBoundingClientRect().width > 0);
+      const bet = b.find(x => /^Bet ½/.test(x.textContent.trim())) || b.find(x => /^Check/.test(x.textContent.trim()));
+      if (bet) bet.click();
+    });
+    await sleep(300); // le badge est visible ~1.6s ; on capture pendant
+  } else if (STREET === 'postflop') {
     for (let i = 0; i < 10; i++) {
       if (await page.evaluate(() => !!document.querySelector('.pf-board-zone'))) break;
       await page.evaluate(() => {

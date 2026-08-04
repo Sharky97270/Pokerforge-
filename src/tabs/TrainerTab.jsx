@@ -477,8 +477,16 @@ function dealerAnchorPoint(layout){
   // bouton est sur la SB (règle BTN=SB). Sinon on retombait sur le centre (50,50)
   // et le jeton D flottait au milieu de la table.
   const seat=layout.seats?.BTN||layout.seats?.SB||{x:50,y:50};
-  const off={"1T":{x:7,y:9},"2T":{x:9,y:0},"3T":{x:8,y:0},"4T":{x:8,y:0}}[layout.name]||{x:9,y:0};
-  return {x:Math.max(4,seat.x-off.x),y:Math.min(90,seat.y+off.y)};
+  // Jeton D COLLÉ au siège BTN, décalé vers le CENTRE de la table (jamais flottant
+  // au milieu). Robuste toutes structures : direction dérivée de la géométrie, pas
+  // d'offset codé en dur par nom de layout (qui ne matchait pas "1T-web-dyn" →
+  // fallback {x:9} → le D flottait à 9% du siège vers le centre).
+  const p=pointTowardCenter(seat,0.14);
+  // Siège en bas (centre) : « vers le centre » pointe droit vers le haut → le D
+  // chevaucherait l'avatar. On le décale latéralement (côté centre) pour le poser
+  // à côté, jamais dessus (mission : ne jamais chevaucher l'avatar).
+  const lateral=Math.abs(seat.x-50)<14?(seat.x<=50?7:-7):0;
+  return {x:clampTrainingPoint(p.x+lateral),y:clampTrainingPoint(p.y)};
 }
 function actionLabelAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"actionLabelAnchor");
