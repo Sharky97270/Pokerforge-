@@ -91,7 +91,29 @@ Hero: checks
 CoGuy: bets $10
 BtnGuy: folds
 Hero: calls $10`,
+  allin: `PokerStars Hand #700999: Hold'em No Limit ($1/$2) - 2025/06/20
+Table 'Vega' 6-max Seat #1 is the button
+Seat 1: Hero ($200 in chips)
+Seat 2: Villain ($200 in chips)
+Hero: posts small blind $1
+Villain: posts big blind $2
+Dealt to Hero [As Ks]
+Hero: raises $4 to $6
+Villain: raises $14 to $20
+Hero: raises $40 to $60
+Villain: raises $140 to $200 and is all-in
+Hero: calls $140 and is all-in
+*** FLOP *** [Ah 7c 2d]
+*** TURN *** [Ah 7c 2d] [9s]
+*** RIVER *** [Ah 7c 2d 9s] [Jh]
+*** SHOW DOWN ***
+Villain: shows [Qh Qc]
+Hero: shows [As Ks]
+Hero collected $400 from pot
+*** SUMMARY ***`,
 };
+// Session multi-mains (bibliothèque + filtres) : plusieurs HH concaténées.
+HANDS.multi = [HANDS.default, HANDS.showdown, HANDS.allin, HANDS['6max']].join('\n\n');
 const HH = HANDS[arg('hand', 'default')] || HANDS.default;
 
 const CHROMES = [
