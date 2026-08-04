@@ -4075,7 +4075,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
           <div className="sizing-custom">
             <button className="sizing-step-btn" onClick={()=>{const v=customBB!==null?customBB:raiseAmt;setCustomBB(Math.max(currentPotBb,Math.round((v-.5)*2)/2));}}>−</button>
-            <span style={{flex:1,textAlign:"center",fontFamily:T.mono,fontSize:az.stepFs,color:customBB!==null?T.gold:T.text3,fontWeight:700}}>{customBB!==null?fmt(customBB):fmt(raiseAmt)} bb</span>
+            <span style={{flex:1,textAlign:"center",fontFamily:T.mono,fontSize:az.stepFs,color:customBB!==null?T.gold:T.text3,fontWeight:700}}>{customBB!==null?fmt(customBB):fmt(raiseAmt)}</span>
             <button className="sizing-step-btn" onClick={()=>{const v=customBB!==null?customBB:raiseAmt;setCustomBB(Math.round((v+.5)*2)/2);}}>+</button>
           </div>
           {/* ── Indice raccourcis clavier (1T) — rythme drill type GTO Wizard ── */}
