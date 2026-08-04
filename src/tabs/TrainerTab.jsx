@@ -6570,7 +6570,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             {(()=>{
               const activeAns=!!tableAns[activeTable];
               const busy=!!nextTableLockRef.current[activeTable];
-              const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":`Table ${activeTable+1} suivante`;
+              // §P1 : en 1T, une seule CTA « Main suivante » (pas de « Table 1
+              // suivante » redondant) ; en multi-table, « Table N suivante ».
+              const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":(ntables===1?"Main suivante":`Table ${activeTable+1} suivante`);
               return(
                 <button className="pf-p2-next" disabled={!activeAns||busy} onClick={()=>handleNextTable(activeTable)}>
                   {activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
