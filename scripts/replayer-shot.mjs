@@ -173,18 +173,23 @@ try {
   await page.waitForSelector('.pf-player-seat', { timeout: 5000 });
   await sleep(400);
 
-  // Vue Ranges + popover couleurs (QA du système de couleurs partagé)
-  if (arg('view', null) === 'ranges') {
-    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /📊 Ranges/.test(b.textContent))?.click());
-    await sleep(500);
-    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('🎨'))?.click());
-    await sleep(400);
-    await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
-    await sleep(200);
-    await page.screenshot({ path: OUT, fullPage: false });
-    console.log(JSON.stringify({ out: OUT, view: 'ranges' }, null, 1));
-    await browser.close();
-    process.exit(0);
+  // Vue de l'onglet Replayer (ranges/solver/notes/ai). Ranges ouvre en plus le
+  // popover couleurs et capture directement ; solver/notes cliquent puis laissent
+  // le flux normal capturer.
+  const VIEW = arg('view', null);
+  if (VIEW) {
+    const label = { ranges: '📊 Ranges', solver: '🎯 Solver', notes: '📝 Notes', ai: '⚡ Analyse IA' }[VIEW];
+    if (label) { await page.evaluate(l => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === l || b.textContent.includes(l))?.click(), label); await sleep(600); }
+    if (VIEW === 'ranges') {
+      await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('🎨'))?.click());
+      await sleep(400);
+      await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
+      await sleep(200);
+      await page.screenshot({ path: OUT, fullPage: false });
+      console.log(JSON.stringify({ out: OUT, view: 'ranges' }, null, 1));
+      await browser.close();
+      process.exit(0);
+    }
   }
 
   // Navigation : soit --step=N (N clics « action suivante » depuis le début),
