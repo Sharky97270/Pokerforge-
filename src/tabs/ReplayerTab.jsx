@@ -1,6 +1,7 @@
 // PokerForge — Replayer : parser multi-room, rejeu pas-a-pas, analyse IA, solver de spot (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { T } from "../theme.js";
+import { useIsMobile } from "../utils/ui.js";
 import { apiSolverAnalyze, apiRangesCompare, apiSaveSpot, apiListSpots, apiDeleteSpot } from "../solverApi.js";
 import { loadStats, saveStats, saveStatsSafe, loadHands, saveHands } from "../stats.js";
 import { POSITIONS_BY_SIZE, SPOTS } from "../data/content.js";
@@ -1256,7 +1257,8 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   ];
   const isRangesMode=repTab==="ranges";
   const isSolverMode=repTab==="solver";
-  const gridCols=isRangesMode?"minmax(210px,22%) minmax(0,1fr) 0px":cinema?"44px 1fr 44px":"minmax(210px,22%) 1fr minmax(210px,22%)";
+  const isNarrow=useIsMobile(880); // §38 : sous 880px on empile en 1 colonne (table d'abord)
+  const gridCols=isNarrow?"1fr":isRangesMode?"minmax(210px,22%) minmax(0,1fr) 0px":cinema?"44px 1fr 44px":"minmax(210px,22%) 1fr minmax(210px,22%)";
   const filteredLib=handList.filter(h=>!libQuery||h.desc.toLowerCase().includes(libQuery.toLowerCase())||h.site?.toLowerCase().includes(libQuery.toLowerCase()));
 
   return(
@@ -1287,12 +1289,12 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
       </div>
 
       {/* ── Grille 3 colonnes ── */}
-      <div style={{flex:1,display:"grid",gridTemplateColumns:gridCols,overflow:"hidden",transition:"grid-template-columns .28s ease",minHeight:0}}>
+      <div style={{flex:1,display:"grid",gridTemplateColumns:gridCols,overflow:isNarrow?"auto":"hidden",transition:"grid-template-columns .28s ease",minHeight:0}}>
 
         {/* ═══════════════════════════════════════════════
             COLONNE GAUCHE
         ═══════════════════════════════════════════════ */}
-        <div style={{borderRight:"1px solid #152D6E",display:"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s"}}>
+        <div style={{borderRight:"1px solid #152D6E",display:"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s",...(isNarrow?{order:2,height:"78vh",borderTop:"1px solid #152D6E"}:{})}}>
           {cinema?(
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"12px 0",overflow:"hidden"}}>
               <button onClick={()=>setCinema(false)} title="Afficher le panneau"
@@ -1419,7 +1421,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
         {/* ═══════════════════════════════════════════════
             COLONNE CENTRE
         ═══════════════════════════════════════════════ */}
-        <div style={{display:"flex",flexDirection:"column",overflow:"hidden",background:"#030B20",minHeight:0}}>
+        <div style={{display:"flex",flexDirection:"column",overflow:"hidden",background:"#030B20",minHeight:0,...(isNarrow?{order:1,height:"70vh"}:{})}}>
           {isSolverMode?(
             <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",minHeight:0}}>
               {hand&&cur&&(
@@ -1523,7 +1525,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
         {/* ═══════════════════════════════════════════════
             COLONNE DROITE
         ═══════════════════════════════════════════════ */}
-        <div style={{borderLeft:"1px solid #152D6E",display:isRangesMode?"none":"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s"}}>
+        <div style={{borderLeft:"1px solid #152D6E",display:isRangesMode?"none":"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s",...(isNarrow?{order:3,height:"78vh",borderTop:"1px solid #152D6E"}:{})}}>
           {cinema?(
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"12px 0",overflow:"hidden"}}>
               <button onClick={()=>setCinema(false)} title="Afficher le panneau"

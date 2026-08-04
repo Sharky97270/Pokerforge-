@@ -69,7 +69,7 @@ export default function ReplayTableImmersive({ hand, snapshot, fmt=defaultFmt, f
   const dlrPt = btnPlayer ? dealerPoint(coordOfId[btnPlayer.id]) : null;
 
   return (
-    <div style={{position:"relative",width:"100%",height:"100%",minHeight:0,overflow:"hidden"}}>
+    <div className="pf-replayer-table" style={{position:"relative",width:"100%",height:"100%",minHeight:0,overflow:"hidden"}}>
       {/* ── FEUTRE ── */}
       <div style={feltStyle(geom)}>
         <div style={feltRailStyle("outer",geom)}/>
