@@ -111,6 +111,32 @@ Villain: shows [Qh Qc]
 Hero: shows [As Ks]
 Hero collected $400 from pot
 *** SUMMARY ***`,
+  winamax: `Winamax Poker - CashGame - HandId: #12345-67-1234567890 - Holdem no limit (0.01€/0.02€) - 2023/05/12 20:15:33 UTC
+Table: 'Wichita 12' 5-max (real money) Seat #3 is the button
+Seat 1: Hero (2€)
+Seat 2: Villain (2.50€)
+Seat 3: Player3 (1.80€)
+*** ANTE/BLINDS ***
+Hero posts small blind 0.01€
+Villain posts big blind 0.02€
+Dealt to Hero [As Kh]
+*** PRE-FLOP ***
+Player3 raises 0.06€ to 0.08€
+Hero calls 0.07€
+Villain folds
+*** FLOP *** [Ah 7c 2d]
+Hero checks
+Player3 bets 0.10€
+Hero calls 0.10€
+*** TURN *** [Ah 7c 2d][9s]
+Hero checks
+Player3 checks
+*** RIVER *** [Ah 7c 2d 9s][Jh]
+Hero checks
+Player3 checks
+*** SHOW DOWN ***
+Hero shows [As Kh]
+Player3 shows [Qh Qc]`,
 };
 // Session multi-mains (bibliothèque + filtres) : plusieurs HH concaténées.
 HANDS.multi = [HANDS.default, HANDS.showdown, HANDS.allin, HANDS['6max']].join('\n\n');

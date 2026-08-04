@@ -55,7 +55,10 @@ export function pfDetectSite(t){
 }
 export function detectGameType(txt){
   const t = txt.toLowerCase();
-  if(t.includes("tournament")||t.includes("tournoi")||t.includes("level")||t.includes("ante")||t.includes("bounty")||t.includes("buyin")) return "mtt";
+  // Winamax écrit « CashGame » et un en-tête « *** ANTE/BLINDS *** » même en cash :
+  // le mot « ante » seul ne suffit donc pas → on exige un ante RÉELLEMENT posté.
+  if(/\bcash ?game\b/.test(t)) return "cash";
+  if(t.includes("tournament")||t.includes("tournoi")||t.includes("level")||t.includes("bounty")||t.includes("buyin")||t.includes("buy-in")||/posts (?:the )?ante/.test(t)) return "mtt";
   return "cash";
 }
 /* Découpe un fichier en blocs-mains (en-têtes connus, sinon lignes vides) */
