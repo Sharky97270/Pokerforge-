@@ -11,6 +11,7 @@ import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 
 const arg = (n, d) => { const h = process.argv.find(a => a.startsWith(`--${n}=`)); return h ? h.split('=').slice(1).join('=') : d; };
+const flag = n => process.argv.includes(`--${n}`);
 
 const URL = arg('url', 'http://localhost:7799');
 const STREET = arg('street', 'turn');      // preflop | flop | turn | river
@@ -154,6 +155,12 @@ try {
       await page.evaluate((l) => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === l)?.click(), label);
       await sleep(500);
     }
+  }
+
+  // Mode cinéma (panneaux latéraux repliés)
+  if (flag('cinema')) {
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /Cinéma/.test(b.textContent))?.click());
+    await sleep(500);
   }
 
   // Fige les animations pour une frame stable
