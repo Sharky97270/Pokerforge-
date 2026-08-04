@@ -18,7 +18,8 @@ const W = +arg('w', 1440);
 const H = +arg('h', 900);
 const OUT = path.resolve(arg('out', `replayer-${STREET}.png`));
 
-const HH = `PokerStars Hand #234589012: Hold'em No Limit ($1/$2) - 2025/05/20
+const HANDS = {
+  default: `PokerStars Hand #234589012: Hold'em No Limit ($1/$2) - 2025/05/20
 Table 'Andromeda' 6-max Seat #3 is the button
 Seat 1: Hero ($200 in chips)
 Seat 3: Villain ($200 in chips)
@@ -40,7 +41,57 @@ Hero: calls $19
 *** RIVER *** [Ah Kd 7c 2s] [9h]
 Hero: checks
 Villain: bets $60
-Hero: folds`;
+Hero: folds`,
+  showdown: `PokerStars Hand #500777: Hold'em No Limit ($0.50/$1) - 2025/06/01
+Table 'Nebula' 3-max Seat #1 is the button
+Seat 1: Alice ($100 in chips)
+Seat 2: Bob ($100 in chips)
+Seat 3: Hero ($100 in chips)
+Bob: posts small blind $0.50
+Hero: posts big blind $1
+Dealt to Hero [As Kd]
+Alice: raises $2 to $3
+Bob: folds
+Hero: calls $2
+*** FLOP *** [Ah 7c 2d]
+Hero: checks
+Alice: bets $4
+Hero: calls $4
+*** TURN *** [Ah 7c 2d] [9s]
+Hero: checks
+Alice: checks
+*** RIVER *** [Ah 7c 2d 9s] [Jh]
+Hero: checks
+Alice: checks
+*** SHOW DOWN ***
+Alice: shows [Qh Qc]
+Hero: shows [As Kd]
+Hero collected $15 from pot
+*** SUMMARY ***`,
+  '6max': `PokerStars Hand #600123: Hold'em No Limit ($1/$2) - 2025/06/10
+Table 'Orion' 6-max Seat #1 is the button
+Seat 1: BtnGuy ($200 in chips)
+Seat 2: Hero ($200 in chips)
+Seat 3: BbPlayer ($200 in chips)
+Seat 4: UtgGuy ($200 in chips)
+Seat 5: HjGuy ($200 in chips)
+Seat 6: CoGuy ($200 in chips)
+Hero: posts small blind $1
+BbPlayer: posts big blind $2
+Dealt to Hero [Ad Qc]
+UtgGuy: folds
+HjGuy: folds
+CoGuy: raises $4 to $6
+BtnGuy: calls $6
+Hero: calls $5
+BbPlayer: folds
+*** FLOP *** [Qs 8h 3c]
+Hero: checks
+CoGuy: bets $10
+BtnGuy: folds
+Hero: calls $10`,
+};
+const HH = HANDS[arg('hand', 'default')] || HANDS.default;
 
 const CHROMES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -72,6 +123,20 @@ try {
   }, HH);
   await page.waitForSelector('.pf-player-seat', { timeout: 5000 });
   await sleep(400);
+
+  // Vue Ranges + popover couleurs (QA du système de couleurs partagé)
+  if (arg('view', null) === 'ranges') {
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /📊 Ranges/.test(b.textContent))?.click());
+    await sleep(500);
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('🎨'))?.click());
+    await sleep(400);
+    await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
+    await sleep(200);
+    await page.screenshot({ path: OUT, fullPage: false });
+    console.log(JSON.stringify({ out: OUT, view: 'ranges' }, null, 1));
+    await browser.close();
+    process.exit(0);
+  }
 
   // Navigation : soit --step=N (N clics « action suivante » depuis le début),
   // soit --street=flop|turn|river (saut de street).
