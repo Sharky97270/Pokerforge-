@@ -2689,6 +2689,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 ═══════════════════════════════════════ */
 export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState}){
   const[answered,setAnswered]=useState(null);
+  const[showSpotMacaron,setShowSpotMacaron]=useState(false); // §P0-A : macaron ✓/✗ TEMPORAIRE (fade ~1.6s), l'analyse reste dans le panneau
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
   const[thinking,setThinking]=useState(false);
@@ -2814,7 +2815,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   useEffect(()=>{
     animQRef.current?.cancel(); // §63 : coupe toute révélation Villain en cours du spot précédent
     clearAnimTimers(); // §61 : annule les timers d'animation jetons/pot du spot précédent
-    setAnswered(null);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
+    setAnswered(null);setShowSpotMacaron(false);setTl([]);setVact(null);setHeroReply(null);setPhase("hero");setDk(k=>k+1);
     setErrorFlash(false);setErrorBtn(null);setTimerPct(100);setShowToast(spotImpossible?"Spot invalide detecte - generation d'une nouvelle main":null);
     setHeroChip(null);setVilChip(null);setChipMove(null);setPotAnim(false);setPhaseFlash(false);
     const basePot=roundBb(spot?.pot||1.5);
@@ -3086,6 +3087,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     setHeroFeedback(trainerFeedbackFor(spot,i,trainerMode));
     vibrate(isCorrect?VIB.ok:VIB.err); // feedback haptique bonne/mauvaise réponse
     setAnswered(i);
+    // §P0-A : macaron ✓/✗ TEMPORAIRE — visible ~1.7s puis fade. L'analyse détaillée
+    // (EV, meilleure action, fréquences) reste dans le panneau droit.
+    setShowSpotMacaron(true);
+    schedAnim(()=>setShowSpotMacaron(false),1700);
     setTl(t=>[...t,{pos:spot.hpos,act:a.id,lbl:a.l,hero:true,amt:heroCommit.amountBb}]);
     onAnswer(isCorrect,i);
     if(!isCorrect){
@@ -4519,7 +4524,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                Strictement temporaire : masqué dès qu'on enchaîne en Main complète
                (playingFull) → le ✓ préflop ne persiste plus sur le board du flop
                (bug §8). Réinitialisé au spot suivant via setAnswered(null). ── */}
-          {phase==="done"&&answered!==null&&!playingFull&&(()=>{
+          {phase==="done"&&answered!==null&&!playingFull&&showSpotMacaron&&(()=>{
             const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
             const myEv=spot.ev[spot.acts[answered]?.id]||0;
             const evDiff=myEv-bestEv;
