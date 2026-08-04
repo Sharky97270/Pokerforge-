@@ -611,6 +611,9 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   transition:opacity .24s ease,filter .24s ease!important;
 }
 .seat-multiway,.pf-mt-seat-multiway{filter:saturate(1.08) brightness(1.03);}
+/* Replayer : sièges couchés un peu plus lisibles que dans le Trainer (on veut
+   voir clairement qui a participé au coup, même plié). Scopé → Trainer inchangé. */
+.pf-replayer-table .seat-folded{opacity:.84!important;filter:grayscale(.4) saturate(.82) brightness(.94)!important;}
 .pf-fold-chip,.pf-multiway-chip{
   margin-top:3px;
   display:inline-flex;align-items:center;justify-content:center;

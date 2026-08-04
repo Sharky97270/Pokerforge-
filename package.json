@@ -19,6 +19,7 @@
     "db:reset": "prisma migrate reset",
     "build:standalone": "vite build && node build-standalone.mjs",
     "shot": "node scripts/trainer-shot.mjs",
+    "shot:replayer": "node scripts/replayer-shot.mjs",
     "test:solver": "node src/solver/core/validate.mjs",
     "bench:solver": "node src/solver/core/benchmark.mjs"
   },

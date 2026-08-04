@@ -56,9 +56,9 @@ export function heroCentricSeatRing(positions, heroPos, opts={}){
   const g = opts.geometry || feltGeometry() || { top:6, left:4, right:4, bottom:10 };
   const cx = (g.left + (100-g.right))/2, cy = (g.top + (100-g.bottom))/2;
   const rx = (100-g.left-g.right)/2, ry = (100-g.top-g.bottom)/2;
-  const f  = opts.ringFactor ?? 0.9;
-  const fy = opts.ringFactorY ?? f;
-  const heroDrop = opts.heroDrop ?? 0.64;
+  const f  = opts.ringFactor ?? 1.0;
+  const fy = opts.ringFactorY ?? 0.86;
+  const heroDrop = opts.heroDrop ?? 0.7;
 
   const heroIdx = Math.max(0, positions.indexOf(heroPos));
   const ordered = [];

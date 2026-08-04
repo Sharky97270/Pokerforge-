@@ -1,6 +1,7 @@
 // PokerForge — Replayer : parser multi-room, rejeu pas-a-pas, analyse IA, solver de spot (extrait de App.jsx, Phase 3.3)
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { T } from "../theme.js";
+import { useIsMobile } from "../utils/ui.js";
 import { apiSolverAnalyze, apiRangesCompare, apiSaveSpot, apiListSpots, apiDeleteSpot } from "../solverApi.js";
 import { loadStats, saveStats, saveStatsSafe, loadHands, saveHands } from "../stats.js";
 import { POSITIONS_BY_SIZE, SPOTS } from "../data/content.js";
@@ -1079,7 +1080,7 @@ function ReplayerSolverTab({hand,step,unit,onGoTrainer,onGoRanges}){
 export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initialText,onInitialApplied,initialTab="replay",onInitialTabApplied}){
   const REPLAYER_ACTIVE_TABS=["replay","ai","solver","ranges","notes"];
   const[repTab,setRepTab]=useState(REPLAYER_ACTIVE_TABS.includes(initialTab)?initialTab:"replay");
-  const[rightTab,setRightTab]=useState("ai");
+  const[rightTab,setRightTab]=useState("analyse");
   const[notes,setNotes]=useState(()=>repLoadNotes());
   const[hh,setHh]=useState("");
   const[hand,setHand]=useState(null);
@@ -1256,7 +1257,8 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   ];
   const isRangesMode=repTab==="ranges";
   const isSolverMode=repTab==="solver";
-  const gridCols=isRangesMode?"minmax(210px,22%) minmax(0,1fr) 0px":cinema?"44px 1fr 44px":"minmax(210px,22%) 1fr minmax(210px,22%)";
+  const isNarrow=useIsMobile(880); // §38 : sous 880px on empile en 1 colonne (table d'abord)
+  const gridCols=isNarrow?"1fr":isRangesMode?"minmax(210px,22%) minmax(0,1fr) 0px":cinema?"44px 1fr 44px":"minmax(210px,22%) 1fr minmax(210px,22%)";
   const filteredLib=handList.filter(h=>!libQuery||h.desc.toLowerCase().includes(libQuery.toLowerCase())||h.site?.toLowerCase().includes(libQuery.toLowerCase()));
 
   return(
@@ -1287,12 +1289,12 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
       </div>
 
       {/* ── Grille 3 colonnes ── */}
-      <div style={{flex:1,display:"grid",gridTemplateColumns:gridCols,overflow:"hidden",transition:"grid-template-columns .28s ease",minHeight:0}}>
+      <div style={{flex:1,display:"grid",gridTemplateColumns:gridCols,overflow:isNarrow?"auto":"hidden",transition:"grid-template-columns .28s ease",minHeight:0}}>
 
         {/* ═══════════════════════════════════════════════
             COLONNE GAUCHE
         ═══════════════════════════════════════════════ */}
-        <div style={{borderRight:"1px solid #152D6E",display:"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s"}}>
+        <div style={{borderRight:"1px solid #152D6E",display:"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s",...(isNarrow?{order:2,height:"78vh",borderTop:"1px solid #152D6E"}:{})}}>
           {cinema?(
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"12px 0",overflow:"hidden"}}>
               <button onClick={()=>setCinema(false)} title="Afficher le panneau"
@@ -1419,7 +1421,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
         {/* ═══════════════════════════════════════════════
             COLONNE CENTRE
         ═══════════════════════════════════════════════ */}
-        <div style={{display:"flex",flexDirection:"column",overflow:"hidden",background:"#030B20",minHeight:0}}>
+        <div style={{display:"flex",flexDirection:"column",overflow:"hidden",background:"#030B20",minHeight:0,...(isNarrow?{order:1,height:"70vh"}:{})}}>
           {isSolverMode?(
             <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden",minHeight:0}}>
               {hand&&cur&&(
@@ -1473,7 +1475,6 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                   playSpeed={playSpeed} setPlaySpeed={setPlaySpeed}
                   onCinema={()=>setCinema(c=>!c)} cinema={cinema}
                 />
-                <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes}/>
                 <div style={{marginTop:8}}>
                   <button style={{width:"100%",padding:"8px",borderRadius:7,border:"1px solid rgba(255,194,71,.25)",
                     background:"rgba(255,194,71,.05)",color:T.gold,fontSize:10,fontWeight:700,cursor:"pointer",
@@ -1524,7 +1525,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
         {/* ═══════════════════════════════════════════════
             COLONNE DROITE
         ═══════════════════════════════════════════════ */}
-        <div style={{borderLeft:"1px solid #152D6E",display:isRangesMode?"none":"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s"}}>
+        <div style={{borderLeft:"1px solid #152D6E",display:isRangesMode?"none":"flex",flexDirection:"column",overflow:"hidden",background:"#040B1F",transition:"all .25s",...(isNarrow?{order:3,height:"78vh",borderTop:"1px solid #152D6E"}:{})}}>
           {cinema?(
             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"12px 0",overflow:"hidden"}}>
               <button onClick={()=>setCinema(false)} title="Afficher le panneau"
@@ -1534,7 +1535,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
           ):(
             <>
               <div style={{display:"flex",borderBottom:"1px solid #152D6E",flexShrink:0,background:"rgba(5,14,40,.6)"}}>
-                {[{id:"ai",l:"⚡ Analyse IA"},{id:"notes",l:"📝 Notes"}].map(t=>(
+                {[{id:"analyse",l:"📊 Analyse"},{id:"ai",l:"⚡ Analyse IA"},{id:"notes",l:"📝 Notes"}].map(t=>(
                   <button key={t.id} style={{flex:1,padding:"7px 4px",fontSize:9,fontWeight:700,border:"none",
                     borderBottom:`2px solid ${rightTab===t.id?T.gold:"transparent"}`,
                     background:"transparent",color:rightTab===t.id?T.gold:T.text4,
@@ -1542,6 +1543,14 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     onClick={()=>setRightTab(t.id)}>{t.l}</button>
                 ))}
               </div>
+
+              {rightTab==="analyse"&&(
+                <div style={{flex:1,overflowY:"auto",padding:"10px 10px 14px"}}>
+                  {hand
+                    ? <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes}/>
+                    : <div style={{textAlign:"center",padding:"30px 12px",color:T.text4,fontFamily:T.stats,fontSize:10,lineHeight:1.7}}>Charge une main pour voir l'évaluation des décisions, les fréquences et l'analyse complète.</div>}
+                </div>
+              )}
 
               {rightTab==="ai"&&(
                 <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:8}}>
