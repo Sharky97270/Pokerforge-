@@ -75,20 +75,21 @@ export default function ReplayTableImmersive({ hand, snapshot, fmt=defaultFmt, f
         <div style={feltRailStyle("outer",geom)}/>
         <div style={feltRailStyle("inner",geom)}/>
 
-        {/* POT (au-dessus du board) — n'apparaît qu'après absorption des mises */}
+        {/* POT (au-dessus du board) — remonté de quelques % pour ne pas frôler le
+            haut du board en petite résolution (cartes en px fixes, positions en %). */}
         {potVal>0.01 && (
           <div className={`pf-pot-readout compact${potPulse?" pot-val-pop":""}`}
-               style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+               style={{position:"absolute",top:`${potPt.y-4}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
             <TrainingPotStack value={potVal} compact tableMode={1}/>
             <span className="pf-pot-label">POT</span>
             <span className="pf-pot-value">{fmt(potVal)}</span>
           </div>
         )}
 
-        {/* BOARD */}
+        {/* BOARD — remonté de 4% pour laisser respirer les cartes de Hero en dessous. */}
         {hasBoard && (
           <div className="pf-board-zone" key={`board-${board.length}`}
-               style={{position:"absolute",top:`${boardPt.y}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:6,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
+               style={{position:"absolute",top:`${boardPt.y-4}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:6,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
             {board.map((c,i)=>(
               <div key={`${i}-${c.r}${c.s}`} className="board-card-in" style={{animationDelay:`${i*0.09}s`}}>
                 <Card r={c.r} s={c.s} size="lg" delay={0}/>
@@ -137,7 +138,7 @@ export default function ReplayTableImmersive({ hand, snapshot, fmt=defaultFmt, f
                   l'anneau (sinon un siège plié « remonte » : cf. bug BTN/BB). */}
               {isH ? (
                 <HeroHoleCards cards={p.hole} size={isTop?"1t-hero-top":"1t-hero-bottom"} gap={isTop?5:8}
-                  style={{marginBottom:isTop?4:6,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
+                  style={{marginBottom:isTop?4:6,transform:"scale(.88)",transformOrigin:"bottom center",filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
               ) : (
                 <div style={{minHeight:52,marginBottom:5,display:"flex",alignItems:"flex-end",gap:3}}>
                   {!p.folded && (showFace
