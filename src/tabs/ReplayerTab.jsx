@@ -1349,7 +1349,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
 
               {/* Clé API */}
               {(!apiKey||showApiKeyInput)&&(
-                <div style={{background:"rgba(255,194,71,.04)",border:"1px solid rgba(255,194,71,.18)",borderRadius:7,padding:"8px"}}>
+                <div style={{order:4,background:"rgba(255,194,71,.04)",border:"1px solid rgba(255,194,71,.18)",borderRadius:7,padding:"8px"}}>
                   <div style={{fontSize:8,color:T.gold,fontFamily:T.stats,fontWeight:700,letterSpacing:".1em",marginBottom:4}}>🔑 CLÉ API</div>
                   <input type="password" placeholder="sk-ant-api03-..." value={apiKey} onChange={e=>saveApiKeyLocal(e.target.value)}
                     style={{width:"100%",background:"#030712",border:"1px solid #1A3A80",color:"#fff",borderRadius:5,padding:"4px 7px",fontSize:9,outline:"none",fontFamily:"'JetBrains Mono',monospace",boxSizing:"border-box"}}/>
@@ -1358,20 +1358,20 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                 </div>
               )}
               {apiKey&&!showApiKeyInput&&(
-                <div style={{display:"flex",alignItems:"center",gap:5,padding:"4px 7px",background:"rgba(16,216,122,.04)",border:"1px solid rgba(16,216,122,.13)",borderRadius:5}}>
+                <div style={{order:4,display:"flex",alignItems:"center",gap:5,padding:"4px 7px",background:"rgba(16,216,122,.04)",border:"1px solid rgba(16,216,122,.13)",borderRadius:5}}>
                   <span style={{fontSize:9,color:T.green,flex:1}}>✓ Clé API configurée</span>
                   <button className="btn btns" style={{fontSize:7.5,padding:"2px 6px"}} onClick={()=>setShowApiKeyInput(true)}>Modifier</button>
                 </div>
               )}
 
               {/* Résumé session / main unique */}
-              {session&&(session.single
+              {session&&(<div style={{order:2}}>{session.single
                 ?<SingleHandSummary hand={hand} unit={unit}/>
-                :<SessionSummary session={session} unit={unit}/>)}
+                :<SessionSummary session={session} unit={unit}/>}</div>)}
 
               {/* Analyse IA Rapide */}
               {quickRes&&(
-                <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
+                <div style={{order:3,background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:7}}>
                     <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700}}>Analyse IA Rapide</span>
                     <span style={{fontSize:6.5,background:T.amber,color:"#000",borderRadius:3,padding:"1px 5px",fontWeight:800}}>BETA</span>
@@ -1388,8 +1388,10 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                 </div>
               )}
 
-              {/* ── BIBLIOTHÈQUE DES MAINS IMPORTÉES (panneau gauche, §7/§40) ── */}
-              <div style={{border:"1px solid #0F2258",borderRadius:8,overflow:"hidden",flex:1,minHeight:180,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)"}}>
+              {/* ── BIBLIOTHÈQUE DES MAINS IMPORTÉES (panneau gauche, §7/§40) ──
+                  Remontée juste après l'import (order:1) pour être accessible sans
+                  scroller : c'est l'outil central quand une session est chargée. */}
+              <div style={{order:1,border:"1px solid #0F2258",borderRadius:8,overflow:"hidden",flex:1,minHeight:session?260:180,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)"}}>
                 {session
                   ? <HandHistoryList session={session} activeIdx={handIdx} onSelect={loadHandAt} unit={unit} onSwitchLot={switchLot}/>
                   : (
@@ -1463,7 +1465,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
 
               {/* Table zone — table immersive (moteur de snapshots) */}
               <div style={{flex:1,overflow:"hidden",padding:cinema?"14px 24px 0":"10px 16px 0",minHeight:0}}>
-                <ReplayTableImmersive hand={hand} snapshot={snap} fmt={fmt} flies={replayAnim.flies} potPulse={replayAnim.potPulse}/>
+                <ReplayTableImmersive hand={hand} snapshot={snap} fmt={fmt} flies={replayAnim.flies} potPulse={replayAnim.potPulse} compact={isNarrow}/>
               </div>
 
               {/* Contrôles */}
