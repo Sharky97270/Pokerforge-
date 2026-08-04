@@ -26,6 +26,7 @@ import { createAnimationQueue } from "../immersionEngine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
+import { evaluatePostflopDecision } from "../postflopHeuristic.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -2640,26 +2641,39 @@ function fhGradeAction(action,street,vtype,result){
   if(action==="CALL")return {v:loose?"Call value OK":"Call — équité à surveiller",col:T.amber,grade:60};
   return {v:"—",col:T.text3,grade:60};
 }
-function fhBuildRecap(fhActs,spot,fhResult){
+function fhBuildRecap(fhActs,spot,fhResult,fhReport){
   const order=[["flop","FLOP"],["turn","TURN"],["river","RIVER"]];
   const vtype=spot?.vtype||"Reg";
   const verb=a=>({BET:"Bet",RAISE:"Raise",CHECK:"Check",CALL:"Call",FOLD:"Fold"}[a]||a);
-  const heroActs=[];
+  const report=Array.isArray(fhReport)?fhReport:[];
+  const heroGrades=[];
   const streets=order.map(([key,label])=>{
     const acts=(fhActs||[]).filter(a=>a.street===key);
-    if(!acts.length)return null;
+    const rep=report.find(r=>r.street===key); // évaluation réelle de LA décision Héro de cette street
+    if(!acts.length&&!rep)return null;
     const line=acts.map(a=>`${a.actor==="Hero"?"Hero":"Vil."} ${verb(a.action)}`).join(" · ");
-    const hero=acts.find(a=>a.actor==="Hero");
-    let verdict="—",col="#6F81A8";
-    if(hero){const g=fhGradeAction(hero.action,key,vtype,fhResult);verdict=g.v;col=g.col;heroActs.push({label,action:verb(hero.action),grade:g.grade});}
-    return {label,col,line,verdict};
+    let verdict="—",col="#6F81A8",evTxt="",best=null;
+    if(rep){
+      const q=rep.quality;
+      col=(q==="best"||q==="ok")?T.green:q==="imprecise"?T.gold:T.red;
+      verdict=q==="best"?"✓ Optimal":q==="ok"?"✓ Correct":q==="imprecise"?"≈ Imprécis":"✗ Erreur";
+      evTxt=`${rep.evDelta>=0?"+":""}${(rep.evDelta||0).toFixed(2)}bb`;
+      best=rep.best;
+      heroGrades.push({label,action:verb(rep.action),correct:rep.correct,evDelta:rep.evDelta||0});
+    }else{
+      const hero=acts.find(a=>a.actor==="Hero");
+      if(hero){const g=fhGradeAction(hero.action,key,vtype,fhResult);verdict=g.v;col=g.col;}
+    }
+    return {label,col,line,verdict,evTxt,best};
   }).filter(Boolean);
-  const score=heroActs.length?Math.round(heroActs.reduce((a,b)=>a+b.grade,0)/heroActs.length):(fhResult==="win"?70:50);
+  const totalEvLost=Math.round(report.reduce((a,b)=>a+Math.min(0,b.evDelta||0),0)*100)/100;
+  const correct=report.filter(d=>d.correct).length;
+  const score=report.length?Math.round(correct/report.length*100):(fhResult==="win"?70:50);
   const scoreCol=score>=75?T.green:score>=55?T.gold:T.red;
-  const sorted=[...heroActs].sort((a,b)=>b.grade-a.grade);
-  const best=sorted[0]&&sorted[0].grade>=70?`${sorted[0].label} ${sorted[0].action}`:null;
-  const worst=sorted.length&&sorted[sorted.length-1].grade<55?`${sorted[sorted.length-1].label} ${sorted[sorted.length-1].action}`:null;
-  return {streets,score,scoreCol,best,worst};
+  const sorted=[...heroGrades].sort((a,b)=>b.evDelta-a.evDelta);
+  const best=sorted[0]&&sorted[0].correct?`${sorted[0].label} ${sorted[0].action}`:null;
+  const worst=sorted.length&&!sorted[sorted.length-1].correct?`${sorted[sorted.length-1].label} ${sorted[sorted.length-1].action}`:null;
+  return {streets,score,scoreCol,best,worst,totalEvLost,decisions:report.length};
 }
 
 /* ═══════════════════════════════════════
@@ -2721,7 +2735,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     for(const id of animTimersRef.current)clearTimeout(id);
     animTimersRef.current.clear();
   },[]);
-  useEffect(()=>()=>{animQRef.current?.cancel();clearAnimTimers();},[]); // §63 : annule au démontage
+  useEffect(()=>()=>{animQRef.current?.cancel();clearAnimTimers();if(fhFeedbackTimer.current)clearTimeout(fhFeedbackTimer.current);},[]); // §63 : annule au démontage
   // ── Mobile v9 : solution plein écran + swipe ──
   const isMobile=useIsMobile();
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
@@ -2743,6 +2757,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const[fhVilAct,setFhVilAct]=useState(null);
   const[fhVilThink,setFhVilThink]=useState(false);
   const[fhResult,setFhResult]=useState(null);
+  // Feedback TEMPORAIRE de la décision de street courante (badge ✓/✗ + EV) — se
+  // fade après ~1.5s et est nettoyé avant la carte suivante (§ cycle de feedback).
+  const[fhFeedback,setFhFeedback]=useState(null); // {quality,evDelta,best,action,note,correct,street,id}
+  // Rapport PAR STREET pour le bilan final (§60/§9).
+  const[fhReport,setFhReport]=useState([]);        // [{street,action,best,quality,evDelta,correct,note}]
+  const fhFeedbackTimer=useRef(null);
   const FH_STREETS=["flop","turn","river"];
   // État autoritatif du moteur de main complète (fullHandEngine). Les states fh*
   // ci-dessus en sont la projection pour le rendu.
@@ -2798,6 +2818,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // Reset full-hand state quand le spot change
     setPlayingFull(false);setFhBoardRef([]);setFhStreet("flop");setFhPhase("hero");
     setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);
+    setFhFeedback(null);setFhReport([]); // reset feedback/rapport par street (§ cycle)
+    if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // reset moteur main complète au changement de spot
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
@@ -3095,7 +3117,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const performVillain=()=>{
       const spr=parseFloat(spot.stack)/(currentPotRef.current||1.5);
       const boardLen=(spot.board||[]).length;
-      const v=villainDecide(spot.street,a.id,spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,boardLen,field);
+      let v=villainDecide(spot.street,a.id,spot.vtype,currentPotRef.current,trainerMode,platform,spr,parseFloat(spot.stack)||100,spot.vpos,boardLen,field);
+      // Mode Full Hand : si Hero a continué (open/raise, hors all-in), on GARANTIT
+      // que la main va au flop — le Villain suit plutôt que fold/3bet/win. Le coup
+      // complet est le but du mode ; sans ça il se résout trop souvent au préflop.
+      if(autoFull.current&&!playingFull&&/^pre/i.test(spot.street||"")&&a.id!=="FOLD"&&a.id!=="ALLIN"&&v.action!=="CALL"&&v.action!=="CHECK"){
+        v={action:"CALL",label:"Call",color:T.green};
+      }
       const vilCommit=commitTableAction({playerId:"villain",position:spot.vpos,action:v,callAmount:v.action==="CALL"?heroCommit.amountBb:undefined});
       setVact(v);setThinking(false);
       setTl(t=>[...t,{pos:spot.vpos,act:v.action,lbl:v.label,hero:false,amt:vilCommit.amountBb}]);
@@ -3164,7 +3192,14 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   function fhVillainPolicy(st){return defaultVillainPolicy(st,{random:Math.random});}
 
   function fhSync(st){
+    const prevStreet=fhStateRef.current?.street;
     fhStateRef.current=st;
+    // Cycle de feedback : à la nouvelle street, le badge de la street précédente
+    // est nettoyé AVANT que la nouvelle carte s'installe (§ feedback temporaire).
+    if(prevStreet&&st.street!==prevStreet){
+      setFhFeedback(null);
+      if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
+    }
     setFhBoardRef(st.board);
     setFhPot(roundBb(st.pot));
     setFhStreet(st.street==="done"?(st.board.length>=5?"river":st.board.length>=4?"turn":"flop"):st.street);
@@ -3213,11 +3248,27 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
     const st=createFullHand({heroHand,villHand,fullBoard,startPot,heroStack:stackBb,villStack:stackBb,firstToAct:firstActor});
     setPlayingFull(true);setFhVilAct(null);setFhResult(null);
+    setFhFeedback(null);setFhReport([]); // reset feedback/rapport de la main précédente
+    if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
+    fhStateRef.current=null; // force le prochain fhSync à ne pas croire à un changement de street
     fhSync(st);
     fhAdvanceVillain(); // si l'OOP est le Villain, il ouvre l'action
   }
 
   /* Héro agit quand rien à payer : CHECK · Bet ½ (BET) · PSB (bouton "RAISE") · FOLD. */
+  /* Évalue la décision Héro de la street courante (§60) et affiche un feedback
+     TEMPORAIRE (badge + EV estimée) qui se fade après ~1.6s, plus une ligne au
+     rapport pour le bilan final. `actionType` = action normalisée pour l'estimation. */
+  function fhEvaluate(st,actionType,facingBet){
+    if(!st)return;
+    const ev=evaluatePostflopDecision({heroHand:st.heroHand,board:st.board,street:st.street,pot:st.pot,facingBet,actionType});
+    const fb={...ev,id:Date.now()+Math.random()};
+    setFhFeedback(fb);
+    setFhReport(r=>[...r,{street:st.street,action:ev.action,best:ev.bestAction,quality:ev.quality,evDelta:ev.evDelta,correct:ev.correct,note:ev.note}]);
+    if(fhFeedbackTimer.current)clearTimeout(fhFeedbackTimer.current);
+    fhFeedbackTimer.current=setTimeout(()=>{setFhFeedback(f=>(f&&f.id===fb.id)?null:f);fhFeedbackTimer.current=null;},1600);
+  }
+
   function fhHeroAct(ui){
     const st=fhStateRef.current; if(!st||st.done||st.toAct!=="hero")return;
     vibrate(VIB.tap);
@@ -3226,6 +3277,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     else if(ui==="CHECK")action={type:"CHECK"};
     else if(ui==="BET")action={type:"BET",amount:Math.max(1,roundBb(st.pot*0.5))};
     else action={type:"BET",amount:Math.max(1,roundBb(st.pot))}; // bouton "PSB" (mappé RAISE dans l'UI)
+    fhEvaluate(st,ui==="RAISE"?"BET":ui,false); // PSB = BET pot ; évalue AVANT d'appliquer
     if(ui!=="CHECK"&&ui!=="FOLD")fhFireChip(ui==="BET"?"Bet ½":"Bet PSB");
     const after=fhApplyAction(st,"hero",action);
     fhSync(after);
@@ -3240,6 +3292,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     if(ui==="FOLD")action={type:"FOLD"};
     else if(ui==="CALL")action={type:"CALL"};
     else action={type:"RAISE"};
+    fhEvaluate(st,ui,true); // face à une mise
     if(ui!=="FOLD")fhFireChip(ui==="CALL"?"Call":"Raise");
     const after=fhApplyAction(st,"hero",action);
     fhSync(after);
@@ -4063,7 +4116,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
         )}
         {playingFull&&fhPhase==="done"&&fhResult&&(()=>{
-          const recap=fhBuildRecap(fhActs,spot,fhResult);
+          const recap=fhBuildRecap(fhActs,spot,fhResult,fhReport);
           return(
           <div style={{flexShrink:0,padding:"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:"46vh",overflowY:"auto"}}>
             {/* En-tête : verdict + score main */}
@@ -4071,21 +4124,23 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <div style={{fontFamily:T.brand,fontSize:15,fontWeight:900,color:fhResult==="win"?T.green:T.red,textShadow:`0 0 18px ${fhResult==="win"?T.greenGlow:T.redGlow}`}}>{fhResult==="win"?"🏆 MAIN GAGNÉE":"❌ MAIN PERDUE"}</div>
               <span style={{fontFamily:T.mono,fontSize:11,fontWeight:800,color:recap.scoreCol,background:`${recap.scoreCol}1a`,border:`1px solid ${recap.scoreCol}55`,borderRadius:7,padding:"3px 9px"}}>{recap.score}/100</span>
             </div>
-            {/* Analyse street par street */}
-            <div style={{fontFamily:T.brand,fontSize:8.5,color:T.text4,letterSpacing:".12em",marginBottom:6,textAlign:"center"}}>ANALYSE PAR STREET <span style={{color:T.text4,opacity:.7}}>(estimation)</span></div>
+            {/* Analyse street par street (EV estimée par décision Héro) */}
+            <div style={{fontFamily:T.brand,fontSize:8.5,color:T.text4,letterSpacing:".12em",marginBottom:6,textAlign:"center"}}>ANALYSE PAR STREET <span style={{color:T.text4,opacity:.7}}>(≈ estimation)</span></div>
             <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
               {recap.streets.map((st,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 9px",background:"rgba(255,255,255,.025)",border:`1px solid ${st.col}33`,borderLeft:`3px solid ${st.col}`,borderRadius:7}}>
                   <span style={{fontFamily:T.brand,fontSize:9,fontWeight:800,color:st.col,minWidth:42,letterSpacing:".06em"}}>{st.label}</span>
-                  <span style={{fontFamily:T.mono,fontSize:9.5,color:T.text2,flex:1}}>{st.line}</span>
+                  <span style={{fontFamily:T.mono,fontSize:9.5,color:T.text2,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.line}{st.best&&<span style={{color:T.text4}}> · opt: {st.best}</span>}</span>
+                  {st.evTxt&&<span style={{fontFamily:T.mono,fontSize:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.evTxt}</span>}
                   <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.verdict}</span>
                 </div>
               ))}
             </div>
-            {/* Synthèse : meilleure / pire décision */}
+            {/* Synthèse : meilleure / pire décision + EV totale */}
             <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",justifyContent:"center"}}>
               {recap.best&&<span style={{fontFamily:T.stats,fontSize:9,color:T.green,background:"rgba(16,216,122,.1)",border:"1px solid rgba(16,216,122,.3)",borderRadius:6,padding:"3px 8px"}}>✦ Meilleure : {recap.best}</span>}
               {recap.worst&&<span style={{fontFamily:T.stats,fontSize:9,color:T.red,background:"rgba(255,69,96,.1)",border:"1px solid rgba(255,69,96,.3)",borderRadius:6,padding:"3px 8px"}}>⚠ À revoir : {recap.worst}</span>}
+              {recap.decisions>0&&<span style={{fontFamily:T.stats,fontSize:9,color:recap.totalEvLost<0?T.red:T.green,background:recap.totalEvLost<0?"rgba(255,69,96,.1)":"rgba(16,216,122,.1)",border:`1px solid ${recap.totalEvLost<0?"rgba(255,69,96,.3)":"rgba(16,216,122,.3)"}`,borderRadius:6,padding:"3px 8px"}}>EV totale {recap.totalEvLost>=0?"+":""}{recap.totalEvLost.toFixed(2)}bb</span>}
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             <div style={{display:"flex",gap:7,justifyContent:"center"}}>
@@ -4467,6 +4522,24 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                   <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
                 </div>
                 {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{evDiff.toFixed(2)} bb EV</span>}
+              </div>
+            );
+          })()}
+
+          {/* ── Feedback TEMPORAIRE de décision Full Hand (§60) — ✓/✗ + EV estimée,
+               se fade après ~1.6s, nettoyé avant la carte suivante. ── */}
+          {playingFull&&fhFeedback&&(()=>{
+            const q=fhFeedback.quality;
+            const ico=q==="best"?"✔":q==="ok"?"✓":q==="imprecise"?"≈":"✖";
+            const col=(q==="best"||q==="ok")?"#10D87A":q==="imprecise"?"#FFC247":"#FF4560";
+            const glw=`${col}66`;
+            const fbPt=feedbackPointFor(seatOrder.length,isMobile);
+            return(
+              <div className="post-decision-feedback" key={fhFeedback.id} style={{top:`${fbPt.y}%`,left:`${fbPt.x}%`}}>
+                <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw}`}}>
+                  <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
+                </div>
+                {fhFeedback.evDelta!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{fhFeedback.evDelta>=0?"+":""}{fhFeedback.evDelta.toFixed(2)} bb EV</span>}
               </div>
             );
           })()}
@@ -5296,7 +5369,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             </div>
           )}
           {playingFull&&fhPhase==="done"&&fhResult&&(()=>{
-            const rc=fhBuildRecap(fhActs,spot,fhResult);
+            const rc=fhBuildRecap(fhActs,spot,fhResult,fhReport);
             return(
             <div style={{padding:"8px 8px 10px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:6}}>
