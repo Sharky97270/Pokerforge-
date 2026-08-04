@@ -46,6 +46,9 @@ export function pfDetectSite(t){
   if(/winamax/i.test(t)) return "Winamax";
   if(/pokerstars/i.test(t)) return "PokerStars";
   if(/gg ?poker|natural8/i.test(t)) return "GGPoker";
+  // GG exporte « Poker Hand #TM/HD/RC/SD/CG/OM… » (IDs préfixés) sans se nommer.
+  if(/\bPoker Hand #[A-Z]{2}\d/.test(t)) return "GGPoker";
+  if(/partypoker|party poker/i.test(t)) return "PartyPoker";
   if(/888 ?poker|888poker|pacific/i.test(t)) return "888";
   if(/\bpmu\b/i.test(t)) return "PMU";
   return "Inconnu";
@@ -177,12 +180,16 @@ export function parseHand(block, idx=0){
     let inShowdown = false;
 
     const actorRe = /^(.+?)\s+(folds?|calls?|checks?|bets?|raises?|posts?|shoves?|all-in|is all-in)\b(.*)$/i;
-    const postRe  = /^(.+?):?\s+posts\s+(?:the\s+)?(small blind|big blind|ante|small & big blinds)\s*[€$£]?\s*([0-9.]+)/i;
+    // `[^0-9]*` avant le montant → tolère « $0.01 », « 0.01€ » ET « [$0.01] » (888).
+    const postRe  = /^(.+?):?\s+posts\s+(?:the\s+)?(small blind|big blind|ante|small & big blinds)[^0-9]*([0-9.]+)/i;
 
+    // Marqueurs de board tolérants : « *** FLOP *** [..] » (PS/Winamax/GG) comme
+    // « ** Dealing Flop ** [..] » (PartyPoker/888). On accepte n'importe quoi entre
+    // le mot-clé et le crochet ; turn/river prennent le DERNIER crochet de la ligne.
     function streetMarker(ln){
-      const fl = ln.match(/(?:\*\*\*\s*)?FLOP(?:\s*\*\*\*)?\s*\[([^\]]+)\]/i);
-      const tl = ln.match(/(?:\*\*\*\s*)?TURN(?:\s*\*\*\*)?\s.*\[([^\]]+)\]\s*$/i);
-      const rl = ln.match(/(?:\*\*\*\s*)?RIVER(?:\s*\*\*\*)?\s.*\[([^\]]+)\]\s*$/i);
+      const fl = ln.match(/\bFLOP\b[^\[]*\[([^\]]+)\]/i);
+      const tl = ln.match(/\bTURN\b.*\[([^\]]+)\]\s*$/i);
+      const rl = ln.match(/\bRIVER\b.*\[([^\]]+)\]\s*$/i);
       if(fl && !/TURN|RIVER/i.test(ln)){
         const cs = pfParseCards(fl[1]).slice(0,3);
         board.flop = cs; street = "flop";
