@@ -2679,7 +2679,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero"}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState}){
   const[answered,setAnswered]=useState(null);
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -2821,6 +2821,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport par street (§ cycle)
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // reset moteur main complète au changement de spot
+    onFhState&&onFhState(null); // §P0-C : le panneau droit repasse sur le spot (préflop)
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
     // full/session = toujours · mix = 50% · spot/street = jamais (défaut legacy = 30%)
@@ -3218,6 +3219,9 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     }else{
       setFhPhase("villain_thinking");setActivePlayerId("villain");
     }
+    // §P0-C : remonte l'état Full Hand au parent (panneau droit : Street/Pot/SPR + analyse).
+    const streetLabel=st.street==="done"?(st.board.length>=5?"River":st.board.length>=4?"Turn":"Flop"):(st.street.charAt(0).toUpperCase()+st.street.slice(1));
+    onFhState&&onFhState({active:true,street:streetLabel,pot:roundBb(st.pot),heroStack:roundBb(st.heroStack),done:!!st.done});
   }
 
   /* Fait jouer le Villain (potentiellement plusieurs fois d'affilée si l'OOP est
@@ -5821,6 +5825,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
   const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
+  const[fhLive,setFhLive]=useState(null);               // état Full Hand remonté de SingleTable (§ P0-C : panneau droit synchro)
   const[mtRangePopup,setMtRangePopup]=useState(null);   // multi-table : popup ranges GTO plein écran
   const[panelEl,setPanelEl]=useState(null);             // conteneur DOM du panneau droit partagé (cible du portal 1T)
   const[zoomed,setZoomed]=useState(false);              // pincement zoom actif
@@ -6419,9 +6424,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const s=activeSpot; if(!s) return null;
     const vp=VILLAIN_PROFILES[s.vtype]||null;
     const ans=tableAns[activeTable]||null;
-    const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
+    // §P0-C : en Full Hand, le panneau lit l'état LIVE du coup (pas le spot préflop).
+    const inFh=!!(fhLive&&fhLive.active&&activeTable===0);
+    const potN=inFh?fhLive.pot:(parseFloat(s.pot)||0), stackN=inFh?fhLive.heroStack:(parseFloat(s.stack)||100);
     const spr=potN>0?(stackN/potN).toFixed(1):"—";
-    const toCall=Number(s.toCall)||0;
+    const toCall=inFh?0:(Number(s.toCall)||0);
     const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
     const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
     const diffCol=s.diff===1?"#00E889":s.diff===2?"#FFC247":s.diff===3?"#FF7A45":s.diff===4?"#B85CFF":"#FFC247";
@@ -6472,8 +6479,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
 
         {/* SOLUTION / ANALYSE */}
         <section className="pf-p2-sec">
-          <div className="pf-p2-h">{isGto?"ANALYSE GTO":"ANALYSE"}</div>
-          {!revealed?(
+          <div className="pf-p2-h">{inFh?`ANALYSE — ${fhLive.street.toUpperCase()}`:(isGto?"ANALYSE GTO":"ANALYSE")}</div>
+          {inFh?(
+            /* §P0-C : en Full Hand, l'analyse préflop n'a plus de sens — chaque
+               décision est évaluée sous la table (badge + bilan par street). */
+            <div style={{padding:"8px 10px",borderRadius:7,background:"rgba(52,216,255,.06)",border:"1px solid rgba(52,216,255,.2)",fontFamily:T.stats,fontSize:9.5,color:T.text2,lineHeight:1.5}}>
+              🃏 <b style={{color:T.cyan}}>Main complète en cours</b> — {fhLive.done?"coup terminé, voir le bilan par street sous la table.":`street ${fhLive.street}. Chaque décision est analysée sous la table (≈ estimation).`}
+            </div>
+          ):!revealed?(
             <div className="pf-p2-locked">
               <span>🔒 Solution masquée</span>
               <button className="pf-p2-reveal" onClick={()=>setShowSol(true)}>Révéler</button>
@@ -6532,7 +6545,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         <section className="pf-p2-sec">
           <div className="pf-p2-h">INFORMATIONS</div>
           <div className="pf-p2-info">
-            {[["Street",s.street||"Preflop","#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+            {[["Street",inFh?fhLive.street:(s.street||"Preflop"),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
               <div key={k} className="pf-p2-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
             ))}
           </div>
@@ -7192,7 +7205,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={ntables===1?setFhLive:undefined}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
