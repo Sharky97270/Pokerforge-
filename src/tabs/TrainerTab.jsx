@@ -26,7 +26,7 @@ import { createAnimationQueue } from "../immersionEngine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
-import { isSolvableFlop, buildFlopSolveRequest, mapWorkerResultToStrategy } from "../trainerPostflopSolver.js";
+import { isSolvablePostflop, buildPostflopSolveRequest, mapWorkerResultToStrategy } from "../trainerPostflopSolver.js";
 import { solvePostflopAsync } from "../solver/cfrPostflopClient.js";
 import { evaluatePostflopDecision } from "../postflopHeuristic.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
@@ -2909,15 +2909,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     return ()=>{ mo.disconnect(); ro.disconnect(); window.removeEventListener('resize',measure); };
   },[numTables,dk,spot]);
 
-  // ── §28 CFR POSTFLOP — pré-solve en arrière-plan (worker), flop HU C-bet ──
+  // ── §28 CFR POSTFLOP — pré-solve en arrière-plan (worker), flop/turn/river HU hero-leads ──
   // Le spot reste jouable immédiatement (solution heuristique). Quand le worker rend
   // la solution CFR, on la SUBSTITUE en mutant le spot (comme applySolverStrategy le
   // fait déjà) puis on bump cfrTick pour rafraîchir badge/fréquences/verdict. La garde
   // cfrSpotRef ignore tout résultat périmé (spot déjà changé).
   useEffect(()=>{
-    if(!spot||numTables!==1||!isSolvableFlop(spot)){ setCfrSolving(false); return; }
+    if(!spot||numTables!==1||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
     if(spot.strategyProvenance==="cfr-experimental"){ setCfrSolving(false); return; } // déjà solvé
-    const built=buildFlopSolveRequest(spot);
+    const built=buildPostflopSolveRequest(spot);
     if(!built){ setCfrSolving(false); return; }
     const mySpot=spot; cfrSpotRef.current=mySpot;
     let cancelled=false; setCfrSolving(true);

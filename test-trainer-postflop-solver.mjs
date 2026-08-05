@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { solveMultiStreet } from "./src/solver/api.js";
 import {
   cardToInt, handClassKey, classifyFlopActs, isSolvableFlop, buildFlopSolveRequest, mapWorkerResultToStrategy,
+  isSolvablePostflop, buildPostflopSolveRequest,
 } from "./src/trainerPostflopSolver.js";
 
 let n = 0;
@@ -43,6 +44,14 @@ ok(Object.keys(built.request.heroFreqs).length === 169, "hero range 169 classes"
 // villain = call only (r zéro-outé)
 ok(Object.values(built.request.villFreqs).every(f => f.r === 0), "villain 3bet zéro-outé");
 
+// ── TURN / RIVER (hero-leads) ──
+const turnSpot = { ...flopSpot, street: "Turn", board: [...flopSpot.board, { r: "2", s: "♥" }] };
+const riverSpot = { ...flopSpot, street: "River", board: [...flopSpot.board, { r: "2", s: "♥" }, { r: "9", s: "♠" }] };
+ok(isSolvablePostflop(turnSpot), "turn hero-leads résoluble");
+ok(isSolvablePostflop(riverSpot), "river hero-leads résoluble");
+eq(buildPostflopSolveRequest(turnSpot).meta.street, "turn", "meta street turn");
+eq(buildPostflopSolveRequest(riverSpot).meta.street, "river", "meta street river");
+
 // ── SANITY : vrai solve + extraction par main (ce que fait le worker) ──
 function solveAndRead(spot) {
   const b = buildFlopSolveRequest(spot);
@@ -79,6 +88,18 @@ if (isSolvableFlop(airSpot)) {
     const airBet = air.actions.reduce((s, l) => s + (l.startsWith("B") ? air.distByLabel[l] : 0), 0);
     ok(airBet < betTotal, `86s (air) mise moins que AA (${airBet}% < ${betTotal}%)`);
   } else { console.log("  86s hors range (skip comparaison)"); }
+}
+
+// ── RIVER = solve EXACT : NashConv doit être disponible (board complet, pas de sampling) ──
+const riverNuts = { ...riverSpot, hand: [{ r: "A", s: "♥" }, { r: "A", s: "♦" }] };  // set d'as sur A K 7 2 9
+if (isSolvablePostflop(riverNuts)) {
+  const rv = solveAndRead(riverNuts);
+  console.log(`  AA rivière A♠K♦7♣2♥9♠ : ${JSON.stringify(rv.distByLabel)}  ${rv.ms}ms  NashConv=${rv.nashConv}`);
+  ok(rv.nashConv != null, `river = solve exact → NashConv disponible (${rv.nashConv})`);
+  if (rv.inRange) {
+    const rvBet = rv.actions.reduce((s, l) => s + (l.startsWith("B") ? rv.distByLabel[l] : 0), 0);
+    ok(rvBet >= 60, `AA nuts rivière value-bet (${rvBet}% ≥ 60)`);
+  }
 }
 
 console.log(`\n✅ trainerPostflopSolver — ${n} assertions OK`);

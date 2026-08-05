@@ -66,31 +66,35 @@ function parseStackBb(stack) {
   return Number.isFinite(n) ? n : 0;
 }
 
-/* Un spot est-il un flop C-bet HU résoluble par le CFR ? */
-export function isSolvableFlop(spot) {
+/* Un spot postflop HU (FLOP/TURN/RIVER) où le Héros AGIT EN PREMIER (Check/Bet) est-il
+   résoluble par le CFR ? Le nb de rues restantes est dérivé de la longueur du board par
+   solveMultiStreet (flop=3→2 rues à venir, turn=4→1, RIVER=5→0 = EXACT, NashConv réel). */
+export function isSolvablePostflop(spot) {
   if (!spot) return false;
   const street = String(spot.street || "").toLowerCase();
-  if (!/flop/.test(street)) return false;
-  if (!Array.isArray(spot.board) || spot.board.length !== 3) return false;
+  if (!/flop|turn|river/.test(street)) return false;
+  const bl = Array.isArray(spot.board) ? spot.board.length : 0;
+  if (bl < 3 || bl > 5) return false;
   if (spot.board.some(c => cardToInt(c) == null)) return false;
   if (!Array.isArray(spot.hand) || spot.hand.length < 2) return false;
   if (handClassKey(spot.hand[0], spot.hand[1]) == null) return false;
   if (!spot.hpos || !spot.vpos || spot.hpos === spot.vpos) return false;
-  // HU POSTFLOP uniquement : ce qui compte est le nb de joueurs DANS LE POT au flop
-  // (héros + 1 villain), pas la taille de table. Un C-bet 6-max est HU postflop.
-  // On rejette seulement un multiway explicite (3+ actifs).
+  // HU POSTFLOP uniquement : ce qui compte est le nb de joueurs DANS LE POT (héros + 1
+  // villain), pas la taille de table. On rejette seulement un multiway explicite (3+).
   if (spot.multiway === true) return false;
   if (Array.isArray(spot.villains) && spot.villains.length > 1) return false;
   const cls = classifyFlopActs(spot.acts);
-  if (cls.hasCall) return false;                 // Héro face à une mise → pas ce modèle
-  if (cls.checkIdx < 0 || cls.bets.length < 1) return false;   // besoin Check + au moins 1 Bet
+  if (cls.hasCall) return false;                 // Héro FACE à une mise → autre arbre (à venir)
+  if (cls.checkIdx < 0 || cls.bets.length < 1) return false;   // hero-leads : Check + au moins 1 Bet
   if (parseStackBb(spot.stack) <= 0) return false;
   return true;
 }
+/* Alias rétro-compat. */
+export const isSolvableFlop = isSolvablePostflop;
 
 /* Spot → requête plain-data pour le worker + carte de mapping des acts. */
-export function buildFlopSolveRequest(spot) {
-  if (!isSolvableFlop(spot)) return null;
+export function buildPostflopSolveRequest(spot) {
+  if (!isSolvablePostflop(spot)) return null;
   const heroPos = spot.hpos, vsPos = spot.vpos;
   const stack = parseStackBb(spot.stack) || 100;
   const startPot = Math.max(1, Math.round((Number(spot.pot) || 6) * 10) / 10);
@@ -119,12 +123,18 @@ export function buildFlopSolveRequest(spot) {
   const actsMap = { checkLabel: "X", checkIdx: cls.checkIdx, foldIdx: cls.foldIdx, bets: [] };
   bets.forEach((b, k) => actsMap.bets.push({ label: betLabels[k], idx: b.i }));
 
+  // River (board complet, 5 cartes) = solve EXACT (aucun runout à échantillonner) → on
+  // peut se permettre plus de combos pour la précision. Turn/flop restent échantillonnés.
+  const street = board.length === 5 ? "river" : board.length === 4 ? "turn" : "flop";
+  const maxCombos = street === "river" ? 200 : 140;
   const request = {
     heroFreqs, villFreqs, board, heroClassKey,
-    opts: { startPot, betSizes, effStack, iters: 100, maxCombos: 140 },
+    opts: { startPot, betSizes, effStack, iters: 100, maxCombos },
   };
-  return { request, actsMap, meta: { heroPos, vsPos, stack, startPot, heroClassKey } };
+  return { request, actsMap, meta: { heroPos, vsPos, stack, startPot, heroClassKey, street } };
 }
+/* Alias rétro-compat. */
+export const buildFlopSolveRequest = buildPostflopSolveRequest;
 
 /* Distribution worker {distByLabel} → objet stratégie pour le spot (ok/freq + provenance
    honnête). `actsMap` vient de buildFlopSolveRequest. Retourne null si inexploitable. */
@@ -149,14 +159,16 @@ export function mapWorkerResultToStrategy(workerRes, spot, actsMap, meta = {}) {
   acts.forEach((a, i) => { const v = a?.id ? (freq[a.id] || 0) : 0; if (v > best) { best = v; okIdx = i; } });
 
   const nc = workerRes.nashConv;
-  const ncTxt = nc == null ? (workerRes.convNote || "runouts échantillonnés") : `NashConv ${Math.round(nc * 1000) / 1000}bb`;
+  const streetLbl = { flop: "flop", turn: "turn", river: "river (board complet)" }[meta.street] || "postflop";
+  const exact = meta.street === "river" && nc != null;
+  const ncTxt = nc == null ? (workerRes.convNote || "runouts échantillonnés") : `NashConv ${Math.round(nc * 1000) / 1000}bb${exact ? " (exact)" : ""}`;
   return {
     solved: true,
     ok: okIdx,
     freq,
     source: "solver",
     provenance: "cfr-experimental",
-    note: `CFR flop HU (expérimental) — ${meta.heroClassKey || ""} sur ranges heuristiques · ${ncTxt}.`,
+    note: `CFR ${streetLbl} HU (expérimental) — ${meta.heroClassKey || ""} sur ranges heuristiques · ${ncTxt}.`,
     meta: {
       engine: "cfr", experimental: true, rangeSource: "heuristic",
       nashConv: nc ?? null, abstraction: workerRes.abstraction || null,
