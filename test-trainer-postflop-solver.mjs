@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { solveMultiStreet } from "./src/solver/api.js";
 import {
   cardToInt, handClassKey, classifyFlopActs, isSolvableFlop, buildFlopSolveRequest, mapWorkerResultToStrategy,
-  isSolvablePostflop, buildPostflopSolveRequest,
+  isSolvablePostflop, buildPostflopSolveRequest, postflopMode, classifyFacingActs,
 } from "./src/trainerPostflopSolver.js";
 
 let n = 0;
@@ -99,6 +99,55 @@ if (isSolvablePostflop(riverNuts)) {
   if (rv.inRange) {
     const rvBet = rv.actions.reduce((s, l) => s + (l.startsWith("B") ? rv.distByLabel[l] : 0), 0);
     ok(rvBet >= 60, `AA nuts rivière value-bet (${rvBet}% ≥ 60)`);
+  }
+}
+
+// ── FACE À UNE MISE (call-down / bluff-catch) : Héros paie ou fold ──
+const facingActs = [{ id: "FOLD", l: "Fold" }, { id: "CALL", l: "Call 6bb" }, { id: "RAISE", l: "Raise" }];
+const facingRiver = {
+  street: "River", hpos: "BB", vpos: "BTN", stack: "100", pot: 30, toCall: 10,
+  board: [{ r: "A", s: "♠" }, { r: "K", s: "♦" }, { r: "7", s: "♣" }, { r: "2", s: "♥" }, { r: "9", s: "♠" }],
+  hand: [{ r: "A", s: "♥" }, { r: "A", s: "♦" }],
+  acts: facingActs,
+};
+eq(postflopMode(facingRiver), "facing", "mode facing détecté");
+eq(postflopMode(flopSpot), "leads", "mode leads détecté");
+ok(isSolvablePostflop(facingRiver), "spot face-à-mise résoluble");
+const fBuilt = buildPostflopSolveRequest(facingRiver);
+ok(fBuilt && fBuilt.request.opts.nodePath?.join(",") === "X,B", "nodePath X,B pour facing");
+eq(fBuilt.meta.mode, "facing", "meta.mode facing");
+// pot avant la mise villain = 30-10 = 20 ; sizing villain = 10/20 = 0.5
+eq(fBuilt.request.opts.startPot, 20, "startPot = pot - toCall");
+ok(Math.abs(fBuilt.request.opts.betSizes[0] - 0.5) < 0.01, "sizing villain = toCall/pot");
+
+function solveFacing(spot) {
+  const b = buildPostflopSolveRequest(spot);
+  const out = solveMultiStreet(b.request.heroFreqs, b.request.villFreqs, b.request.board, b.request.opts);
+  const sol = out.result;
+  let node = sol.tree;
+  for (const l of b.request.opts.nodePath) node = node?.children?.[l];
+  const idxs = [];
+  for (let i = 0; i < sol.heroList.length; i++) if (sol.heroList[i].key === b.meta.heroClassKey) idxs.push(i);
+  if (!node || !idxs.length) return { miss: true, node: !!node, inRange: idxs.length > 0 };
+  const na = node.actions.length, agg = new Array(na).fill(0); let w = 0;
+  for (const c of idxs) { const wc = sol.wH[c] || 0; const d = sol.avgOf(node, c); for (let k = 0; k < na; k++) agg[k] += wc * d[k]; w += wc; }
+  if (w > 0) for (let k = 0; k < na; k++) agg[k] /= w;
+  const distByLabel = {}; node.actions.forEach((l, k) => distByLabel[l] = Math.round(agg[k] * 1000) / 10);
+  const strat = mapWorkerResultToStrategy({ ok: true, distByLabel, nashConv: out.convergence?.nashConv }, spot, b.actsMap, b.meta);
+  return { distByLabel, actions: node.actions, strat, nashConv: out.convergence?.nashConv };
+}
+
+const fNuts = solveFacing(facingRiver);
+if (!fNuts.miss) {
+  console.log(`  AA face à 10bb (river) : ${JSON.stringify(fNuts.distByLabel)}  NashConv=${fNuts.nashConv}`);
+  ok(fNuts.actions.includes("F") && fNuts.actions.includes("C"), "nœud facing expose F et C");
+  ok((fNuts.distByLabel.F || 0) < 15, `AA (nuts) ne fold quasi jamais (F=${fNuts.distByLabel.F}%)`);
+  // la stratégie mappée doit renseigner CALL et non pas tout à zéro
+  ok((fNuts.strat.freq.CALL || 0) + (fNuts.strat.freq.RAISE || 0) > 50, "AA continue (call+raise > 50%)");
+  const fAir = solveFacing({ ...facingRiver, hand: [{ r: "5", s: "♥" }, { r: "4", s: "♥" }] });
+  if (!fAir.miss) {
+    console.log(`  54s face à 10bb (river) : ${JSON.stringify(fAir.distByLabel)}`);
+    ok((fAir.distByLabel.F || 0) > (fNuts.distByLabel.F || 0), `air fold plus que les nuts (${fAir.distByLabel.F}% > ${fNuts.distByLabel.F}%)`);
   }
 }
 

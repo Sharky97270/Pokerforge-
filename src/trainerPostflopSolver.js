@@ -61,9 +61,32 @@ function betFracFromLabel(l) {
   return 0.66;
 }
 
+/* Classe les acts d'un spot où le Héros FAIT FACE à une mise : Fold / Call / Raise. */
+export function classifyFacingActs(acts) {
+  const out = { foldIdx: -1, callIdx: -1, raiseIdx: -1 };
+  (acts || []).forEach((a, i) => {
+    const id = String(a?.id || "").toUpperCase();
+    const l = String(a?.l || a?.label || "").toLowerCase();
+    if (id === "FOLD" || /fold|abandon/.test(l)) { if (out.foldIdx < 0) out.foldIdx = i; return; }
+    if (id === "CALL" || /\bcall\b|suivre|payer/.test(l)) { if (out.callIdx < 0) out.callIdx = i; return; }
+    if (/RAISE|3BET|4BET|5BET|ALLIN|SHOVE|JAM/.test(id) || /raise|relanc|check-?raise|jam|shove|tapis|all-?in/.test(l)) { if (out.raiseIdx < 0) out.raiseIdx = i; return; }
+  });
+  return out;
+}
+
 function parseStackBb(stack) {
   const n = Number(String(stack ?? "").replace(/[^\d.]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+/* Mode postflop d'un spot : "leads" (Héros ouvre : Check/Bet), "facing" (Héros face à
+   une mise : Call/Fold), ou null. */
+export function postflopMode(spot) {
+  const cls = classifyFlopActs(spot?.acts);
+  if (!cls.hasCall && cls.checkIdx >= 0 && cls.bets.length >= 1) return "leads";
+  const fb = classifyFacingActs(spot?.acts);
+  if (fb.callIdx >= 0 && fb.foldIdx >= 0 && Number(spot?.toCall) > 0) return "facing";
+  return null;
 }
 
 /* Un spot postflop HU (FLOP/TURN/RIVER) où le Héros AGIT EN PREMIER (Check/Bet) est-il
@@ -83,11 +106,8 @@ export function isSolvablePostflop(spot) {
   // villain), pas la taille de table. On rejette seulement un multiway explicite (3+).
   if (spot.multiway === true) return false;
   if (Array.isArray(spot.villains) && spot.villains.length > 1) return false;
-  const cls = classifyFlopActs(spot.acts);
-  if (cls.hasCall) return false;                 // Héro FACE à une mise → autre arbre (à venir)
-  if (cls.checkIdx < 0 || cls.bets.length < 1) return false;   // hero-leads : Check + au moins 1 Bet
   if (parseStackBb(spot.stack) <= 0) return false;
-  return true;
+  return postflopMode(spot) !== null;   // "leads" (Check/Bet) OU "facing" (Call/Fold)
 }
 /* Alias rétro-compat. */
 export const isSolvableFlop = isSolvablePostflop;
@@ -98,40 +118,69 @@ export function buildPostflopSolveRequest(spot) {
   const heroPos = spot.hpos, vsPos = spot.vpos;
   const stack = parseStackBb(spot.stack) || 100;
   const startPot = Math.max(1, Math.round((Number(spot.pot) || 6) * 10) / 10);
+  const mode = postflopMode(spot);
 
-  // Héros = agresseur préflop (c-bet) → sa range flop = range d'OPEN.
-  const heroFreqs = buildSolverFreqs(heroPos, "rfi", stack, vsPos);
-  // Villain = suiveur → UNIQUEMENT la portion CALL de vs_open (les 3-bets sont partis
-  // dans un pot 3-bet, pas sur ce flop en pot simple-relancé). On zéro-out le 3bet (r).
-  const villRaw = buildSolverFreqs(vsPos, "vs_open", stack, heroPos);
-  const villFreqs = {};
-  for (const k in villRaw) {
-    const c = villRaw[k]?.c || 0;
-    villFreqs[k] = { r: 0, c, f: Math.max(0, 100 - c) };
-  }
+  // Ranges d'entrée selon QUI est l'agresseur préflop :
+  //  · leads  → le Héros a c-bet → Héros = OPENER, Villain = suiveur (CALL).
+  //  · facing → le Héros paie une mise → Héros = suiveur (CALL), Villain = OPENER.
+  // La portion CALL zéro-oute le 3bet (r) : les 3-bets sont partis dans un pot 3-bet.
+  const openerRange = (pos, opp) => buildSolverFreqs(pos, "rfi", stack, opp);
+  // Range du SUIVEUR : on part de vs_open et on REVERSE la portion 3-bet dans le call.
+  // Pourquoi : ce pot EST un pot simple-relancé suivi, donc conditionner sur « a payé »
+  // inclut les mains fortes qui, dans cette branche, ont choisi de call plutôt que 3-bet.
+  // Sans ça, les mains à 3-bet pur (AA/KK) sortent de la range avec un poids 0 et leur
+  // stratégie postflop devient illisible (bug observé : « hand-not-in-range » sur AA).
+  const callerRange = (pos, opp) => {
+    const raw = buildSolverFreqs(pos, "vs_open", stack, opp), out = {};
+    for (const k in raw) {
+      const f = raw[k] || {};
+      const cont = Math.min(100, Math.max(0, (f.c || 0) + (f.r || 0)));
+      out[k] = { r: 0, c: cont, f: Math.max(0, 100 - cont) };
+    }
+    return out;
+  };
+  const heroFreqs = mode === "facing" ? callerRange(heroPos, vsPos) : openerRange(heroPos, vsPos);
+  const villFreqs = mode === "facing" ? openerRange(vsPos, heroPos) : callerRange(vsPos, heroPos);
 
   const board = spot.board.map(cardToInt);
   const heroClassKey = handClassKey(spot.hand[0], spot.hand[1]);
-  const effStack = Math.max(1, Math.round(stack - startPot / 2));   // tapis restant derrière
-
-  const cls = classifyFlopActs(spot.acts);
-  // Sizings RÉELS du spot (≤2 pour borner l'arbre) → le CFR solve exactement les tailles
-  // proposées au joueur. Labels solveur : "B" si une seule taille, sinon "B0","B1".
-  const bets = cls.bets.slice(0, 2);
-  const betSizes = bets.map(b => b.frac || 0.66);
-  const betLabels = betSizes.map((_, k) => (betSizes.length === 1 ? "B" : "B" + k));
-  const actsMap = { checkLabel: "X", checkIdx: cls.checkIdx, foldIdx: cls.foldIdx, bets: [] };
-  bets.forEach((b, k) => actsMap.bets.push({ label: betLabels[k], idx: b.i }));
-
-  // River (board complet, 5 cartes) = solve EXACT (aucun runout à échantillonner) → on
-  // peut se permettre plus de combos pour la précision. Turn/flop restent échantillonnés.
   const street = board.length === 5 ? "river" : board.length === 4 ? "turn" : "flop";
   const maxCombos = street === "river" ? 200 : 140;
+
+  let solveStartPot, betSizes, nodePath, entries;
+  if (mode === "facing") {
+    // Héros FACE à une mise. On modélise « hero check → villain bet → hero F/C/R » :
+    // le pot AVANT la mise villain = pot - toCall ; la taille de mise villain (fraction
+    // de ce pot) = toCall/(pot-toCall). On lit le nœud ["X","B"] (F/C/R).
+    const toCall = Math.max(0.5, Number(spot.toCall) || 0);
+    solveStartPot = Math.max(1, Math.round((startPot - toCall) * 10) / 10);
+    const frac = Math.max(0.15, Math.min(2.5, toCall / solveStartPot));
+    betSizes = [frac];
+    nodePath = ["X", "B"];
+    const fb = classifyFacingActs(spot.acts);
+    entries = [
+      { label: "F", idx: fb.foldIdx },
+      { label: "C", idx: fb.callIdx },
+      { label: "R", idx: fb.raiseIdx },
+    ].filter(e => e.idx >= 0);
+  } else {
+    // Hero-leads : Check/Bet. Sizings RÉELS du spot (≤2 pour borner l'arbre).
+    const cls = classifyFlopActs(spot.acts);
+    const bets = cls.bets.slice(0, 2);
+    betSizes = bets.map(b => b.frac || 0.66);
+    solveStartPot = startPot;
+    nodePath = null;
+    const betLabels = betSizes.map((_, k) => (betSizes.length === 1 ? "B" : "B" + k));
+    entries = [{ label: "X", idx: cls.checkIdx }, ...bets.map((b, k) => ({ label: betLabels[k], idx: b.i }))]
+      .filter(e => e.idx >= 0);
+  }
+  const effStack = Math.max(1, Math.round(stack - solveStartPot / 2));   // tapis restant derrière
+
   const request = {
     heroFreqs, villFreqs, board, heroClassKey,
-    opts: { startPot, betSizes, effStack, iters: 100, maxCombos },
+    opts: { startPot: solveStartPot, betSizes, effStack, iters: 100, maxCombos, nodePath },
   };
-  return { request, actsMap, meta: { heroPos, vsPos, stack, startPot, heroClassKey, street } };
+  return { request, actsMap: { entries }, meta: { heroPos, vsPos, stack, startPot: solveStartPot, heroClassKey, street, mode } };
 }
 /* Alias rétro-compat. */
 export const buildFlopSolveRequest = buildPostflopSolveRequest;
@@ -145,21 +194,19 @@ export function mapWorkerResultToStrategy(workerRes, spot, actsMap, meta = {}) {
   const freq = {};
   for (const a of acts) if (a?.id) freq[a.id] = 0;
 
-  const setByIdx = (idx, pct) => {
-    if (idx == null || idx < 0 || !acts[idx]) return;
-    const id = acts[idx].id;
-    if (id) freq[id] = Math.round((pct || 0) * 10) / 10;
-  };
-  setByIdx(actsMap.checkIdx, dist[actsMap.checkLabel] || 0);
-  for (const b of actsMap.bets) setByIdx(b.idx, dist[b.label] || 0);
-  // Fold au nœud racine = 0 (rien à fold quand on peut checker) — déjà 0.
+  // Mappe chaque label solveur (X/B0/B1 ou F/C/R) sur l'act du spot correspondant.
+  for (const e of (actsMap.entries || [])) {
+    if (e.idx == null || e.idx < 0 || !acts[e.idx]?.id) continue;
+    freq[acts[e.idx].id] = Math.round((dist[e.label] || 0) * 10) / 10;
+  }
 
   // Action majoritaire = ok.
   let okIdx = -1, best = -1;
   acts.forEach((a, i) => { const v = a?.id ? (freq[a.id] || 0) : 0; if (v > best) { best = v; okIdx = i; } });
 
   const nc = workerRes.nashConv;
-  const streetLbl = { flop: "flop", turn: "turn", river: "river (board complet)" }[meta.street] || "postflop";
+  const modeLbl = meta.mode === "facing" ? " face-à-mise" : "";
+  const streetLbl = ({ flop: "flop", turn: "turn", river: "river (board complet)" }[meta.street] || "postflop") + modeLbl;
   const exact = meta.street === "river" && nc != null;
   const ncTxt = nc == null ? (workerRes.convNote || "runouts échantillonnés") : `NashConv ${Math.round(nc * 1000) / 1000}bb${exact ? " (exact)" : ""}`;
   return {

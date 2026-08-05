@@ -18,7 +18,20 @@ self.onmessage = (e) => {
       return;
     }
     const sol = out.result;
-    const root = sol.tree;                 // 1re décision Héros sur le flop (X / B0 / B1…)
+    // Nœud cible : racine (hero-leads : X/B0/B1) OU, pour un spot FACE-À-UNE-MISE, on
+    // navigue le nodePath (ex. ["X","B"] = hero check → villain bet → nœud Héros F/C/R).
+    let node = sol.tree;
+    const nodePath = (opts && opts.nodePath) || null;
+    if (nodePath) {
+      for (const lbl of nodePath) {
+        node = node && node.children ? node.children[lbl] : null;
+        if (!node) break;
+      }
+      if (!node || node.kind !== "decision") {
+        self.postMessage({ id, ok: false, reason: "node-path-miss" });
+        return;
+      }
+    }
     // Index des combos de la CLASSE de main du Héros (reduceRange ne garde qu'un
     // représentant par classe → on lit la classe, pas le combo exact).
     const idxs = [];
@@ -30,25 +43,25 @@ self.onmessage = (e) => {
       self.postMessage({ id, ok: false, reason: "hand-not-in-range", nashConv });
       return;
     }
-    const na = root.actions.length;
+    const na = node.actions.length;
     const agg = new Array(na).fill(0);
     let wsum = 0;
     for (const c of idxs) {
       const w = (sol.wH && sol.wH[c]) || 0;
-      const d = sol.avgOf(root, c);        // distribution stratégie de ce combo
+      const d = sol.avgOf(node, c);        // distribution stratégie de ce combo au NŒUD cible
       for (let k = 0; k < na; k++) agg[k] += w * d[k];
       wsum += w;
     }
     if (wsum > 0) { for (let k = 0; k < na; k++) agg[k] /= wsum; }
-    else { const d = sol.avgOf(root, idxs[0]); for (let k = 0; k < na; k++) agg[k] = d[k]; }
+    else { const d = sol.avgOf(node, idxs[0]); for (let k = 0; k < na; k++) agg[k] = d[k]; }
 
     const distByLabel = {};
-    root.actions.forEach((lbl, k) => { distByLabel[lbl] = Math.round(agg[k] * 1000) / 10; });
+    node.actions.forEach((lbl, k) => { distByLabel[lbl] = Math.round(agg[k] * 1000) / 10; });
 
     self.postMessage({
       id, ok: true,
       distByLabel,
-      actions: root.actions.slice(),
+      actions: node.actions.slice(),
       nashConv,
       convNote: out.convergence ? out.convergence.note ?? null : null,
       abstraction: out.abstraction || null,
