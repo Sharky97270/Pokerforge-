@@ -118,7 +118,13 @@ export function parseHand(block, idx=0){
     const gameType = detectGameType(block);
     const lines = block.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
 
-    const idm = block.match(/(?:Hand|Game|No)\s*[:#]?\s*([0-9]{4,})/i) || block.match(/#\s*([0-9]{4,})/);
+    // Extraction du VRAI HandId (alphanumérique, ex. GG « TM123… »). On cible les
+    // motifs explicites AVANT le repli « #\d » — sinon on captait le n° de table
+    // (« Table …#0133 ») pour les mains sans HandId lisible.
+    const idm = block.match(/HandId:\s*#?\s*([A-Z0-9]+)/i)      // Winamax « HandId: #3254… »
+             || block.match(/\bHand\s*#\s*([A-Z0-9]{4,})/i)     // PokerStars/GGPoker « Hand #… »
+             || block.match(/\bGame\s*#?\s*([A-Z0-9]{4,})/i)    // 888/PartyPoker « Game #… »
+             || block.match(/#\s*([0-9]{4,})/);                 // repli
     const handId = idm ? idm[1] : String(100000+idx);
     const tourM = block.match(/Tournament\s*#?\s*([0-9]{5,})/i);
     const tournamentId = tourM ? tourM[1] : null;
@@ -384,9 +390,18 @@ export function parseHand(block, idx=0){
 
 function fmtBb(v){ if(v==null) return ""; const n=rb(v); return (Number.isInteger(n)?n:n.toFixed(1))+"bb"; }
 
-/* Clé d'unicité d'une main (déduplication §32). */
+/* Clé d'unicité d'une main (métadonnées / affichage). */
 export function handKey(h){
   return `${h.room||"?"}|${h.tournamentId||""}|${h.handId||""}`;
+}
+
+/* Signature de CONTENU pour la déduplication : deux mains sont des doublons
+   seulement si leur texte brut normalisé est identique. Insensible aux
+   variations d'espaces / fins de ligne. Aucune conversion numérique → pas de
+   perte de précision sur les gros HandId. */
+export function handSignature(h){
+  const raw = (h && h.raw) ? String(h.raw) : "";
+  return raw.replace(/\r/g,"").replace(/[ \t]+/g," ").replace(/\n{2,}/g,"\n").trim();
 }
 
 export const REPLAYER_MAX_PER_LOT = 1500; // §4 — limite par lot de traitement
@@ -409,13 +424,18 @@ export function parseSession(text, opts={}){
     else errors.push({ i, error:h?.error||"invalide" });
   });
 
-  // Déduplication
+  // Déduplication PAR CONTENU (robuste, room-agnostique).
+  // On ne fusionne QUE des mains réellement identiques (même texte normalisé) :
+  // un « doublon » = la même main importée deux fois. On ne se fie PAS au seul
+  // handId extrait — il peut coïncider par accident (n° de table capté à la place
+  // du vrai ID, ou HandId à 19 chiffres arrondi par un Number float64 ailleurs),
+  // ce qui écrasait à tort des centaines de mains DISTINCTES (tous formats).
   let duplicates = 0;
   const seen = new Set(); const unique = [];
   for(const h of parsed){
-    const key = handKey(h);
-    if(dedup && seen.has(key)){ duplicates++; continue; }
-    seen.add(key); unique.push(h);
+    const sig = handSignature(h);
+    if(dedup && seen.has(sig)){ duplicates++; continue; }
+    seen.add(sig); unique.push(h);
   }
 
   // Découpage en lots (§4)

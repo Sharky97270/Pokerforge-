@@ -2,7 +2,7 @@
    Garde-fou : détection de la room + board correct malgré les formats variés
    (marqueurs *** FLOP *** vs ** Dealing Flop **, montants entre crochets…).
    Lancement : node test-replayer-formats.mjs                              */
-import { parseSession, pfDetectSite } from "./src/replayer/handModel.js";
+import { parseSession, parseHand, pfDetectSite } from "./src/replayer/handModel.js";
 import { computeAllSnapshots } from "./src/replayer/stateEngine.js";
 
 let passed=0, failed=0;
@@ -141,6 +141,36 @@ for(const [name, hh] of Object.entries(HANDS)){
      `board complet 5 cartes (obtenu « ${board} »)`);
   const acts = h.events.filter(e=>["fold","check","call","bet","raise","allin"].includes(e.type)).length;
   ok(acts>=5, `actions détectées (${acts})`);
+}
+
+/* ── Déduplication robuste : mains DISTINCTES jamais fusionnées ── */
+console.log("\n── Déduplication par contenu");
+{
+  const mk = (id, hero) => `Winamax Poker - Tournament "KO" buyIn: 4.50€ level: 13 - HandId: #${id}-111-1709498640 - Holdem no limit (200/800/1600) - 2024/03/03 20:44:00 UTC
+Table: 'KO(123)#0133' 6-max (real money) Seat #3 is the button
+Seat 1: Hero (18850)
+Seat 2: v2 (58320)
+*** ANTE/BLINDS ***
+Hero posts small blind 400
+v2 posts big blind 800
+Dealt to Hero [${hero}]
+*** PRE-FLOP ***
+Hero raises 1600 to 2000
+v2 calls 1200`;
+  // 2 HandId à 19 chiffres qui COLLISIONNENT en Number (float64) mais sont distincts
+  const A = mk("3254203472144236617", "6d Ts");
+  const B = mk("3254203472144236552", "Th Qh");
+  const sess = parseSession([A, B].join("\n\n"));
+  ok(sess.imported===2, `2 mains distinctes (HandId 19 chiffres) conservées (obtenu ${sess.imported})`);
+  ok(sess.duplicates===0, `0 doublon (obtenu ${sess.duplicates})`);
+  // vrai HandId extrait (pas le n° de table 0133)
+  ok(sess.hands[0].handId==="3254203472144236617", `HandId réel extrait (obtenu ${sess.hands[0].handId})`);
+  // même main importée deux fois → 1 doublon
+  const dup = parseSession([A, A].join("\n\n"));
+  ok(dup.imported===1 && dup.duplicates===1, `main identique dédupliquée (imported ${dup.imported}, dup ${dup.duplicates})`);
+  // GGPoker : HandId alphanumérique « TM… »
+  const gg = parseHand(HANDS.GGPoker, 0);
+  ok(gg.handId==="TM123456789", `GG HandId alphanumérique (obtenu ${gg.handId})`);
 }
 
 console.log(`\n${failed===0 ? "✅" : "❌"} Replayer Formats : ${passed} ok, ${failed} échec(s)`);
