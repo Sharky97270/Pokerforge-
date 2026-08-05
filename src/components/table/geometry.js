@@ -79,17 +79,26 @@ export function heroCentricSeatRing(positions, heroPos, opts={}){
 /* Ancre de mise d'un siège : point poussé vers le centre, hors du board. */
 export function seatActionPoint(seatCoord, { hasBoard=false, push=0.42 }={}){
   if(!seatCoord) return { x:50, y:50 };
-  const pt = {
+  let pt = {
     x: seatCoord.x + (50-seatCoord.x)*push,
     y: seatCoord.y + (50-seatCoord.y)*push,
   };
+  // Sièges haut/bas CENTRÉS (Hero en bas, siège opposé en haut) : les cartes sont
+  // empilées à la verticale au-dessus de l'avatar → une mise poussée droit vers le
+  // centre les recouvre. On la décale SUR LE CÔTÉ, à hauteur intermédiaire.
+  if(Math.abs(seatCoord.x-50) < 12){
+    pt = { x: seatCoord.x + 20, y: seatCoord.y + (50-seatCoord.y)*0.18 };
+  }
   return hasBoard ? clampOutsideBoard(pt, seatCoord) : { x:clamp(pt.x), y:clamp(pt.y) };
 }
 
-/* Jeton dealer : décalé vers l'intérieur-gauche du siège BTN. */
+/* Jeton dealer : décalé vers le CENTRE de la table depuis le siège BTN, à hauteur
+   d'avatar → ne recouvre pas la plaque (nom/stack) posée sous l'avatar. */
 export function dealerPoint(btnCoord){
   if(!btnCoord) return { x:50, y:50 };
-  return { x:Math.max(4, btnCoord.x-7), y:Math.min(90, btnCoord.y+9) };
+  const dx = btnCoord.x < 50 ? 9 : -9;   // vers l'intérieur horizontalement
+  const dy = btnCoord.y > 55 ? -7 : btnCoord.y < 30 ? 7 : 4; // vers le centre vertical
+  return { x:clamp(btnCoord.x + dx), y:clamp(btnCoord.y + dy) };
 }
 
 /* Style du feutre ovale premium (reproduit trainerFeltStyle, état statique). */
