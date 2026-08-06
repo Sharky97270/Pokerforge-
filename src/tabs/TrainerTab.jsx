@@ -404,11 +404,13 @@ const WEB_FEEDBACK_XY_BY_COUNT = {
      • TOP FENDU (3,5,7,9 — pas de siège central, interstice x≈44-56 en haut) → on
        loge le macaron dans ce couloir central, au-dessus du pot (y14<28). Zone libre
        vérifiée en 9-max.
-     • 8 (dense, siège haut-centre + siège haut-droite) : pas d'interstice ≥6% propre
-       → repli épaule extérieure droite (best-effort, hors périmètre de vérif 2/6/9). */
+     • 8 (dense : siège haut-centre x44-56 ET siège haut-droite x71-83) → couloir
+       DIAGONAL entre les deux (x≈56-71, au-dessus de y21). Mesuré en live : macaron
+       x60-66/y9-19, dégagé des deux sièges. (Une 1re valeur best-effort {x:78,y:24}
+       tombait en plein sur le siège haut-droite — corrigée après mesure.) */
   2: { x: 64, y: 24 }, 3: { x: 50, y: 14 }, 4: { x: 64, y: 24 },
   5: { x: 50, y: 14 }, 6: { x: 64, y: 24 }, 7: { x: 50, y: 14 },
-  8: { x: 78, y: 24 }, 9: { x: 50, y: 14 },
+  8: { x: 63, y: 14 }, 9: { x: 50, y: 14 },
 };
 const MOBILE_FEEDBACK_XY = { x: 70, y: 20 };
 function feedbackPointFor(seatCount, isMobile=false){

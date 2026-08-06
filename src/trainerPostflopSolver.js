@@ -79,6 +79,39 @@ function parseStackBb(stack) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/* Ré-pondère une range 169 : `pick(freqs)` donne le % de CONTINUATION de chaque main.
+   `rangeComboList` pondère par (r+c)/100 → on place tout le poids dans `c`. */
+export function weightedRange(raw, pick) {
+  const out = {};
+  for (const k in raw) {
+    const w = Math.min(100, Math.max(0, pick(raw[k] || {}) || 0));
+    out[k] = { r: 0, c: w, f: 100 - w };
+  }
+  return out;
+}
+
+/* Type de pot postflop : "3bp" (pot 3-bet) ou "srp" (pot simple-relancé).
+   Deux signaux, du plus fiable au repli :
+     1. HISTORIQUE d'actions — une relance de relance (3BET/4BET) avant le flop est
+        une preuve directe.
+     2. TAILLE DU POT rapportée à la grosse blinde — un SRP fait ~5-8bb (open ~2,5-3bb
+        + call), un pot 3-bet ~18-24bb. Seuil à 12bb : au-dessus, seule une relance de
+        relance explique le pot. (Blindes du Trainer : 0,5/1.)
+   Volontairement conservateur : dans le doute on reste sur "srp", le cas dominant. */
+export function potKind(spot) {
+  const hist = Array.isArray(spot?.actionHistory) ? spot.actionHistory
+    : Array.isArray(spot?.preActions) ? spot.preActions : [];
+  for (const a of hist) {
+    const t = String(a?.actionType || a?.action || a?.type || a?.id || "").toUpperCase();
+    if (/3BET|4BET|5BET/.test(t)) return "3bp";
+    const l = String(a?.label || a?.displayLabel || "").toLowerCase();
+    if (/3-?bet|4-?bet|squeeze/.test(l)) return "3bp";
+  }
+  const bb = Number(spot?.bb) || 1;
+  const pot = Number(spot?.pot) || 0;
+  return pot / bb >= 12 ? "3bp" : "srp";
+}
+
 /* Mode postflop d'un spot : "leads" (Héros ouvre : Check/Bet), "facing" (Héros face à
    une mise : Call/Fold), ou null. */
 export function postflopMode(spot) {
@@ -120,27 +153,24 @@ export function buildPostflopSolveRequest(spot) {
   const startPot = Math.max(1, Math.round((Number(spot.pot) || 6) * 10) / 10);
   const mode = postflopMode(spot);
 
-  // Ranges d'entrée selon QUI est l'agresseur préflop :
-  //  · leads  → le Héros a c-bet → Héros = OPENER, Villain = suiveur (CALL).
-  //  · facing → le Héros paie une mise → Héros = suiveur (CALL), Villain = OPENER.
-  // La portion CALL zéro-oute le 3bet (r) : les 3-bets sont partis dans un pot 3-bet.
-  const openerRange = (pos, opp) => buildSolverFreqs(pos, "rfi", stack, opp);
-  // Range du SUIVEUR : on part de vs_open et on REVERSE la portion 3-bet dans le call.
-  // Pourquoi : ce pot EST un pot simple-relancé suivi, donc conditionner sur « a payé »
-  // inclut les mains fortes qui, dans cette branche, ont choisi de call plutôt que 3-bet.
-  // Sans ça, les mains à 3-bet pur (AA/KK) sortent de la range avec un poids 0 et leur
+  // ── RANGES D'ENTRÉE = f(type de pot, rôle) ──
+  // Rôle : leads → le Héros a l'initiative (agresseur préflop) ; facing → il est suiveur.
+  // Type de pot : SRP (pot simple-relancé) ou 3BP (pot 3-bet) — cf. potKind().
+  const pot3 = potKind(spot) === "3bp";
+  // Range de l'AGRESSEUR : open (SRP) ou portion 3-bet de vs_open (3BP).
+  const aggressorRange = (pos, opp) => pot3
+    ? weightedRange(buildSolverFreqs(pos, "vs_open", stack, opp), f => f.r || 0)   // il a 3-bet
+    : buildSolverFreqs(pos, "rfi", stack, opp);                                    // il a ouvert
+  // Range du SUIVEUR : on prend la portion de continuation et on y REVERSE la portion
+  // relance. Pourquoi : ce pot EST un pot suivi, donc conditionner sur « a payé » inclut
+  // les mains fortes qui, dans CETTE branche, ont choisi de call plutôt que de relancer.
+  // Sans ça, les mains à relance pure (AA/KK) sortent de la range avec un poids 0 et leur
   // stratégie postflop devient illisible (bug observé : « hand-not-in-range » sur AA).
-  const callerRange = (pos, opp) => {
-    const raw = buildSolverFreqs(pos, "vs_open", stack, opp), out = {};
-    for (const k in raw) {
-      const f = raw[k] || {};
-      const cont = Math.min(100, Math.max(0, (f.c || 0) + (f.r || 0)));
-      out[k] = { r: 0, c: cont, f: Math.max(0, 100 - cont) };
-    }
-    return out;
-  };
-  const heroFreqs = mode === "facing" ? callerRange(heroPos, vsPos) : openerRange(heroPos, vsPos);
-  const villFreqs = mode === "facing" ? openerRange(vsPos, heroPos) : callerRange(vsPos, heroPos);
+  const callerRange = (pos, opp) => weightedRange(
+    buildSolverFreqs(pos, pot3 ? "vs_3bet" : "vs_open", stack, opp),
+    f => (f.c || 0) + (f.r || 0));
+  const heroFreqs = mode === "facing" ? callerRange(heroPos, vsPos) : aggressorRange(heroPos, vsPos);
+  const villFreqs = mode === "facing" ? aggressorRange(vsPos, heroPos) : callerRange(vsPos, heroPos);
 
   const board = spot.board.map(cardToInt);
   const heroClassKey = handClassKey(spot.hand[0], spot.hand[1]);
@@ -180,7 +210,7 @@ export function buildPostflopSolveRequest(spot) {
     heroFreqs, villFreqs, board, heroClassKey,
     opts: { startPot: solveStartPot, betSizes, effStack, iters: 100, maxCombos, nodePath },
   };
-  return { request, actsMap: { entries }, meta: { heroPos, vsPos, stack, startPot: solveStartPot, heroClassKey, street, mode } };
+  return { request, actsMap: { entries }, meta: { heroPos, vsPos, stack, startPot: solveStartPot, heroClassKey, street, mode, potKind: pot3 ? "3bp" : "srp" } };
 }
 /* Alias rétro-compat. */
 export const buildFlopSolveRequest = buildPostflopSolveRequest;
@@ -215,7 +245,7 @@ export function mapWorkerResultToStrategy(workerRes, spot, actsMap, meta = {}) {
     freq,
     source: "solver",
     provenance: "cfr-experimental",
-    note: `CFR ${streetLbl} HU (expérimental) — ${meta.heroClassKey || ""} sur ranges heuristiques · ${ncTxt}.`,
+    note: `CFR ${streetLbl} HU (expérimental) — ${meta.heroClassKey || ""} en ${meta.potKind === "3bp" ? "pot 3-bet" : "pot simple-relancé"} sur ranges heuristiques · ${ncTxt}.`,
     meta: {
       engine: "cfr", experimental: true, rangeSource: "heuristic",
       nashConv: nc ?? null, abstraction: workerRes.abstraction || null,

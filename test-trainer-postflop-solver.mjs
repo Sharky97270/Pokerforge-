@@ -4,6 +4,7 @@ import { solveMultiStreet } from "./src/solver/api.js";
 import {
   cardToInt, handClassKey, classifyFlopActs, isSolvableFlop, buildFlopSolveRequest, mapWorkerResultToStrategy,
   isSolvablePostflop, buildPostflopSolveRequest, postflopMode, classifyFacingActs,
+  potKind, weightedRange,
 } from "./src/trainerPostflopSolver.js";
 
 let n = 0;
@@ -150,5 +151,31 @@ if (!fNuts.miss) {
     ok((fAir.distByLabel.F || 0) > (fNuts.distByLabel.F || 0), `air fold plus que les nuts (${fAir.distByLabel.F}% > ${fNuts.distByLabel.F}%)`);
   }
 }
+
+// ── POTS 3-BET : détection + ranges d'entrée resserrées ──
+eq(potKind(flopSpot), "srp", "pot 7.5bb → pot simple-relancé");
+eq(potKind({ ...flopSpot, pot: 21 }), "3bp", "pot 21bb → pot 3-bet (seuil taille)");
+eq(potKind({ ...flopSpot, actionHistory: [{ actionType: "3BET", label: "3-bet 9bb" }] }), "3bp",
+  "historique 3BET → pot 3-bet (signal explicite)");
+eq(potKind({ ...flopSpot, actionHistory: [{ actionType: "OPEN" }, { actionType: "CALL" }] }), "srp",
+  "historique open/call → pot simple-relancé");
+// weightedRange place bien le poids dans c
+const wr = weightedRange({ AA: { r: 80, c: 20, f: 0 }, "72o": { r: 0, c: 0, f: 100 } }, f => f.r);
+eq(wr.AA.c, 80, "weightedRange prend la portion demandée");
+eq(wr["72o"].c, 0, "weightedRange : main hors range à 0");
+
+// Le cœur : une range de pot 3-bet doit être BEAUCOUP plus serrée qu'un SRP.
+const srpReq = buildPostflopSolveRequest({ ...flopSpot, pot: 7.5 });
+const bpReq = buildPostflopSolveRequest({ ...flopSpot, pot: 21 });
+eq(srpReq.meta.potKind, "srp", "meta srp");
+eq(bpReq.meta.potKind, "3bp", "meta 3bp");
+const largeur = fr => Object.values(fr).reduce((s, f) => s + (f.c || 0) + (f.r || 0), 0);
+const lSrp = largeur(srpReq.request.heroFreqs), lBp = largeur(bpReq.request.heroFreqs);
+console.log(`  largeur range Héros — SRP ${Math.round(lSrp)} vs 3BP ${Math.round(lBp)}`);
+ok(lBp < lSrp * 0.6, `range 3-bet nettement plus serrée que l'open (${Math.round(lBp)} < 60% de ${Math.round(lSrp)})`);
+ok(lBp > 0, "range 3-bet non vide");
+// AA doit rester présente dans les deux (sinon illisible)
+ok((bpReq.request.heroFreqs.AA?.c || 0) > 0, "AA présente dans la range 3-bet du Héros");
+ok((bpReq.request.villFreqs.AA?.c || 0) > 0, "AA présente dans la range adverse (suiveur du 3-bet)");
 
 console.log(`\n✅ trainerPostflopSolver — ${n} assertions OK`);
