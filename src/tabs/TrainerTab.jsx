@@ -26,6 +26,8 @@ import { createAnimationQueue } from "../immersionEngine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
+import { isSolvablePostflop, buildPostflopSolveRequest, mapWorkerResultToStrategy } from "../trainerPostflopSolver.js";
+import { solvePostflopAsync } from "../solver/cfrPostflopClient.js";
 import { evaluatePostflopDecision } from "../postflopHeuristic.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
@@ -2687,7 +2689,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
   const[answered,setAnswered]=useState(null);
   const[showSpotMacaron,setShowSpotMacaron]=useState(false); // §P0-A : macaron ✓/✗ TEMPORAIRE (fade ~1.6s), l'analyse reste dans le panneau
   const[tl,setTl]=useState([]);
@@ -2702,6 +2704,11 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // fait DESCENDRE que le haut des cartes (l'avatar ne bouge pas), ouvrant la zone
   // libre board→cartes (§1) sans jamais rétrécir le board. 1=aucune réduction.
   const[heroCardScale,setHeroCardScale]=useState(1);
+  // §28 CFR postflop — pré-solve en arrière-plan (worker). cfrTick force le re-render
+  // quand la solution CFR remplace l'heuristique ; cfrSolving pilote l'indicateur.
+  const[cfrTick,setCfrTick]=useState(0);
+  const[cfrSolving,setCfrSolving]=useState(false);
+  const cfrSpotRef=useRef(null);
   const[chipAnim,setChipAnim]=useState(null);       // legacy: chip-fly centré
   const[heroChip,setHeroChip]=useState(null);       // chip fly depuis hero
   const[vilChip,setVilChip]=useState(null);         // chip fly depuis villain
@@ -2902,6 +2909,40 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     return ()=>{ mo.disconnect(); ro.disconnect(); window.removeEventListener('resize',measure); };
   },[numTables,dk,spot]);
 
+  // ── §28 CFR POSTFLOP — pré-solve en arrière-plan (worker), flop/turn/river HU hero-leads ──
+  // Le spot reste jouable immédiatement (solution heuristique). Quand le worker rend
+  // la solution CFR, on la SUBSTITUE en mutant le spot (comme applySolverStrategy le
+  // fait déjà) puis on bump cfrTick pour rafraîchir badge/fréquences/verdict. La garde
+  // cfrSpotRef ignore tout résultat périmé (spot déjà changé).
+  useEffect(()=>{
+    if(!spot||numTables!==1||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
+    if(spot.strategyProvenance==="cfr-experimental"){ setCfrSolving(false); return; } // déjà solvé
+    const built=buildPostflopSolveRequest(spot);
+    if(!built){ setCfrSolving(false); return; }
+    const mySpot=spot; cfrSpotRef.current=mySpot;
+    let cancelled=false; setCfrSolving(true);
+    solvePostflopAsync(built.request).then(res=>{
+      if(cancelled||cfrSpotRef.current!==mySpot)return;           // résultat périmé → ignoré
+      if(res&&res.ok){
+        const strat=mapWorkerResultToStrategy(res,mySpot,built.actsMap,built.meta);
+        if(strat&&strat.solved){
+          mySpot.ok=strat.ok;
+          mySpot.freq={...(mySpot.freq||{}),...strat.freq};
+          mySpot.strategySource=strat.source;
+          mySpot.strategyProvenance=strat.provenance;
+          mySpot.strategyNote=strat.note;
+          mySpot.solverMeta=strat.meta;
+          mySpot.best=mySpot.acts?.[strat.ok]?.l??mySpot.best;
+          setCfrTick(t=>t+1);
+          onCfrUpgrade&&onCfrUpgrade();   // re-render du panneau parent (badge/fréquences)
+        }
+      }
+      setCfrSolving(false);
+    });
+    return ()=>{ cancelled=true; };
+  },[dk,spot,numTables]);
+  void cfrTick; // consommé pour forcer le re-render à l'arrivée du CFR
+
   function tlCls(a){
     if(a==="FOLD"||a==="ALLIN")return "tl-fold";
     if(a==="CALL")return "tl-call";
@@ -3051,13 +3092,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // Badge de provenance (§2/§28) : dire d'où vient la solution — solveur (exact)
     // ou heuristique (template). Honnêteté : ne jamais présenter une heuristique
     // comme un résultat GTO calculé.
+    const cfrExp=spot.strategyProvenance==="cfr-experimental";
     const solved=spot.strategySource==="solver";
+    const badgeCol=cfrExp?"#20CFFF":solved?"#10D87A":T.text4;
     const provBadge=spot.strategySource?(
       <span title={spot.strategyNote||(solved?"Solution calculée par le solveur":"Solution heuristique (template)")}
         style={{fontFamily:T.stats,fontSize:8,fontWeight:800,letterSpacing:".04em",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",
-          color:solved?"#10D87A":T.text4,background:solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
-          border:`1px solid ${solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-        {solved?"🦈 Solveur":"≈ Heuristique"}
+          color:badgeCol,background:cfrExp?"rgba(32,207,255,.12)":solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+          border:`1px solid ${cfrExp?"rgba(32,207,255,.35)":solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+        {cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
       </span>
     ):null;
     return(
@@ -3559,13 +3602,16 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <div className="pf-solfull-title">💡 SOLUTION</div>
                 {/* Provenance (§2/§28) : d'où vient la solution ? */}
-                {spot.strategySource&&(
+                {spot.strategySource&&(()=>{
+                  const cfrExp=spot.strategyProvenance==="cfr-experimental", sv=spot.strategySource==="solver";
+                  const col=cfrExp?"#20CFFF":sv?"#10D87A":T.text4;
+                  return(
                   <span title={spot.strategyNote||""} style={{fontFamily:T.stats,fontSize:7.5,fontWeight:800,letterSpacing:".03em",padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
-                    color:spot.strategySource==="solver"?"#10D87A":T.text4,background:spot.strategySource==="solver"?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
-                    border:`1px solid ${spot.strategySource==="solver"?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-                    {spot.strategySource==="solver"?"🦈 Solveur":"≈ Heuristique"}
-                  </span>
-                )}
+                    color:col,background:cfrExp?"rgba(32,207,255,.12)":sv?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+                    border:`1px solid ${cfrExp?"rgba(32,207,255,.35)":sv?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+                    {cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
+                  </span>);
+                })()}
               </div>
               <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"#6F81A8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{spot.desc}</div>
             </div>
@@ -5839,6 +5885,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
   const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
   const[fhLive,setFhLive]=useState(null);               // état Full Hand remonté de SingleTable (§ P0-C : panneau droit synchro)
+  const[cfrPanelTick,setCfrPanelTick]=useState(0);      // §28 CFR : nudge de re-render du panneau quand le solve postflop remonte
+  void cfrPanelTick;
   const[mtRangePopup,setMtRangePopup]=useState(null);   // multi-table : popup ranges GTO plein écran
   const[panelEl,setPanelEl]=useState(null);             // conteneur DOM du panneau droit partagé (cible du portal 1T)
   const[zoomed,setZoomed]=useState(false);              // pincement zoom actif
@@ -6512,17 +6560,23 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
                 </div>
               )}
-              {/* Provenance de la solution (§2/§28) : solveur (exact) ou heuristique */}
-              {s.strategySource&&(
-                <div title={s.strategyNote||""} style={{display:"flex",alignItems:"center",gap:6,margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,
-                  background:s.strategySource==="solver"?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)",
-                  border:`1px solid ${s.strategySource==="solver"?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)"}`}}>
-                  <span style={{fontSize:11}}>{s.strategySource==="solver"?"🦈":"≈"}</span>
-                  <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:s.strategySource==="solver"?"#10D87A":T.text3}}>
-                    {s.strategySource==="solver"?"SOLUTION SOLVEUR — calcul exact":"SOLUTION HEURISTIQUE — template"}
-                  </span>
-                </div>
-              )}
+              {/* Provenance de la solution (§2/§28) : solveur exact (push/fold) · CFR
+                  postflop EXPÉRIMENTAL (ranges heuristiques) · ou heuristique template. */}
+              {s.strategySource&&(()=>{
+                const cfr=s.strategyProvenance==="cfr-experimental";
+                const solver=s.strategySource==="solver";
+                const col=cfr?"#20CFFF":solver?"#10D87A":T.text3;
+                const dim=cfr?"rgba(32,207,255,.1)":solver?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)";
+                const bd=cfr?"rgba(32,207,255,.3)":solver?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)";
+                const label=cfr?"SOLUTION CFR POSTFLOP — expérimental (ranges heuristiques)"
+                  :solver?"SOLUTION SOLVEUR — calcul exact":"SOLUTION HEURISTIQUE — template";
+                return(
+                  <div title={s.strategyNote||""} style={{display:"flex",alignItems:"center",gap:6,margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,background:dim,border:`1px solid ${bd}`}}>
+                    <span style={{fontSize:11}}>{solver?"🦈":"≈"}</span>
+                    <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:col}}>{label}</span>
+                  </div>
+                );
+              })()}
               <div className="pf-p2-actlist">
                 {actRows.map(r=>(
                   <div key={r.i} className={`pf-p2-actrow${r.best?" best":""}${r.chosen?" chosen":""}`}>
@@ -7220,7 +7274,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={ntables===1?setFhLive:undefined}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={ntables===1?setFhLive:undefined} onCfrUpgrade={ntables===1?()=>setCfrPanelTick(t=>t+1):undefined}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);

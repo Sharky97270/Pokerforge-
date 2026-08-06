@@ -9,7 +9,7 @@ import { MiniCard, Card, CardFlip } from "../components/table/Cards.jsx";
 import RangesTab from "./RangesTab.jsx";
 /* Ranges heuristiques du solveur — source unique (SharkSolver). `solveScenario`
    les utilisait sans les importer → ReferenceError silencieuse (bug préexistant). */
-import { buildSolverFreqs } from "./SharkSolverTab.jsx";
+import { buildSolverFreqs } from "../solver/preflopRanges.js";
 /* ── Replayer refonte v1 : moteur normalisé + table immersive ── */
 import { parseSession as pfParseSessionV2 } from "../replayer/handModel.js";
 import { computeSnapshot, computeAllSnapshots } from "../replayer/stateEngine.js";
