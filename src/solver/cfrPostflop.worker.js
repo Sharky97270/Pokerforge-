@@ -7,12 +7,24 @@
    au nœud racine (par label d'action), NashConv, abstraction. AUCUNE fonction ne
    traverse `postMessage` (les accesseurs avgOf/aggAt sont des closures → structured
    clone les perdrait ; on les CONSOMME ici et on ne sort que des nombres). */
-import { solveMultiStreet } from "./api.js";
+import { solveMultiStreet, hydrateLibrary } from "./api.js";
 
-self.onmessage = (e) => {
+/* PERSISTANCE DES SOLVES — le worker a sa PROPRE mémoire : la Solution Library y repart
+   vide à chaque démarrage (rechargement de page, worker recyclé). L'écriture sur disque
+   marchait déjà (IndexedDB est disponible dans un worker), mais sans hydratation le cache
+   n'était jamais RELU → on re-solvait un spot déjà calculé. On hydrate donc une fois,
+   avant le premier solve. Idempotent et ne rejette jamais : en cas d'échec on solve
+   normalement, on perd juste le cache. */
+let _hydrated = null;
+const ensureHydrated = () => (_hydrated ||= hydrateLibrary().catch(() => 0));
+
+self.onmessage = async (e) => {
   const { id, heroFreqs, villFreqs, board, heroClassKey, opts } = e.data || {};
   try {
+    await ensureHydrated();
+    const t0 = (self.performance || Date).now();
     const out = solveMultiStreet(heroFreqs, villFreqs, board, opts || {});
+    const solveMs = Math.round((self.performance || Date).now() - t0);
     if (!out || !out.result || !out.result.tree) {
       self.postMessage({ id, ok: false, reason: "no-solution" });
       return;
@@ -67,6 +79,10 @@ self.onmessage = (e) => {
       abstraction: out.abstraction || null,
       source: out.source,
       experimental: out.experimental !== false,
+      // Le solve venait-il de la bibliothèque (mémoire ou disque) ? Sert à vérifier la
+      // persistance et à distinguer « recalculé » de « rechargé » côté UI.
+      fromLibrary: !!out.fromLibrary,
+      solveMs,
     });
   } catch (err) {
     self.postMessage({ id, ok: false, reason: "error", message: String((err && err.message) || err) });
