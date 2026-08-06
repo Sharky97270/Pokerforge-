@@ -404,11 +404,13 @@ const WEB_FEEDBACK_XY_BY_COUNT = {
      • TOP FENDU (3,5,7,9 — pas de siège central, interstice x≈44-56 en haut) → on
        loge le macaron dans ce couloir central, au-dessus du pot (y14<28). Zone libre
        vérifiée en 9-max.
-     • 8 (dense, siège haut-centre + siège haut-droite) : pas d'interstice ≥6% propre
-       → repli épaule extérieure droite (best-effort, hors périmètre de vérif 2/6/9). */
+     • 8 (dense : siège haut-centre x44-56 ET siège haut-droite x71-83) → couloir
+       DIAGONAL entre les deux (x≈56-71, au-dessus de y21). Mesuré en live : macaron
+       x60-66/y9-19, dégagé des deux sièges. (Une 1re valeur best-effort {x:78,y:24}
+       tombait en plein sur le siège haut-droite — corrigée après mesure.) */
   2: { x: 64, y: 24 }, 3: { x: 50, y: 14 }, 4: { x: 64, y: 24 },
   5: { x: 50, y: 14 }, 6: { x: 64, y: 24 }, 7: { x: 50, y: 14 },
-  8: { x: 78, y: 24 }, 9: { x: 50, y: 14 },
+  8: { x: 63, y: 14 }, 9: { x: 50, y: 14 },
 };
 const MOBILE_FEEDBACK_XY = { x: 70, y: 20 };
 function feedbackPointFor(seatCount, isMobile=false){
@@ -3093,14 +3095,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // ou heuristique (template). Honnêteté : ne jamais présenter une heuristique
     // comme un résultat GTO calculé.
     const cfrExp=spot.strategyProvenance==="cfr-experimental";
+    const isChart=spot.strategySource==="chart";
     const solved=spot.strategySource==="solver";
-    const badgeCol=cfrExp?"#20CFFF":solved?"#10D87A":T.text4;
+    const badgeCol=isChart?"#FFB020":cfrExp?"#20CFFF":solved?"#10D87A":T.text4;
     const provBadge=spot.strategySource?(
       <span title={spot.strategyNote||(solved?"Solution calculée par le solveur":"Solution heuristique (template)")}
         style={{fontFamily:T.stats,fontSize:8,fontWeight:800,letterSpacing:".04em",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",
-          color:badgeCol,background:cfrExp?"rgba(32,207,255,.12)":solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
-          border:`1px solid ${cfrExp?"rgba(32,207,255,.35)":solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-        {cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
+          color:badgeCol,background:isChart?"rgba(255,176,32,.12)":cfrExp?"rgba(32,207,255,.12)":solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+          border:`1px solid ${isChart?"rgba(255,176,32,.35)":cfrExp?"rgba(32,207,255,.35)":solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+        {isChart?"📊 Chart":cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
       </span>
     ):null;
     return(
@@ -3604,12 +3607,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 {/* Provenance (§2/§28) : d'où vient la solution ? */}
                 {spot.strategySource&&(()=>{
                   const cfrExp=spot.strategyProvenance==="cfr-experimental", sv=spot.strategySource==="solver";
-                  const col=cfrExp?"#20CFFF":sv?"#10D87A":T.text4;
+                  const ch=spot.strategySource==="chart";
+                  const col=ch?"#FFB020":cfrExp?"#20CFFF":sv?"#10D87A":T.text4;
                   return(
                   <span title={spot.strategyNote||""} style={{fontFamily:T.stats,fontSize:7.5,fontWeight:800,letterSpacing:".03em",padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
-                    color:col,background:cfrExp?"rgba(32,207,255,.12)":sv?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
-                    border:`1px solid ${cfrExp?"rgba(32,207,255,.35)":sv?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-                    {cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
+                    color:col,background:ch?"rgba(255,176,32,.12)":cfrExp?"rgba(32,207,255,.12)":sv?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+                    border:`1px solid ${ch?"rgba(255,176,32,.35)":cfrExp?"rgba(32,207,255,.35)":sv?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+                    {ch?"📊 Chart":cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
                   </span>);
                 })()}
               </div>
@@ -6564,15 +6568,17 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   postflop EXPÉRIMENTAL (ranges heuristiques) · ou heuristique template. */}
               {s.strategySource&&(()=>{
                 const cfr=s.strategyProvenance==="cfr-experimental";
+                const chart=s.strategySource==="chart";
                 const solver=s.strategySource==="solver";
-                const col=cfr?"#20CFFF":solver?"#10D87A":T.text3;
-                const dim=cfr?"rgba(32,207,255,.1)":solver?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)";
-                const bd=cfr?"rgba(32,207,255,.3)":solver?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)";
-                const label=cfr?"SOLUTION CFR POSTFLOP — expérimental (ranges heuristiques)"
+                const col=chart?"#FFB020":cfr?"#20CFFF":solver?"#10D87A":T.text3;
+                const dim=chart?"rgba(255,176,32,.1)":cfr?"rgba(32,207,255,.1)":solver?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)";
+                const bd=chart?"rgba(255,176,32,.3)":cfr?"rgba(32,207,255,.3)":solver?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)";
+                const label=chart?"CHART PRÉFLOP — fréquences lues (non calculées ici)"
+                  :cfr?"SOLUTION CFR POSTFLOP — expérimental (ranges heuristiques)"
                   :solver?"SOLUTION SOLVEUR — calcul exact":"SOLUTION HEURISTIQUE — template";
                 return(
                   <div title={s.strategyNote||""} style={{display:"flex",alignItems:"center",gap:6,margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,background:dim,border:`1px solid ${bd}`}}>
-                    <span style={{fontSize:11}}>{solver?"🦈":"≈"}</span>
+                    <span style={{fontSize:11}}>{chart?"📊":solver?"🦈":"≈"}</span>
                     <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:col}}>{label}</span>
                   </div>
                 );
