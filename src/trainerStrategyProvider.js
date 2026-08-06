@@ -19,6 +19,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { solvePreflopPushFold } from "./solver/api.js";
+import { lookupPreflopChart } from "./solver/preflopCharts.js";
 
 const RANKS = "23456789TJQKA";
 const rIdx = (r) => RANKS.indexOf(r);
@@ -62,12 +63,70 @@ export function isSolvablePushFold(spot) {
   return hasFold && acts.some(isAggAct);                       // Héro jam (SB jam)
 }
 
+/* Catégorie de spot préflop → action de chart. Les `cat` du générateur sont
+   "RFI" / "Vs Open" / "Vs 3-bet" / "Vs 4-bet". */
+const CAT_TO_CHART_ACTION = {
+  "rfi": "rfi", "open raise": "rfi",
+  "vs open": "vs_open", "défense bb": "vs_open", "defense bb": "vs_open",
+  "vs 3-bet": "vs_3bet", "vs 3bet": "vs_3bet",
+  "vs 4-bet": "vs_4bet", "vs 4bet": "vs_4bet",
+};
+
+/* Tente de résoudre un spot PRÉFLOP depuis un chart embarqué. Retourne null si aucun
+   chart ne couvre ce spot — null = « on ne sait pas », l'appelant retombe alors sur
+   l'heuristique. On ne devine jamais une fréquence.
+   Provenance "chart" : ces nombres sont LUS, pas calculés ici (§2). */
+export function resolveFromChart(spot, opts = {}) {
+  if (!spot) return null;
+  if (!/^pre/i.test(spot.street || "Preflop")) return null;        // charts = préflop
+  const action = CAT_TO_CHART_ACTION[String(spot.cat || "").toLowerCase().trim()];
+  if (!action) return null;
+  const handKey = handNotation(spot.hand);
+  if (!handKey) return null;
+  const hit = (opts.lookup || lookupPreflopChart)({
+    heroPos: spot.hpos, vsPos: spot.vpos, action,
+    stackBb: parseStackBb(spot.stack), handKey, format: opts.format,
+  });
+  if (!hit) return null;
+
+  const acts = Array.isArray(spot.acts) ? spot.acts : [];
+  const aggIdx = acts.findIndex(a => isAggAct(a) || /open|raise|relanc|bet|3-?bet|4-?bet/i.test(`${a?.id || ""} ${a?.l || ""}`));
+  const callIdx = acts.findIndex(isCallAct);
+  const foldIdx = acts.findIndex(isFoldAct);
+  if (aggIdx < 0 && callIdx < 0) return null;                      // rien à mapper
+
+  const freq = {};
+  for (const a of acts) if (a?.id) freq[a.id] = 0;
+  const put = (i, v) => { if (i >= 0 && acts[i]?.id) freq[acts[i].id] = Math.round(v * 10) / 10; };
+  put(aggIdx, hit.freqs.r);
+  put(callIdx, hit.freqs.c);
+  put(foldIdx, hit.freqs.f);
+
+  let okIdx = -1, best = -1;
+  acts.forEach((a, i) => { const v = a?.id ? (freq[a.id] || 0) : 0; if (v > best) { best = v; okIdx = i; } });
+
+  const approx = hit.exactStack ? "" : ` (chart ${hit.stackUsed}bb appliqué à ${parseStackBb(spot.stack)}bb)`;
+  return {
+    solved: true, ok: okIdx, freq,
+    source: "chart", provenance: "preflop-chart",
+    note: `Chart préflop « ${hit.chartLabel} » — ${handKey}${approx}. Source : ${hit.attribution}. Fréquences LUES, non calculées ici.`,
+    meta: { engine: "chart", chartId: hit.chartId, attribution: hit.attribution,
+            stackUsed: hit.stackUsed, exactStack: hit.exactStack, handKey },
+  };
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
-   resolveSpotStrategy — solution du spot. Solveur si résoluble, sinon heuristique.
+   resolveSpotStrategy — solution du spot. Solveur si résoluble, sinon chart, sinon
+   heuristique.
    ────────────────────────────────────────────────────────────────────────── */
 export function resolveSpotStrategy(spot, opts = {}) {
   const acts = Array.isArray(spot?.acts) ? spot.acts : [];
   if (!isSolvablePushFold(spot)) {
+    // Pas solvable en interne → un CHART préflop peut prendre le relais s'il en existe
+    // un pour ce spot. Aucun chart n'est livré avec l'app : sans données chargées, ceci
+    // renvoie null et on retombe sur l'heuristique (comportement historique).
+    const chart = resolveFromChart(spot, opts);
+    if (chart) return chart;
     return { solved: false, source: "heuristic", provenance: "template",
       ok: spot?.ok, freq: spot?.freq, note: "Solution du template (non solvée en interne).", meta: null };
   }
