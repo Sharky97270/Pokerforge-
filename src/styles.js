@@ -242,7 +242,10 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    haut-droite, TABLE 3 bas-centrée à la MÊME largeur que les deux du haut.
    T3 s'étend sur les 2 colonnes mais sa largeur est bornée à UNE colonne
    (width = (spanned - gap)/2) puis centrée (justify-self) → jamais étirée. */
-.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:20px 24px;padding:10px 16px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
+/* Gouttières resserrées (20/10 → 10/6 en vertical) : sur un écran 1600×1000, ces
+   ~24px rendus aux cellules valent ~18px de feutre par table — de quoi loger le
+   pot ET le board entre le siège du haut et les cartes du Hero. */
+.grid3{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:10px 24px;padding:6px 16px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
 .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
 .grid3>.mt-slot:nth-child(2){grid-column:2;grid-row:1;}
 .grid3>.mt-slot:nth-child(3){grid-column:1 / span 2;grid-row:2;justify-self:center;width:calc((100% - 24px)/2);}
@@ -257,14 +260,10 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid4>.mt-slot{height:100%;max-height:100%;max-width:none;width:100%;}
 /* MOSAÏQUE : TABLE 3 a désormais la MÊME cellule (1 colonne × 1 rangée) que
    T1/T2 → même ratio, plus d'override d'aplatissement (l'ancienne 500×164 servait
-   la disposition 3-en-ligne, supprimée). */
-/* Table basse très plate : clusters de sièges réduits (script §4 : éléments plus
-   petits en bas) — sinon nameplates des sièges hauts et cartes des sièges bas se
-   rejoignent au centre. Compensation héros : .82×.85 ≈ .7 (identique aux tables hautes). */
-.grid3>.mt-slot:nth-child(3) .pf-mt-seat{zoom:1;}
-.grid3>.mt-slot:nth-child(3) .pf-mt-seat .hero-card-wrap{zoom:1;}
-/* Pot réduit sur la table basse : à (50,29) il effleurait le board sur l'ovale plat */
-.grid3>.mt-slot:nth-child(3) .pf-pot-readout{zoom:1;}
+   la disposition 3-en-ligne, supprimée). Plus d'échelle spécifique non plus :
+   elle suit les règles communes .grid3 (grappes de sièges, board, pot). Les
+   anciens zoom:1 laissés ici l'exemptaient en fait du barème commun
+   (spécificité plus forte) et la table basse restait surchargée. */
 .grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
 @media(max-width:1280px){
   /* Étroit (§5) : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
@@ -374,6 +373,13 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3 .pf-mt-seat .hero-card-wrap,
 .grid4 .pf-mt-seat .hero-card-wrap{zoom:1;}
 .mt-board-zone{zoom:.72;}/* minimum readable board across 2T/3T/4T */
+/* Le couloir libre entre le bas des sièges hauts et le haut de la grappe Hero ne
+   fait que ~50 à 80px selon le mode. Un board à .72 le débordait et passait sous
+   les cartes du Hero — d'où les cartes « empilées » au centre. On le calibre par
+   mode, en gardant les rangs lisibles. */
+.grid2 .mt-board-zone{zoom:.60;}
+.grid3 .mt-board-zone{zoom:.60;}
+.grid4 .mt-board-zone{zoom:.62;}
 /* Badges de mise 2T : jetons AU-DESSUS du libellé (vertical, comme la maquette)
    → badge étroit qui tient dans le couloir board ↔ nameplate. 3T/4T restent
    horizontaux (zones plus petites : un badge haut y percute blindes/pot). */
@@ -391,12 +397,23 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
 .grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
-/* 4T dé-aplati : zone 2.58 (feutre ~2.87, trop plat) → 1.71 (feutre ~1.9), même
-   famille que le 3T. La place vient des actions sur 1 ligne + doublon Hero retiré. */
-.grid4 .training-table-zone{aspect-ratio:1.92!important;}
-/* 3T : feutre légèrement aplati pour laisser tenir le bandeau complet (sizing +
-   stepper) sans rogner. §6. */
-.grid3 .training-table-zone{aspect-ratio:1.88!important;}
+/* ZONE DE TABLE MULTI — remplit la cellule, ratio BORNÉ (pas figé).
+   Les bornes --pf-zone-ar-min/max sont posées par le Trainer sur .mt-zone-fit
+   (dérivées de l'ovale cible du mode + des marges de géométrie).
+   • cellule dans la fourchette  → la zone la remplit exactement (plus de vide) ;
+   • cellule trop haute (2T)     → hauteur = largeur / arMin, table centrée ;
+   • cellule trop basse (3T/4T)  → largeur = hauteur × arMax, ovale jamais écrasé.
+   Un ratio FIGÉ piloté par la largeur laissait ~370px de vide en 2T et écrasait
+   l'ovale à ~163px en 3T/4T (grappes de sièges ~117px → chevauchements). */
+.grid2 .mt-zone-fit,.grid3 .mt-zone-fit,.grid4 .mt-zone-fit{
+  flex:1 1 auto;min-width:0;min-height:0;container-type:size;
+  display:flex;align-items:center;justify-content:center;padding-top:2px;
+}
+.grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{
+  flex:0 0 auto;
+  width:min(100cqw,calc(100cqh * var(--pf-zone-ar-max,1.6)));
+  height:min(100cqh,calc(100cqw / var(--pf-zone-ar-min,1.15)));
+}
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
@@ -407,6 +424,40 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    position+stack, pot value (gras) et label. */
 .grid3 .pf-mt-nameplate{font-size:10px!important;}
 .grid4 .pf-mt-nameplate{font-size:9px!important;}
+/* GRAPPE DE SIÈGE COMPACTE MULTI (anti-chevauchement, sans rapetisser le texte).
+   Sur un ovale multi-table, l'écart vertical entre deux sièges voisins du même
+   côté vaut ~0.9 × son demi-axe (≈90px en 3T/4T) et le couloir central libre
+   entre le bas du siège haut et le haut de la grappe Hero doit encore loger le
+   pot ET le board. Or la grappe empilée (cartes + avatar + plaque sur 2 lignes +
+   pastille Fold) mesurait ~118px en 3T et ~137px en 2T → sièges qui se
+   recouvraient, board qui passait sous les cartes du Hero.
+   On récupère d'abord la hauteur sur la STRUCTURE, pas sur la taille des polices :
+   plaque sur UNE ligne (−11px) et pastille Fold/In pot sortie du flux (−12px). */
+.grid2 .pf-mt-nameplate,.grid3 .pf-mt-nameplate,.grid4 .pf-mt-nameplate{
+  flex-direction:row!important;align-items:baseline!important;gap:5px!important;
+  padding:2px 6px!important;
+}
+.grid2 .pf-mt-seat .pf-fold-chip,.grid2 .pf-mt-seat .pf-multiway-chip,
+.grid3 .pf-mt-seat .pf-fold-chip,.grid3 .pf-mt-seat .pf-multiway-chip,
+.grid4 .pf-mt-seat .pf-fold-chip,.grid4 .pf-mt-seat .pf-multiway-chip{
+  position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
+  margin-top:0!important;white-space:nowrap;
+}
+/* Puis un dernier cran de mise à l'échelle (zoom : il préserve le centre du siège,
+   donc les ancres mises/blindes/dealer restent calées sur l'anneau). */
+.grid2 .pf-mt-seat{zoom:.95;}
+.grid3 .pf-mt-seat{zoom:.78;}
+.grid4 .pf-mt-seat{zoom:.86;}
+/* Écrans étroits : la mosaïque garde le même nombre de colonnes, mais chaque
+   cellule perd ~110px de large et autant de feutre. Un cran de plus sur les
+   grappes ET sur le board (mesuré : sans ça, en 1440×900, les cartes du board
+   touchent les sièges latéraux et le Hero). */
+@media(max-width:1560px){
+  .grid2 .pf-mt-seat{zoom:.87;}
+  .grid3 .pf-mt-seat{zoom:.74;}
+  .grid2 .mt-board-zone{zoom:.52;}
+  .grid3 .mt-board-zone,.grid4 .mt-board-zone{zoom:.52;}
+}
 .grid3 .pf-pot-value,.grid4 .pf-pot-value{font-size:15px!important;font-weight:800!important;}
 .grid3 .pf-pot-label,.grid4 .pf-pot-label{font-size:8px!important;}
 /* Blindes + mises un peu plus grandes aussi. */
@@ -416,14 +467,17 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* POT COMPACT MULTI (comme le 1T) : sinon la pile de jetons rend le pot très
    HAUT (~54px = 26% du feutre court) et il chevauche le siège du haut ET le board.
    Ligne unique [jetons] POT xx bb, hauteur fixe. */
-.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
+.grid2 .pf-pot-readout,.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
   flex-direction:row!important;align-items:center!important;gap:4px!important;
   white-space:nowrap!important;height:20px!important;
 }
 /* Pile de jetons masquée dans le pot multi : sur petites tables elle encombrait le
    centre et son empreinte chevauchait la plaque du siège haut-centre. Le pot reste
-   « POT xx bb » (texte), comme la maquette. */
-.grid3 .pf-pot-chip-stack,.grid4 .pf-pot-chip-stack{display:none!important;}
+   « POT xx bb » (texte), comme la maquette.
+   Étendu au 2T : la pile y faisait 53px de haut, à elle seule plus que le couloir
+   libre entre le siège du haut et les cartes du Hero (mesuré) — c'est elle qui
+   poussait le board sous la main du Hero. */
+.grid2 .pf-pot-chip-stack,.grid3 .pf-pot-chip-stack,.grid4 .pf-pot-chip-stack{display:none!important;}
 /* Avatars multi 3T/4T réduits (trop gros → bloc siège trop haut sur feutre court,
    d'où les chevauchements pot/siège). §2/§7 de la maquette. */
 .grid4 .pf-avatar-premium{width:34px!important;height:34px!important;}
