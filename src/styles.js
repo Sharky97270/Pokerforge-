@@ -272,6 +272,24 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   .grid3>.mt-slot:nth-child(2){grid-column:1;grid-row:2;}
   .grid3>.mt-slot:nth-child(3){grid-column:1;grid-row:3;justify-self:stretch;width:100%;}
 }
+/* ÉCRAN COURT (≈768px de haut) — MOSAÏQUE SUR UNE SEULE RANGÉE.
+   En 2 rangées, chaque cellule ne fait plus que ~325px de haut ; une fois le
+   titre, les streets et le bandeau de décision servis, il reste ~150px pour la
+   zone de table → feutre de ~116px, plus court que les grappes de sièges.
+   Sur une rangée, la cellule reprend TOUTE la hauteur (~670px) : la largeur
+   devient la contrainte, et le ratio borné produit un ovale utilisable
+   (3T ≈ 319×227 · 4T ≈ 237×164) au lieu d'une galette de 116px.
+   Se combine avec le repli automatique des panneaux (cf. TrainerTab), qui rend
+   ~490px de large à la mosaïque sur ces écrans. */
+/* Déclaré APRÈS le bloc max-width:1280px : sur un écran court, la rangée unique
+   prime sur l'empilement en colonne (qui donnerait des cellules encore plus basses). */
+@media(min-width:1000px) and (max-height:830px){
+  .grid3{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:6px 8px;}
+  .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
+  .grid3>.mt-slot:nth-child(2){grid-column:2;grid-row:1;}
+  .grid3>.mt-slot:nth-child(3){grid-column:3;grid-row:1;justify-self:stretch;width:100%;}
+  .grid4{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:6px 8px;}
+}
 .grid6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:5px;align-items:start;}
 .grid8{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;align-items:start;}
 .mt-slot{position:relative;min-width:0;}
@@ -500,8 +518,26 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .mtr-actions-multi .gto-btn-inner{padding:4px 4px 3px!important;}
 .grid4 .mtr-actions-multi .gto-btn-inner{padding:3px 3px 2px!important;}
 /* Colonne droite partagée multi-table : panneau V2 lisible (renderMultiPanel) */
-.pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;}
+.pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;
+  transition:flex-basis 260ms cubic-bezier(.4,0,.2,1),width 260ms cubic-bezier(.4,0,.2,1);}
 .pf-mt-sharedcol>.t1-right{flex:1 1 auto!important;width:100%!important;}
+/* Escamotable : les 320px rendus à la mosaïque font la différence entre une
+   table jouable et des grappes de sièges qui se percutent sur écran étroit.
+   Replié automatiquement en multi-table sous 1450px (cf. TrainerTab), et
+   toujours rouvrable par la poignée. */
+.pf-mt-sharedcol.hidden{flex-basis:0;width:0;}
+.pf-mt-playrow{position:relative;}
+.pf-mt-panel-toggle{
+  position:absolute;top:50%;right:314px;transform:translateY(-50%);
+  width:22px;height:44px;border-radius:7px 0 0 7px;
+  background:linear-gradient(135deg,#1F8BFF,#0B2F77);border:1px solid #1A3A80;border-right:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#DCEBFF;cursor:pointer;z-index:30;
+  box-shadow:-2px 0 10px rgba(0,0,0,.45);
+  transition:right 260ms cubic-bezier(.4,0,.2,1),filter .15s;
+}
+.pf-mt-panel-toggle:hover{filter:brightness(1.18);}
+.pf-mt-panel-toggle.off{right:0;border-radius:7px 0 0 7px;}
 
 /* ══ PANNEAU DROIT MULTI-TABLE V2 — refonte lisibilité ══ */
 .pf-p2{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:12px;overflow-y:auto;overflow-x:hidden;

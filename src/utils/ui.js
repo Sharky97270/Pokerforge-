@@ -4,17 +4,23 @@ import { useState, useEffect } from "react";
 /* ═══════════════════════════════════════════════════════
    MOBILE CORE v9 — détection, haptics, préférences
 ════════════════════════════════════════════════════════ */
-export function useIsMobile(bp=768){
+/* Vrai tant que le viewport est au plus large de `bp`. Sert au mobile (768) mais
+   aussi aux seuils de mise en page desktop (ex. repli des panneaux du Trainer). */
+export function useMaxWidth(bp){
   const get=()=>typeof window!=="undefined"&&window.matchMedia&&window.matchMedia(`(max-width:${bp}px)`).matches;
   const[m,setM]=useState(get);
   useEffect(()=>{
     if(typeof window==="undefined"||!window.matchMedia)return;
     const mq=window.matchMedia(`(max-width:${bp}px)`);
     const h=e=>setM(e.matches);
+    setM(mq.matches);
     if(mq.addEventListener)mq.addEventListener("change",h);else mq.addListener(h);
     return()=>{if(mq.removeEventListener)mq.removeEventListener("change",h);else mq.removeListener(h);};
   },[bp]);
   return m;
+}
+export function useIsMobile(bp=768){
+  return useMaxWidth(bp);
 }
 /* Vibrations — désactivables dans Paramètres (pf_haptics="off") */
 export function hapticsEnabled(){try{return localStorage.getItem("pf_haptics")!=="off";}catch{return true;}}

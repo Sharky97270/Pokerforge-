@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { T } from "../theme.js";
-import { useIsMobile, vibrate, VIB } from "../utils/ui.js";
+import { useIsMobile, useMaxWidth, vibrate, VIB } from "../utils/ui.js";
 import { roundBb, shuffle } from "../utils/format.js";
 import { loadStats, saveStats, saveStatsSafe, loadHistory } from "../stats.js";
 import { SPOTS, POKER_EVENTS, POSITIONS_BY_SIZE } from "../data/content.js";
@@ -5004,8 +5004,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         // Ovale cible (script V1) 2T 400×310 · 3T 398×205 · 4T 398×210, assorti d'une
         // tolérance : c'est la cellule qui décide, l'ovale reste dans sa famille.
         const [ovalMin,ovalMax]=numTables===2?[400/345,400/258]
-          :numTables===3?[398/284,398/204]
-          :[398/274,398/222];
+          :numTables===3?[398/300,398/204]
+          :[398/310,398/222];
         // Marges de géométrie : ratio d'OVALE → ratio de ZONE.
         const k=(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
         return{"--pf-zone-ar-min":(ovalMin*k).toFixed(4),"--pf-zone-ar-max":(ovalMax*k).toFixed(4)};
@@ -5882,6 +5882,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setCollapsed(next);
     try{localStorage.setItem("pf_sidebar_collapsed",String(next));}catch{}
   }
+  /* ── Panneau droit partagé (multi-table) : escamotable ──
+     Le multi-table vit entre deux colonnes fixes : filtres (228px) et panneau
+     droit (320px). Sous ~1450px de large, ce qui reste pour la mosaïque tombe
+     sous ~300px par table : le feutre n'a plus la place et les grappes de
+     sièges se percutent. On replie donc les DEUX à l'entrée en session multi
+     sur écran étroit — sans toucher à la préférence enregistrée, et sans
+     empêcher de les rouvrir à la main juste après. */
+  const[panelHidden,setPanelHidden]=useState(false);
+  const narrowStage=useMaxWidth(1450);
   const[showSol,setShowSol]=useState(false);
   const[started,setStarted]=useState(false);
   const[done,setDone]=useState(false);
@@ -5924,6 +5933,25 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   },[mobileTrainingSingleTableOnly,ntables]);
   // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
   useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
+  /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
+     table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
+     pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
+     possible. À la sortie du multi (ou en fenêtre large), le panneau droit
+     revient et la sidebar retrouve sa préférence enregistrée. */
+  const autoFoldedRef=useRef(false);
+  useEffect(()=>{
+    if(isMobile)return;
+    const shouldFold=narrowStage&&started&&!done&&ntables>1;
+    if(shouldFold&&!autoFoldedRef.current){
+      autoFoldedRef.current=true;
+      setCollapsed(true);      // volontairement NON persisté (pas de setItem)
+      setPanelHidden(true);
+    }else if(!shouldFold&&autoFoldedRef.current){
+      autoFoldedRef.current=false;
+      setPanelHidden(false);
+      try{setCollapsed(localStorage.getItem("pf_sidebar_collapsed")==="true");}catch{setCollapsed(false);}
+    }
+  },[narrowStage,started,done,ntables,isMobile]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   /* ── SOURCE UNIQUE DE VÉRITÉ (Mission Master §3) ──
      Assemble le TrainingConfig canonique à partir de `f` + des states frères.
@@ -7318,7 +7346,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           </div>{/* ── fin gridRef (playground) ── */}
           {/* ══ COLONNE DROITE PARTAGÉE — reçoit le VRAI panneau 1T de la table active (portal) ══ */}
-          {!isMobile&&<div className="pf-mt-sharedcol">{renderMultiPanel()}</div>}
+          {!isMobile&&(
+            <>
+              <div className={`pf-mt-panel-toggle${panelHidden?" off":""}`}
+                title={panelHidden?"Afficher le panneau d'analyse":"Masquer le panneau d'analyse"}
+                onClick={()=>setPanelHidden(v=>!v)}>{panelHidden?"◀":"▶"}</div>
+              <div className={`pf-mt-sharedcol${panelHidden?" hidden":""}`} aria-hidden={panelHidden}>{renderMultiPanel()}</div>
+            </>
+          )}
           </div>
         )}
         {/* Reset zoom (pincement) */}
