@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { T } from "../theme.js";
-import { useIsMobile, vibrate, VIB } from "../utils/ui.js";
+import { useIsMobile, useMaxWidth, vibrate, VIB } from "../utils/ui.js";
 import { roundBb, shuffle } from "../utils/format.js";
 import { loadStats, saveStats, saveStatsSafe, loadHistory } from "../stats.js";
 import { SPOTS, POKER_EVENTS, POSITIONS_BY_SIZE } from "../data/content.js";
@@ -4987,25 +4987,30 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         )}
       </div>
 
-      {/* ── ZONE TABLE — calibrée sur les dimensions du script multi-table V1 :
-           ovale 2T 400×310 · 3T haut 398×205 (bas 500×164 via CSS) · 4T 398×176.
-           Hauteur = espace disponible, largeur dérivée du ratio (proportions maquette
-           conservées à toute résolution). Mobile : aspect-ratio en padding (inchangé). ── */}
-      <div className="mt-zone-fit" style={isMobile?undefined:{flex:"0 0 auto",width:"100%",display:"flex",justifyContent:"center",paddingTop:2}}>
-      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:(()=>{
-        // Ratio de zone dérivé du ratio d'OVALE cible (script V1) corrigé des marges
-        // de la géométrie : ovale 2T 400×310 · 3T haut 398×205 · 4T 398×176.
+      {/* ── ZONE TABLE — multi-table : la zone REMPLIT la cellule de mosaïque, dans une
+           FOURCHETTE de proportions d'ovale (§ mosaïque).
+
+           Un aspect-ratio FIGÉ piloté par la largeur produisait deux défauts opposés :
+           • 2T (cellule très haute) → ovale calculé sur la largeur, ~370px de vide
+             sous le bandeau d'actions ;
+           • 3T/4T (cellules basses) → ovale écrasé (h ≈ 163px) alors que les grappes
+             de sièges font ~117px : sièges voisins et board se chevauchaient.
+           On borne donc le ratio au lieu de le figer : la zone prend toute la place
+           disponible tant que l'ovale reste entre `arMin` (le plus haut admis) et
+           `arMax` (le plus plat admis) — cf. .mt-zone-fit / .training-table-zone.
+           Mobile : aspect-ratio en padding (inchangé). ── */}
+      <div className="mt-zone-fit" style={isMobile?undefined:(()=>{
         const g=trainingLayout.tableGeometry;
-        // 4T dé-aplati : 398/176 (≈2.26, trop plat) → 398/210 (≈1.9), même famille
-        // de ratio que le 3T. La place vient des actions compactées (1 ligne) et du
-        // doublon "main Hero" retiré ci-dessous.
-        const ovalAR=numTables===2?400/310:numTables===3?398/205:398/210;
-        const zoneAR=ovalAR*(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
-        // Piloté par la LARGEUR de cellule (stable quel que soit le contenu des
-        // actions) → le ratio d'ovale est identique sur toutes les tables du mode
-        // et à toute résolution (le viewport épouse la hauteur naturelle).
-        return{width:"100%",height:"auto",aspectRatio:String(zoneAR.toFixed(4)),flexShrink:0};
+        // Ovale cible (script V1) 2T 400×310 · 3T 398×205 · 4T 398×210, assorti d'une
+        // tolérance : c'est la cellule qui décide, l'ovale reste dans sa famille.
+        const [ovalMin,ovalMax]=numTables===2?[400/345,400/258]
+          :numTables===3?[398/300,398/204]
+          :[398/310,398/222];
+        // Marges de géométrie : ratio d'OVALE → ratio de ZONE.
+        const k=(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
+        return{"--pf-zone-ar-min":(ovalMin*k).toFixed(4),"--pf-zone-ar-max":(ovalMax*k).toFixed(4)};
       })()}>
+      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:undefined}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
@@ -5038,9 +5043,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             // Multi : le feutre est plus court → on ESPACE davantage pot et board
             // (pot un poil plus bas pour dégager le siège du haut, board nettement
             // plus bas pour la marge de 16px demandée par la maquette §5/§11).
-            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+11;
+            // 3T/4T : le couloir central (bas du siège haut → haut de la grappe Hero)
+            // est trop court pour descendre le board de +13 comme en 2T ; mesuré, il
+            // finissait SOUS les cartes du Hero. On le remonte donc au ras du pot.
+            const tight=numTables>=3;
+            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+(tight?9:11);
             const potYpre=(WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y)+12;
-            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+13;
+            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+(tight?7:9);
             return(
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
@@ -5164,9 +5173,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
+          // Sièges bas (dont le Hero) : la grappe est ancrée plus BAS sur l'anneau
+          // (-48% → -36%). C'est elle qui plafonnait le board — les cartes du Hero
+          // remontaient jusqu'au milieu du feutre et le board finissait dessous.
+          // Le bloc reste dans la zone (overflow visible) et sous l'anneau doré.
           const mtSeatTransform=isMobile
             ?(isTopSeatMt?"translate(-50%,-27%)":isBottomSeatMt?"translate(-50%,-55%)":"translate(-50%,-50%)")
-            :isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-48%)":"translate(-50%,-50%)";
+            :isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-36%)":"translate(-50%,-50%)";
           const mtHeroCardSize=isTopSeatMt?(numTables===2?"md":numTables===3?"smp":"sm"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
@@ -5183,10 +5196,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               )}
 
               {/* Chip principal — HERO premium */}
+              {/* Multi-table : le halo ne garde que 2px de marge sous/sur l'avatar (au
+                  lieu de 10/12). Sur un ovale court, ces ~10px de vide par siège
+                  suffisaient à faire mordre les grappes voisines sur l'anneau. */}
               <div
                 className={isH?(isActive?"seat-active-hero seat-hero-halo":"seat-hero-halo"):""}
                 style={{
-                  width:isH?sz+12:sz+10,height:isH?sz+12:sz+10,borderRadius:"50%",
+                  width:isH?sz+12:sz+10,height:sz+2,borderRadius:"50%",
                   background:"transparent",
                   border:0,
                   boxShadow:"none",
@@ -5866,6 +5882,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setCollapsed(next);
     try{localStorage.setItem("pf_sidebar_collapsed",String(next));}catch{}
   }
+  /* ── Panneau droit partagé (multi-table) : escamotable ──
+     Le multi-table vit entre deux colonnes fixes : filtres (228px) et panneau
+     droit (320px). Sous ~1450px de large, ce qui reste pour la mosaïque tombe
+     sous ~300px par table : le feutre n'a plus la place et les grappes de
+     sièges se percutent. On replie donc les DEUX à l'entrée en session multi
+     sur écran étroit — sans toucher à la préférence enregistrée, et sans
+     empêcher de les rouvrir à la main juste après. */
+  const[panelHidden,setPanelHidden]=useState(false);
+  const narrowStage=useMaxWidth(1450);
   const[showSol,setShowSol]=useState(false);
   const[started,setStarted]=useState(false);
   const[done,setDone]=useState(false);
@@ -5908,6 +5933,25 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   },[mobileTrainingSingleTableOnly,ntables]);
   // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
   useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
+  /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
+     table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
+     pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
+     possible. À la sortie du multi (ou en fenêtre large), le panneau droit
+     revient et la sidebar retrouve sa préférence enregistrée. */
+  const autoFoldedRef=useRef(false);
+  useEffect(()=>{
+    if(isMobile)return;
+    const shouldFold=narrowStage&&started&&!done&&ntables>1;
+    if(shouldFold&&!autoFoldedRef.current){
+      autoFoldedRef.current=true;
+      setCollapsed(true);      // volontairement NON persisté (pas de setItem)
+      setPanelHidden(true);
+    }else if(!shouldFold&&autoFoldedRef.current){
+      autoFoldedRef.current=false;
+      setPanelHidden(false);
+      try{setCollapsed(localStorage.getItem("pf_sidebar_collapsed")==="true");}catch{setCollapsed(false);}
+    }
+  },[narrowStage,started,done,ntables,isMobile]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   /* ── SOURCE UNIQUE DE VÉRITÉ (Mission Master §3) ──
      Assemble le TrainingConfig canonique à partir de `f` + des states frères.
@@ -7302,7 +7346,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           </div>{/* ── fin gridRef (playground) ── */}
           {/* ══ COLONNE DROITE PARTAGÉE — reçoit le VRAI panneau 1T de la table active (portal) ══ */}
-          {!isMobile&&<div className="pf-mt-sharedcol">{renderMultiPanel()}</div>}
+          {!isMobile&&(
+            <>
+              <div className={`pf-mt-panel-toggle${panelHidden?" off":""}`}
+                title={panelHidden?"Afficher le panneau d'analyse":"Masquer le panneau d'analyse"}
+                onClick={()=>setPanelHidden(v=>!v)}>{panelHidden?"◀":"▶"}</div>
+              <div className={`pf-mt-sharedcol${panelHidden?" hidden":""}`} aria-hidden={panelHidden}>{renderMultiPanel()}</div>
+            </>
+          )}
           </div>
         )}
         {/* Reset zoom (pincement) */}
