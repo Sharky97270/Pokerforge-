@@ -88,7 +88,23 @@ export function computeEquity(heroList,villList,boardFixed=[],opts={}){
   const iters=opts.iters||2500;
   // Seed déterministe dérivé du spot (ou fourni) → équité stable & reproductible (§15).
   const seed=opts.seed!=null?opts.seed:seedFrom(heroList,villList,fixed);
-  return{equity:monteCarloEquity(heroList,villList,iters,fixed,seed),exact:false,samples:iters,seed};
+  /* §4 — la voie Monte-Carlo expose désormais son INCERTITUDE. Ajout STRICTEMENT
+     ADDITIF : `equity`, `exact`, `samples` et `seed` gardent exactement leur sens et
+     leur type ; les champs statistiques viennent en plus. Un appelant qui les ignore
+     ne voit aucune différence.
+     NB : `samples` reflète le nombre de tirages RÉELLEMENT effectués — il peut être
+     inférieur à `iters` si une précision cible a été atteinte plus tôt. */
+  const d=monteCarloEquityDetailed(heroList,villList,iters,fixed,seed,{
+    targetCIWidth:opts.targetCIWidth,checkEvery:opts.checkEvery,minSamples:opts.minSamples,
+  });
+  return{
+    equity:d.equity,exact:false,samples:d.samples,seed,
+    standardError:d.standardError,
+    confidenceInterval95:d.confidenceInterval95,
+    confidenceLevel:d.confidenceLevel,
+    stoppingReason:d.stoppingReason,
+    elapsedMs:d.elapsedMs,
+  };
 }
 
 /* ── PRÉCISION : équité NON ARRONDIE (0..100, flottant) ────────────────────────
@@ -113,13 +129,49 @@ export function computeEquity(heroList,villList,boardFixed=[],opts={}){
    primitive d'équité sait exprimer mieux que le point entier.
    board = cartes fixées (0..5 ints) → postflop sur texture réelle. */
 export function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[],seed=null){
-  if(!heroList||!villList||!heroList.length||!villList.length)return 50;
+  // Adaptateur : conserve le contrat historique (retourne un NOMBRE). Tous les
+  // appelants existants restent inchangés ; le détail statistique passe par
+  // monteCarloEquityDetailed.
+  return monteCarloEquityDetailed(heroList,villList,iters,boardFixed,seed).equity;
+}
+
+/* ── MONTE-CARLO INSTRUMENTÉ (§4) ─────────────────────────────────────────────
+   Même échantillonnage que ci-dessus, mais on accumule aussi la somme des carrés :
+   cela donne la variance, donc l'erreur standard, donc un INTERVALLE DE CONFIANCE.
+
+   Pourquoi c'est nécessaire : une équité Monte-Carlo sans intervalle ne dit pas à
+   quel point on sait. « 46,2 % » sur 200 tirages et « 46,2 % » sur 200 000 sont deux
+   affirmations très différentes, et rien ne les distinguait jusqu'ici.
+
+   Le tirage vaut 1 (gain), 0,5 (égalité) ou 0 (défaite) : la variance se calcule
+   directement, sans hypothèse supplémentaire. On applique la correction de Bessel
+   (n−1) car on estime la variance à partir de l'échantillon lui-même.
+
+   CRITÈRE D'ARRÊT : soit le plafond d'échantillons, soit une largeur d'intervalle
+   cible atteinte (`targetCIWidth`, en points). Le second permet de demander une
+   PRÉCISION plutôt qu'un budget — on s'arrête quand on sait assez.
+
+   @returns {{equity:number, samples:number, seed:(number|null), standardError:number,
+              confidenceInterval95:{lower:number,upper:number}, confidenceLevel:number,
+              stoppingReason:"sample_limit"|"precision_target"|"exhausted", elapsedMs:number}} */
+export function monteCarloEquityDetailed(heroList,villList,iters=2500,boardFixed=[],seed=null,opts={}){
+  const t0=Date.now();
+  const empty={equity:50,samples:0,seed,standardError:0,
+    confidenceInterval95:{lower:50,upper:50},confidenceLevel:0.95,
+    stoppingReason:"exhausted",elapsedMs:0};
+  if(!heroList||!villList||!heroList.length||!villList.length)return empty;
   const fixed=boardFixed||[];
   // rng seedé (reproductible) si seed fourni, sinon Math.random.
   const rng=seed==null?Math.random:mulberry32(seed>>>0);
   const hs=_buildSampler(heroList),vs=_buildSampler(villList);
   const used=new Uint8Array(52);
-  let score=0,n=0,guard=0;
+  /* Largeur d'IC visée (en points de %). null = pas de cible, on va au plafond.
+     On ne teste la cible que tous les `checkEvery` tirages : évaluer un critère
+     d'arrêt à chaque tirage coûterait plus cher que le tirage lui-même. */
+  const targetCIWidth=opts.targetCIWidth!=null?opts.targetCIWidth:null;
+  const checkEvery=opts.checkEvery||500;
+  const minSamples=opts.minSamples||200;   // en deçà, l'estimation de variance est trop instable
+  let score=0,sq=0,n=0,guard=0,stop="sample_limit";
   while(n<iters&&guard<iters*4){
     guard++;
     const h=_sample(hs,rng),v=_sample(vs,rng);
@@ -132,8 +184,33 @@ export function monteCarloEquity(heroList,villList,iters=2500,boardFixed=[],seed
     while(board.length<5){const c=(rng()*52)|0;if(!used[c]){used[c]=1;board.push(c);}}
     const hv=eval7i([h[0],h[1],board[0],board[1],board[2],board[3],board[4]]);
     const vv=eval7i([v[0],v[1],board[0],board[1],board[2],board[3],board[4]]);
-    if(hv>vv)score+=1;else if(hv===vv)score+=0.5;
+    const x=hv>vv?1:hv===vv?0.5:0;
+    score+=x;sq+=x*x;
     n++;
+    if(targetCIWidth!=null&&n>=minSamples&&n%checkEvery===0){
+      if(2*1.96*_sePct(score,sq,n)<=targetCIWidth){stop="precision_target";break;}
+    }
   }
-  return n?score/n*100:50;
+  if(!n)return {...empty,elapsedMs:Date.now()-t0};
+  if(n<iters&&stop==="sample_limit")stop="exhausted";   // garde-fou atteint
+  const equity=score/n*100;
+  const se=_sePct(score,sq,n);
+  const half=1.96*se;
+  return {
+    equity,samples:n,seed,
+    standardError:se,
+    confidenceInterval95:{lower:Math.max(0,equity-half),upper:Math.min(100,equity+half)},
+    confidenceLevel:0.95,
+    stoppingReason:stop,
+    elapsedMs:Date.now()-t0,
+  };
+}
+
+/* Erreur standard de la moyenne, en points de pourcentage.
+   var = (Σx² − n·moy²)/(n−1) puis SE = √(var/n). */
+function _sePct(score,sq,n){
+  if(n<2)return 0;
+  const mean=score/n;
+  const varSample=Math.max(0,(sq-n*mean*mean)/(n-1));
+  return 100*Math.sqrt(varSample/n);
 }
