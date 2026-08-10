@@ -15,7 +15,9 @@ import { ResultSource, RangeSource } from "./provenance.js";
 import { solvePushFold, pfExploitability, pfRangePct, pfToFreqs,
          PF_HANDS, PF_MATRIX_META } from "./core/pushfold.js";
 import PF_RANGES from "./data/pushfoldRanges.js";
-import { computeEquity as _equity, monteCarloEquity } from "./core/equity.js";
+import { computeEquity as _equity, monteCarloEquity, monteCarloEquityDetailed } from "./core/equity.js";
+// §5 — cadre théorique : ce que la théorie des jeux autorise à revendiquer.
+import { deriveEquilibriumScope, mayClaimNashApproximation } from "./certification/types.js";
 import { solveRiverCFR } from "./core/cfr.js";
 import { solveTree, nashConv } from "./core/multistreet.js";
 import { rangeComboList, reduceRange } from "./core/combos.js";
@@ -120,10 +122,27 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
         ? "mode PKO : la capture de prime brise la somme nulle, NashConv n'est pas interprétable"
         : "mode ICM : le jeu n'est pas à somme nulle, NashConv n'est pas interprétable")
     : "board incomplet — exploitabilité exacte indisponible (runouts échantillonnés)";
+  /* §5 — CADRE THÉORIQUE attaché au résultat. Additif : aucun champ existant ne change.
+     Objet : rendre STRUCTURELLEMENT impossible d'annoncer « équilibre de Nash » là où
+     la théorie ne le permet pas. `NashConv = brEV(H) + brEV(V)` est une identité qui
+     SUPPOSE la somme nulle ; à 3 joueurs sous ICM les jetons transférés déplacent
+     l'équité de joueurs absents du coup, et la métrique perd son sens.
+     Le nombre de joueurs vient des tapis de tournoi quand ils existent (ICM/PKO) ;
+     sinon le sous-jeu postflop est heads-up par construction. */
+  const _players=(opts.pko&&Array.isArray(opts.pko.stacks)&&opts.pko.stacks.length)
+    ||(opts.icm&&Array.isArray(opts.icm.stacks)&&opts.icm.stacks.length)||2;
+  const _utilKind=opts.pko?"pko":opts.icm?"icm":"chip";
+  const equilibriumScope=deriveEquilibriumScope({playerCount:_players,utilityKind:_utilKind});
   const out={
     source:ResultSource.CFR_SOLVE,experimental:true,fromLibrary:false,
     result:sol,
     convergence:nc==null?{nashConv:null,note:convNote}:{nashConv:nc},
+    equilibriumScope,
+    /* Verrou de vocabulaire : `true` UNIQUEMENT si le cadre autorise la revendication
+       ET si l'exploitabilité a réellement été mesurée. Une UI doit lire ce booléen
+       plutôt que d'inférer depuis NashConv — inférer, c'est reconstituer la règle à
+       chaque endroit, donc l'oublier quelque part. */
+    mayClaimNashApproximation:mayClaimNashApproximation(equilibriumScope)&&nc!=null,
     /* §21 — la stratégie est-elle solvée sous contrainte ICM, ou en jetons ?
        `icm.strategic:true` signifie que l'ICM est ENTRÉ dans le calcul de la
        stratégie, pas seulement affiché à côté. */
@@ -284,4 +303,4 @@ export { librarySize };
 export { hydrateLibrary, libraryStatus, persistedCount, clearLibrary };
 
 /* Accès bas-niveau exposé pour les cas simples (équité brute sans provenance). */
-export { monteCarloEquity };
+export { monteCarloEquity, monteCarloEquityDetailed };

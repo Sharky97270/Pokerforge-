@@ -81,7 +81,10 @@ ranges reste une réponse exacte à la mauvaise question.
 | `test-solver-equity-differential.mjs` | 33 | Balayage 10 spots × 2 tailles, écarts en σ |
 | `test-solver-reduced-games.mjs` | 28 | Niveau A (production) + niveau B (algorithme) |
 | `test-solver-properties.mjs` | 17 | Propriétés universelles via `fast-check`, 200 cas chacune |
-| **Total** | **243** | |
+| `test-solver-pushfold.mjs` | 49 | Vérification d'équilibre **indépendante** + seuils + monotonie |
+| `test-solver-equilibrium-scope.mjs` | 26 | Verrou de vocabulaire : Nash revendicable ou non |
+| `test-solver-icm-pko.mjs` | 54 | Identités du modèle ICM (conservation du prizepool) + PKO |
+| **Total** | **389** | |
 
 Le nombre d'assertions n'est **pas** la preuve principale. Le périmètre l'est :
 2 598 960 mains exhaustives, 260 000 comparaisons d'ordre, 10 spots d'équité en
@@ -208,19 +211,29 @@ exécutent n'a été touché.
 
 ---
 
-## 11. Suite recommandée, par ordre de valeur
+## 11. Deuxième passe — ce qui a été ajouté
 
-1. **Différentiel push/fold contre une source indépendante.** C'est le trou le plus gênant :
-   le domaine est affiché « calcul exact » dans le produit alors qu'il est le moins prouvé
-   de la matrice.
-2. **Intervalles de confiance Monte-Carlo (§4)** — l'instrumentation est prête côté
-   badge (`UncertaintyEvidence`), il reste à l'exposer dans `computeEquity` de façon
-   additive, avec critère d'arrêt sur largeur d'intervalle.
-3. **Câbler `EquilibriumScope` (§5)** pour interdire structurellement les libellés
-   d'équilibre hors des cas à somme nulle.
-4. **Retester ICM / PKO** avec des cas analytiques dédiés.
-5. **Range Library (§11)** puis, seulement ensuite, l'UI de certification derrière les
-   drapeaux.
+| Point | Résultat |
+|---|---|
+| **Différentiel push/fold** | Vérification d'ÉQUILIBRE indépendante plutôt qu'un second solveur : réécrire un fictitious play aurait partagé l'algorithme, donc ses biais. Exploitabilité **< 0,0025 bb**, reproduite **à 5 décimales** ; **0 main** du mauvais côté du seuil ; monotonie du tapis (jam 68,7 % à 6bb → 35,6 % à 25bb) |
+| **Intervalles de confiance (§4)** | `computeEquity` expose `standardError`, `confidenceInterval95`, `stoppingReason`. Arrêt sur précision : cible 1,0 pt atteinte en **38 500 tirages au lieu de 200 000**. Strictement additif |
+| **Cadre théorique (§5)** | `equilibriumScope` + `mayClaimNashApproximation` attachés à chaque solve. 15 combinaisons balayées, 0 incohérence |
+| **ICM / PKO** | Identités du modèle : **Σ équités = prizepool** (dont le cas du joueur à 0 jeton), P(1er) ∝ tapis, prime de risque **+6,5 pt** (équité neutre 56,5 % au lieu de 50) |
+
+Deux enseignements de méthode se sont ajoutés, toujours du côté des tests :
+l'équilibre push/fold est **quasi pur** (à 12bb, les mains jamment 100 % ou 0 %) — comparer
+deux mains du même côté du seuil est vide de sens ; et `icmRiskPremium` / `pkoValue`
+retournent des **objets détaillés**, dont les champs permettent des assertions bien plus
+fortes que le « est-ce fini ? » initial.
+
+## 12. Suite recommandée
+
+1. **Certifier la matrice d'équité préflop** (`preflopEquity.js`) — dernier artefact non
+   couvert, et il est consommé par le push/fold des deux côtés.
+2. **Range Library (§11)**, isolée, puis l'UI de certification derrière les drapeaux.
+3. **Évaluateur 7 cartes exhaustif** si le temps de calcul est acceptable hors CI.
+4. **Qualifier les libellés** « calcul exact » derrière `SHARKSOLVER_TRUST_BADGES`, une
+   fois le vocabulaire validé.
 
 **Aucune revendication de certification ne doit être publiée avant validation humaine de
 la matrice.**

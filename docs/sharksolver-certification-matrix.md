@@ -43,9 +43,9 @@ Deux règles de lecture, valables partout dans ce document :
 | Équité — voie exhaustive | Énumération des runouts | Énumération indépendante | 6 spots flop/turn — écart < 1e-6 pt ; pondérations exactes | 1e-6 pt | **Vérifié** |
 | Équité — Monte-Carlo | Échantillonnage seedé | Voie exhaustive du même spot | Écart max **0,308 pt = 2,14 SE** sur 10 spots × 2 tailles ; dispersion inter-seeds 0,418 pt vs 0,438 théoriques | 4 SE | **Comparé** |
 | Équité — invariants | — | Propriétés mathématiques | Symétrie, bornes, permutation de couleurs, card removal, ranges pondérées | exact | **Vérifié** |
-| Push/fold ChipEV | Jeu matriciel à somme nulle | `validate.mjs` (existant) | Couvert par la suite historique ; **aucun différentiel indépendant produit dans cet audit** | à définir | **À certifier** |
-| ICM (Malmuth-Harville) | Récursion exhaustive | Cas analytiques (`validate.mjs`) | Couvert par la suite historique ; non retesté ici | tolérance numérique | **À certifier** |
-| PKO | Modèle PokerForge | Tests directionnels | Prime propre **non modélisée** (terme du second ordre assumé) | directionnel | **Bêta** |
+| Push/fold ChipEV | Fictitious play sur jeu matriciel | **Vérification d'équilibre indépendante** (gains + card removal réécrits) | Exploitabilité **< 0,0025 bb** sur 8/12/15/20bb, reproduite **à 5 décimales** par le calcul indépendant ; **0 main** du mauvais côté du seuil ; monotonie du tapis vérifiée | déviation < 0,02 bb | **Comparé** |
+| ICM (Malmuth-Harville) | Récursion exhaustive | Identités du modèle | **Σ équités = prizepool** sur 4 structures ; lignes et colonnes de probabilités = 1 ; P(1er) ∝ tapis ; symétrie ; **cas du joueur à 0 jeton** conservé | 1e-6 | **Comparé** |
+| PKO | Modèle PokerForge | Identités + direction | EV = chip-EV + prime ; prime = équité × prime × réalisation ; remise d'équité croissante. Prime propre **non modélisée** (second ordre assumé) | 1e-6 sur les identités | **Bêta** |
 | CFR rivière (1 rue) | CFR+ | Jeu de clairvoyance (solution analytique) | Bluffs **25,0 / 33,1 / 40,0 %** vs théorie 25,0 / 33,3 / 40,0 ; calls 67,7 / 50,7 / 32,2 vs 66,7 / 50,0 / 33,3 ; NashConv **0,0177 bb** à 2 000 itérations | NashConv ≤ 0,35 bb | **Comparé** |
 | CFR multi-rue | CFR+ · sous-arbres par carte | Benchmark historique | NashConv 0,006 bb (2 rues) ; **runouts échantillonnés → exploitabilité exacte indisponible** | NashConv ≤ 0,3 bb | **Expérimental** |
 | Règle de mise à jour CFR+ | CFR+ sur jeu jouet | **Kuhn poker**, équilibre connu | Valeur **−0,05691** vs −1/18 = −0,05556 ; rapport roi/valet **3,00** vs 3,00 théorique | écart ≤ 0,01 | **Comparé** *(algorithme seul — voir §4)* |
@@ -156,26 +156,55 @@ C'est précisément ce que traduit le badge : *moteur comparé + ranges heuristi
 
 ## 7. Trous connus — à traiter avant toute revendication de certification
 
-1. **Push/fold** : aucun différentiel indépendant. Domaine pourtant affiché aujourd'hui
-   comme « calcul exact » dans le Trainer.
-2. **ICM / PKO** : non retestés dans cet audit ; s'appuient sur la suite historique.
-3. **Évaluateur 7 cartes** : échantillonné, non exhaustif.
-4. **Multi-rue** : pas d'exploitabilité exacte (runouts échantillonnés) — limite
+1. **Évaluateur 7 cartes** : échantillonné (60 000 comparaisons), non exhaustif —
+   C(52,7) = 133 784 560 rend l'exhaustif déraisonnable en suite de tests.
+2. **Matrice d'équité préflop** (`preflopEquity.js`) : artefact de données, non certifié.
+   Bruit documenté ±0,26 pt en moyenne. Le différentiel push/fold la consomme des deux
+   côtés — un biais y serait donc invisible et doit être traité séparément.
+3. **Multi-rue** : pas d'exploitabilité exacte (runouts échantillonnés) — limite
    théorique, pas un défaut d'implémentation.
-5. **Ranges de production** : heuristiques, non certifiables en l'état.
-6. **Stratégies hors-chemin** : CFR n'accumule aucun regret aux infosets non atteints et
+4. **Ranges de production** : heuristiques, non certifiables en l'état. C'est la limite
+   dominante (cf. §5).
+5. **Stratégies hors-chemin** : CFR n'accumule aucun regret aux infosets non atteints et
    n'y offre donc aucune garantie. Lire une stratégie à un nœud non atteint et en tirer
    une conclusion est une erreur de méthode — constatée puis documentée pendant cet audit.
+6. **Hypothèse Malmuth-Harville** : l'ordre de sortie proportionnel aux tapis ignore la
+   position, le talent et la structure de blindes. Exact *dans le modèle*, jamais dans la
+   réalité — d'où `ICM_ESTIMATE`.
+
+*Résolus depuis la première passe :* le push/fold dispose désormais d'une vérification
+d'équilibre indépendante, et ICM/PKO de tests d'identités dédiés.
 
 ---
 
 ## 8. Reproduction
 
 ```bash
-npm run test:certify   # 8 suites, 243 assertions, ~120 s, seed 20260806
+npm run test:certify   # 11 suites, 389 assertions, seed 20260806
 npm run test:solver    # suite historique — 178 ✓ / 0 ✗ (inchangée)
 npm run bench:solver   # benchmarks historiques (inchangés)
 ```
+
+### Incertitude Monte-Carlo (§4)
+
+`computeEquity` expose désormais, **en plus** de ses champs historiques :
+`standardError`, `confidenceInterval95`, `confidenceLevel`, `stoppingReason`, `elapsedMs`.
+
+Deux modes d'arrêt : plafond d'échantillons, ou **largeur d'intervalle cible**
+(`targetCIWidth`) — on demande alors une précision plutôt qu'un budget. Mesuré : la
+cible de 1,0 pt est atteinte en **38 500 tirages au lieu de 200 000**, et la largeur
+suit la loi en 1/√n (8,74 → 2,76 → 0,87 pt pour n = 500 / 5 000 / 50 000).
+
+La voie exhaustive n'expose aucun champ d'incertitude : il n'y a rien à estimer.
+
+### Cadre théorique (§5)
+
+Chaque solve porte `equilibriumScope` et un booléen `mayClaimNashApproximation`, vrai
+**uniquement** si le cadre l'autorise (exactement 2 joueurs) **et** si l'exploitabilité a
+réellement été mesurée. L'interface doit lire ce booléen plutôt que d'inférer depuis
+NashConv : une règle qu'on reconstitue à plusieurs endroits finit par être oubliée à l'un
+d'eux. Balayage systématique de 15 combinaisons (5 tailles × 3 types d'utilité) : 0
+incohérence.
 
 Toutes les suites fixent leurs seeds. Deux exécutions successives produisent des
 résultats identiques.

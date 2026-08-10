@@ -140,4 +140,56 @@ console.log("[6] Générateur pseudo-aléatoire");
   ok(Math.abs(s / M - 0.5) < 0.01, `moyenne ${(s / M).toFixed(4)} ≈ 0,5 (uniformité)`);
 }
 
+/* ══ 7. §4 — INTERVALLES DE CONFIANCE ══
+   Une équité Monte-Carlo sans intervalle ne dit pas à quel point on sait : « 46,2 % »
+   sur 200 tirages et sur 200 000 sont deux affirmations très différentes. */
+console.log("[7] Intervalles de confiance (§4)");
+{
+  const h = combo("As", "Ks"), v = combo("Qh", "Qd"), b = board("2s", "7s", "9d");
+  const r = computeEquity(h, v, b, { budget: 1, iters: 20000, seed: 4242 });
+  ok(typeof r.standardError === "number" && r.standardError > 0, `erreur standard rapportée (${r.standardError.toFixed(4)} pt)`);
+  ok(r.confidenceInterval95 && r.confidenceInterval95.lower < r.equity && r.confidenceInterval95.upper > r.equity,
+    `l'équité est dans son intervalle [${r.confidenceInterval95.lower.toFixed(2)} ; ${r.confidenceInterval95.upper.toFixed(2)}]`);
+  eq(r.confidenceLevel, 0.95, "niveau de confiance rapporté");
+  eq(r.stoppingReason, "sample_limit", "raison d'arrêt : plafond d'échantillons atteint");
+  ok(typeof r.elapsedMs === "number", "durée de calcul rapportée");
+  // Demi-largeur ≈ 1,96 SE
+  const half = (r.confidenceInterval95.upper - r.confidenceInterval95.lower) / 2;
+  ok(Math.abs(half - 1.96 * r.standardError) < 1e-6, "demi-largeur = 1,96 × erreur standard");
+
+  // RÉTRÉCISSEMENT : plus d'échantillons ⇒ intervalle plus étroit.
+  const widths = [500, 5000, 50000].map(N => {
+    const x = computeEquity(h, v, b, { budget: 1, iters: N, seed: 4242 });
+    return { N, w: x.confidenceInterval95.upper - x.confidenceInterval95.lower };
+  });
+  console.log(`    largeur IC95 : ` + widths.map(w => `n=${w.N} → ${w.w.toFixed(3)} pt`).join(" · "));
+  ok(widths[1].w < widths[0].w, "l'intervalle se resserre de n=500 à n=5 000");
+  ok(widths[2].w < widths[1].w, "…et encore de n=5 000 à n=50 000");
+  // Loi en 1/√n : ×100 échantillons ⇒ largeur ÷10 (tolérance large, l'échantillonnage
+  // porte aussi sur le choix des combos).
+  const ratio = widths[0].w / widths[2].w;
+  ok(ratio > 6 && ratio < 15, `rapport de largeur n=500 vs n=50 000 = ${ratio.toFixed(1)} (attendu ≈10)`);
+
+  // CRITÈRE D'ARRÊT SUR PRÉCISION : on demande une précision, pas un budget.
+  const prec = computeEquity(h, v, b, { budget: 1, iters: 200000, seed: 4242, targetCIWidth: 1.0 });
+  eq(prec.stoppingReason, "precision_target", "arrêt déclenché par la précision atteinte");
+  const wPrec = prec.confidenceInterval95.upper - prec.confidenceInterval95.lower;
+  ok(wPrec <= 1.0 + 1e-9, `largeur obtenue ${wPrec.toFixed(3)} pt ≤ cible 1,0 pt`);
+  ok(prec.samples < 200000, `arrêt anticipé : ${prec.samples} tirages au lieu de 200 000`);
+  console.log(`    cible 1,0 pt atteinte en ${prec.samples} tirages (largeur ${wPrec.toFixed(3)} pt)`);
+
+  // Une cible irréaliste ne doit pas boucler : on s'arrête au plafond.
+  const hard = computeEquity(h, v, b, { budget: 1, iters: 3000, seed: 4242, targetCIWidth: 0.001 });
+  ok(hard.samples <= 3000, "cible inatteignable → arrêt au plafond, pas de boucle infinie");
+  ok(hard.stoppingReason !== "precision_target", "…et la raison d'arrêt ne prétend pas la précision atteinte");
+
+  // RÉTRO-COMPATIBILITÉ : les champs historiques sont intacts.
+  ok(typeof r.equity === "number" && r.exact === false, "champs historiques `equity` / `exact` inchangés");
+  eq(r.seed, 4242, "champ historique `seed` inchangé");
+  // La voie exhaustive ne prétend aucune incertitude.
+  const ex = computeEquity(h, v, b, { budget: 1e9 });
+  ok(ex.exact === true && ex.standardError === undefined,
+    "voie exhaustive : aucun champ d'incertitude (rien à estimer)");
+}
+
 console.log(`\n✅ équité (Monte-Carlo) — ${n} assertions OK`);

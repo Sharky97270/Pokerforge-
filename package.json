@@ -20,7 +20,7 @@
     "build:standalone": "vite build && node build-standalone.mjs",
     "shot": "node scripts/trainer-shot.mjs",
     "shot:replayer": "node scripts/replayer-shot.mjs",
-    "test:certify": "node test-solver-trust-badge.mjs && node test-solver-evaluator.mjs && node test-solver-equity-exact.mjs && node test-solver-equity-invariants.mjs && node test-solver-equity-mc.mjs && node test-solver-equity-differential.mjs && node test-solver-reduced-games.mjs && node test-solver-properties.mjs",
+    "test:certify": "node test-solver-trust-badge.mjs && node test-solver-evaluator.mjs && node test-solver-equity-exact.mjs && node test-solver-equity-invariants.mjs && node test-solver-equity-mc.mjs && node test-solver-equity-differential.mjs && node test-solver-reduced-games.mjs && node test-solver-properties.mjs && node test-solver-pushfold.mjs && node test-solver-equilibrium-scope.mjs && node test-solver-icm-pko.mjs",
     "test:solver": "node src/solver/core/validate.mjs",
     "bench:solver": "node src/solver/core/benchmark.mjs"
   },
