@@ -137,6 +137,39 @@ Player3 checks
 *** SHOW DOWN ***
 Hero shows [As Kh]
 Player3 shows [Qh Qc]`,
+  mtt9: `PokerStars Hand #259829783494: Tournament #3975957786, €2.25+€2.25+€0.50 EUR Hold'em No Limit - Level II (150/300) - 2026/02/22 19:12:52 CET
+Table '3975957786 12' 9-max Seat #7 is the button
+Seat 1: Hero (50000 in chips)
+Seat 2: P2 (96471 in chips)
+Seat 3: P3 (73000 in chips)
+Seat 4: P4 (1760 in chips)
+Seat 5: P5 (1690 in chips)
+Seat 6: P6 (48810 in chips)
+Seat 7: P7 (51600 in chips)
+Seat 8: P8 (49900 in chips)
+Seat 9: P9 (48660 in chips)
+P8: posts small blind 150
+P9: posts big blind 300
+*** HOLE CARDS ***
+Dealt to Hero [Th 7h]
+Hero: calls 300
+P2: folds
+P3: folds
+P4: folds
+P5: folds
+P6: folds
+P7: folds
+P8: folds
+P9: checks
+*** FLOP *** [9h 4c 2s]
+P9: checks
+Hero: checks
+*** TURN *** [9h 4c 2s] [Kd]
+P9: bets 300
+Hero: calls 300
+*** RIVER *** [9h 4c 2s Kd] [6c]
+P9: bets 900
+Hero: folds`,
 };
 // Session multi-mains (bibliothèque + filtres) : plusieurs HH concaténées.
 HANDS.multi = [HANDS.default, HANDS.showdown, HANDS.allin, HANDS['6max']].join('\n\n');
@@ -210,6 +243,12 @@ try {
     }
   }
 
+  // Panneau de filtres de la bibliothèque (replié par défaut → l'ouvrir pour le voir)
+  if (flag('filters')) {
+    await page.evaluate(() => document.querySelector('button[title="Filtrer les mains"]')?.click());
+    await sleep(400);
+  }
+
   // Mode cinéma (panneaux latéraux repliés)
   if (flag('cinema')) {
     await page.evaluate(() => [...document.querySelectorAll('button')].find(b => /Cinéma/.test(b.textContent))?.click());
@@ -232,7 +271,25 @@ try {
     const issues = [];
     if (board) seats.forEach((s, i) => { if (ov(s, board) > 120) issues.push(`siège ${i + 1} × board (${ov(s, board)}px²)`); });
     if (board && pot && ov(board, pot) > 80) issues.push(`pot × board (${ov(board, pot)}px²)`);
-    const overflow = container ? seats.filter(s => s.bottom > container.bottom + 2 || s.top < container.top - 2).length : 0;
+    if (pot) seats.forEach((s, i) => { if (ov(s, pot) > 80) issues.push(`pot × siège ${i + 1} (${ov(s, pot)}px²)`); });
+    // Collisions siège × siège : un bloc siège = cartes + avatar + plaque. Deux
+    // blocs qui se recouvrent = plaque (nom/stack) masquée par les cartes du
+    // voisin — le défaut le plus visible sur les tables 8/9 joueurs.
+    const seatEls = [...document.querySelectorAll('.pf-player-seat')];
+    const seatBoxes = seatEls.map(e => ({ pos: e.getAttribute('data-seat') || '?', r: g(e) }));
+    for (let i = 0; i < seatBoxes.length; i++)
+      for (let j = i + 1; j < seatBoxes.length; j++) {
+        const a = ov(seatBoxes[i].r, seatBoxes[j].r);
+        if (a > 200) issues.push(`siège ${seatBoxes[i].pos} × ${seatBoxes[j].pos} (${a}px²)`);
+      }
+    // Rognage du cadre — mesuré sur le BLOC siège entier (cartes comprises), pas
+    // seulement sur l'avatar : ce sont les cartes qui sortent en premier.
+    const clipped = container
+      ? seatBoxes.filter(s => s.r.left < container.left - 1 || s.r.right > container.right + 1).map(s => s.pos)
+      : [];
+    const overflow = container
+      ? seatBoxes.filter(s => s.r.bottom > container.bottom + 2 || s.r.top < container.top - 2).map(s => s.pos)
+      : [];
     const feltRect = felt ? felt.getBoundingClientRect() : null;
     const seatCenters = [...document.querySelectorAll('.pf-player-seat')].map(s => {
       const av = s.querySelector('.player-card-1t') || s;
@@ -252,7 +309,8 @@ try {
       boardCardSize: boardCards[0] ? { w: Math.round(boardCards[0].getBoundingClientRect().width), h: Math.round(boardCards[0].getBoundingClientRect().height) } : null,
       avatarSizes: avatars,
       overlaps: issues.length ? issues : 'aucun',
-      seatsOverflowingContainer: overflow,
+      seatsOverflowingContainer: overflow.length ? overflow : 'aucun',
+      seatsClippedHorizontally: clipped.length ? clipped : 'aucun',
     };
   });
 

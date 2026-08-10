@@ -614,6 +614,21 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* Replayer : sièges couchés un peu plus lisibles que dans le Trainer (on veut
    voir clairement qui a participé au coup, même plié). Scopé → Trainer inchangé. */
 .pf-replayer-table .seat-folded{opacity:.84!important;filter:grayscale(.4) saturate(.82) brightness(.94)!important;}
+/* Replayer : statut Fold/Check estampillé SUR l'avatar. Hors flux → le bloc
+   siège garde sa hauteur et ne mord plus sur les cartes du siège voisin
+   (tables 8/9 joueurs, §2 « aucun élément ne doit être rogné »). La règle bat
+   les transforms hérités du Trainer (.pf-player-seat[data-seat=…]). */
+.pf-replayer-table .pf-player-seat .seat-action-badge.pf-seat-status{
+  position:absolute!important;
+  top:42%;left:50%;
+  transform:translate(-50%,-50%) !important;
+  margin:0!important;padding:2px 7px!important;
+  font-size:8.5px!important;letter-spacing:.04em;
+  background:rgba(3,11,32,.82)!important;
+  border:1px solid currentColor!important;
+  box-shadow:0 3px 10px rgba(0,0,0,.6)!important;
+  pointer-events:none;z-index:4;
+}
 .pf-fold-chip,.pf-multiway-chip{
   margin-top:3px;
   display:inline-flex;align-items:center;justify-content:center;
