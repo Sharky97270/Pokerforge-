@@ -46,8 +46,10 @@ function hydrateReplayHand(nh){
   const lastEv = [...nh.events].reverse().find(e=>["fold","check","call","bet","raise","allin"].includes(e.type));
   const lastStreet = cap(lastEv?.street||"preflop");
   const hasAllin = nh.events.some(e=>e.type==="allin");
+  // Stack Hero en début de main (déjà en bb) → filtre « Stack (BB) » (§1).
+  const heroStackBb = nh.players.find(p=>p.isHero)?.stackStart ?? null;
   return { ...nh, site:nh.room, fmt:nh.format, bb:nh.bbSize, hasShowdown:!!nh.showdown,
-    potType, lastStreet, hasAllin,
+    potType, lastStreet, hasAllin, heroStackBb,
     seats, actions, steps:actions, _snaps:snaps };
 }
 
@@ -558,14 +560,36 @@ function HHFilter({label,options,value,onChange}){
   );
 }
 
+/* Section repliable du panneau de filtres (§1 : « organisés en sections
+   repliables »). Ouverte par défaut, refermable d'un clic sur son en-tête. */
+function HHFilterSection({title,active,children,defaultOpen=true}){
+  const[open,setOpen]=useState(defaultOpen);
+  return(
+    <div style={{borderBottom:"1px solid rgba(255,255,255,.05)"}}>
+      <button onClick={()=>setOpen(o=>!o)} style={{
+        width:"100%",display:"flex",alignItems:"center",gap:5,padding:"6px 2px",
+        background:"transparent",border:0,cursor:"pointer",fontFamily:T.stats,textAlign:"left"}}>
+        <span style={{fontSize:8,color:open?T.text3:T.text4,transition:"transform .15s",transform:open?"rotate(90deg)":"none",display:"inline-block",width:8}}>›</span>
+        <span style={{flex:1,fontSize:7.5,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:open?T.text3:T.text4}}>{title}</span>
+        {active&&<span style={{width:5,height:5,borderRadius:"50%",background:T.gold,flexShrink:0}}/>}
+      </button>
+      {open&&<div style={{display:"flex",flexDirection:"column",gap:5,padding:"0 0 8px 13px"}}>{children}</div>}
+    </div>
+  );
+}
+
 function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
   const[page,setPage]=useState(0);
+  const[showFilters,setShowFilters]=useState(false);   // §1 : repliés par défaut
   const[fPos,setFPos]=useState("all");
   const[fStreet,setFStreet]=useState("all");
   const[fResult,setFResult]=useState("all");
   const[fPot,setFPot]=useState("all");
   const[fShow,setFShow]=useState("all");
-  const PER=12;
+  const[fStack,setFStack]=useState("all");
+  const[fSite,setFSite]=useState("all");
+  // Lignes plus basses (§1) → on en affiche davantage sans allonger le panneau.
+  const PER=14;
   const hands=session?.hands||[];
   const fmtRes=v=>unit==="BB"?`${v>=0?"+":""}${v}bb`:`${v>=0?"+":""}${(v*2).toFixed(1)}$`;
 
@@ -578,6 +602,22 @@ function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
     const set=[...new Set(hands.map(h=>h.potType).filter(Boolean))];
     return [{v:"all",l:"Tous"},...set.map(p=>({v:p,l:p}))];
   },[hands]);
+  const siteOpts=useMemo(()=>{
+    const set=[...new Set(hands.map(h=>h.site).filter(Boolean))];
+    return [{v:"all",l:"Tous"},...set.map(p=>({v:p,l:p}))];
+  },[hands]);
+  // Tranches de stack effectif Hero (bb) — seules celles réellement peuplées.
+  const STACK_BANDS=[
+    {v:"s0",l:"≤ 20bb",min:0,max:20},
+    {v:"s1",l:"20-40bb",min:20,max:40},
+    {v:"s2",l:"40-80bb",min:40,max:80},
+    {v:"s3",l:"> 80bb",min:80,max:Infinity},
+  ];
+  const stackOpts=useMemo(()=>{
+    const used=STACK_BANDS.filter(b=>hands.some(h=>h.heroStackBb!=null&&h.heroStackBb>b.min&&h.heroStackBb<=b.max));
+    return used.length>1?[{v:"all",l:"Tous"},...used.map(b=>({v:b.v,l:b.l}))]:[];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[hands]);
 
   const filtered=useMemo(()=>hands.filter(h=>{
     if(fPos!=="all"&&h.heroPos!==fPos)return false;
@@ -587,10 +627,19 @@ function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
     if(fPot!=="all"&&h.potType!==fPot)return false;
     if(fShow==="yes"&&!h.hasShowdown)return false;
     if(fShow==="no"&&h.hasShowdown)return false;
+    if(fSite!=="all"&&h.site!==fSite)return false;
+    if(fStack!=="all"){
+      const b=STACK_BANDS.find(x=>x.v===fStack);
+      if(!b||h.heroStackBb==null||!(h.heroStackBb>b.min&&h.heroStackBb<=b.max))return false;
+    }
     return true;
-  }),[hands,fPos,fStreet,fResult,fPot,fShow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }),[hands,fPos,fStreet,fResult,fPot,fShow,fSite,fStack]);
 
-  useEffect(()=>{setPage(0);},[fPos,fStreet,fResult,fPot,fShow]);
+  const activeCount=[fPos,fStreet,fResult,fPot,fShow,fSite,fStack].filter(v=>v!=="all").length;
+  const resetFilters=()=>{setFPos("all");setFStreet("all");setFResult("all");setFPot("all");setFShow("all");setFSite("all");setFStack("all");};
+
+  useEffect(()=>{setPage(0);},[fPos,fStreet,fResult,fPot,fShow,fSite,fStack]);
   const pages=Math.max(1,Math.ceil(filtered.length/PER));
   const safePage=Math.min(page,pages-1);
   const slice=filtered.slice(safePage*PER,safePage*PER+PER);
@@ -598,10 +647,25 @@ function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
   const lotIndex=session?.lotIndex||0;
 
   return(
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px 6px",borderBottom:"1px solid #152D6E",flexShrink:0}}>
-        <span style={{fontFamily:T.brand,fontSize:10,fontWeight:900,color:T.text2,letterSpacing:".08em"}}>BIBLIOTHÈQUE DES MAINS</span>
-        <span style={{fontSize:9,color:T.text4,fontFamily:T.stats}}>{filtered.length===hands.length?`${hands.length}`:`${filtered.length}/${hands.length}`} main{hands.length>1?"s":""}</span>
+    <div style={{position:"relative",display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,padding:"8px 10px 7px",borderBottom:"1px solid #152D6E",flexShrink:0}}>
+        <span style={{flex:1,fontFamily:T.brand,fontSize:10,fontWeight:900,color:T.text2,letterSpacing:".08em"}}>BIBLIOTHÈQUE DES MAINS</span>
+        <span style={{fontSize:8.5,color:T.text4,fontFamily:T.stats}}>{filtered.length===hands.length?`${hands.length}`:`${filtered.length}/${hands.length}`} main{hands.length>1?"s":""}</span>
+        {/* Entonnoir : ouvre/ferme le panneau de filtres (§1). Discret, pastille
+            dorée quand au moins un filtre est actif. */}
+        {hands.length>1&&(
+          <button onClick={()=>setShowFilters(v=>!v)} title={showFilters?"Masquer les filtres":"Filtrer les mains"}
+            style={{position:"relative",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",
+              borderRadius:6,cursor:"pointer",flexShrink:0,transition:"all .15s",
+              background:showFilters?"rgba(255,194,71,.12)":"transparent",
+              border:`1px solid ${showFilters||activeCount?"rgba(255,194,71,.4)":"#152D6E"}`,
+              color:showFilters||activeCount?T.gold:T.text4}}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            {activeCount>0&&<span style={{position:"absolute",top:-3,right:-3,minWidth:11,height:11,borderRadius:6,background:T.gold,color:"#04122E",fontSize:7,fontWeight:900,fontFamily:T.stats,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 2px"}}>{activeCount}</span>}
+          </button>
+        )}
       </div>
 
       {/* Sélecteur de lot (§4) */}
@@ -618,16 +682,58 @@ function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
         </div>
       )}
 
-      {/* Barre de filtres (§8) */}
-      {hands.length>1&&(
-        <div style={{display:"flex",flexDirection:"column",gap:4,padding:"6px 10px",borderBottom:"1px solid #0F2258",flexShrink:0}}>
-          <HHFilter label="POS" options={posOpts} value={fPos} onChange={setFPos}/>
-          <HHFilter label="STREET" options={[{v:"all",l:"Toutes"},{v:"Preflop",l:"PF"},{v:"Flop",l:"Flop"},{v:"Turn",l:"Turn"},{v:"River",l:"River"}]} value={fStreet} onChange={setFStreet}/>
-          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+      {/* Panneau de filtres dépliable (§1/§8) — masqué par défaut : la liste des
+          mains reste seule visible tant qu'on n'a pas cliqué l'entonnoir.
+          En SURCOUCHE du panneau (et non inséré au-dessus de la liste) : la
+          hauteur de la bibliothèque ne bouge pas et la liste n'est jamais
+          comprimée à deux lignes quand on ouvre les filtres. */}
+      {hands.length>1&&showFilters&&(
+        <div style={{position:"absolute",top:35,left:0,right:0,bottom:0,zIndex:6,
+          display:"flex",flexDirection:"column",overflow:"hidden",
+          background:"#050E24",borderTop:"1px solid #0F2258"}}>
+          {/* Corps défilant : les actions du bas restent toujours atteignables. */}
+          <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"2px 11px 4px"}}>
+          <HHFilterSection title="Position" active={fPos!=="all"}>
+            <HHFilter label="POS" options={posOpts} value={fPos} onChange={setFPos}/>
+          </HHFilterSection>
+          {stackOpts.length>0&&(
+            <HHFilterSection title="Stack (BB)" active={fStack!=="all"}>
+              <HHFilter label="STACK" options={stackOpts} value={fStack} onChange={setFStack}/>
+            </HHFilterSection>
+          )}
+          {potOpts.length>2&&(
+            <HHFilterSection title="Action préflop" active={fPot!=="all"}>
+              <HHFilter label="POT" options={potOpts} value={fPot} onChange={setFPot}/>
+            </HHFilterSection>
+          )}
+          <HHFilterSection title="Street" active={fStreet!=="all"}>
+            <HHFilter label="STREET" options={[{v:"all",l:"Toutes"},{v:"Preflop",l:"PF"},{v:"Flop",l:"Flop"},{v:"Turn",l:"Turn"},{v:"River",l:"River"}]} value={fStreet} onChange={setFStreet}/>
+          </HHFilterSection>
+          <HHFilterSection title="Résultat (EV)" active={fResult!=="all"||fShow!=="all"}>
             <HHFilter label="RÉSULT" options={[{v:"all",l:"Tous"},{v:"win",l:"Gagné"},{v:"loss",l:"Perdu"}]} value={fResult} onChange={setFResult}/>
             <HHFilter label="SD" options={[{v:"all",l:"Tous"},{v:"yes",l:"Oui"},{v:"no",l:"Non"}]} value={fShow} onChange={setFShow}/>
+          </HHFilterSection>
+          {siteOpts.length>2&&(
+            <HHFilterSection title="Format / Site" active={fSite!=="all"}>
+              <HHFilter label="SITE" options={siteOpts} value={fSite} onChange={setFSite}/>
+            </HHFilterSection>
+          )}
           </div>
-          {potOpts.length>2&&<HHFilter label="POT" options={potOpts} value={fPot} onChange={setFPot}/>}
+          <div style={{display:"flex",gap:5,flexShrink:0,padding:"7px 11px 8px",borderTop:"1px solid #0F2258",background:"rgba(0,0,0,.25)"}}>
+            <button onClick={resetFilters} disabled={!activeCount} style={{
+              flex:1,padding:"5px",borderRadius:6,fontSize:8.5,fontWeight:700,fontFamily:T.stats,
+              cursor:activeCount?"pointer":"default",transition:"all .15s",
+              background:activeCount?"rgba(255,69,96,.07)":"transparent",
+              border:`1px solid ${activeCount?"rgba(255,69,96,.28)":"#152D6E"}`,
+              color:activeCount?"#FF6080":T.text4}}>
+              ↺ Réinitialiser les filtres
+            </button>
+            <button onClick={()=>setShowFilters(false)} style={{
+              flex:1,padding:"5px",borderRadius:6,fontSize:8.5,fontWeight:700,fontFamily:T.stats,cursor:"pointer",
+              background:"rgba(255,194,71,.09)",border:"1px solid rgba(255,194,71,.32)",color:T.gold}}>
+              ✓ Voir {filtered.length} main{filtered.length>1?"s":""}
+            </button>
+          </div>
         </div>
       )}
 
@@ -635,27 +741,30 @@ function HandHistoryList({session,activeIdx,onSelect,unit,onSwitchLot}){
         {slice.map((h)=>{
           const gi=hands.indexOf(h);const on=gi===activeIdx;
           const col=h.resultBb>0?T.green:h.resultBb<0?T.red:T.text4;
+          // Ligne compacte (§1) : n° · cartes · spot + méta sur une seule ligne · EV.
+          const meta=[h.gameType==="mtt"?"MTT":"Cash",h.site,`${h.tableSize||(h.seats?.length||0)} joueurs`,(h.dateStr||"").slice(0,10)]
+            .filter(Boolean).join(" · ");
           return(
             <div key={h.id} onClick={()=>onSelect(gi)} style={{
-              display:"flex",alignItems:"center",gap:8,padding:"7px 9px",marginBottom:4,borderRadius:8,cursor:"pointer",
+              display:"flex",alignItems:"center",gap:7,padding:"4px 8px",marginBottom:2,borderRadius:6,cursor:"pointer",
               background:on?"rgba(255,194,71,.1)":"rgba(255,255,255,.02)",
               border:`1px solid ${on?"rgba(255,194,71,.4)":"#0F2258"}`,
               borderLeft:`3px solid ${on?T.gold:"transparent"}`,transition:"all .12s"}}>
-              <span style={{fontFamily:T.stats,fontSize:9,color:on?T.gold:T.text4,fontWeight:700,minWidth:18,textAlign:"right"}}>{gi+1}</span>
+              <span style={{fontFamily:T.stats,fontSize:8.5,color:on?T.gold:T.text4,fontWeight:700,minWidth:15,textAlign:"right"}}>{gi+1}</span>
               <span style={{display:"flex",gap:2,flexShrink:0}}>
                 {(h.heroCards&&h.heroCards.length>=2)?h.heroCards.slice(0,2).map((c,i)=><MiniCard key={i} r={c.r} s={c.s}/>):<span style={{fontSize:8,color:T.text4}}>??</span>}
               </span>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:5,minWidth:0}}>
-                  <span style={{fontSize:9.5,fontWeight:700,color:on?T.text:T.text2,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.spot}</span>
+                <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0}}>
+                  <span style={{fontSize:9,fontWeight:700,color:on?T.text:T.text2,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.25}}>{h.spot}</span>
                   {h.potType&&h.potType!=="SRP"&&h.potType!=="Limped"&&<span style={{fontSize:6.5,fontWeight:800,color:"#C090FF",background:"rgba(155,92,255,.12)",border:"1px solid rgba(155,92,255,.3)",borderRadius:3,padding:"0 3px",flexShrink:0}}>{h.potType}</span>}
                   {h.hasAllin&&<span style={{fontSize:6.5,fontWeight:800,color:T.red,background:"rgba(255,69,96,.12)",border:"1px solid rgba(255,69,96,.3)",borderRadius:3,padding:"0 3px",flexShrink:0}}>AI</span>}
                 </div>
-                <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {h.lastStreet} · {h.fmt}{h.hasShowdown?" · SD":""}
+                <div title={meta} style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.25}}>
+                  {meta}
                 </div>
               </div>
-              <span style={{fontFamily:T.brand,fontSize:10,fontWeight:800,color:col,flexShrink:0}}>{fmtRes(h.resultBb)}</span>
+              <span style={{fontFamily:T.brand,fontSize:9.5,fontWeight:800,color:col,flexShrink:0}}>{fmtRes(h.resultBb)}</span>
             </div>
           );
         })}
@@ -683,7 +792,7 @@ function SessionSummary({session,unit}){
   const worst=[...hands].sort((a,b)=>a.resultBb-b.resultBb)[0];
   const fmtV=v=>unit==="BB"?`${v>=0?"+":""}${v}bb`:`${v>=0?"+":""}${(v*2).toFixed(1)}$`;
   return(
-    <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
+    <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"11px 12px"}}>
       <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Résumé de la session</div>
       {[["Site",session.site||session.room],["Format",session.format||session.fmt],["Joueurs",`${session.players} joueurs`],["Mains",session.lotCount>1?`${session.count} (lot ${(session.lotIndex||0)+1}/${session.lotCount}) · ${session.total} total`:`${session.total??session.count} mains`],["Date",session.date||"—"]].map(([l,v])=>(
         <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
@@ -720,7 +829,7 @@ function SingleHandSummary({hand,unit}){
   if(!hand)return null;
   const fmtV=v=>unit==="BB"?`${v>=0?"+":""}${v}bb`:`${v>=0?"+":""}${(v*2).toFixed(1)}$`;
   return(
-    <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
+    <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"11px 12px"}}>
       <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Informations de la main</div>
       {[["Site",hand.site],["Format",hand.fmt],["Joueurs",`${hand.tableSize??(hand.seats?.length||0)} joueurs`],["Main ID",`#${hand.handId}`],["Spot",hand.spot],["Date",hand.dateStr||"—"]].map(([l,v])=>(
         <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
@@ -1302,10 +1411,10 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
               <div style={{writingMode:"vertical-rl",fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".1em",transform:"rotate(180deg)",opacity:.45,marginTop:6}}>IMPORT</div>
             </div>
           ):(
-            <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{flex:1,overflowY:"auto",padding:"12px 11px",display:"flex",flexDirection:"column",gap:11}}>
 
               {/* Import section */}
-              <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
+              <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"11px 12px"}}>
                 <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Importer</div>
                 {/* Choix du mode d'import */}
                 <div style={{display:"flex",gap:4,marginBottom:8}}>
@@ -1371,7 +1480,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
 
               {/* Analyse IA Rapide */}
               {quickRes&&(
-                <div style={{order:3,background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"10px"}}>
+                <div style={{order:3,background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"11px 12px"}}>
                   <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:7}}>
                     <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",textTransform:"uppercase",fontWeight:700}}>Analyse IA Rapide</span>
                     <span style={{fontSize:6.5,background:T.amber,color:"#000",borderRadius:3,padding:"1px 5px",fontWeight:800}}>BETA</span>
@@ -1391,7 +1500,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
               {/* ── BIBLIOTHÈQUE DES MAINS IMPORTÉES (panneau gauche, §7/§40) ──
                   Remontée juste après l'import (order:1) pour être accessible sans
                   scroller : c'est l'outil central quand une session est chargée. */}
-              <div style={{order:1,border:"1px solid #0F2258",borderRadius:8,overflow:"hidden",flex:1,minHeight:session?260:180,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)"}}>
+              <div style={{order:1,border:"1px solid #0F2258",borderRadius:8,overflow:"hidden",flex:1,minHeight:session?330:180,display:"flex",flexDirection:"column",background:"rgba(255,255,255,.02)"}}>
                 {session
                   ? <HandHistoryList session={session} activeIdx={handIdx} onSelect={loadHandAt} unit={unit} onSwitchLot={switchLot}/>
                   : (
