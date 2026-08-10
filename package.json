@@ -11,7 +11,7 @@
     "test:coach-engine": "node test-coach-engine.mjs",
     "test:coach-agents": "node test-coach-agents.mjs",
     "test:refonte": "node test-training-config.mjs && node test-constraint-engine.mjs && node test-spot-schema.mjs && node test-spot-recovery.mjs && node test-immersion-engine.mjs && node test-ai-orchestrator.mjs && node test-full-hand-engine.mjs && node test-spot-similarity.mjs && node test-trainer-matrix.mjs && node test-immersion-amounts.mjs && node test-next-hand.mjs && node test-chip-display.mjs && node test-strategy-provider.mjs && node test-replayer-state-engine.mjs && node test-replayer-decision-analysis.mjs && node test-range-color-theme.mjs && node test-replayer-formats.mjs && node test-postflop-heuristic.mjs && node test-trainer-postflop-solver.mjs && node test-preflop-charts.mjs",
-    "test": "node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs && node test-mental-diagnostic.mjs && npm run test:refonte",
+    "test": "node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs && node test-mental-diagnostic.mjs && npm run test:refonte && npm run test:certify",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --esm prisma/seed.ts",
     "db:studio": "prisma studio",
@@ -20,6 +20,7 @@
     "build:standalone": "vite build && node build-standalone.mjs",
     "shot": "node scripts/trainer-shot.mjs",
     "shot:replayer": "node scripts/replayer-shot.mjs",
+    "test:certify": "node test-solver-trust-badge.mjs && node test-solver-evaluator.mjs && node test-solver-equity-exact.mjs && node test-solver-equity-invariants.mjs && node test-solver-equity-mc.mjs && node test-solver-equity-differential.mjs && node test-solver-reduced-games.mjs && node test-solver-properties.mjs",
     "test:solver": "node src/solver/core/validate.mjs",
     "bench:solver": "node src/solver/core/benchmark.mjs"
   },
