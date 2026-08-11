@@ -729,6 +729,16 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   box-shadow:0 3px 10px rgba(0,0,0,.6)!important;
   pointer-events:none;z-index:4;
 }
+/* Trainer 1T — pastille Fold / In pot SORTIE DU FLUX, comme en multi-table.
+   Empilée sous la plaque, elle ajoutait ~15px à un bloc de siège déjà trop haut
+   pour le budget vertical de l'anneau des mises, sans rien apprendre de plus :
+   son information est la même, seul son point d'ancrage change. Le siège est
+   déjà positionné en absolu, il sert donc de référence. */
+.t1-left .pf-player-seat .pf-fold-chip,
+.t1-left .pf-player-seat .pf-multiway-chip{
+  position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);
+  margin-top:0!important;white-space:nowrap;z-index:3;
+}
 .pf-fold-chip,.pf-multiway-chip{
   margin-top:3px;
   display:inline-flex;align-items:center;justify-content:center;
@@ -923,6 +933,14 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .card-1t-hero-mobile .card-corner-r{font-size:20px;}
 .card-1t-hero-mobile .card-corner-s{font-size:15px;}
 .card-1t-hero-mobile .card-center{font-size:31px;}
+/* Dos de cartes des vilains, Trainer 1T. Taille PROPRE, distincte de
+   card-1t-villain que le Replayer emploie pour des cartes RÉVÉLÉES (y rétrécir
+   les rangs nuirait à la lecture). Ici on ne montre que des dos : leur seule
+   information est « ce joueur est encore en jeu », déjà dite par l'absence de
+   badge Fold et par l'atténuation du siège. Elles occupaient le tiers supérieur
+   du bloc de siège (57px sur 170) alors que la hauteur est la ressource rare de
+   la table — c'est le pixel le moins rentable, donc celui qu'on rend. */
+.card-1t-villain-back{width:30px;height:41px;border-radius:5px;}
 .card-1t-villain{width:38px;height:52px;border-radius:6px;}
 .card-1t-villain .card-corner-r{font-size:14px;}
 .card-1t-villain .card-corner-s{font-size:10px;}

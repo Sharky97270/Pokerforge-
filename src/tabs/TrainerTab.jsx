@@ -168,10 +168,11 @@ function trainerFeltEllipse(layout,numTables=1){
                   maxi  sièges .90 − demi-bloc .134 − demi-badge .158 = .61
                   → .55, au centre d'une fenêtre confortable.
      vertical   — mini board .31 + demi-badge .087 = .40
-                  maxi  sièges .84 − demi-bloc .33 − demi-badge .087 = .42
-                  → .41. La fenêtre ne fait que .02 : le budget vertical est
-                  SATURÉ, un bloc de siège occupant à lui seul le tiers du
-                  demi-axe. C'est la contrainte de fond de cette table. */
+                  maxi  sièges .84 − demi-bloc .322 − demi-badge .087 = .431
+                  → .41. Le cas contraignant est le vilain ENCORE EN JEU, seul à
+                  garder ses cartes (163px de bloc) ; les sièges couchés sont
+                  retombés à 117px. La fenêtre reste étroite (.03) : le budget
+                  vertical de cette table est structurellement tendu. */
 function chipRingFactor(seatCount=6,numTables=1){
   const dense=seatCount>=8?-.03:seatCount>=7?-.015:0;
   const multi=numTables>=3?-.02:0;
@@ -3708,7 +3709,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):oneTableBoardSize):cfg.board;
   const boardGap=numTables===1?(isMobile?(boardCount>=5?3:4):(boardCount>=5?5:6)):cfg.boardGap;
   const heroCardSize1T=isMobile?"1t-hero-mobile":"1t-hero";
-  const villainCardSize1T=isMobile?"xs":"1t-villain";
+  const villainCardSize1T=isMobile?"xs":"1t-villain-back";
   const visualStreet=playingFull?fhStreet:(spot.street||"Preflop");
   const isVisualPreflop=/^pre/i.test(visualStreet);
   const postedBlinds={SB:TRAINER_BLINDS.SB,BB:TRAINER_BLINDS.BB};
