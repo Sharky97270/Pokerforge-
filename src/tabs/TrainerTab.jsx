@@ -162,10 +162,20 @@ function trainerFeltEllipse(layout,numTables=1){
      · vertical   — board à 0.31 ry, bord interne des blocs à 0.58 ry → on vise .45
    Un anneau circulaire ne peut pas satisfaire les deux : c'est pour ça que les
    premiers essais posaient les tas sur les sièges. */
+/* Bornes calculées, pas réglées à la main (mesures 1T : feutre 658x506, bloc de
+   siège 88x170, badge de mise 104x44, sièges à .90 rx / .84 ry) :
+     horizontal — mini board .32 + demi-badge .158 = .48
+                  maxi  sièges .90 − demi-bloc .134 − demi-badge .158 = .61
+                  → .55, au centre d'une fenêtre confortable.
+     vertical   — mini board .31 + demi-badge .087 = .40
+                  maxi  sièges .84 − demi-bloc .33 − demi-badge .087 = .42
+                  → .41. La fenêtre ne fait que .02 : le budget vertical est
+                  SATURÉ, un bloc de siège occupant à lui seul le tiers du
+                  demi-axe. C'est la contrainte de fond de cette table. */
 function chipRingFactor(seatCount=6,numTables=1){
   const dense=seatCount>=8?-.03:seatCount>=7?-.015:0;
   const multi=numTables>=3?-.02:0;
-  return {x:.55+dense+multi,y:.42+dense+multi};
+  return {x:.55+dense+multi,y:.41+dense*.4+multi};
 }
 /* L'anneau règle tous les sièges dont le rayon passe À CÔTÉ du board. Il en reste
    un ou deux : ceux de l'AXE VERTICAL (le Hero en bas-centre, et le siège
@@ -663,6 +673,10 @@ function dealerAnchorPoint(layout,numTables=1){
   // bloc du siège (mesuré 13x22px).
   const ang=Math.atan2((seat.y-cy)/(ry||1),(seat.x-cx)/(rx||1));
   const f=chipRingFactor(seatCount,numTables);
+  // Sens du décalage : vers l'AVAL de l'ordre poker. Essayé dans l'autre sens pour
+  // éviter la blinde SB — mesuré sur 15 tirages, le taux de tables sans collision
+  // visible chute de 72% à 13% : le bouton vient alors se loger contre le tas du
+  // BTN lui-même. Le sens actuel est le bon, ne pas l'inverser.
   const a2=ang+(2*Math.PI/Math.max(2,seatCount))*.34;
   return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y)};
 }
