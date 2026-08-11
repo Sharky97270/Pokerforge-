@@ -398,15 +398,25 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid2 .mt-board-zone{zoom:.60;}
 .grid3 .mt-board-zone{zoom:.60;}
 .grid4 .mt-board-zone{zoom:.62;}
-/* Badges de mise 2T : jetons AU-DESSUS du libellé (vertical, comme la maquette)
-   → badge étroit qui tient dans le couloir board ↔ nameplate. 3T/4T restent
-   horizontaux (zones plus petites : un badge haut y percute blindes/pot). */
+/* Badges de mise : jetons AU-DESSUS du libellé (vertical, comme la maquette)
+   → badge ÉTROIT, qui tient dans l'emplacement dont dispose un joueur sur
+   l'anneau des mises. En ligne, le badge atteignait 150px de large (23% du
+   feutre en 1T) et débordait sur les plaques voisines : c'est la largeur, pas le
+   placement, qui ne passait pas. Le 1T rejoint donc le 2T sur cette disposition.
+   3T/4T restent horizontaux (zones plus petites : un badge haut y percute
+   blindes/pot). */
 .grid2 .pf-seat-action-zone .pf-action-chip-badge{
   flex-direction:column!important;gap:1px!important;align-items:center!important;
 }
 .grid2 .pf-seat-action-zone .pf-action-chip-copy{
   display:flex;flex-direction:row;gap:3px;align-items:baseline;line-height:1.1;text-align:center;
 }
+/* 1T : on GARDE la disposition en ligne — la passer en colonne rend le badge plus
+   HAUT (66px contre 44), or la hauteur est la ressource rare sur l'anneau (bande
+   libre étroite à la verticale). On borne la largeur à la place : 2 piles de
+   jetons (~51px) + un libellé écourté tiennent en ~104px, contre 150px avant. */
+.t1-left .pf-seat-action-zone .pf-action-chip-badge{max-width:104px!important;}
+.t1-left .pf-seat-action-zone .pf-action-chip-copy strong{max-width:52px!important;}
 /* Pot multi-table : aucun cadre/fond — jetons + texte posés sur le feutre */
 .grid2 .pf-pot-readout,.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
   background:transparent!important;border:none!important;box-shadow:none!important;
