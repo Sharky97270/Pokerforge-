@@ -1,5 +1,6 @@
-// Échelles alignées sur les tokens du script multi-table V1 (§6) :
-// --pf-scale-2t:0.78 · --pf-scale-3t-top:0.66 · --pf-scale-4t:0.58
+// Échelles des JETONS par mode, issues du script multi-table V1 (§6).
+// Ces valeurs vivaient aussi en tokens CSS (--pf-scale-*), qu'aucune règle ne
+// consommait : duplication supprimée, cette constante est la source unique.
 export const CHIP_TABLE_MODE_SCALE = {
   "1T": 1,
   "2T": 0.78,

@@ -63,19 +63,6 @@ function pointTowardCenter(pt,push=.45){
    même cause pour le bouton D sur la plaque BTN.
    On impose donc un dégagement MINIMUM : le point est repoussé hors d'une
    ellipse centrée sur le siège (rayons ≈ demi-bloc avatar/plaque + demi-jeton),
-   en conservant sa direction. Un point déjà dégagé n'est pas touché. */
-function pushOutsideSeatBlock(pt,seat,rx,ry,ryUp=ry){
-  let ux=pt.x-seat.x, uy=pt.y-seat.y;
-  // Point confondu avec le siège : on part vers le centre de la table.
-  if(Math.abs(ux)<.01&&Math.abs(uy)<.01){ux=50-seat.x;uy=50-seat.y;}
-  // Le bloc n'est pas centré sur l'ancre : les cartes sont rendues AU-DESSUS de
-  // l'avatar, donc il déborde bien plus vers le haut. Mesuré en 1T : le bloc du
-  // Hero monte à 25% du feutre au-dessus de son ancre, contre ~13% vers le bas.
-  const r=uy<0?ryUp:ry;
-  const n=Math.hypot(ux/rx,uy/r);
-  if(!n||n>=1)return pt;
-  return {x:seat.x+ux/n,y:seat.y+uy/n};
-}
 /* Rayons du bloc de siège, en % de la zone de table. Le multi a des sièges plus
    GROS relativement à sa table (48px sur ~400 = 12%, contre 68px sur ~866 = 8%)
    → dégagement proportionnellement plus large. */
@@ -83,47 +70,9 @@ function pushOutsideSeatBlock(pt,seat,rx,ry,ryUp=ry){
    table. Sert à choisir une place pour un tas de jetons, plutôt qu'à corriger une
    place déjà mauvaise — un simple « repousse hors de MON siège » ne dit rien des
    sièges VOISINS, et c'est là que les jetons finissaient (mesuré : le c-bet du CO
-   posé sur la plaque du BTN, 88x44px). */
-function seatBlockCost(pt,seats,ownerPos,rx,ry,ryUp,obstacles=[]){
-  let cost=0;
-  Object.entries(seats||{}).forEach(([p,s])=>{
-    const ux=pt.x-s.x, uy=pt.y-s.y;
-    const r=uy<0?ryUp:ry;
-    const n=Math.hypot(ux/rx,uy/r);
-    if(n<1)cost+=(1-n)*(p===ownerPos?1:1.6); // pénalité plus forte sur un siège voisin
-  });
-  // Obstacles ponctuels (bouton D, blindes) : eux aussi occupent le dégagement du
-  // siège. Sans ça, le jeton de mise du BTN recouvrait intégralement le bouton
-  // (mesuré 22x22px, soit toute sa surface) — la séparation appliquée plus haut
-  // était réintroduite par les étapes suivantes.
-  obstacles.forEach(o=>{
-    if(!o)return;
-    const d=Math.hypot(pt.x-o.x,pt.y-o.y);
-    if(d<(o.r||8))cost+=(1-d/(o.r||8))*1.4;
-  });
-  return cost;
-}
 /* Choisit la place d'un tas de jetons autour de son siège : on balaie un éventail
    d'angles vers le centre de la table et deux rayons, et on garde le point le moins
    encombré. À coût égal on préfère la direction naturelle (siège → centre) et le
-   rayon court, pour que le tas reste visiblement rattaché à son joueur. */
-function bestChipPoint(seat,seats,ownerPos,{rx,ry,ryUp,zone,geom,obstacles=[]}){
-  const baseAng=Math.atan2(50-seat.y,50-seat.x);
-  let best=null;
-  [1.02,1.3,1.6].forEach(mult=>{
-    for(let d=-70;d<=70;d+=14){
-      const a=baseAng+d*Math.PI/180;
-      const pt={x:seat.x+Math.cos(a)*rx*mult,y:seat.y+Math.sin(a)*(Math.sin(a)<0?ryUp:ry)*mult};
-      if(pt.x<4||pt.x>96||pt.y<4||pt.y>96)continue;
-      if(geom&&!pointInsideFeltGeometry(pt,geom,1))continue;
-      let cost=seatBlockCost(pt,seats,ownerPos,rx,ry,ryUp,obstacles);
-      if(zone&&pointInsideZone(pt,zone))cost+=2.5;            // board/pot : interdit
-      cost+=Math.abs(d)/70*.22+(mult-1)*.5;                   // préférences douces
-      if(!best||cost<best.cost)best={pt,cost};
-    }
-  });
-  return best?best.pt:null;
-}
 /* ══════════════════════════════════════════════════════════════════════════
    ANNEAU DE JETONS — placement UNIQUE de toutes les mises.
 
@@ -209,12 +158,6 @@ function trainerChipRingPoint(layout,pos,{numTables=1,seatCount=6}={}){
   const ang=Math.atan2((seat.y-cy)/(ry||1),(seat.x-cx)/(rx||1));
   const f=chipRingFactor(seatCount,numTables);
   return {x:clampTrainingPoint(cx+Math.cos(ang)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(ang)*ry*f.y)};
-}
-function seatBlockRadii(numTables=1){
-  // 1T : avatar 84px + plaque 30px ≈ 114px de haut sur une zone de ~620px → demi-bloc
-  // ≈ 9%, plus le demi-jeton (~5%) → ry ≈ 14. En largeur, plaque ≈ 90px sur ~866px
-  // → demi-bloc ≈ 5%, plus demi-jeton (~4%) → rx ≈ 10.
-  return numTables>=3?{rx:14,ry:16}:numTables===2?{rx:13,ry:15}:{rx:11,ry:14};
 }
 function seatRegion(pt){
   if(pt.y<=28)return"top";
@@ -691,16 +634,6 @@ function pointDistance(a,b){
   if(!a||!b)return Infinity;
   const dx=(a.x||0)-(b.x||0),dy=(a.y||0)-(b.y||0);
   return Math.sqrt(dx*dx+dy*dy);
-}
-function separateActionFromAnchor(pt,anchor,seat,minGap){
-  if(!anchor||pointDistance(pt,anchor)>=minGap)return pt;
-  const side=seat.x<50?1:seat.x>50?-1:(pt.x<50?-1:1);
-  const vertical=seat.y>=70?-1:seat.y<=28?1:(pt.y<50?-1:1);
-  const missing=minGap-pointDistance(pt,anchor)+2;
-  return {
-    x:pt.x+side*Math.max(3,missing),
-    y:pt.y+vertical*Math.min(6,Math.max(2,missing*.5)),
-  };
 }
 function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1}={}){
   const seat=layout.seats?.[pos]||{x:50,y:50};

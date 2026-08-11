@@ -376,7 +376,6 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   --pf-mt-cyan:#00D9FF;--pf-mt-blue:#0878FF;--pf-mt-green:#00E889;--pf-mt-red:#FF3B35;
   --pf-mt-gold-light:#F4C56A;--pf-mt-gold:#C8953E;--pf-mt-gold-dark:#6F4518;
   --pf-mt-glow-blue:rgba(0,120,255,.25);--pf-mt-glow-cyan:rgba(0,217,255,.20);--pf-mt-glow-gold:rgba(200,149,62,.22);
-  --pf-scale-1t:1;--pf-scale-2t:.78;--pf-scale-3t-top:.66;--pf-scale-3t-bottom:.61;--pf-scale-4t:.58;
 }
 /* Emplacement de carte en attente (turn/river) — pastille dorée maquette */
 .mt-board-ph{
@@ -385,11 +384,6 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   background:rgba(200,149,62,.05);
   box-shadow:inset 0 0 8px rgba(0,0,0,.35);
 }
-/* Calibrage cartes multi-table (retour utilisateur) : héros ×0.7, board ×0.5.
-   Scopé .pf-mt-seat / .mt-board-zone → le 1T figé n'est pas affecté. */
-.grid2 .pf-mt-seat .hero-card-wrap,
-.grid3 .pf-mt-seat .hero-card-wrap,
-.grid4 .pf-mt-seat .hero-card-wrap{zoom:1;}
 .mt-board-zone{zoom:.72;}/* minimum readable board across 2T/3T/4T */
 /* Le couloir libre entre le bas des sièges hauts et le haut de la grappe Hero ne
    fait que ~50 à 80px selon le mode. Un board à .72 le débordait et passait sous
