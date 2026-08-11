@@ -168,12 +168,16 @@ export function SeatActionZone({
   tableMode = 1,
   className = "",
   style,
+  pos,
 }) {
   if (!(amount > 0)) return null;
   const props = { label, amount: roundBb(amount), type, compact, kind, themeKey, colorKey, sizeMode, tableMode };
   const visual = actionVisualType(type);
+  // data-seat : les jetons de mise sont positionnés en absolu, hors du bloc de
+  // siège — rien ne reliait donc un tas de jetons à son joueur. L'attribut rend
+  // ce lien vérifiable (audit visuel : « ce tas appartient-il bien à ce siège ? »).
   return (
-    <div className={`pf-seat-action-zone ${className}`} style={{ left: `${x}%`, top: `${y}%`, ...style }}>
+    <div className={`pf-seat-action-zone ${className}`} data-seat={pos} style={{ left: `${x}%`, top: `${y}%`, ...style }}>
       {visual === "call" ? <CallBadge {...props} /> : visual === "raise" ? <RaiseBadge {...props} /> : visual === "open" ? <OpenBadge {...props} /> : visual === "allin" ? <AllInBadge {...props} /> : <BetBadge {...props} />}
     </div>
   );

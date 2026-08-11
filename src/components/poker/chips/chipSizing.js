@@ -79,7 +79,14 @@ export function getChipStackVisualAmount(amountBB = 0, tableMode = "1T", isAllIn
   // Tables denses : on compresse un peu la hauteur pour rester lisible.
   if (dense && !isAllIn) visibleChips = Math.max(1, Math.min(cap, Math.ceil(visibleChips * 0.7)));
 
-  const piles = splitChipPiles(visibleChips, dense ? 2 : 4);
+  // Nombre de piles plafonné à 2 (au lieu de 4 hors tables denses). Chaque pile
+  // supplémentaire ÉLARGIT le tas d'environ 17px : à 4 piles le badge atteignait
+  // sa largeur maximale de 150px, soit 23% de la largeur du feutre en 1T — plus
+  // large que l'emplacement dont dispose un joueur sur l'anneau des mises, d'où un
+  // tas qui débordait sur les plaques voisines (mesuré 57px de recouvrement en
+  // 5-max). La hauteur reste le signal du montant : le total de jetons ne change
+  // pas, il est seulement réparti sur moins de piles.
+  const piles = splitChipPiles(visibleChips, 2);
   return { amount, denomination, visibleChips, pileCount: piles.length, piles, stackType: stackTypeFor(amount, isAllIn) };
 }
 
