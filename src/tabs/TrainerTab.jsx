@@ -124,6 +124,81 @@ function bestChipPoint(seat,seats,ownerPos,{rx,ry,ryUp,zone,geom,obstacles=[]}){
   });
   return best?best.pt:null;
 }
+/* ══════════════════════════════════════════════════════════════════════════
+   ANNEAU DE JETONS — placement UNIQUE de toutes les mises.
+
+   Le modèle précédent plaçait chaque tas INDÉPENDAMMENT : une fraction de la
+   distance au centre, puis une cascade de corrections (dégagement du siège,
+   séparation d'avec les blindes, le bouton, le board, puis un balayage de
+   secours). Chaque correction en déclenchait une autre ailleurs, parce qu'aucune
+   étape ne connaissait l'ensemble des jetons affichés.
+
+   Ici les tas sont posés sur une ELLIPSE CONCENTRIQUE au feutre, chacun à
+   l'angle de son propre siège. Trois propriétés tombent d'elles-mêmes :
+     · les sièges sont répartis uniformément en angle, donc les jetons aussi →
+       deux tas ne peuvent plus se percuter, quel que soit le nombre de joueurs ;
+     · l'anneau est strictement à l'INTÉRIEUR du cercle des sièges → un tas ne
+       peut plus mordre sur un bloc de siège ;
+     · chaque tas est « devant » son joueur, sur le rayon qui le relie au pot —
+       la convention des clients de poker.
+   Reste une seule contrainte à arbitrer : le rayon, pris entre le board (dedans)
+   et les sièges (dehors). ══════════════════════════════════════════════════ */
+function trainerFeltEllipse(layout,numTables=1){
+  const g=layout?.tableGeometry||feltGeometryFor(numTables);
+  return {
+    cx:(g.left+(100-g.right))/2,
+    cy:(g.top+(100-g.bottom))/2,
+    rx:(100-g.left-g.right)/2,
+    ry:(100-g.top-g.bottom)/2,
+  };
+}
+/* Rayon de l'anneau, en fraction du demi-axe du feutre. Plus la table est
+   peuplée, plus les blocs de sièges descendent vers l'intérieur : on resserre
+   légèrement pour garder l'anneau dégagé. */
+/* Rayons de l'anneau, en fraction des demi-axes du feutre. Ils ne sont pas égaux :
+   la bande libre entre le board et les blocs de sièges est LARGE horizontalement
+   et ÉTROITE verticalement. Mesuré en 1T 7-max (feutre 658x506, blocs 88x130) :
+     · horizontal — board à 0.32 rx, bord interne des blocs à 0.77 rx → on vise .55
+     · vertical   — board à 0.31 ry, bord interne des blocs à 0.58 ry → on vise .45
+   Un anneau circulaire ne peut pas satisfaire les deux : c'est pour ça que les
+   premiers essais posaient les tas sur les sièges. */
+function chipRingFactor(seatCount=6,numTables=1){
+  const dense=seatCount>=8?-.03:seatCount>=7?-.015:0;
+  const multi=numTables>=3?-.02:0;
+  return {x:.55+dense+multi,y:.42+dense+multi};
+}
+/* L'anneau règle tous les sièges dont le rayon passe À CÔTÉ du board. Il en reste
+   un ou deux : ceux de l'AXE VERTICAL (le Hero en bas-centre, et le siège
+   haut-centre des structures paires). Là, le rayon traverse le board de part en
+   part, et la bande libre entre le bas du board et le haut des cartes du joueur a
+   été mesurée à 27px pour un tas qui en fait 44 : il n'y a pas de place, quel que
+   soit le rayon choisi. Les élargir angulairement ne marche pas non plus — il
+   faudrait ~59° de rotation pour dégager la largeur du board, soit plus que
+   l'écart entre deux sièges.
+   Ces sièges posent donc leur tas dans la POCHE latérale, à côté de leurs propres
+   cartes — exactement ce que font les clients de poker pour la main du Hero. La
+   poche est radialement bien plus externe que l'anneau : aucun risque de
+   rencontre avec les tas des voisins. */
+function isVerticalAxisSeat(seat){return Math.abs(seat.x-50)<12;}
+function trainerChipRingPoint(layout,pos,{numTables=1,seatCount=6}={}){
+  const seat=layout?.seats?.[pos];
+  if(!seat)return null;
+  const {cx,cy,rx,ry}=trainerFeltEllipse(layout,numTables);
+  if(isVerticalAxisSeat(seat)){
+    // Côté de la poche : opposé à l'autre blindeur quand il y en a un près de
+    // l'axe, sinon vers l'intérieur de la table.
+    const other=layout.seats?.[pos==="SB"?"BB":"SB"];
+    const away=other&&Math.abs(other.x-seat.x)>2?(other.x>seat.x?-1:1):1;
+    const dx=(numTables>=3?13:15)*away;
+    const dy=seat.y>=cy?-6:6; // vers le centre, d'un cran
+    return {x:clampTrainingPoint(seat.x+dx),y:clampTrainingPoint(seat.y+dy)};
+  }
+  // Angle NORMALISÉ sur l'ellipse : des sièges régulièrement espacés le restent
+  // sur l'anneau (ce ne serait pas vrai avec un angle cartésien sur une ellipse).
+  const ang=Math.atan2((seat.y-cy)/(ry||1),(seat.x-cx)/(rx||1));
+  const f=chipRingFactor(seatCount,numTables);
+  return {x:clampTrainingPoint(cx+Math.cos(ang)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(ang)*ry*f.y)};
+}
 function seatBlockRadii(numTables=1){
   // 1T : avatar 84px + plaque 30px ≈ 114px de haut sur une zone de ~620px → demi-bloc
   // ≈ 9%, plus le demi-jeton (~5%) → ry ≈ 14. En largeur, plaque ≈ 90px sur ~866px
@@ -564,34 +639,32 @@ function seatActionPoint(layout,pos,{hasBoard=false}={}){
 function blindAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"blindAnchor");
 }
+/* Le bouton D appartient au JOUEUR, pas au pot : il vit donc sur un anneau plus
+   EXTERNE que celui des mises, au même angle que son siège. Les deux ne peuvent
+   plus se superposer — c'était le dernier conflit du modèle précédent, où le
+   bouton et le tas du BTN se disputaient le même dégagement (recouvrement 22x22px,
+   soit toute la surface du bouton).
+   Le bouton est sur le BTN ; en HEADS-UP il n'y a pas de BTN, il est sur la SB. */
 function dealerAnchorPoint(layout,numTables=1){
-  // Jeton D dérivé de la position réelle du siège BTN.
-  // 1T (figé) : bas-gauche. Multi : à GAUCHE du siège à hauteur d'avatar —
-  // le bas-gauche chevauchait la nameplate (badge position/stack sous l'avatar)
-  // sur les zones compactes ; vérifié sans collision (nameplate/cartes/mises).
-  // Le bouton est sur BTN (3+ joueurs) ; en HEADS-UP il n'y a pas de BTN → le
-  // bouton est sur la SB (règle BTN=SB). Sinon on retombait sur le centre (50,50)
-  // et le jeton D flottait au milieu de la table.
-  const seat=layout.seats?.BTN||layout.seats?.SB||{x:50,y:50};
-  // Jeton D COLLÉ au siège BTN, décalé vers le CENTRE de la table (jamais flottant
-  // au milieu). Robuste toutes structures : direction dérivée de la géométrie, pas
-  // d'offset codé en dur par nom de layout (qui ne matchait pas "1T-web-dyn" →
-  // fallback {x:9} → le D flottait à 9% du siège vers le centre).
-  const p=pointTowardCenter(seat,0.14);
-  // Siège en bas (centre) : « vers le centre » pointe droit vers le haut → le D
-  // chevaucherait l'avatar. On le décale latéralement (côté centre) pour le poser
-  // à côté, jamais dessus (mission : ne jamais chevaucher l'avatar).
-  // Le décalage latéral est le MIROIR de celui des blindes (resolveTrainerBlindPoint
-  // envoie la blinde d'un siège de la colonne centrale à +13 en bas / -13 en haut).
-  // Avant, les deux partaient du même côté : en HEADS-UP, où le bouton est SUR la
-  // SB, le jeton D et la blinde 0.5bb se superposaient (mesuré 16x22px).
-  const lateral=Math.abs(seat.x-50)<14?(seat.y>=50?-11:11):0;
-  // Dégagement minimum : 0.14 de la distance au centre ne suffit pas pour un BTN
-  // sur le flanc (mesuré : D à 5% du siège, posé sur la plaque « BTN 60bb »).
-  // Le bouton reste plus près du siège que les mises — rayons réduits.
-  const r=seatBlockRadii(numTables);
-  const out=pushOutsideSeatBlock({x:p.x+lateral,y:p.y},seat,r.rx,r.ry*.8);
-  return {x:clampTrainingPoint(out.x),y:clampTrainingPoint(out.y)};
+  const seats=layout?.seats||{};
+  const pos=seats.BTN?"BTN":"SB";
+  const seat=seats[pos]||{x:50,y:50};
+  const seatCount=Object.keys(seats).length||6;
+  const {cx,cy,rx,ry}=trainerFeltEllipse(layout,numTables);
+  if(isVerticalAxisSeat(seat)){
+    // Siège sur l'axe : son tas occupe une poche latérale — le bouton prend l'autre.
+    const chip=trainerChipRingPoint(layout,pos,{numTables,seatCount});
+    const side=chip&&chip.x>=seat.x?-1:1;
+    return {x:clampTrainingPoint(seat.x+side*13),y:clampTrainingPoint(seat.y+(seat.y>=cy?-4:4))};
+  }
+  // Bouton D : MÊME anneau que les mises, mais décalé en ANGLE (un tiers de l'écart
+  // entre deux sièges). Il ne peut donc ni se retrouver sous le tas du BTN, ni
+  // atteindre celui du voisin — alors qu'un anneau plus externe le ramenait sur le
+  // bloc du siège (mesuré 13x22px).
+  const ang=Math.atan2((seat.y-cy)/(ry||1),(seat.x-cx)/(rx||1));
+  const f=chipRingFactor(seatCount,numTables);
+  const a2=ang+(2*Math.PI/Math.max(2,seatCount))*.34;
+  return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y)};
 }
 function actionLabelAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"actionLabelAnchor");
@@ -616,118 +689,27 @@ function separateActionFromAnchor(pt,anchor,seat,minGap){
 }
 function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1}={}){
   const seat=layout.seats?.[pos]||{x:50,y:50};
-  let pt={...seatActionPoint(layout,pos,{hasBoard})};
+  const seatCount=Object.keys(layout.seats||{}).length||6;
+  const ring=trainerChipRingPoint(layout,pos,{numTables,seatCount});
+  // Repli : layout sans géométrie exploitable (anneaux mobiles figés).
+  if(!ring)return {x:clampTrainingPoint(pointTowardCenter(seat,.27).x),y:clampTrainingPoint(pointTowardCenter(seat,.27).y)};
+  let pt={...ring};
+  // Le board occupe une BANDE horizontale au centre du feutre : les rayons qui la
+  // traversent (sièges des flancs) doivent poser leur tas juste en dehors. C'est
+  // la SEULE correction qui subsiste — tout le reste est garanti par l'anneau.
   const collisionZone=trainerBoardCollisionZone(hasBoard);
   if(pointInsideZone(pt,collisionZone)){
-    pt=clampPointOutsideBoard(pointTowardCenter(seat,.27),seat,collisionZone,3);
-  }
-  const isBlindSeat=pos==="BB"||pos==="SB";
-  const blind=blindAnchorPoint(layout,pos);
-  const cards=seatAnchorPoint(layout,pos,"cardsAnchor");
-  pt=separateActionFromAnchor(pt,blind,seat,isBlindSeat?TRAINER_VISUAL_CONFIG.anchorSafety.minBetBlindGap:7);
-  pt=separateActionFromAnchor(pt,cards,seat,isBlindSeat?TRAINER_VISUAL_CONFIG.anchorSafety.minBetCardsGap:8);
-  pt=separateActionFromAnchor(pt,seat,seat,isBlindSeat?TRAINER_VISUAL_CONFIG.anchorSafety.minBetSeatGap:8);
-  // Le bouton D vit lui aussi dans le dégagement du siège BTN : un jeton de mise du
-  // BTN ou de son voisin venait se poser dessus (mesuré 14x12px en 9-max).
-  pt=separateActionFromAnchor(pt,dealerAnchorPoint(layout,numTables),seat,9);
-  if(hasBoard&&pointInsideZone(pt,collisionZone)){
-    pt=clampPointOutsideBoard(pt,seat,collisionZone,4);
-  }
-  if(seat.y>=70){
-    const bottomMin=hasBoard?collisionZone.yMax+4:(seat.y>=82?68:62);
-    if(pt.y<bottomMin)pt.y=bottomMin;
-  }
-  if(seat.y<=24&&pointInsideZone(pt,collisionZone)){
-    pt.y=hasBoard?collisionZone.yMin-4:33;
-  }
-  if(seat.x<=20&&pt.x>28)pt.x=28;
-  if(seat.x>=80&&pt.x<72)pt.x=72;
-  const geom=layout.tableGeometry||feltGeometryFor(2);
-  if(!pointInsideFeltGeometry(pt,geom,1)){
-    pt=pointTowardCenter(seat,.28);
-  }
-  // Dégagement géométrique du bloc de siège — même cause que pour les blindes :
-  // `actionPush` est une fraction de la distance au centre, aveugle à la taille du
-  // bloc. Les separateActionFromAnchor() ci-dessus ne comparent que des POINTS
-  // d'ancrage entre eux, pas l'encombrement réel du siège. Mesuré postflop en
-  // 4-max et 7-max : jeton de mise posé sur l'avatar (34x44px) ET débordant sur le
-  // board. On dégage donc du siège, puis on ressort de la zone du board — dans cet
-  // ordre, car le dégagement peut ramener le jeton vers le centre.
-  const r=seatBlockRadii(numTables);
-  // Siège de la COLONNE CENTRALE en bas (le Hero, presque toujours) : au-dessus de
-  // lui il n'y a que ses propres cartes puis le board — la bande libre est trop
-  // étroite pour y loger un tas de jetons. On le pose donc À CÔTÉ des cartes, du
-  // côté opposé à la blinde (qui applique déjà la règle miroir), comme le font les
-  // clients de poker. Mesuré avant : jeton posé en plein sur les cartes du Hero.
-  if(Math.abs(seat.x-50)<8&&seat.y>=70){
-    const other=layout.seats?.[pos==="SB"?"BB":"SB"];
-    const blindDir=other&&Math.abs(other.x-seat.x)>2?(other.x>seat.x?-1:1):1;
-    pt={x:clampTrainingPoint(seat.x-blindDir*15),y:Math.min(pt.y,seat.y-4)};
-  }
-  pt=pushOutsideSeatBlock(pt,seat,r.rx,r.ry*1.25,r.ry*1.6);
-  if(pointInsideZone(pt,collisionZone)){
-    pt=clampPointOutsideBoard(pt,seat,collisionZone,4);
-  }
-  // Filet de sécurité CROISÉ : si le point retenu mord encore sur un siège — le
-  // sien ou, bien plus souvent, celui d'un voisin — on lui cherche une place par
-  // balayage autour de son propre siège. Ne se déclenche que sur collision avérée,
-  // donc les placements déjà corrects (la grande majorité) ne bougent pas.
-  // Obstacles ponctuels du plateau : le bouton D et les deux blindes occupent eux
-  // aussi le pourtour des sièges.
-  const obstacles=[
-    {...dealerAnchorPoint(layout,numTables),r:9},
-    {...blindAnchorPoint(layout,"SB"),r:8},
-    {...blindAnchorPoint(layout,"BB"),r:8},
-  ];
-  const cost=p=>seatBlockCost(p,layout.seats,pos,r.rx,r.ry*1.25,r.ry*1.6,obstacles);
-  const cur=cost(pt);
-  if(cur>0){
-    const alt=bestChipPoint(seat,layout.seats,pos,{
-      rx:r.rx,ry:r.ry*1.25,ryUp:r.ry*1.6,zone:collisionZone,geom,obstacles,
-    });
-    // Strictement non régressif : on ne remplace que si la place trouvée est
-    // réellement moins encombrée que celle qu'on avait.
-    if(alt&&cost(alt)<cur)pt=alt;
+    pt=clampPointOutsideBoard(pt,seat,collisionZone,3);
   }
   return {x:clampTrainingPoint(pt.x),y:clampTrainingPoint(pt.y)};
 }
+/* La blinde postée EST la mise du joueur sur la street : elle vit donc sur le même
+   anneau, au même point que son tas. C'est aussi ce qui règle un double affichage
+   ancien — un joueur qui ouvrait montrait DEUX tas, sa blinde et son open, alors
+   que son engagement total est un seul montant (le rendu n'affiche désormais que
+   l'un des deux, cf. seatShowsChips). */
 function resolveTrainerBlindPoint(layout,pos,numTables=1){
-  const seat=layout.seats?.[pos]||{x:50,y:50};
-  let pt={...blindAnchorPoint(layout,pos)};
-  const tableCenterZone={xMin:34,xMax:66,yMin:24,yMax:66};
-  if(pointInsideZone(pt,tableCenterZone)){
-    pt=clampPointOutsideBoard(pointTowardCenter(seat,.14),seat,tableCenterZone,3);
-  }
-  if(seat.y>=70)pt.y=Math.max(pt.y,seat.y-10);
-  // §5 — Sièges sur l'AXE CENTRAL vertical (Heads-Up, siège haut-centre, 3-max) : la
-  // blinde poussée vers le centre tombe PILE sur l'avatar du joueur (mesuré en HU :
-  // blinde y64-75 sur avatar y66-82). On la décale horizontalement pour la dégager —
-  // bas-centre → droite (loin du bouton D bas-gauche), haut-centre → gauche. Règle
-  // GÉOMÉTRIQUE (pas de hardcode HU) : ne se déclenche que si le siège est ~x50.
-  // Les blindes ne s'affichent qu'en préflop (pas de board) → décalage sans collision.
-  if(Math.abs(seat.x-50)<8){
-    // Le côté était FIGÉ (droite en bas, gauche en haut). Quand l'autre blindeur
-    // tombe justement de ce côté — ce qui arrive dès que le Hero est SB ou BB, donc
-    // très souvent — les deux jetons de blinde se rejoignaient (mesuré 26x41px).
-    // On choisit donc le côté OPPOSÉ au siège de l'autre blinde.
-    const other=layout.seats?.[pos==="SB"?"BB":"SB"];
-    const dir=other&&Math.abs(other.x-seat.x)>2?(other.x>seat.x?-1:1):(seat.y>=50?1:-1);
-    pt.x=seat.x+dir*13;
-  }
-  // Dégagement du bloc de siège, EN DERNIER (après les règles ci-dessus, sinon
-  // elles le réintroduisent). blindPush vaut ~0.18 de la distance au centre : pour
-  // une SB sur le flanc (x≈78) ça ne fait que ~5% d'écart, soit MOINS que le
-  // demi-bloc avatar+plaque → jeton de blinde posé sur la tête du joueur (mesuré
-  // en 1T 6-max et 8-max : recouvrement 30x64px). Vaut pour toutes les structures,
-  // sans coordonnée saisie à la main.
-  const r=seatBlockRadii(numTables);
-  pt=pushOutsideSeatBlock(pt,seat,r.rx,r.ry);
-  // Le dégagement peut renvoyer la blinde vers le centre : on la ressort de la
-  // zone board/pot (elle n'a pas le droit d'y vivre, même en préflop).
-  if(pointInsideZone(pt,tableCenterZone)){
-    pt=clampPointOutsideBoard(pt,seat,tableCenterZone,3);
-  }
-  return {x:clampTrainingPoint(pt.x),y:clampTrainingPoint(pt.y)};
+  return resolveTrainerActionPoint(layout,pos,{hasBoard:false,numTables});
 }
 
 
@@ -3717,6 +3699,20 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const isVisualPreflop=/^pre/i.test(visualStreet);
   const postedBlinds={SB:TRAINER_BLINDS.SB,BB:TRAINER_BLINDS.BB};
   const showStaticBlindMarkers=isVisualPreflop&&!playingFull;
+  /* UN SEUL TAS PAR JOUEUR. La blinde postée n'est pas un jeton à part : c'est le
+     début de l'engagement du joueur sur la street. Un SB qui ouvre à 2.5bb a 2.5bb
+     devant lui, pas « 0.5bb + 2.5bb ». Le rendu montrait pourtant les deux, ce qui
+     doublait le montant à l'œil et — depuis que l'anneau place les deux tas au même
+     point — les superposait. On masque donc la blinde dès que le siège affiche son
+     engagement. */
+  const seatShowsChips=(p)=>{
+    if(!p)return false;
+    const st=seatStates[p]||{};
+    if(spotCtx?.facing?.position===p)return true;
+    if(p===spot?.hpos&&(answered!==null||(spotCtx?.heroCommitted||0)>(TRAINER_BLINDS[p]||0)))return true;
+    if(p===spot?.vpos&&vact)return true;
+    return (st.invested||0)>(TRAINER_BLINDS[p]||0);
+  };
   const mainPotBb=roundBb(playingFull?fhPot:(currentPotBb||spot.pot||postedBlinds.SB+postedBlinds.BB));
   const heroSize=numTables>=3?"md":numTables===2?"lg":"3xl";
   const chipSize=numTables>=3?30:numTables===2?38:68;
@@ -5028,7 +5024,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           })}
 
           {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
-          {showStaticBlindMarkers&&["SB","BB"].map(bp=>{
+          {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
             const p=resolveTrainerBlindPoint(trainingLayout,bp,1);
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
@@ -5288,7 +5284,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         {/* SIÈGES — tailles 100% basées sur cfg */}
         {compactActionLine()&&<div className="table-action-line compact"><strong>{spot.street.slice(0,3)}</strong> {compactActionLine()}</div>}
 
-        {showStaticBlindMarkers&&["SB","BB"].map(pos=>{
+        {showStaticBlindMarkers&&["SB","BB"].filter(pos=>!seatShowsChips(pos)).map(pos=>{
           const {x,y}=trainingLayout.seats[pos]||{x:50,y:50};
           const p=resolveTrainerBlindPoint(trainingLayout,pos,numTables);
           const bp=y>=76?0.62:0.34; // marqueurs blinds au-dessus des cartes (sièges bas)
