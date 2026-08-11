@@ -4919,7 +4919,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <React.Fragment key={pos}>
 
                 {/* ── SEAT CARD ── */}
-                <PlayerSeat pos={pos} mode="1T" style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
+                {/* Sièges HAUTS : grappe rendue en ordre inverse (plaque à l'extérieur,
+                    cartes vers le centre). C'est d'abord la disposition RÉELLE d'une
+                    table — les cartes d'un joueur sont devant lui, côté board. Et ça
+                    règle la cause dominante des chevauchements mesurée sur 30 tirages
+                    (5 occurrences « plaque ↔ tas de mise ») : pour un siège haut, le
+                    bord INTERNE du bloc était la plaque, large de 88px ; ce sont
+                    désormais les cartes, larges de 60px. Le tas posé sur l'anneau
+                    dispose donc de ~28px de dégagement latéral en plus. */}
+                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
 
                   {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
                   {isV&&!seatFolded&&(

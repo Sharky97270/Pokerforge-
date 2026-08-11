@@ -729,6 +729,17 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   box-shadow:0 3px 10px rgba(0,0,0,.6)!important;
   pointer-events:none;z-index:4;
 }
+/* Trainer 1T — SIÈGES HAUTS à grappe inversée : plaque nom/stack à l'extérieur,
+   avatar au milieu, cartes vers le centre de la table. Un column-reverse suffit,
+   l'ordre du DOM reste inchangé (cartes → avatar → plaque), donc rien à toucher
+   côté rendu. Les marges verticales des enfants sont neutralisées et remplacées
+   par un gap, sinon elles s'appliqueraient du mauvais côté une fois inversées ;
+   idem pour la marge haute négative de la plaque, qui la collait à l'avatar. */
+/* !important obligatoire : la règle de base .pf-player-seat impose déjà
+   flex-direction:column!important. */
+.t1-left .pf-player-seat.pf-seat-inverted{flex-direction:column-reverse!important;gap:4px;}
+.t1-left .pf-player-seat.pf-seat-inverted>*{margin-bottom:0!important;}
+.t1-left .pf-player-seat.pf-seat-inverted .pf-seat-nameplate{margin-top:0!important;}
 /* Trainer 1T — pastille Fold / In pot SORTIE DU FLUX, comme en multi-table.
    Empilée sous la plaque, elle ajoutait ~15px à un bloc de siège déjà trop haut
    pour le budget vertical de l'anneau des mises, sans rien apprendre de plus :
