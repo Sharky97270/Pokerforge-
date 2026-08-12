@@ -57,6 +57,14 @@ if (!executablePath) { console.error('Chrome/Edge introuvable.'); process.exit(2
 const CANDIDATE_PATH = arg('candidate', '');
 const CANDIDATE_CSS = CANDIDATE_PATH ? fs.readFileSync(path.resolve(CANDIDATE_PATH), 'utf8') : '';
 
+/* Certaines candidates ne sont pas exprimables en CSS : les ancres de l'anneau
+   sont calculées en JS et posées en left/top. Un fichier --candidateJs contient
+   alors le corps d'une fonction `apply()` exécutée dans la page après la mesure
+   « avant » ; elle doit renvoyer une fonction de restauration, appelée après la
+   mesure « après ». L'appariement reste donc intact : même spot, même DOM. */
+const CANDIDATE_JS_PATH = arg('candidateJs', '');
+const CANDIDATE_JS = CANDIDATE_JS_PATH ? fs.readFileSync(path.resolve(CANDIDATE_JS_PATH), 'utf8') : '';
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({
@@ -127,7 +135,10 @@ try {
     });
     document.querySelectorAll('.t1-left .pf-blind-anchor').forEach(a => {
       const el = a.querySelector('.pf-blind-stack') || a.firstElementChild;
-      const lbl = (a.textContent.match(/\b(SB|BB)\b/) || [, 'blinde'])[1];
+      // Pas de \b : le texte est « 0.5bbSB », il n'y a donc pas de frontière de mot
+      // avant SB. Avec \b tous les tas de blinde recevaient le même propriétaire et
+      // une paire SB↔BB était écartée à tort comme « même siège ».
+      const lbl = (a.textContent.match(/(SB|BB)/) || [, 'blinde'])[1];
       if (el) push('blinde', lbl, el);
     });
     const one = (sel, kind) => { const el = document.querySelector(sel); if (el) push(kind, '-', el); };
@@ -217,8 +228,10 @@ try {
     // Sans candidate, addStyleTag refuse un contenu vide : on injecte un commentaire,
     // ce qui laisse « après » identique à « avant » — la mesure seule.
     const handle = await page.addStyleTag({ content: CANDIDATE_CSS || '/* aucune candidate */' });
+    if (CANDIDATE_JS) await page.evaluate(src => { window.__undoCandidate = new Function(src)(); }, CANDIDATE_JS);
     await sleep(60);
     const after = filt(await page.evaluate(MEASURE));
+    if (CANDIDATE_JS) await page.evaluate(() => { window.__undoCandidate?.(); window.__undoCandidate = null; });
     const idAfter = await page.evaluate(() => {
       const seats = [...document.querySelectorAll('.t1-left .pf-player-seat')];
       return seats.map(s => s.getAttribute('data-seat')).join(',') + '|' +
@@ -271,6 +284,7 @@ try {
     n: spots.length,
     viewport: `${W}x${H}`,
     candidate: CANDIDATE_PATH || null,
+    candidateJs: CANDIDATE_JS_PATH || null,
     tirages: draws,
     ecartesSansMise: skipped,
     sessionsRelancees: sessionsStarted,
