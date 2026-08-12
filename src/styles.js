@@ -770,6 +770,16 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   .t1-left .pf-player-seat .player-card-1t:not(.hero) .seat-card-stack{
     margin-top:0!important;
   }
+  /* Trainer 1T — LES OBJETS DE L'ANNEAU SUIVENT L'ÉCHELLE DU FEUTRE.
+     --pf-ring-scale est publiée sur .t1-table-area par useTrainerRingScale : elle
+     vaut 1 au format de calibration (feutre de 542px de haut) et descend jusqu'à
+     .80 sur les feutres courts. Le scale() est posé sur le MÊME transform que le
+     translate(-50%,-50%), donc le point d'ancrage sur l'anneau ne bouge pas.
+     Le mobile est exclu (min-width:769px) : il a déjà ses propres échelles
+     calibrées, dont .pf-blind-anchor scale(.74). */
+  .t1-left .pf-seat-action-zone{transform:translate(-50%,-50%) scale(var(--pf-ring-scale,1))!important;}
+  .t1-left .pf-blind-anchor{transform:translate(-50%,-50%) scale(var(--pf-ring-scale,1))!important;}
+  .t1-left .dealer-btn{transform:translate(-50%,-50%) scale(var(--pf-ring-scale,1))!important;}
 }
 .pf-fold-chip,.pf-multiway-chip{
   margin-top:3px;

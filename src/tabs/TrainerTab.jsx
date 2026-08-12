@@ -627,6 +627,61 @@ function dealerAnchorPoint(layout,numTables=1){
 function actionLabelAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"actionLabelAnchor");
 }
+/* ── ÉCHELLE DES OBJETS POSÉS SUR L'ANNEAU ──
+   La géométrie de l'anneau est en POURCENTAGES du feutre : elle est donc
+   invariante d'échelle, et une séparation angulaire vaut toujours la même
+   fraction de table. Mais les objets qu'on y pose sont en PIXELS FIXES. Mesuré
+   entre deux formats :
+     feutre    866x542 -> 632x360   (x0.73 en largeur, x0.66 en HAUTEUR)
+     bouton D    22x22 ->   22x22   (x1.00)
+     tas blinde  61x64 ->   61x64   (x1.00)
+     badge mise  96x44 ->   90x41   (x0.94)
+   Sur un feutre court, un tas de blinde occupe donc 18% de la hauteur totale au
+   lieu de 12% : les écarts calibrés en grand n'achètent plus assez de pixels.
+   Conséquence mesurée à 1366x768 : 0 tirage sur 60 sans chevauchement.
+
+   On rend donc aux objets la même échelle qu'au feutre. Preuve, en tirages
+   appariés (n=40, 1366x768), réponse monotone et sans contre-exemple :
+     échelle .80 -> 23 paires mieux / 0 pire, tirages propres 4->24
+     échelle .75 -> 30 / 0, propres 2->21
+     échelle .66 -> 35 / 0, propres 2->26   (.66 = 360/542, proportion stricte)
+   Le PLANCHER est un arbitrage de lisibilité, pas une optimisation : à .66 le
+   montant misé tombe à 6.6px, et c'est le chiffre dont dépend la décision. On
+   s'arrête donc à .80 (montant à 8px), qui efface déjà entièrement
+   blinde↔boutonD, blinde↔mise, cartes↔mise et mise↔plaque.
+
+   Hauteur de référence 542px : le feutre à 1600x950, format sur lequel toute la
+   géométrie de l'anneau a été calibrée. L'échelle y vaut donc 1 — rien ne change
+   là où la table était déjà propre.
+
+   NB : le seul chevauchement que ceci ne peut pas traiter est boutonD↔mise, où
+   les deux objets rapetissent ensemble et conservent leur recouvrement. C'est un
+   défaut de géométrie pure (décalage de 0.34 écart de siège, insuffisant pour
+   dégager un badge large). Élargir ce décalage a été testé et REJETÉ : il
+   échange boutonD↔mise 11->1 contre boutonD↔cartes 0->11, net négatif. */
+const RING_SCALE_REF_HEIGHT=542;
+const RING_SCALE_FLOOR=.80;
+function useTrainerRingScale(){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el)return;
+    const apply=()=>{
+      const h=el.getBoundingClientRect().height||RING_SCALE_REF_HEIGHT;
+      const s=Math.min(1,Math.max(RING_SCALE_FLOOR,h/RING_SCALE_REF_HEIGHT));
+      el.style.setProperty("--pf-ring-scale",s.toFixed(3));
+    };
+    apply();
+    if(typeof ResizeObserver==="undefined"){
+      window.addEventListener("resize",apply);
+      return ()=>window.removeEventListener("resize",apply);
+    }
+    const ro=new ResizeObserver(apply);
+    ro.observe(el);
+    return ()=>ro.disconnect();
+  },[]);
+  return ref;
+}
 function pointInsideZone(pt,zone){
   return pt.x>=zone.xMin&&pt.x<=zone.xMax&&pt.y>=zone.yMin&&pt.y<=zone.yMax;
 }
@@ -2797,6 +2852,9 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 ═══════════════════════════════════════ */
 export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
   const[answered,setAnswered]=useState(null);
+  // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
+  // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
+  const ringScaleRef=useTrainerRingScale();
   const[showSpotMacaron,setShowSpotMacaron]=useState(false); // §P0-A : macaron ✓/✗ TEMPORAIRE (fade ~1.6s), l'analyse reste dans le panneau
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -4683,7 +4741,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
            que le multi). */}
         <div className="t1-left" data-nplayers={seatOrder.length} style={{flex:"1 1 auto",minWidth:0,display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
 
-         <div className="t1-table-area" style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
+         <div className="t1-table-area" ref={ringScaleRef} style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
 
           {/* Focus Mode button */}
           {onFocusToggle&&<div className={`focus-mode-btn${focusMode?" on":""}`} title={focusMode?"Quitter le focus":"Mode focus"} onClick={onFocusToggle}>{focusMode?"⊡":"⊠"}</div>}
