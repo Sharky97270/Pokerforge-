@@ -127,6 +127,102 @@ function chipRingFactor(seatCount=6,numTables=1){
   const multi=numTables>=3?-.02:0;
   return {x:.55+dense+multi,y:.41+dense*.4+multi};
 }
+/* ── RAPPROCHEMENT DES MARQUEURS VERS LEUR JOUEUR ──────────────────────────
+   Les rayons ci-dessus sont un PLANCHER : ils ont été calibrés sur le format le
+   plus contraint, et y sont exactement à la limite. Le problème est qu'ils sont
+   exprimés en fraction du feutre, alors que ce qui borne réellement l'anneau —
+   la moitié du bloc de siège plus la moitié du marqueur — se compte en PIXELS.
+   La bande libre vaut donc
+
+       libre(px) = R·(ρ_siège − ρ_anneau) − BUDGET·échelle
+
+   et elle CROÎT avec le feutre : sur un grand écran l'anneau reste au rayon du
+   petit format et les marqueurs flottent au milieu du tapis, loin du joueur
+   auquel ils appartiennent (constat utilisateur). Mesuré, déplacement libre le
+   long de l'axe marqueur→siège, marge 6px :
+
+       1366x768  blindes  0px/83px    mises  0px/95px    bouton D 10px
+       1920x950  blindes 65px/149px   mises 44px/157px   bouton D 97px
+
+   On vise donc directement le point qui laisse le budget en pixels, au lieu
+   d'une fraction figée : ρ_cible = ρ_siège − BUDGET·échelle/R(direction).
+   Le calcul est fait PAR SIÈGE et PAR DIRECTION, ce qui règle d'un coup
+   l'anisotropie du feutre — la bande est large horizontalement, nulle
+   verticalement, et la formule rend spontanément un rapprochement nul sur l'axe
+   vertical (mesuré : ρ_cible y tombe SOUS le rayon actuel, donc plancher).
+
+   Le budget est PAR TYPE, parce que les trois marqueurs ne butent pas sur le même
+   obstacle — mesuré à 1920x950, audit apparié n=26..30 :
+     · blinde   — bute sur l'AVATAR (18 cas sur 22), le plus externe des trois.
+                  +30% de rayon : 0 paire mieux / 0 pire, aucune cause nouvelle.
+     · bouton D — bute sur l'avatar aussi, mais il vit à un tiers d'écart de siège
+                  en ANGLE : plus loin, il rencontre les CARTES du voisin
+                  (mesuré à +30% : boutonD↔cartes 0→12). Budget intermédiaire.
+     · mise     — bute sur SES PROPRES cartes et sa plaque, nettement plus
+                  internes (mesuré à +12% uniforme : mise↔plaque 0→6). Budget le
+                  plus large, donc le rapprochement le plus prudent.
+   C'est la raison d'être d'un budget par TYPE plutôt que d'un rayon unique.
+
+   Chaque budget est calé pour que le rapprochement soit NUL à 1366x768 : ce
+   format n'a aucune marge (0px de déplacement libre mesuré), et tout gain qu'on
+   y prend se paie immédiatement en chevauchements. Vérifié par audit apparié. */
+const MARKER_CLEARANCE_PX={BLIND:105,DEALER:120,BET:154};
+/* Le plafond n'est pas là pour la sécurité (la formule est déjà bornée par le
+   siège) mais pour la LISIBILITÉ : au-delà, sur un très grand écran, le marqueur
+   se collerait au joueur et la table perdrait son aération. */
+const MARKER_APPROACH_MAX=1.30;
+/* Demi-axes du feutre en PIXELS. `ringGeom` vient de la mesure du conteneur
+   (useTrainerRingScale) : sans elle on ne peut pas raisonner en pixels, et on
+   retombe simplement sur le plancher — c'est le comportement au premier rendu. */
+function feltPixelRadii(layout,numTables,ringGeom){
+  if(!ringGeom||!(ringGeom.areaW>0)||!(ringGeom.areaH>0))return null;
+  const g=layout?.tableGeometry||feltGeometryFor(numTables);
+  return {
+    rxPx:ringGeom.areaW*(100-(g.left||0)-(g.right||0))/200,
+    ryPx:ringGeom.areaH*(100-(g.top||0)-(g.bottom||0))/200,
+  };
+}
+/* Multiplicateur de rayon d'UN siège, pour UN type de marqueur. 1 = inchangé. */
+function markerApproach(seat,ell,{numTables=1,seatCount=6,markerType="BET",ringGeom=null,layout=null}={}){
+  const budget=MARKER_CLEARANCE_PX[markerType];
+  const px=budget?feltPixelRadii(layout,numTables,ringGeom):null;
+  if(!px)return 1;
+  const {cx,cy,rx,ry}=ell;
+  const u=(seat.x-cx)/(rx||1),v=(seat.y-cy)/(ry||1);
+  const rhoSeat=Math.hypot(u,v);
+  if(!(rhoSeat>0))return 1;
+  const ang=Math.atan2(v,u),co=Math.cos(ang),si=Math.sin(ang);
+  const f=chipRingFactor(seatCount,numTables);
+  const rhoRing=Math.hypot(co*f.x,si*f.y);
+  if(!(rhoRing>0))return 1;
+  // Longueur en px d'une unité de rayon normalisé, dans la direction du siège.
+  const rDir=Math.hypot(co*px.rxPx,si*px.ryPx);
+  if(!(rDir>0))return 1;
+  const rhoTarget=rhoSeat-budget*(ringGeom.scale||1)/rDir;
+  const m=rhoTarget/rhoRing;
+  if(!(m>1))return 1;                       // format contraint : on garde le plancher
+  return Math.min(m,MARKER_APPROACH_MAX);
+}
+/* ── POCHE LATÉRALE : même correction, exprimée en pixels ──
+   L'écart de la poche était un POURCENTAGE de la table (15%). En pixels il suit
+   donc la largeur de l'écran : 95px à 1366, mais 178px à 1920, alors que les
+   cartes qu'il doit contourner ne grandissent, elles, que de l'échelle de
+   l'anneau (+25%). D'où la blinde du siège haut-centre qui part flotter loin sur
+   le côté. On budgète l'écart en pixels, calé pour valoir exactement 15% / 6% au
+   format contraint, et on ne dépasse jamais ces valeurs.
+
+   La MISE fait exception et garde l'écart d'origine : la poche longe les cartes
+   du joueur, et c'est le plus large des trois objets (badge 77px, contre 49px
+   pour un tas de blinde). Sur le siège du bas ces cartes sont celles du Hero,
+   au grand format — resserrer la poche y posait le badge dessus (mesuré à
+   1920x950 : cartes↔mise sur le propre siège, 33x41px, 2 tirages sur 34).
+   Les blindes et le bouton, eux, passent. */
+const POCKET_DX_PX={BLIND:118,DEALER:103,BET:Infinity};
+const POCKET_DY_PX=30;
+function pocketOffsetPct(basePct,budgetPx,areaPx,scale){
+  if(!(areaPx>0)||!isFinite(budgetPx))return basePct;
+  return Math.min(basePct,budgetPx*(scale||1)/areaPx*100);
+}
 /* L'anneau règle tous les sièges dont le rayon passe À CÔTÉ du board. Il en reste
    un ou deux : ceux de l'AXE VERTICAL (le Hero en bas-centre, et le siège
    haut-centre des structures paires). Là, le rayon traverse le board de part en
@@ -140,24 +236,26 @@ function chipRingFactor(seatCount=6,numTables=1){
    poche est radialement bien plus externe que l'anneau : aucun risque de
    rencontre avec les tas des voisins. */
 function isVerticalAxisSeat(seat){return Math.abs(seat.x-50)<12;}
-function trainerChipRingPoint(layout,pos,{numTables=1,seatCount=6}={}){
+function trainerChipRingPoint(layout,pos,{numTables=1,seatCount=6,markerType="BET",ringGeom=null}={}){
   const seat=layout?.seats?.[pos];
   if(!seat)return null;
-  const {cx,cy,rx,ry}=trainerFeltEllipse(layout,numTables);
+  const ell=trainerFeltEllipse(layout,numTables);
+  const {cx,cy,rx,ry}=ell;
   if(isVerticalAxisSeat(seat)){
     // Côté de la poche : opposé à l'autre blindeur quand il y en a un près de
     // l'axe, sinon vers l'intérieur de la table.
     const other=layout.seats?.[pos==="SB"?"BB":"SB"];
     const away=other&&Math.abs(other.x-seat.x)>2?(other.x>seat.x?-1:1):1;
-    const dx=(numTables>=3?13:15)*away;
-    const dy=seat.y>=cy?-6:6; // vers le centre, d'un cran
+    const dx=pocketOffsetPct(numTables>=3?13:15,POCKET_DX_PX[markerType],ringGeom?.areaW,ringGeom?.scale)*away;
+    const dy=pocketOffsetPct(6,markerType==="BET"?Infinity:POCKET_DY_PX,ringGeom?.areaH,ringGeom?.scale)*(seat.y>=cy?-1:1); // vers le centre, d'un cran
     return {x:clampTrainingPoint(seat.x+dx),y:clampTrainingPoint(seat.y+dy)};
   }
   // Angle NORMALISÉ sur l'ellipse : des sièges régulièrement espacés le restent
   // sur l'anneau (ce ne serait pas vrai avec un angle cartésien sur une ellipse).
   const ang=Math.atan2((seat.y-cy)/(ry||1),(seat.x-cx)/(rx||1));
   const f=chipRingFactor(seatCount,numTables);
-  return {x:clampTrainingPoint(cx+Math.cos(ang)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(ang)*ry*f.y)};
+  const m=markerApproach(seat,ell,{numTables,seatCount,markerType,ringGeom,layout});
+  return {x:clampTrainingPoint(cx+Math.cos(ang)*rx*f.x*m),y:clampTrainingPoint(cy+Math.sin(ang)*ry*f.y*m)};
 }
 function seatRegion(pt){
   if(pt.y<=28)return"top";
@@ -599,17 +697,20 @@ function blindAnchorPoint(layout,pos){
    bouton et le tas du BTN se disputaient le même dégagement (recouvrement 22x22px,
    soit toute la surface du bouton).
    Le bouton est sur le BTN ; en HEADS-UP il n'y a pas de BTN, il est sur la SB. */
-function dealerAnchorPoint(layout,numTables=1){
+function dealerAnchorPoint(layout,numTables=1,ringGeom=null){
   const seats=layout?.seats||{};
   const pos=seats.BTN?"BTN":"SB";
   const seat=seats[pos]||{x:50,y:50};
   const seatCount=Object.keys(seats).length||6;
-  const {cx,cy,rx,ry}=trainerFeltEllipse(layout,numTables);
+  const ell=trainerFeltEllipse(layout,numTables);
+  const {cx,cy,rx,ry}=ell;
   if(isVerticalAxisSeat(seat)){
     // Siège sur l'axe : son tas occupe une poche latérale — le bouton prend l'autre.
-    const chip=trainerChipRingPoint(layout,pos,{numTables,seatCount});
+    const chip=trainerChipRingPoint(layout,pos,{numTables,seatCount,markerType:"BET",ringGeom});
     const side=chip&&chip.x>=seat.x?-1:1;
-    return {x:clampTrainingPoint(seat.x+side*13),y:clampTrainingPoint(seat.y+(seat.y>=cy?-4:4))};
+    const dx=pocketOffsetPct(13,POCKET_DX_PX.DEALER,ringGeom?.areaW,ringGeom?.scale);
+    const dy=pocketOffsetPct(4,POCKET_DY_PX*.67,ringGeom?.areaH,ringGeom?.scale);
+    return {x:clampTrainingPoint(seat.x+side*dx),y:clampTrainingPoint(seat.y+(seat.y>=cy?-dy:dy))};
   }
   // Bouton D : MÊME anneau que les mises, mais décalé en ANGLE (un tiers de l'écart
   // entre deux sièges). Il ne peut donc ni se retrouver sous le tas du BTN, ni
@@ -622,7 +723,8 @@ function dealerAnchorPoint(layout,numTables=1){
   // visible chute de 72% à 13% : le bouton vient alors se loger contre le tas du
   // BTN lui-même. Le sens actuel est le bon, ne pas l'inverser.
   const a2=ang+(2*Math.PI/Math.max(2,seatCount))*.34;
-  return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y)};
+  const m=markerApproach(seat,ell,{numTables,seatCount,markerType:"DEALER",ringGeom,layout});
+  return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x*m),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y*m)};
 }
 function actionLabelAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"actionLabelAnchor");
@@ -661,26 +763,55 @@ function actionLabelAnchorPoint(layout,pos){
    échange boutonD↔mise 11->1 contre boutonD↔cartes 0->11, net négatif. */
 const RING_SCALE_REF_HEIGHT=542;
 const RING_SCALE_FLOOR=.80;
+/* La même mesure sert deux fois : elle règle la TAILLE des objets (--pf-ring-scale,
+   ci-dessus) et elle donne le repère en PIXELS dont le placement a besoin pour
+   savoir de combien il peut rapprocher un marqueur de son joueur (markerApproach).
+   Un seul ResizeObserver pour les deux — et donc une seule vérité sur la taille
+   courante de la table, y compris quand un panneau latéral s'ouvre ou se ferme. */
+/* Ref de RAPPEL, et non ref d'objet : le conteneur mesuré n'est pas le même en 1T
+   (.t1-table-area) et en multi (.training-table-zone). Un useEffect à dépendances
+   vides ne mesurerait que le conteneur présent au montage et garderait ensuite une
+   taille périmée après un passage 1T <-> 4T. Ici l'observateur se rebranche sur le
+   nœud réellement monté. Ce composant rend UNE table : en multi, chaque table a
+   donc sa propre mesure, son propre centre et ses propres rayons (§10). */
 function useTrainerRingScale(){
-  const ref=useRef(null);
-  useEffect(()=>{
-    const el=ref.current;
+  const [geom,setGeom]=useState(null);
+  const state=useRef({el:null,ro:null,onResize:null});
+  const measure=useCallback(el=>{
     if(!el)return;
-    const apply=()=>{
-      const h=el.getBoundingClientRect().height||RING_SCALE_REF_HEIGHT;
-      const s=Math.min(1,Math.max(RING_SCALE_FLOOR,h/RING_SCALE_REF_HEIGHT));
-      el.style.setProperty("--pf-ring-scale",s.toFixed(3));
-    };
-    apply();
-    if(typeof ResizeObserver==="undefined"){
-      window.addEventListener("resize",apply);
-      return ()=>window.removeEventListener("resize",apply);
-    }
-    const ro=new ResizeObserver(apply);
-    ro.observe(el);
-    return ()=>ro.disconnect();
+    const r=el.getBoundingClientRect();
+    const h=r.height||RING_SCALE_REF_HEIGHT;
+    const s=Math.min(1,Math.max(RING_SCALE_FLOOR,h/RING_SCALE_REF_HEIGHT));
+    el.style.setProperty("--pf-ring-scale",s.toFixed(3));
+    // Arrondi puis comparaison : un ResizeObserver qui publierait à chaque
+    // fraction de pixel relancerait le rendu qu'il observe.
+    const next={areaW:Math.round(r.width),areaH:Math.round(h),scale:+s.toFixed(3)};
+    setGeom(prev=>(prev&&prev.areaW===next.areaW&&prev.areaH===next.areaH&&prev.scale===next.scale)?prev:next);
   },[]);
-  return ref;
+  const ref=useCallback(el=>{
+    const st=state.current;
+    if(st.ro){st.ro.disconnect();st.ro=null;}
+    if(st.onResize){window.removeEventListener("resize",st.onResize);st.onResize=null;}
+    st.el=el;
+    if(!el){setGeom(null);return;}
+    measure(el);
+    if(typeof ResizeObserver==="undefined"){
+      st.onResize=()=>measure(el);
+      window.addEventListener("resize",st.onResize);
+      return;
+    }
+    st.ro=new ResizeObserver(()=>measure(el));
+    st.ro.observe(el);
+  },[measure]);
+  // Pas de nettoyage en useEffect ici : React rappelle DÉJÀ la ref avec null au
+  // démontage, et c'est cette branche qui débranche l'observateur. Un
+  // useEffect(()=>()=>…,[]) en plus est non seulement redondant, il est faux —
+  // en StrictMode (dev) React monte, démonte puis remonte les effets, si bien que
+  // son nettoyage débranchait l'observateur que la ref venait d'attacher, sans que
+  // rien ne le rebranche. Symptôme mesuré : --pf-ring-scale figée à sa valeur de
+  // montage, un observateur témoin posé sur le MÊME nœud se déclenchant, lui,
+  // normalement — donc des marqueurs qui ne suivaient plus le redimensionnement.
+  return [ref,geom];
 }
 function pointInsideZone(pt,zone){
   return pt.x>=zone.xMin&&pt.x<=zone.xMax&&pt.y>=zone.yMin&&pt.y<=zone.yMax;
@@ -690,10 +821,10 @@ function pointDistance(a,b){
   const dx=(a.x||0)-(b.x||0),dy=(a.y||0)-(b.y||0);
   return Math.sqrt(dx*dx+dy*dy);
 }
-function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1}={}){
+function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1,ringGeom=null,markerType="BET"}={}){
   const seat=layout.seats?.[pos]||{x:50,y:50};
   const seatCount=Object.keys(layout.seats||{}).length||6;
-  const ring=trainerChipRingPoint(layout,pos,{numTables,seatCount});
+  const ring=trainerChipRingPoint(layout,pos,{numTables,seatCount,markerType,ringGeom});
   // Repli : layout sans géométrie exploitable (anneaux mobiles figés).
   if(!ring)return {x:clampTrainingPoint(pointTowardCenter(seat,.27).x),y:clampTrainingPoint(pointTowardCenter(seat,.27).y)};
   let pt={...ring};
@@ -711,8 +842,20 @@ function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1}={}){
    ancien — un joueur qui ouvrait montrait DEUX tas, sa blinde et son open, alors
    que son engagement total est un seul montant (le rendu n'affiche désormais que
    l'un des deux, cf. seatShowsChips). */
-function resolveTrainerBlindPoint(layout,pos,numTables=1){
-  return resolveTrainerActionPoint(layout,pos,{hasBoard:false,numTables});
+function resolveTrainerBlindPoint(layout,pos,numTables=1,ringGeom=null){
+  return resolveTrainerActionPoint(layout,pos,{hasBoard:false,numTables,ringGeom,markerType:"BLIND"});
+}
+/* ── ENTRÉE UNIQUE DU PLACEMENT DES MARQUEURS DE SIÈGE ─────────────────────
+   Mise, blinde postée et bouton dealer partagent une seule géométrie : même
+   ellipse, même angle de siège, même budget de dégagement, seul le type change
+   (rayon propre, et pour le dealer un décalage angulaire). Les trois fonctions
+   ci-dessus restent le détail d'implémentation ; c'est par ici qu'on passe.
+   Tout ce qui affiche la table du Trainer — 1T comme multi, GTO comme Exploit,
+   Spot / Street / Full Hand / Session / Mix — hérite donc du même placement. */
+function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null}={}){
+  if(!layout)return {x:50,y:50};
+  if(markerType==="DEALER")return dealerAnchorPoint(layout,numTables,ringGeom);
+  return resolveTrainerActionPoint(layout,pos,{hasBoard,numTables,ringGeom,markerType});
 }
 
 
@@ -2854,7 +2997,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
-  const ringScaleRef=useTrainerRingScale();
+  const [ringScaleRef,ringGeom]=useTrainerRingScale();
   const[showSpotMacaron,setShowSpotMacaron]=useState(false); // §P0-A : macaron ✓/✗ TEMPORAIRE (fade ~1.6s), l'analyse reste dans le panneau
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -4894,7 +5037,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             }
             const betAmt=hasBet?heroBetAmt:hasVilBet?vilBetAmt:preChipAmt;
             const chipLabel=(hasBet||hasVilBet)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):preChipLabel;
-            const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard,numTables:1});
+            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom});
             const cpx=actionPt.x;
             const cpy=actionPt.y;
             const isTopSeat1T=coord.y<=24;
@@ -5039,7 +5182,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
           {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
           {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
-            const p=resolveTrainerBlindPoint(trainingLayout,bp,1);
+            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom});
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
                 <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
@@ -5048,7 +5191,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           })}
 
           {(()=>{
-            const d=dealerAnchorPoint(trainingLayout,1);
+            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,ringGeom});
             return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
@@ -5202,7 +5345,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         const k=(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
         return{"--pf-zone-ar-min":(ovalMin*k).toFixed(4),"--pf-zone-ar-max":(ovalMax*k).toFixed(4)};
       })()}>
-      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:undefined}>
+      <div className="training-table-zone" ref={ringScaleRef} style={isMobile?{paddingBottom:cfg.pb}:undefined}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
@@ -5290,7 +5433,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         {/* DEALER BUTTON — taille cfg.dbtnSz (aligné sur le siège BTN multi-table) */}
         {(()=>{
-          const d=dealerAnchorPoint(trainingLayout,numTables);
+          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,ringGeom});
           const sz=cfg.dbtnSz;
           return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
         })()}
@@ -5300,7 +5443,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         {showStaticBlindMarkers&&["SB","BB"].filter(pos=>!seatShowsChips(pos)).map(pos=>{
           const {x,y}=trainingLayout.seats[pos]||{x:50,y:50};
-          const p=resolveTrainerBlindPoint(trainingLayout,pos,numTables);
+          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom});
           const bp=y>=76?0.62:0.34; // marqueurs blinds au-dessus des cartes (sièges bas)
           const bx=x+(50-x)*bp;
           const by=y+(50-y)*bp;
@@ -5361,7 +5504,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
             :trainerVisualActionType(vilChipLabel||vact?.action||seatState.lastAction||"BET");
           // Jetons poussés vers le centre (au-dessus des cartes) — sièges bas plus loin (anti-chevauchement)
-          const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard,numTables});
+          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom});
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
