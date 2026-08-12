@@ -784,6 +784,33 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);
   margin-top:0!important;white-space:nowrap;z-index:3;
 }
+/* Trainer 1T — PLAQUE SUR UNE LIGNE pour les sièges NON-Hero (desktop).
+   Le budget vertical de l'anneau des mises est saturé, structurellement : la
+   fenêtre de rayon vertical admissible fait ~0.03 ry (board d'un côté, blocs de
+   sièges de l'autre) contre ~0.13 à l'horizontale. Aucun réglage de géométrie ne
+   la rouvre — c'est prouvé : inverser l'ordre de la grappe déplace le
+   chevauchement de la plaque vers les cartes sans le réduire. Seul le contenu
+   peut rendre de la place, et c'est donc un arbitrage de lisibilité.
+   L'arbitrage retenu : position et stack côte à côte (« BTN 60 ») au lieu de
+   l'un sous l'autre. Mesuré sur 40 tirages appariés : plaque 44 → 22px,
+   bloc de siège 117-122 → 97px, soit 20 à 25px rendus par siège.
+   Le HERO garde sa plaque deux lignes : son bloc est seul en bas-centre, il
+   n'entre dans aucun conflit de jetons, et c'est la main qu'on doit lire.
+   Le mobile est exclu (min-width:769px) : il a sa propre géométrie calibrée
+   (MOBILE_SEAT_RINGS, heroDrop) et n'a pas été mesuré ici. */
+@media (min-width:769px){
+  .t1-left .pf-player-seat .player-card-1t:not(.hero) .pf-seat-nameplate{
+    flex-direction:row!important;align-items:baseline!important;gap:6px!important;
+    min-width:auto!important;padding:4px 10px!important;border-radius:10px!important;
+    margin-top:-3px!important;
+  }
+  /* Les marges hautes des deux lignes servaient à les espacer verticalement ;
+     côte à côte elles ne feraient que désaligner les lignes de base. */
+  .t1-left .pf-player-seat .player-card-1t:not(.hero) .seat-card-pos,
+  .t1-left .pf-player-seat .player-card-1t:not(.hero) .seat-card-stack{
+    margin-top:0!important;
+  }
+}
 .pf-fold-chip,.pf-multiway-chip{
   margin-top:3px;
   display:inline-flex;align-items:center;justify-content:center;
