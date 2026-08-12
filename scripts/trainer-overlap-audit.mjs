@@ -147,16 +147,29 @@ try {
     one('.t1-left .pf-pot-readout', 'pot');
 
     // ── Chevauchements entre feuilles n'appartenant PAS au même siège ──
+    // Exception : un MARQUEUR (mise, blinde, bouton D) ne doit pas non plus
+    // recouvrir le bloc de SON PROPRE siège. Les feuilles d'un même siège se
+    // chevauchent par construction (avatar/plaque/cartes sont empilés), donc on
+    // ne lève l'exemption « même propriétaire » que si l'un des deux est un
+    // marqueur — sinon un rapprochement des marqueurs vers leur joueur pourrait
+    // les poser sur ses cartes sans qu'aucune paire ne le signale.
+    const MARQUEURS = new Set(['mise', 'blinde', 'boutonD']);
     const overlaps = [];
     for (let i = 0; i < boxes.length; i++) {
       for (let j = i + 1; j < boxes.length; j++) {
         const a = boxes[i], b = boxes[j];
-        if (a.owner !== '-' && a.owner === b.owner) continue;      // même siège : normal
+        const memeSiege = a.owner !== '-' && a.owner === b.owner;
+        const marqueurEnJeu = MARQUEURS.has(a.kind) || MARQUEURS.has(b.kind);
+        if (memeSiege && !marqueurEnJeu) continue;
+        if (MARQUEURS.has(a.kind) && MARQUEURS.has(b.kind) && memeSiege) continue; // blinde==mise du même joueur
         const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
         const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
         if (ox <= 0 || oy <= 0) continue;
         const area = ox * oy;
-        const cause = [a.kind, b.kind].sort().join('↔');
+        // Suffixe « (propre) » : le marqueur mord sur SON joueur, pas sur un voisin.
+        // Les deux défauts se corrigent dans des directions opposées, il faut donc
+        // pouvoir les compter séparément.
+        const cause = [a.kind, b.kind].sort().join('↔') + (memeSiege ? ' (propre)' : '');
         overlaps.push({ cause, area: Math.round(area), ox: Math.round(ox), oy: Math.round(oy),
                         a: `${a.kind}:${a.owner}`, b: `${b.kind}:${b.owner}` });
       }
