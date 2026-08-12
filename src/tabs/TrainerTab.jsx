@@ -127,6 +127,102 @@ function chipRingFactor(seatCount=6,numTables=1){
   const multi=numTables>=3?-.02:0;
   return {x:.55+dense+multi,y:.41+dense*.4+multi};
 }
+/* ── RAPPROCHEMENT DES MARQUEURS VERS LEUR JOUEUR ──────────────────────────
+   Les rayons ci-dessus sont un PLANCHER : ils ont été calibrés sur le format le
+   plus contraint, et y sont exactement à la limite. Le problème est qu'ils sont
+   exprimés en fraction du feutre, alors que ce qui borne réellement l'anneau —
+   la moitié du bloc de siège plus la moitié du marqueur — se compte en PIXELS.
+   La bande libre vaut donc
+
+       libre(px) = R·(ρ_siège − ρ_anneau) − BUDGET·échelle
+
+   et elle CROÎT avec le feutre : sur un grand écran l'anneau reste au rayon du
+   petit format et les marqueurs flottent au milieu du tapis, loin du joueur
+   auquel ils appartiennent (constat utilisateur). Mesuré, déplacement libre le
+   long de l'axe marqueur→siège, marge 6px :
+
+       1366x768  blindes  0px/83px    mises  0px/95px    bouton D 10px
+       1920x950  blindes 65px/149px   mises 44px/157px   bouton D 97px
+
+   On vise donc directement le point qui laisse le budget en pixels, au lieu
+   d'une fraction figée : ρ_cible = ρ_siège − BUDGET·échelle/R(direction).
+   Le calcul est fait PAR SIÈGE et PAR DIRECTION, ce qui règle d'un coup
+   l'anisotropie du feutre — la bande est large horizontalement, nulle
+   verticalement, et la formule rend spontanément un rapprochement nul sur l'axe
+   vertical (mesuré : ρ_cible y tombe SOUS le rayon actuel, donc plancher).
+
+   Le budget est PAR TYPE, parce que les trois marqueurs ne butent pas sur le même
+   obstacle — mesuré à 1920x950, audit apparié n=26..30 :
+     · blinde   — bute sur l'AVATAR (18 cas sur 22), le plus externe des trois.
+                  +30% de rayon : 0 paire mieux / 0 pire, aucune cause nouvelle.
+     · bouton D — bute sur l'avatar aussi, mais il vit à un tiers d'écart de siège
+                  en ANGLE : plus loin, il rencontre les CARTES du voisin
+                  (mesuré à +30% : boutonD↔cartes 0→12). Budget intermédiaire.
+     · mise     — bute sur SES PROPRES cartes et sa plaque, nettement plus
+                  internes (mesuré à +12% uniforme : mise↔plaque 0→6). Budget le
+                  plus large, donc le rapprochement le plus prudent.
+   C'est la raison d'être d'un budget par TYPE plutôt que d'un rayon unique.
+
+   Chaque budget est calé pour que le rapprochement soit NUL à 1366x768 : ce
+   format n'a aucune marge (0px de déplacement libre mesuré), et tout gain qu'on
+   y prend se paie immédiatement en chevauchements. Vérifié par audit apparié. */
+const MARKER_CLEARANCE_PX={BLIND:105,DEALER:120,BET:154};
+/* Le plafond n'est pas là pour la sécurité (la formule est déjà bornée par le
+   siège) mais pour la LISIBILITÉ : au-delà, sur un très grand écran, le marqueur
+   se collerait au joueur et la table perdrait son aération. */
+const MARKER_APPROACH_MAX=1.30;
+/* Demi-axes du feutre en PIXELS. `ringGeom` vient de la mesure du conteneur
+   (useTrainerRingScale) : sans elle on ne peut pas raisonner en pixels, et on
+   retombe simplement sur le plancher — c'est le comportement au premier rendu. */
+function feltPixelRadii(layout,numTables,ringGeom){
+  if(!ringGeom||!(ringGeom.areaW>0)||!(ringGeom.areaH>0))return null;
+  const g=layout?.tableGeometry||feltGeometryFor(numTables);
+  return {
+    rxPx:ringGeom.areaW*(100-(g.left||0)-(g.right||0))/200,
+    ryPx:ringGeom.areaH*(100-(g.top||0)-(g.bottom||0))/200,
+  };
+}
+/* Multiplicateur de rayon d'UN siège, pour UN type de marqueur. 1 = inchangé. */
+function markerApproach(seat,ell,{numTables=1,seatCount=6,markerType="BET",ringGeom=null,layout=null}={}){
+  const budget=MARKER_CLEARANCE_PX[markerType];
+  const px=budget?feltPixelRadii(layout,numTables,ringGeom):null;
+  if(!px)return 1;
+  const {cx,cy,rx,ry}=ell;
+  const u=(seat.x-cx)/(rx||1),v=(seat.y-cy)/(ry||1);
+  const rhoSeat=Math.hypot(u,v);
+  if(!(rhoSeat>0))return 1;
+  const ang=Math.atan2(v,u),co=Math.cos(ang),si=Math.sin(ang);
+  const f=chipRingFactor(seatCount,numTables);
+  const rhoRing=Math.hypot(co*f.x,si*f.y);
+  if(!(rhoRing>0))return 1;
+  // Longueur en px d'une unité de rayon normalisé, dans la direction du siège.
+  const rDir=Math.hypot(co*px.rxPx,si*px.ryPx);
+  if(!(rDir>0))return 1;
+  const rhoTarget=rhoSeat-budget*(ringGeom.scale||1)/rDir;
+  const m=rhoTarget/rhoRing;
+  if(!(m>1))return 1;                       // format contraint : on garde le plancher
+  return Math.min(m,MARKER_APPROACH_MAX);
+}
+/* ── POCHE LATÉRALE : même correction, exprimée en pixels ──
+   L'écart de la poche était un POURCENTAGE de la table (15%). En pixels il suit
+   donc la largeur de l'écran : 95px à 1366, mais 178px à 1920, alors que les
+   cartes qu'il doit contourner ne grandissent, elles, que de l'échelle de
+   l'anneau (+25%). D'où la blinde du siège haut-centre qui part flotter loin sur
+   le côté. On budgète l'écart en pixels, calé pour valoir exactement 15% / 6% au
+   format contraint, et on ne dépasse jamais ces valeurs.
+
+   La MISE fait exception et garde l'écart d'origine : la poche longe les cartes
+   du joueur, et c'est le plus large des trois objets (badge 77px, contre 49px
+   pour un tas de blinde). Sur le siège du bas ces cartes sont celles du Hero,
+   au grand format — resserrer la poche y posait le badge dessus (mesuré à
+   1920x950 : cartes↔mise sur le propre siège, 33x41px, 2 tirages sur 34).
+   Les blindes et le bouton, eux, passent. */
+const POCKET_DX_PX={BLIND:118,DEALER:103,BET:Infinity};
+const POCKET_DY_PX=30;
+function pocketOffsetPct(basePct,budgetPx,areaPx,scale){
+  if(!(areaPx>0)||!isFinite(budgetPx))return basePct;
+  return Math.min(basePct,budgetPx*(scale||1)/areaPx*100);
+}
 /* L'anneau règle tous les sièges dont le rayon passe À CÔTÉ du board. Il en reste
    un ou deux : ceux de l'AXE VERTICAL (le Hero en bas-centre, et le siège
    haut-centre des structures paires). Là, le rayon traverse le board de part en
@@ -140,24 +236,26 @@ function chipRingFactor(seatCount=6,numTables=1){
    poche est radialement bien plus externe que l'anneau : aucun risque de
    rencontre avec les tas des voisins. */
 function isVerticalAxisSeat(seat){return Math.abs(seat.x-50)<12;}
-function trainerChipRingPoint(layout,pos,{numTables=1,seatCount=6}={}){
+function trainerChipRingPoint(layout,pos,{numTables=1,seatCount=6,markerType="BET",ringGeom=null}={}){
   const seat=layout?.seats?.[pos];
   if(!seat)return null;
-  const {cx,cy,rx,ry}=trainerFeltEllipse(layout,numTables);
+  const ell=trainerFeltEllipse(layout,numTables);
+  const {cx,cy,rx,ry}=ell;
   if(isVerticalAxisSeat(seat)){
     // Côté de la poche : opposé à l'autre blindeur quand il y en a un près de
     // l'axe, sinon vers l'intérieur de la table.
     const other=layout.seats?.[pos==="SB"?"BB":"SB"];
     const away=other&&Math.abs(other.x-seat.x)>2?(other.x>seat.x?-1:1):1;
-    const dx=(numTables>=3?13:15)*away;
-    const dy=seat.y>=cy?-6:6; // vers le centre, d'un cran
+    const dx=pocketOffsetPct(numTables>=3?13:15,POCKET_DX_PX[markerType],ringGeom?.areaW,ringGeom?.scale)*away;
+    const dy=pocketOffsetPct(6,markerType==="BET"?Infinity:POCKET_DY_PX,ringGeom?.areaH,ringGeom?.scale)*(seat.y>=cy?-1:1); // vers le centre, d'un cran
     return {x:clampTrainingPoint(seat.x+dx),y:clampTrainingPoint(seat.y+dy)};
   }
   // Angle NORMALISÉ sur l'ellipse : des sièges régulièrement espacés le restent
   // sur l'anneau (ce ne serait pas vrai avec un angle cartésien sur une ellipse).
   const ang=Math.atan2((seat.y-cy)/(ry||1),(seat.x-cx)/(rx||1));
   const f=chipRingFactor(seatCount,numTables);
-  return {x:clampTrainingPoint(cx+Math.cos(ang)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(ang)*ry*f.y)};
+  const m=markerApproach(seat,ell,{numTables,seatCount,markerType,ringGeom,layout});
+  return {x:clampTrainingPoint(cx+Math.cos(ang)*rx*f.x*m),y:clampTrainingPoint(cy+Math.sin(ang)*ry*f.y*m)};
 }
 function seatRegion(pt){
   if(pt.y<=28)return"top";
@@ -599,17 +697,20 @@ function blindAnchorPoint(layout,pos){
    bouton et le tas du BTN se disputaient le même dégagement (recouvrement 22x22px,
    soit toute la surface du bouton).
    Le bouton est sur le BTN ; en HEADS-UP il n'y a pas de BTN, il est sur la SB. */
-function dealerAnchorPoint(layout,numTables=1){
+function dealerAnchorPoint(layout,numTables=1,ringGeom=null){
   const seats=layout?.seats||{};
   const pos=seats.BTN?"BTN":"SB";
   const seat=seats[pos]||{x:50,y:50};
   const seatCount=Object.keys(seats).length||6;
-  const {cx,cy,rx,ry}=trainerFeltEllipse(layout,numTables);
+  const ell=trainerFeltEllipse(layout,numTables);
+  const {cx,cy,rx,ry}=ell;
   if(isVerticalAxisSeat(seat)){
     // Siège sur l'axe : son tas occupe une poche latérale — le bouton prend l'autre.
-    const chip=trainerChipRingPoint(layout,pos,{numTables,seatCount});
+    const chip=trainerChipRingPoint(layout,pos,{numTables,seatCount,markerType:"BET",ringGeom});
     const side=chip&&chip.x>=seat.x?-1:1;
-    return {x:clampTrainingPoint(seat.x+side*13),y:clampTrainingPoint(seat.y+(seat.y>=cy?-4:4))};
+    const dx=pocketOffsetPct(13,POCKET_DX_PX.DEALER,ringGeom?.areaW,ringGeom?.scale);
+    const dy=pocketOffsetPct(4,POCKET_DY_PX*.67,ringGeom?.areaH,ringGeom?.scale);
+    return {x:clampTrainingPoint(seat.x+side*dx),y:clampTrainingPoint(seat.y+(seat.y>=cy?-dy:dy))};
   }
   // Bouton D : MÊME anneau que les mises, mais décalé en ANGLE (un tiers de l'écart
   // entre deux sièges). Il ne peut donc ni se retrouver sous le tas du BTN, ni
@@ -622,7 +723,8 @@ function dealerAnchorPoint(layout,numTables=1){
   // visible chute de 72% à 13% : le bouton vient alors se loger contre le tas du
   // BTN lui-même. Le sens actuel est le bon, ne pas l'inverser.
   const a2=ang+(2*Math.PI/Math.max(2,seatCount))*.34;
-  return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y)};
+  const m=markerApproach(seat,ell,{numTables,seatCount,markerType:"DEALER",ringGeom,layout});
+  return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x*m),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y*m)};
 }
 function actionLabelAnchorPoint(layout,pos){
   return seatAnchorPoint(layout,pos,"actionLabelAnchor");
@@ -661,26 +763,55 @@ function actionLabelAnchorPoint(layout,pos){
    échange boutonD↔mise 11->1 contre boutonD↔cartes 0->11, net négatif. */
 const RING_SCALE_REF_HEIGHT=542;
 const RING_SCALE_FLOOR=.80;
+/* La même mesure sert deux fois : elle règle la TAILLE des objets (--pf-ring-scale,
+   ci-dessus) et elle donne le repère en PIXELS dont le placement a besoin pour
+   savoir de combien il peut rapprocher un marqueur de son joueur (markerApproach).
+   Un seul ResizeObserver pour les deux — et donc une seule vérité sur la taille
+   courante de la table, y compris quand un panneau latéral s'ouvre ou se ferme. */
+/* Ref de RAPPEL, et non ref d'objet : le conteneur mesuré n'est pas le même en 1T
+   (.t1-table-area) et en multi (.training-table-zone). Un useEffect à dépendances
+   vides ne mesurerait que le conteneur présent au montage et garderait ensuite une
+   taille périmée après un passage 1T <-> 4T. Ici l'observateur se rebranche sur le
+   nœud réellement monté. Ce composant rend UNE table : en multi, chaque table a
+   donc sa propre mesure, son propre centre et ses propres rayons (§10). */
 function useTrainerRingScale(){
-  const ref=useRef(null);
-  useEffect(()=>{
-    const el=ref.current;
+  const [geom,setGeom]=useState(null);
+  const state=useRef({el:null,ro:null,onResize:null});
+  const measure=useCallback(el=>{
     if(!el)return;
-    const apply=()=>{
-      const h=el.getBoundingClientRect().height||RING_SCALE_REF_HEIGHT;
-      const s=Math.min(1,Math.max(RING_SCALE_FLOOR,h/RING_SCALE_REF_HEIGHT));
-      el.style.setProperty("--pf-ring-scale",s.toFixed(3));
-    };
-    apply();
-    if(typeof ResizeObserver==="undefined"){
-      window.addEventListener("resize",apply);
-      return ()=>window.removeEventListener("resize",apply);
-    }
-    const ro=new ResizeObserver(apply);
-    ro.observe(el);
-    return ()=>ro.disconnect();
+    const r=el.getBoundingClientRect();
+    const h=r.height||RING_SCALE_REF_HEIGHT;
+    const s=Math.min(1,Math.max(RING_SCALE_FLOOR,h/RING_SCALE_REF_HEIGHT));
+    el.style.setProperty("--pf-ring-scale",s.toFixed(3));
+    // Arrondi puis comparaison : un ResizeObserver qui publierait à chaque
+    // fraction de pixel relancerait le rendu qu'il observe.
+    const next={areaW:Math.round(r.width),areaH:Math.round(h),scale:+s.toFixed(3)};
+    setGeom(prev=>(prev&&prev.areaW===next.areaW&&prev.areaH===next.areaH&&prev.scale===next.scale)?prev:next);
   },[]);
-  return ref;
+  const ref=useCallback(el=>{
+    const st=state.current;
+    if(st.ro){st.ro.disconnect();st.ro=null;}
+    if(st.onResize){window.removeEventListener("resize",st.onResize);st.onResize=null;}
+    st.el=el;
+    if(!el){setGeom(null);return;}
+    measure(el);
+    if(typeof ResizeObserver==="undefined"){
+      st.onResize=()=>measure(el);
+      window.addEventListener("resize",st.onResize);
+      return;
+    }
+    st.ro=new ResizeObserver(()=>measure(el));
+    st.ro.observe(el);
+  },[measure]);
+  // Pas de nettoyage en useEffect ici : React rappelle DÉJÀ la ref avec null au
+  // démontage, et c'est cette branche qui débranche l'observateur. Un
+  // useEffect(()=>()=>…,[]) en plus est non seulement redondant, il est faux —
+  // en StrictMode (dev) React monte, démonte puis remonte les effets, si bien que
+  // son nettoyage débranchait l'observateur que la ref venait d'attacher, sans que
+  // rien ne le rebranche. Symptôme mesuré : --pf-ring-scale figée à sa valeur de
+  // montage, un observateur témoin posé sur le MÊME nœud se déclenchant, lui,
+  // normalement — donc des marqueurs qui ne suivaient plus le redimensionnement.
+  return [ref,geom];
 }
 function pointInsideZone(pt,zone){
   return pt.x>=zone.xMin&&pt.x<=zone.xMax&&pt.y>=zone.yMin&&pt.y<=zone.yMax;
@@ -690,10 +821,10 @@ function pointDistance(a,b){
   const dx=(a.x||0)-(b.x||0),dy=(a.y||0)-(b.y||0);
   return Math.sqrt(dx*dx+dy*dy);
 }
-function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1}={}){
+function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1,ringGeom=null,markerType="BET"}={}){
   const seat=layout.seats?.[pos]||{x:50,y:50};
   const seatCount=Object.keys(layout.seats||{}).length||6;
-  const ring=trainerChipRingPoint(layout,pos,{numTables,seatCount});
+  const ring=trainerChipRingPoint(layout,pos,{numTables,seatCount,markerType,ringGeom});
   // Repli : layout sans géométrie exploitable (anneaux mobiles figés).
   if(!ring)return {x:clampTrainingPoint(pointTowardCenter(seat,.27).x),y:clampTrainingPoint(pointTowardCenter(seat,.27).y)};
   let pt={...ring};
@@ -711,8 +842,20 @@ function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1}={}){
    ancien — un joueur qui ouvrait montrait DEUX tas, sa blinde et son open, alors
    que son engagement total est un seul montant (le rendu n'affiche désormais que
    l'un des deux, cf. seatShowsChips). */
-function resolveTrainerBlindPoint(layout,pos,numTables=1){
-  return resolveTrainerActionPoint(layout,pos,{hasBoard:false,numTables});
+function resolveTrainerBlindPoint(layout,pos,numTables=1,ringGeom=null){
+  return resolveTrainerActionPoint(layout,pos,{hasBoard:false,numTables,ringGeom,markerType:"BLIND"});
+}
+/* ── ENTRÉE UNIQUE DU PLACEMENT DES MARQUEURS DE SIÈGE ─────────────────────
+   Mise, blinde postée et bouton dealer partagent une seule géométrie : même
+   ellipse, même angle de siège, même budget de dégagement, seul le type change
+   (rayon propre, et pour le dealer un décalage angulaire). Les trois fonctions
+   ci-dessus restent le détail d'implémentation ; c'est par ici qu'on passe.
+   Tout ce qui affiche la table du Trainer — 1T comme multi, GTO comme Exploit,
+   Spot / Street / Full Hand / Session / Mix — hérite donc du même placement. */
+function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null}={}){
+  if(!layout)return {x:50,y:50};
+  if(markerType==="DEALER")return dealerAnchorPoint(layout,numTables,ringGeom);
+  return resolveTrainerActionPoint(layout,pos,{hasBoard,numTables,ringGeom,markerType});
 }
 
 
@@ -1052,6 +1195,52 @@ function coachView(level){
   }
 }
 function firstSentence(t){if(!t)return t;const i=t.indexOf(". ");return i>0?t.slice(0,i+1):t;}
+
+/* ── STYLE HERO (§18) — « Adapte les remarques du Coach AI à ton style » ──
+   Le réglage était jusqu'ici purement décoratif : il était bien porté par le
+   contrat de spot (spotSchema.hero.style) mais AUCUNE sortie ne le lisait, donc
+   changer de style ne changeait rien pour l'utilisateur. On produit ici une note
+   de coaching CONTEXTUELLE : elle confronte l'action optimale du spot à la
+   tendance déclarée et nomme le leak typique du style quand les deux divergent.
+
+   Règle stricte : cette note ne modifie JAMAIS la solution ni les fréquences —
+   le GTO reste le GTO (§6). C'est un commentaire, exactement ce que l'UI promet. */
+const HERO_STYLE_COACH={
+  "GTO":null, // référence : aucune déviation à commenter
+  "TAG":{lean:"tight",
+    agree:"Cohérent avec ton style TAG : ligne de valeur claire, peu de zones grises.",
+    diverge:"Ton style TAG te pousse à passer ici. La ligne optimale est plus large — c'est exactement le spot où un TAG laisse de l'EV."},
+  "LAG":{lean:"loose",
+    agree:"Cohérent avec ton style LAG : la pression est bien récompensée sur ce spot.",
+    diverge:"Ton style LAG te pousse à jouer ce coup. Ici la ligne optimale est plus contenue — le leak LAG classique est de sur-jouer ce type de texture."},
+  "Exploitant":{lean:"loose",
+    agree:"Ton style exploitant s'aligne : le profil du vilain justifie cette ligne.",
+    diverge:"En exploitant, vérifie que la déviation est bien justifiée par les stats du vilain — sur ce spot, la baseline reste plus forte."},
+  "Aggressif":{lean:"loose",
+    agree:"Ton style agressif est récompensé ici : la ligne optimale est bien la ligne agressive.",
+    diverge:"Ton style agressif va vouloir miser. La ligne optimale est passive ici — c'est le spot type où l'agression coûte de l'EV."},
+  "Passif":{lean:"tight",
+    agree:"Cohérent avec ton style passif : pas besoin de forcer sur ce spot.",
+    diverge:"Ton style passif va vouloir temporiser. La ligne optimale est agressive ici — c'est le leak n°1 d'un profil passif."},
+  "Personnalisé":{lean:null,
+    agree:"Note ce spot dans ton style de référence : compare ta ligne habituelle à la ligne optimale.",
+    diverge:"Note ce spot dans ton style de référence : compare ta ligne habituelle à la ligne optimale."},
+};
+/* Renvoie {text,col} ou null. `spot.ok` donne l'action optimale ; on la classe
+   agressive (BET/RAISE/3BET/4BET/5BET/ALLIN) ou non pour choisir le message. */
+function heroStyleCoachNote(style,spot){
+  const conf=HERO_STYLE_COACH[style];
+  if(!conf||!spot||!Array.isArray(spot.acts))return null;
+  const best=spot.acts[spot.ok];
+  if(!best)return null;
+  const t=trainerActionType(best);
+  const aggressive=["BET","RAISE","3BET","4BET","5BET","ALLIN"].includes(t);
+  if(conf.lean===null)return{text:conf.agree,col:"#34D8FF"};
+  // « tight » = le style tend vers le passif/fold ; il s'accorde avec une ligne
+  // non-agressive et diverge d'une ligne agressive (et l'inverse pour « loose »).
+  const agrees=conf.lean==="tight"?!aggressive:aggressive;
+  return{text:agrees?conf.agree:conf.diverge,col:agrees?"#10D87A":"#FFC247"};
+}
 
 /* Calcule le délai "réflexion" villain selon profil + complexité */
 function villainThinkDelay(vType,heroAct,mode){
@@ -2119,6 +2308,15 @@ function buildQ(f,mode,opts={}){
       if(opts.preferFlop){
         const c=(s.cat||"").toLowerCase();
         if(!(c==="rfi"||c.includes("vs open")||c.includes("défense")||c.includes("defense")))return false;
+        // …et on écarte les spots dont la SEULE action non-fold est un tapis :
+        // à 15-25bb un RFI devient un push, le coup se termine au préflop et
+        // « Full Hand » ne tiendrait pas sa promesse (préflop → river).
+        const playable=(s.acts||[]).some(a=>{
+          const t=trainerActionType(a);
+          if(t==="FOLD"||t==="ALLIN")return false;
+          return !/push|tapis|all-?in/i.test(`${a?.l||""} ${a?.s||""}`);
+        });
+        if(!playable)return false;
       }
       return true;
     }
@@ -2850,11 +3048,11 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
-  const ringScaleRef=useTrainerRingScale();
+  const [ringScaleRef,ringGeom]=useTrainerRingScale();
   const[showSpotMacaron,setShowSpotMacaron]=useState(false); // §P0-A : macaron ✓/✗ TEMPORAIRE (fade ~1.6s), l'analyse reste dans le panneau
   const[tl,setTl]=useState([]);
   const[vact,setVact]=useState(null);
@@ -3005,13 +3203,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
     // full/session = toujours · mix = 50% · spot/street = jamais (défaut legacy = 30%)
-    // Le jeu de main complète se déroule en 1 table (rendu dédié fiable).
+    // Le coup complet est INDÉPENDANT du nombre de tables : chaque SingleTable
+    // possède son propre moteur (fhStateRef) et sa propre progression, donc 2T/3T/4T
+    // jouent N coups complets en parallèle sans interférence.
     const fullDesired=
       trainMode==="full"||trainMode==="session"?true
       :trainMode==="mix"?Math.random()<0.5
       :trainMode==="spot"||trainMode==="street"?false
       :Math.random()<0.30;
-    autoFull.current=numTables===1&&fullDesired
+    autoFull.current=fullDesired
       &&(spot?.hand?.length>=2)
       &&(spot?.street==="Preflop"||spot?.street==="preflop");
     // Démarrer le timer (configurable — 0 = aucun)
@@ -3078,8 +3278,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // la solution CFR, on la SUBSTITUE en mutant le spot (comme applySolverStrategy le
   // fait déjà) puis on bump cfrTick pour rafraîchir badge/fréquences/verdict. La garde
   // cfrSpotRef ignore tout résultat périmé (spot déjà changé).
+  // Le solve tourne dans UN worker partagé multiplexé par id (cfrPostflopClient) :
+  // 2T/3T/4T empilent simplement N requêtes, chacune retombant proprement sur
+  // l'heuristique en cas de timeout. Le gate `numTables!==1` d'origine privait le
+  // multi-table de la vraie stratégie solveur — supprimé (§4 : le GTO doit être le
+  // même moteur quel que soit le nombre de tables).
   useEffect(()=>{
-    if(!spot||numTables!==1||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
+    if(!spot||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
     if(spot.strategyProvenance==="cfr-experimental"){ setCfrSolving(false); return; } // déjà solvé
     const built=buildPostflopSolveRequest(spot);
     if(!built){ setCfrSolving(false); return; }
@@ -4066,6 +4271,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               </div>
             )}
             <div className="gto-insight-text">{cv.concise?firstSentence(spot.expl):spot.expl}</div>
+            {/* §18 — remarque adaptée au Style Hero choisi dans le bandeau gauche. */}
+            {(()=>{const n=heroStyleCoachNote(heroStyle,spot);if(!n)return null;return(
+              <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:`${n.col}12`,border:`1px solid ${n.col}3a`,fontFamily:"'Inter',sans-serif",fontSize:9.5,color:n.col,lineHeight:1.6}}>
+                🎭 <b>Style {heroStyle}</b> — {n.text}
+              </div>
+            );})()}
           </div>
           );})()}
 
@@ -4332,36 +4543,44 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       );
     };
     /* Actions full-hand (flop→river) — rendues hors du panneau solution
-       pour rester accessibles en mode hard ET sur mobile */
+       pour rester accessibles en mode hard ET sur mobile.
+       Multi-table : mêmes contrôles, densité réduite (fhC) pour tenir dans une
+       tuile de mosaïque. Le rendu est identique en 1T/2T/3T/4T — seule la taille
+       change, jamais la disponibilité des actions. */
+    const fhC=numTables>1;                     // densité compacte (mosaïque)
+    const fhPad=fhC?"6px 8px 8px":"8px 14px 14px";
+    const fhBtnPad=fhC?"9px 3px":"12px 4px";
+    const fhHdrFs=fhC?8:9;
+    const fhGap=fhC?4:6;
     const renderFhActions=()=>(
       <>
         {playingFull&&fhPhase==="hero"&&(
-          <div className="mtr-actions" style={{flexShrink:0,padding:"8px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)"}}>
-            <div style={{fontFamily:T.brand,fontSize:9,color:T.cyan,letterSpacing:".12em",marginBottom:8,textAlign:"center"}}>{fhStreet.toUpperCase()} — ACTION HERO</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
-              <button className="ab ab-CHECK" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("CHECK")}>Check<span className="ab-sub">0bb</span></button>
-              <button className="ab ab-CALL" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("BET")}>Bet ½<span className="ab-sub">{fmt(fhPot*.5|0)}</span></button>
-              <button className="ab ab-RAISE" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("RAISE")}>PSB<span className="ab-sub">{fmt(fhPot)}</span></button>
-              <button className="ab ab-FOLD" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
+          <div className="mtr-actions" style={{flexShrink:0,padding:fhPad,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)"}}>
+            <div style={{fontFamily:T.brand,fontSize:fhHdrFs,color:T.cyan,letterSpacing:".12em",marginBottom:fhGap+2,textAlign:"center"}}>{fhStreet.toUpperCase()} — ACTION HERO</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:fhGap}}>
+              <button className="ab ab-CHECK" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("CHECK")}>Check<span className="ab-sub">0bb</span></button>
+              <button className="ab ab-CALL" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("BET")}>Bet ½<span className="ab-sub">{fmt(fhPot*.5|0)}</span></button>
+              <button className="ab ab-RAISE" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("RAISE")}>PSB<span className="ab-sub">{fmt(fhPot)}</span></button>
+              <button className="ab ab-FOLD" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
             </div>
           </div>
         )}
         {playingFull&&fhPhase==="hero_facing_bet"&&fhVilAct&&(
-          <div className="mtr-actions" style={{flexShrink:0,padding:"8px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(155,92,255,.2)"}}>
-            <div style={{fontFamily:T.brand,fontSize:9,color:T.purple,letterSpacing:".12em",marginBottom:8,textAlign:"center"}}>
+          <div className="mtr-actions" style={{flexShrink:0,padding:fhPad,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(155,92,255,.2)"}}>
+            <div style={{fontFamily:T.brand,fontSize:fhHdrFs,color:T.purple,letterSpacing:".12em",marginBottom:fhGap+2,textAlign:"center"}}>
               {spot.vpos} <span style={{color:fhVilAct.color,fontWeight:800}}>{fhVilAct.label}</span> — ta réponse ?
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-              <button className="ab ab-FOLD" style={{padding:"12px 4px"}} onClick={()=>fhHeroFaceBet("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
-              <button className="ab ab-CALL" style={{padding:"12px 4px"}} onClick={()=>fhHeroFaceBet("CALL")}>Call<span className="ab-sub">{fmt(fhVilAct.amount||Math.round(fhPot*.5))}</span></button>
-              <button className="ab ab-RAISE" style={{padding:"12px 4px"}} onClick={()=>fhHeroFaceBet("RAISE")}>Raise<span className="ab-sub">2.5×</span></button>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:fhGap}}>
+              <button className="ab ab-FOLD" style={{padding:fhBtnPad}} onClick={()=>fhHeroFaceBet("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
+              <button className="ab ab-CALL" style={{padding:fhBtnPad}} onClick={()=>fhHeroFaceBet("CALL")}>Call<span className="ab-sub">{fmt(fhVilAct.amount||Math.round(fhPot*.5))}</span></button>
+              <button className="ab ab-RAISE" style={{padding:fhBtnPad}} onClick={()=>fhHeroFaceBet("RAISE")}>Raise<span className="ab-sub">2.5×</span></button>
             </div>
           </div>
         )}
         {playingFull&&fhPhase==="done"&&fhResult&&(()=>{
           const recap=fhBuildRecap(fhActs,spot,fhResult,fhReport);
           return(
-          <div style={{flexShrink:0,padding:"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:"46vh",overflowY:"auto"}}>
+          <div style={{flexShrink:0,padding:fhC?"8px 8px 10px":"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:fhC?"38vh":"46vh",overflowY:"auto"}}>
             {/* En-tête : verdict + score main */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
               <div style={{fontFamily:T.brand,fontSize:15,fontWeight:900,color:fhResult==="win"?T.green:T.red,textShadow:`0 0 18px ${fhResult==="win"?T.greenGlow:T.redGlow}`}}>{fhResult==="win"?"🏆 MAIN GAGNÉE":"❌ MAIN PERDUE"}</div>
@@ -4387,7 +4606,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             <div style={{display:"flex",gap:7,justifyContent:"center"}}>
-              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextLabel} ►</button>
+              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{numTables===1?nextLabel:nextShortLabel} ►</button>
               <button className="btn btns" onClick={startFullHand}>↺ Rejouer</button>
             </div>
           </div>
@@ -4894,7 +5113,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             }
             const betAmt=hasBet?heroBetAmt:hasVilBet?vilBetAmt:preChipAmt;
             const chipLabel=(hasBet||hasVilBet)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):preChipLabel;
-            const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard,numTables:1});
+            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom});
             const cpx=actionPt.x;
             const cpy=actionPt.y;
             const isTopSeat1T=coord.y<=24;
@@ -5039,7 +5258,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
           {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
           {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
-            const p=resolveTrainerBlindPoint(trainingLayout,bp,1);
+            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom});
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
                 <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
@@ -5048,7 +5267,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           })}
 
           {(()=>{
-            const d=dealerAnchorPoint(trainingLayout,1);
+            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,ringGeom});
             return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
@@ -5202,7 +5421,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         const k=(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
         return{"--pf-zone-ar-min":(ovalMin*k).toFixed(4),"--pf-zone-ar-max":(ovalMax*k).toFixed(4)};
       })()}>
-      <div className="training-table-zone" style={isMobile?{paddingBottom:cfg.pb}:undefined}>
+      <div className="training-table-zone" ref={ringScaleRef} style={isMobile?{paddingBottom:cfg.pb}:undefined}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
@@ -5290,7 +5509,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         {/* DEALER BUTTON — taille cfg.dbtnSz (aligné sur le siège BTN multi-table) */}
         {(()=>{
-          const d=dealerAnchorPoint(trainingLayout,numTables);
+          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,ringGeom});
           const sz=cfg.dbtnSz;
           return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
         })()}
@@ -5300,7 +5519,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         {showStaticBlindMarkers&&["SB","BB"].filter(pos=>!seatShowsChips(pos)).map(pos=>{
           const {x,y}=trainingLayout.seats[pos]||{x:50,y:50};
-          const p=resolveTrainerBlindPoint(trainingLayout,pos,numTables);
+          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom});
           const bp=y>=76?0.62:0.34; // marqueurs blinds au-dessus des cartes (sièges bas)
           const bx=x+(50-x)*bp;
           const by=y+(50-y)*bp;
@@ -5361,7 +5580,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
             :trainerVisualActionType(vilChipLabel||vact?.action||seatState.lastAction||"BET");
           // Jetons poussés vers le centre (au-dessus des cartes) — sièges bas plus loin (anti-chevauchement)
-          const actionPt=resolveTrainerActionPoint(trainingLayout,pos,{hasBoard:hasVisibleBoard,numTables});
+          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom});
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
@@ -5461,7 +5680,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
         </div>
       )}
-      {vact&&phase!=="hero"&&phase!=="villain_thinking"&&(
+      {/* Réaction Villain PRÉFLOP — masquée dès que le coup complet démarre :
+          l'action courante du Villain est alors portée par la table elle-même
+          (jetons + badge) et par le bandeau d'actions Full Hand. */}
+      {vact&&phase!=="hero"&&phase!=="villain_thinking"&&!playingFull&&(
         <div className="vil-decision-banner" style={{padding:"5px 8px",background:"rgba(155,92,255,.05)",borderTop:"1px solid rgba(155,92,255,.18)",display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <span style={{fontSize:8,color:"#c090ff",fontFamily:T.stats,fontWeight:700}}>{spot.vpos}</span>
@@ -5505,10 +5727,24 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
              Rendu par renderActionZone() → plus de chevauchement au stack Hero. ── */}
       {phase==="hero"&&renderActionZone()}
 
-      {/* ── EV RÉSULTATS MULTI-TABLE ── */}
-      {answered!==null&&renderHeroFeedback()}
+      {/* ── ACTIONS COUP COMPLET (Full Hand / Session) — multi-table ──
+             Rendues HORS du panneau solution : elles doivent rester accessibles
+             en « solution masquée » (mode hard) comme en solution visible. Avant
+             cette correction elles ne vivaient que dans la branche showSol du bloc
+             EV ci-dessous → une table 2T/3T/4T en mode hard n'avait aucun bouton
+             flop/turn/river. ── */}
+      {playingFull&&renderFhActions()}
 
-      {phase==="done"&&answered!==null&&(()=>{
+      {/* ── EV RÉSULTATS MULTI-TABLE ──
+             Pendant un coup complet, le verdict PRÉFLOP est masqué dans la tuile :
+             il a déjà eu son moment, et en 3T/4T ces ~90px pris sous la table
+             écrasaient le feutre (sièges qui se chevauchent, board illisible).
+             L'analyse reste accessible : panneau droit partagé pendant le coup,
+             puis bilan par street au showdown. En 1T rien ne change (le panneau
+             vit dans la colonne de droite, pas dans la tuile). ── */}
+      {answered!==null&&!playingFull&&renderHeroFeedback()}
+
+      {phase==="done"&&answered!==null&&!playingFull&&(()=>{
         const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
         const myEv=spot.ev[spot.acts[answered]?.id]||0;
         const evDiff=myEv-bestEv;
@@ -5611,66 +5847,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             );
           })()}
           <div style={{padding:"0 8px 8px"}}><RangeGrid pos={spot.hpos} action={spot.acts[spot.ok]?.id?.toLowerCase()||"open"} stackBB={parseFloat(spot.stack)||100} label={`RANGE ${spot.hpos} — ${spot.acts[spot.ok]?.l||"Optimal"}`}/></div>
+          {/* Pied de panneau — masqué pendant un coup complet : les contrôles
+              Full Hand (et le bilan par street) sont rendus plus haut par
+              renderFhActions(), identiques en 1T et en multi-table. */}
           {!playingFull&&<div className="nextrow">
             {numTables===1
               ?<button className="btn btng" style={{flex:1,fontSize:10}} disabled={nextBusy} onClick={callNext}>{nextShortLabel} ►</button>
               :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ OK</span>
             }
-            {spot.hand?.length>=2&&numTables===1&&<button className="btn btnx" style={{fontSize:9}} onClick={startFullHand}>▶ River</button>}
+            {spot.hand?.length>=2&&<button className="btn btnx" style={{fontSize:9}} onClick={startFullHand}>▶ River</button>}
             <button className="btn btns" style={{fontSize:9}} onClick={resetSpot}>↺</button>
           </div>}
-          {playingFull&&fhPhase==="hero"&&(
-            <div style={{padding:"6px 8px 8px",background:"#0a0a14",borderTop:"1px solid #181825"}}>
-              <div style={{fontSize:9,color:T.text2,fontFamily:T.stats,marginBottom:5,textAlign:"center"}}>
-                <span style={{fontFamily:T.brand,fontSize:8,color:T.gold}}>{fhStreet.toUpperCase()}</span> — Action ?
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4}}>
-                <button className="ab ab-CHECK" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("CHECK")}>Check<span className="ab-sub">0bb</span></button>
-                <button className="ab ab-CALL" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("BET")}>½ Pot<span className="ab-sub">{fmt(fhPot*.5|0)}</span></button>
-                <button className="ab ab-RAISE" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("RAISE")}>PSB<span className="ab-sub">{fmt(fhPot)}</span></button>
-                <button className="ab ab-FOLD" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("FOLD")}>Fold<span className="ab-sub">—</span></button>
-              </div>
-            </div>
-          )}
-          {playingFull&&fhPhase==="hero_facing_bet"&&fhVilAct&&(
-            <div style={{padding:"6px 8px 8px",background:"#0a0a14",borderTop:"1px solid #181825"}}>
-              <div style={{fontSize:9,color:"#c090ff",fontFamily:T.stats,marginBottom:5,textAlign:"center",fontWeight:700}}>
-                {spot.vpos} <span style={{color:fhVilAct.color}}>{fhVilAct.label}</span> — ta réponse ?
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
-                <button className="ab ab-FOLD" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroFaceBet("FOLD")}>Fold<span className="ab-sub">—</span></button>
-                <button className="ab ab-CALL" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroFaceBet("CALL")}>Call<span className="ab-sub">{fmt(fhVilAct.amount||Math.round(fhPot*.5))}</span></button>
-                <button className="ab ab-RAISE" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroFaceBet("RAISE")}>Raise<span className="ab-sub">2.5×</span></button>
-              </div>
-            </div>
-          )}
-          {playingFull&&fhPhase==="done"&&fhResult&&(()=>{
-            const rc=fhBuildRecap(fhActs,spot,fhResult,fhReport);
-            return(
-            <div style={{padding:"8px 8px 10px"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:6}}>
-                <div style={{fontFamily:T.brand,fontSize:12.5,fontWeight:900,color:fhResult==="win"?T.green:T.red}}>{fhResult==="win"?"🏆 GAGNÉE":"❌ PERDUE"}</div>
-                <span style={{fontFamily:T.mono,fontSize:9.5,fontWeight:800,color:rc.scoreCol,background:`${rc.scoreCol}1a`,border:`1px solid ${rc.scoreCol}55`,borderRadius:6,padding:"2px 7px"}}>{rc.score}/100</span>
-              </div>
-              {/* récap compact par street */}
-              <div style={{display:"flex",flexDirection:"column",gap:3,marginBottom:6}}>
-                {rc.streets.map((st,i)=>(
-                  <div key={i} style={{display:"flex",gap:6,alignItems:"center",fontSize:8.5,fontFamily:T.stats}}>
-                    <span style={{fontWeight:800,color:st.col,minWidth:34}}>{st.label}</span>
-                    <span style={{color:T.text3,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.line}</span>
-                    <span style={{color:st.col,fontWeight:700}}>{st.verdict}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:6,justifyContent:"center",alignItems:"center"}}>
-                {numTables===1
-                  ?<button className="btn btng" style={{fontSize:10}} disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextShortLabel} ►</button>
-                  :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ Main réglée</span>}
-                <button className="btn btns" style={{fontSize:10}} onClick={startFullHand}>↺</button>
-              </div>
-            </div>
-            );
-          })()}
         </>
         );
       })()}
@@ -6063,9 +6250,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[trainMode,setTrainMode]=useState(()=>{try{return localStorage.getItem("pf_train_mode")||"spot";}catch{return "spot";}});
   const[streetStart,setStreetStart]=useState("Flop"); // street de départ pour le mode Street
   useEffect(()=>{try{localStorage.setItem("pf_train_mode",trainMode);}catch{}},[trainMode]);
-  // Full Hand / Session = 1 table (le rendu de main complète street-par-street est dédié au mode 1T)
+  /* Full Hand / Session : coup complet joué street par street. Ces types de
+     session tournent désormais en 1T **comme en 2T/3T/4T** — chaque table
+     possède son propre moteur `fullHandEngine` (état, board, pot, stacks,
+     historique) et progresse indépendamment (§44). Le drapeau ne sert plus qu'à
+     l'affichage de l'aide contextuelle : AUCUN verrouillage du nombre de tables
+     n'en découle (la seule limite restante est le mobile, cf.
+     `mobileTrainingSingleTableOnly`, qui est une contrainte d'affichage). */
   const fullSolo=trainMode==="full"||trainMode==="session";
-  useEffect(()=>{if(fullSolo&&ntables!==1)setNtables(1);},[trainMode]);
   // ── Sidebar collapsible ──
   const[collapsed,setCollapsed]=useState(()=>{
     try{return localStorage.getItem("pf_sidebar_collapsed")==="true";}catch{return false;}
@@ -6106,7 +6298,19 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
   const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
-  const[fhLive,setFhLive]=useState(null);               // état Full Hand remonté de SingleTable (§ P0-C : panneau droit synchro)
+  /* État Full Hand remonté par CHAQUE table (§ P0-C · multi-table).
+     Carte { [indexDeTable]: {active,street,pot,heroStack,done} | null } : le
+     panneau droit partagé lit la table active, et « Table N suivante » sait si
+     un coup complet est encore en cours sur cette table précise. */
+  const[fhLive,setFhLive]=useState({});
+  const setFhLiveFor=useCallback((t,st)=>{
+    setFhLive(m=>{
+      if(!st&&!m[t])return m;                 // rien à faire (évite un re-render inutile)
+      const n={...m};
+      if(st)n[t]=st;else delete n[t];
+      return n;
+    });
+  },[]);
   const[cfrPanelTick,setCfrPanelTick]=useState(0);      // §28 CFR : nudge de re-render du panneau quand le solve postflop remonte
   void cfrPanelTick;
   const[mtRangePopup,setMtRangePopup]=useState(null);   // multi-table : popup ranges GTO plein écran
@@ -6207,6 +6411,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTableIdx(Array.from({length:ntables},(_,t)=>base+t));
     spotCursorRef.current=base+ntables;
     nextTableLockRef.current={};
+    setFhLive({});   // aucun coup complet ne survit à un changement de session / de nb de tables
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sessionEpoch,ntables]);
   // `idx` (curseur de session, utilisé par tous les affichages) = plancher des
@@ -6665,7 +6870,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       else{
         const bases=Array.from({length:ntables},(_,t)=>Math.min(cur+t,queue.length-1));
         spotCursorRef.current=cur+ntables;
-        setTableIdx(bases);setTableAns({});setTableSettled({});
+        setTableIdx(bases);setTableAns({});setTableSettled({});setFhLive({});
       }
       if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
       nextTransitionTimer.current=setTimeout(()=>{
@@ -6727,8 +6932,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const vp=VILLAIN_PROFILES[s.vtype]||null;
     const ans=tableAns[activeTable]||null;
     // §P0-C : en Full Hand, le panneau lit l'état LIVE du coup (pas le spot préflop).
-    const inFh=!!(fhLive&&fhLive.active&&activeTable===0);
-    const potN=inFh?fhLive.pot:(parseFloat(s.pot)||0), stackN=inFh?fhLive.heroStack:(parseFloat(s.stack)||100);
+    const fhCur=fhLive[activeTable]||null;
+    const inFh=!!(fhCur&&fhCur.active);
+    const potN=inFh?fhCur.pot:(parseFloat(s.pot)||0), stackN=inFh?fhCur.heroStack:(parseFloat(s.stack)||100);
     const spr=potN>0?(stackN/potN).toFixed(1):"—";
     const toCall=inFh?0:(Number(s.toCall)||0);
     const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
@@ -6781,12 +6987,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
 
         {/* SOLUTION / ANALYSE */}
         <section className="pf-p2-sec">
-          <div className="pf-p2-h">{inFh?`ANALYSE — ${fhLive.street.toUpperCase()}`:(isGto?"ANALYSE GTO":"ANALYSE")}</div>
+          <div className="pf-p2-h">{inFh?`ANALYSE — ${fhCur.street.toUpperCase()}`:(isGto?"ANALYSE GTO":"ANALYSE")}</div>
           {inFh?(
             /* §P0-C : en Full Hand, l'analyse préflop n'a plus de sens — chaque
                décision est évaluée sous la table (badge + bilan par street). */
             <div style={{padding:"8px 10px",borderRadius:7,background:"rgba(52,216,255,.06)",border:"1px solid rgba(52,216,255,.2)",fontFamily:T.stats,fontSize:9.5,color:T.text2,lineHeight:1.5}}>
-              🃏 <b style={{color:T.cyan}}>Main complète en cours</b> — {fhLive.done?"coup terminé, voir le bilan par street sous la table.":`street ${fhLive.street}. Chaque décision est analysée sous la table (≈ estimation).`}
+              🃏 <b style={{color:T.cyan}}>Main complète en cours</b> — {fhCur.done?"coup terminé, voir le bilan par street sous la table.":`street ${fhCur.street}. Chaque décision est analysée sous la table (≈ estimation).`}
             </div>
           ):!revealed?(
             <div className="pf-p2-locked">
@@ -6831,6 +7037,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 ))}
               </div>
               {best&&<div className="pf-p2-optimal">EV optimale <b>+{bestEv.toFixed(2)}bb</b></div>}
+              {/* §18 — même remarque « Style Hero » que le panneau 1T. */}
+              {(()=>{const n=heroStyleCoachNote(f.heroStyle||"GTO",s);if(!n)return null;return(
+                <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:`${n.col}12`,border:`1px solid ${n.col}3a`,fontFamily:"'Inter',sans-serif",fontSize:9.5,color:n.col,lineHeight:1.6}}>
+                  🎭 <b>Style {f.heroStyle||"GTO"}</b> — {n.text}
+                </div>
+              );})()}
               <button className="pf-p2-ranges" onClick={()=>setMtRangePopup({heroPos:s.hpos,vilPos:s.vpos,heroAction:best?.id?.toLowerCase()||"open",stackBB:stackN})}>🃏 Voir les ranges GTO</button>
             </>
           )}
@@ -6855,7 +7067,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         <section className="pf-p2-sec">
           <div className="pf-p2-h">INFORMATIONS</div>
           <div className="pf-p2-info">
-            {[["Street",inFh?fhLive.street:(s.street||"Preflop"),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+            {[["Street",inFh?fhCur.street:(s.street||"Preflop"),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
               <div key={k} className="pf-p2-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
             ))}
           </div>
@@ -6872,12 +7084,18 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             {(()=>{
               const activeAns=!!tableAns[activeTable];
               const busy=!!nextTableLockRef.current[activeTable];
+              // Full Hand / Session : la réponse préflop ne termine PAS la main.
+              // Tant que le coup complet de CETTE table n'est pas arrivé au bout
+              // (fhLive[t].done), passer à la main suivante l'abandonnerait en
+              // silence — le bouton reste donc verrouillé sur cette table.
+              const fhT=fhLive[activeTable];
+              const fhBusy=!!(fhT&&fhT.active&&!fhT.done);
               // §P1 : en 1T, une seule CTA « Main suivante » (pas de « Table 1
               // suivante » redondant) ; en multi-table, « Table N suivante ».
               const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":(ntables===1?"Main suivante":`Table ${activeTable+1} suivante`);
               return(
-                <button className="pf-p2-next" disabled={!activeAns||busy} onClick={()=>handleNextTable(activeTable)}>
-                  {activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
+                <button className="pf-p2-next" disabled={!activeAns||busy||fhBusy} onClick={()=>handleNextTable(activeTable)}>
+                  {fhBusy?`Coup en cours — ${fhT.street}`:activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
                 </button>
               );
             })()}
@@ -6961,8 +7179,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div className="sbsep"/>
           <div className="sb">
             <div className="sblbl">Multitabling</div>
-            <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(fullSolo&&n>1)||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{opacity:lock&&ntables!==n?.38:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
-            {fullSolo&&<div style={{marginTop:5,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 {trainMode==="full"?"Full Hand":"Session"} se joue en 1 table.</div>}
+            <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{opacity:lock&&ntables!==n?.38:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
+            {fullSolo&&!mobileTrainingSingleTableOnly&&<div style={{marginTop:5,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 {trainMode==="full"?"Full Hand":"Session"} en {ntables}T : {ntables===1?"un coup complet à la fois.":`${ntables} coups complets indépendants, une table à la fois.`}</div>}
           </div>
           <div className="sbsep"/>
           {started&&!done&&<div className="sb">
@@ -7045,7 +7263,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               </div>
             )}
             {fullSolo&&(
-              <div style={{marginTop:6,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 Coup complet joué en 1 table (préflop → flop → turn → river → analyse).</div>
+              <div style={{marginTop:6,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 Coup complet (préflop → flop → turn → river → analyse){ntables>1?` — ${ntables} tables en parallèle, chacune avec son propre coup.`:"."}</div>
             )}
           </div>
           <div className="sbsep"/>
@@ -7441,7 +7659,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:11,color:T.text2}}>Tables :</span>
-              {[1,2,3,4].map(n=>{const lock=(fullSolo&&n>1)||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{width:38,opacity:lock?.38:1,cursor:lock?"not-allowed":"pointer"}} onClick={()=>!lock&&setNtables(n)}>{n}T</div>;})}
+              {[1,2,3,4].map(n=>{const lock=mobileTrainingSingleTableOnly&&n>1;return <div key={n} className={`mtbtn${ntables===n?" on":""}`} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{width:38,opacity:lock?.38:1,cursor:lock?"not-allowed":"pointer"}} onClick={()=>!lock&&setNtables(n)}>{n}T</div>;})}
             </div>
             <div onClick={()=>setShowSol(s=>!s)} style={{
               display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 18px",borderRadius:30,
@@ -7490,7 +7708,27 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
             <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
-                const spot=queue[tblIdx(t)];if(!spot)return null;
+                const spot=queue[tblIdx(t)];
+                /* §16 — AUCUN fallback silencieux : si une table demandée ne peut
+                   pas être alimentée, on ne la fait PAS disparaître de la mosaïque
+                   (ce qui reviendrait à jouer en 3T alors que 4T a été demandé).
+                   On rend une tuile d'erreur explicite + un log exploitable. */
+                if(!spot){
+                  if(typeof console!=="undefined")console.error(
+                    `PF Trainer — table ${t+1}/${ntables} sans spot (index ${tblIdx(t)}, queue ${queue.length}) `+
+                    `· type=${trainMode} · mode=${trainerMode} · session=${smode}`);
+                  return(
+                    <div key={`empty-${t}`} className="mt-slot" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,padding:16,textAlign:"center"}}>
+                      <div style={{fontSize:24}}>⚠</div>
+                      <div style={{fontFamily:T.brand,fontSize:10,color:T.red,letterSpacing:".1em"}}>TABLE {t+1} — SPOT INDISPONIBLE</div>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:T.text3,lineHeight:1.6,maxWidth:220}}>
+                        La génération n'a pas produit assez de spots pour {ntables} tables avec ces filtres.
+                        Élargis les filtres (position, format, type de spot) puis relance la session.
+                      </div>
+                      <button className="btn btns" style={{fontSize:9}} onClick={()=>handleNextTable(t)}>↻ Régénérer cette table</button>
+                    </div>
+                  );
+                }
                 const isAns=!!tableAns[t];
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
@@ -7517,7 +7755,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={ntables===1?setFhLive:undefined} onCfrUpgrade={ntables===1?()=>setCfrPanelTick(t=>t+1):undefined}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);

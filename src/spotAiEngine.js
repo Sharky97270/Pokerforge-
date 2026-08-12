@@ -636,9 +636,26 @@ function mapSpotType(filters = {}, spotTypeMap = {}) {
   return new Set(filters.spotTypes.map((t) => spotTypeMap[t] || t));
 }
 
+/* Full Hand / Session (`preferFlop`) : le contrat annoncé à l'utilisateur est
+   « préflop → flop → turn → river ». Un spot dont la seule action non-fold est un
+   tapis (RFI à 15-25bb = push) se termine au préflop : il ne tient pas ce contrat.
+   Le générateur legacy (buildQ) applique déjà cette règle ; elle manquait ici, si
+   bien que la file IA — qui est la source RÉELLE des spots dès qu'elle produit —
+   réinjectait des push dans une session Full Hand. */
+function spotCanReachPostflop(spot) {
+  const acts = Array.isArray(spot?.acts) ? spot.acts : [];
+  if (!acts.length) return true; // pas d'information → on ne rejette pas
+  return acts.some((a) => {
+    const id = String(a?.id || a?.action || "").toUpperCase();
+    if (id === "FOLD" || id === "ALLIN") return false;
+    return !/push|tapis|all-?in/i.test(`${a?.l || ""} ${a?.s || ""}`);
+  });
+}
+
 function spotMatchesFilters(spot, filters = {}, opts = {}) {
   if (!spot) return false;
   if (opts.onlyPreflop && !/^pre/i.test(spot.street || "")) return false;
+  if (opts.preferFlop && !spotCanReachPostflop(spot)) return false;
   if (opts.onlyStreet && String(spot.street || "").toLowerCase() !== String(opts.onlyStreet).toLowerCase()) return false;
   if (filters.cat && filters.cat !== "Tous" && spot.cat !== filters.cat) return false;
   if (filters.fmt && filters.fmt !== "Tous" && spot.fmt !== filters.fmt) return false;
