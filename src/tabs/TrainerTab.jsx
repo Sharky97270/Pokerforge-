@@ -1196,6 +1196,52 @@ function coachView(level){
 }
 function firstSentence(t){if(!t)return t;const i=t.indexOf(". ");return i>0?t.slice(0,i+1):t;}
 
+/* ── STYLE HERO (§18) — « Adapte les remarques du Coach AI à ton style » ──
+   Le réglage était jusqu'ici purement décoratif : il était bien porté par le
+   contrat de spot (spotSchema.hero.style) mais AUCUNE sortie ne le lisait, donc
+   changer de style ne changeait rien pour l'utilisateur. On produit ici une note
+   de coaching CONTEXTUELLE : elle confronte l'action optimale du spot à la
+   tendance déclarée et nomme le leak typique du style quand les deux divergent.
+
+   Règle stricte : cette note ne modifie JAMAIS la solution ni les fréquences —
+   le GTO reste le GTO (§6). C'est un commentaire, exactement ce que l'UI promet. */
+const HERO_STYLE_COACH={
+  "GTO":null, // référence : aucune déviation à commenter
+  "TAG":{lean:"tight",
+    agree:"Cohérent avec ton style TAG : ligne de valeur claire, peu de zones grises.",
+    diverge:"Ton style TAG te pousse à passer ici. La ligne optimale est plus large — c'est exactement le spot où un TAG laisse de l'EV."},
+  "LAG":{lean:"loose",
+    agree:"Cohérent avec ton style LAG : la pression est bien récompensée sur ce spot.",
+    diverge:"Ton style LAG te pousse à jouer ce coup. Ici la ligne optimale est plus contenue — le leak LAG classique est de sur-jouer ce type de texture."},
+  "Exploitant":{lean:"loose",
+    agree:"Ton style exploitant s'aligne : le profil du vilain justifie cette ligne.",
+    diverge:"En exploitant, vérifie que la déviation est bien justifiée par les stats du vilain — sur ce spot, la baseline reste plus forte."},
+  "Aggressif":{lean:"loose",
+    agree:"Ton style agressif est récompensé ici : la ligne optimale est bien la ligne agressive.",
+    diverge:"Ton style agressif va vouloir miser. La ligne optimale est passive ici — c'est le spot type où l'agression coûte de l'EV."},
+  "Passif":{lean:"tight",
+    agree:"Cohérent avec ton style passif : pas besoin de forcer sur ce spot.",
+    diverge:"Ton style passif va vouloir temporiser. La ligne optimale est agressive ici — c'est le leak n°1 d'un profil passif."},
+  "Personnalisé":{lean:null,
+    agree:"Note ce spot dans ton style de référence : compare ta ligne habituelle à la ligne optimale.",
+    diverge:"Note ce spot dans ton style de référence : compare ta ligne habituelle à la ligne optimale."},
+};
+/* Renvoie {text,col} ou null. `spot.ok` donne l'action optimale ; on la classe
+   agressive (BET/RAISE/3BET/4BET/5BET/ALLIN) ou non pour choisir le message. */
+function heroStyleCoachNote(style,spot){
+  const conf=HERO_STYLE_COACH[style];
+  if(!conf||!spot||!Array.isArray(spot.acts))return null;
+  const best=spot.acts[spot.ok];
+  if(!best)return null;
+  const t=trainerActionType(best);
+  const aggressive=["BET","RAISE","3BET","4BET","5BET","ALLIN"].includes(t);
+  if(conf.lean===null)return{text:conf.agree,col:"#34D8FF"};
+  // « tight » = le style tend vers le passif/fold ; il s'accorde avec une ligne
+  // non-agressive et diverge d'une ligne agressive (et l'inverse pour « loose »).
+  const agrees=conf.lean==="tight"?!aggressive:aggressive;
+  return{text:agrees?conf.agree:conf.diverge,col:agrees?"#10D87A":"#FFC247"};
+}
+
 /* Calcule le délai "réflexion" villain selon profil + complexité */
 function villainThinkDelay(vType,heroAct,mode){
   const base=mode==="gto"?900:700;
@@ -2262,6 +2308,15 @@ function buildQ(f,mode,opts={}){
       if(opts.preferFlop){
         const c=(s.cat||"").toLowerCase();
         if(!(c==="rfi"||c.includes("vs open")||c.includes("défense")||c.includes("defense")))return false;
+        // …et on écarte les spots dont la SEULE action non-fold est un tapis :
+        // à 15-25bb un RFI devient un push, le coup se termine au préflop et
+        // « Full Hand » ne tiendrait pas sa promesse (préflop → river).
+        const playable=(s.acts||[]).some(a=>{
+          const t=trainerActionType(a);
+          if(t==="FOLD"||t==="ALLIN")return false;
+          return !/push|tapis|all-?in/i.test(`${a?.l||""} ${a?.s||""}`);
+        });
+        if(!playable)return false;
       }
       return true;
     }
@@ -2993,7 +3048,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
+export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
@@ -3148,13 +3203,15 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
     // full/session = toujours · mix = 50% · spot/street = jamais (défaut legacy = 30%)
-    // Le jeu de main complète se déroule en 1 table (rendu dédié fiable).
+    // Le coup complet est INDÉPENDANT du nombre de tables : chaque SingleTable
+    // possède son propre moteur (fhStateRef) et sa propre progression, donc 2T/3T/4T
+    // jouent N coups complets en parallèle sans interférence.
     const fullDesired=
       trainMode==="full"||trainMode==="session"?true
       :trainMode==="mix"?Math.random()<0.5
       :trainMode==="spot"||trainMode==="street"?false
       :Math.random()<0.30;
-    autoFull.current=numTables===1&&fullDesired
+    autoFull.current=fullDesired
       &&(spot?.hand?.length>=2)
       &&(spot?.street==="Preflop"||spot?.street==="preflop");
     // Démarrer le timer (configurable — 0 = aucun)
@@ -3221,8 +3278,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   // la solution CFR, on la SUBSTITUE en mutant le spot (comme applySolverStrategy le
   // fait déjà) puis on bump cfrTick pour rafraîchir badge/fréquences/verdict. La garde
   // cfrSpotRef ignore tout résultat périmé (spot déjà changé).
+  // Le solve tourne dans UN worker partagé multiplexé par id (cfrPostflopClient) :
+  // 2T/3T/4T empilent simplement N requêtes, chacune retombant proprement sur
+  // l'heuristique en cas de timeout. Le gate `numTables!==1` d'origine privait le
+  // multi-table de la vraie stratégie solveur — supprimé (§4 : le GTO doit être le
+  // même moteur quel que soit le nombre de tables).
   useEffect(()=>{
-    if(!spot||numTables!==1||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
+    if(!spot||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
     if(spot.strategyProvenance==="cfr-experimental"){ setCfrSolving(false); return; } // déjà solvé
     const built=buildPostflopSolveRequest(spot);
     if(!built){ setCfrSolving(false); return; }
@@ -4209,6 +4271,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               </div>
             )}
             <div className="gto-insight-text">{cv.concise?firstSentence(spot.expl):spot.expl}</div>
+            {/* §18 — remarque adaptée au Style Hero choisi dans le bandeau gauche. */}
+            {(()=>{const n=heroStyleCoachNote(heroStyle,spot);if(!n)return null;return(
+              <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:`${n.col}12`,border:`1px solid ${n.col}3a`,fontFamily:"'Inter',sans-serif",fontSize:9.5,color:n.col,lineHeight:1.6}}>
+                🎭 <b>Style {heroStyle}</b> — {n.text}
+              </div>
+            );})()}
           </div>
           );})()}
 
@@ -4475,36 +4543,44 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       );
     };
     /* Actions full-hand (flop→river) — rendues hors du panneau solution
-       pour rester accessibles en mode hard ET sur mobile */
+       pour rester accessibles en mode hard ET sur mobile.
+       Multi-table : mêmes contrôles, densité réduite (fhC) pour tenir dans une
+       tuile de mosaïque. Le rendu est identique en 1T/2T/3T/4T — seule la taille
+       change, jamais la disponibilité des actions. */
+    const fhC=numTables>1;                     // densité compacte (mosaïque)
+    const fhPad=fhC?"6px 8px 8px":"8px 14px 14px";
+    const fhBtnPad=fhC?"9px 3px":"12px 4px";
+    const fhHdrFs=fhC?8:9;
+    const fhGap=fhC?4:6;
     const renderFhActions=()=>(
       <>
         {playingFull&&fhPhase==="hero"&&(
-          <div className="mtr-actions" style={{flexShrink:0,padding:"8px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)"}}>
-            <div style={{fontFamily:T.brand,fontSize:9,color:T.cyan,letterSpacing:".12em",marginBottom:8,textAlign:"center"}}>{fhStreet.toUpperCase()} — ACTION HERO</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6}}>
-              <button className="ab ab-CHECK" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("CHECK")}>Check<span className="ab-sub">0bb</span></button>
-              <button className="ab ab-CALL" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("BET")}>Bet ½<span className="ab-sub">{fmt(fhPot*.5|0)}</span></button>
-              <button className="ab ab-RAISE" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("RAISE")}>PSB<span className="ab-sub">{fmt(fhPot)}</span></button>
-              <button className="ab ab-FOLD" style={{padding:"12px 4px"}} onClick={()=>fhHeroAct("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
+          <div className="mtr-actions" style={{flexShrink:0,padding:fhPad,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)"}}>
+            <div style={{fontFamily:T.brand,fontSize:fhHdrFs,color:T.cyan,letterSpacing:".12em",marginBottom:fhGap+2,textAlign:"center"}}>{fhStreet.toUpperCase()} — ACTION HERO</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:fhGap}}>
+              <button className="ab ab-CHECK" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("CHECK")}>Check<span className="ab-sub">0bb</span></button>
+              <button className="ab ab-CALL" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("BET")}>Bet ½<span className="ab-sub">{fmt(fhPot*.5|0)}</span></button>
+              <button className="ab ab-RAISE" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("RAISE")}>PSB<span className="ab-sub">{fmt(fhPot)}</span></button>
+              <button className="ab ab-FOLD" style={{padding:fhBtnPad}} onClick={()=>fhHeroAct("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
             </div>
           </div>
         )}
         {playingFull&&fhPhase==="hero_facing_bet"&&fhVilAct&&(
-          <div className="mtr-actions" style={{flexShrink:0,padding:"8px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(155,92,255,.2)"}}>
-            <div style={{fontFamily:T.brand,fontSize:9,color:T.purple,letterSpacing:".12em",marginBottom:8,textAlign:"center"}}>
+          <div className="mtr-actions" style={{flexShrink:0,padding:fhPad,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(155,92,255,.2)"}}>
+            <div style={{fontFamily:T.brand,fontSize:fhHdrFs,color:T.purple,letterSpacing:".12em",marginBottom:fhGap+2,textAlign:"center"}}>
               {spot.vpos} <span style={{color:fhVilAct.color,fontWeight:800}}>{fhVilAct.label}</span> — ta réponse ?
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-              <button className="ab ab-FOLD" style={{padding:"12px 4px"}} onClick={()=>fhHeroFaceBet("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
-              <button className="ab ab-CALL" style={{padding:"12px 4px"}} onClick={()=>fhHeroFaceBet("CALL")}>Call<span className="ab-sub">{fmt(fhVilAct.amount||Math.round(fhPot*.5))}</span></button>
-              <button className="ab ab-RAISE" style={{padding:"12px 4px"}} onClick={()=>fhHeroFaceBet("RAISE")}>Raise<span className="ab-sub">2.5×</span></button>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:fhGap}}>
+              <button className="ab ab-FOLD" style={{padding:fhBtnPad}} onClick={()=>fhHeroFaceBet("FOLD")}>Fold<span className="ab-sub">abandon</span></button>
+              <button className="ab ab-CALL" style={{padding:fhBtnPad}} onClick={()=>fhHeroFaceBet("CALL")}>Call<span className="ab-sub">{fmt(fhVilAct.amount||Math.round(fhPot*.5))}</span></button>
+              <button className="ab ab-RAISE" style={{padding:fhBtnPad}} onClick={()=>fhHeroFaceBet("RAISE")}>Raise<span className="ab-sub">2.5×</span></button>
             </div>
           </div>
         )}
         {playingFull&&fhPhase==="done"&&fhResult&&(()=>{
           const recap=fhBuildRecap(fhActs,spot,fhResult,fhReport);
           return(
-          <div style={{flexShrink:0,padding:"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:"46vh",overflowY:"auto"}}>
+          <div style={{flexShrink:0,padding:fhC?"8px 8px 10px":"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:fhC?"38vh":"46vh",overflowY:"auto"}}>
             {/* En-tête : verdict + score main */}
             <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
               <div style={{fontFamily:T.brand,fontSize:15,fontWeight:900,color:fhResult==="win"?T.green:T.red,textShadow:`0 0 18px ${fhResult==="win"?T.greenGlow:T.redGlow}`}}>{fhResult==="win"?"🏆 MAIN GAGNÉE":"❌ MAIN PERDUE"}</div>
@@ -4530,7 +4606,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             <div style={{display:"flex",gap:7,justifyContent:"center"}}>
-              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextLabel} ►</button>
+              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{numTables===1?nextLabel:nextShortLabel} ►</button>
               <button className="btn btns" onClick={startFullHand}>↺ Rejouer</button>
             </div>
           </div>
@@ -5604,7 +5680,10 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           </div>
         </div>
       )}
-      {vact&&phase!=="hero"&&phase!=="villain_thinking"&&(
+      {/* Réaction Villain PRÉFLOP — masquée dès que le coup complet démarre :
+          l'action courante du Villain est alors portée par la table elle-même
+          (jetons + badge) et par le bandeau d'actions Full Hand. */}
+      {vact&&phase!=="hero"&&phase!=="villain_thinking"&&!playingFull&&(
         <div className="vil-decision-banner" style={{padding:"5px 8px",background:"rgba(155,92,255,.05)",borderTop:"1px solid rgba(155,92,255,.18)",display:"flex",flexDirection:"column",gap:3,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <span style={{fontSize:8,color:"#c090ff",fontFamily:T.stats,fontWeight:700}}>{spot.vpos}</span>
@@ -5648,10 +5727,24 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
              Rendu par renderActionZone() → plus de chevauchement au stack Hero. ── */}
       {phase==="hero"&&renderActionZone()}
 
-      {/* ── EV RÉSULTATS MULTI-TABLE ── */}
-      {answered!==null&&renderHeroFeedback()}
+      {/* ── ACTIONS COUP COMPLET (Full Hand / Session) — multi-table ──
+             Rendues HORS du panneau solution : elles doivent rester accessibles
+             en « solution masquée » (mode hard) comme en solution visible. Avant
+             cette correction elles ne vivaient que dans la branche showSol du bloc
+             EV ci-dessous → une table 2T/3T/4T en mode hard n'avait aucun bouton
+             flop/turn/river. ── */}
+      {playingFull&&renderFhActions()}
 
-      {phase==="done"&&answered!==null&&(()=>{
+      {/* ── EV RÉSULTATS MULTI-TABLE ──
+             Pendant un coup complet, le verdict PRÉFLOP est masqué dans la tuile :
+             il a déjà eu son moment, et en 3T/4T ces ~90px pris sous la table
+             écrasaient le feutre (sièges qui se chevauchent, board illisible).
+             L'analyse reste accessible : panneau droit partagé pendant le coup,
+             puis bilan par street au showdown. En 1T rien ne change (le panneau
+             vit dans la colonne de droite, pas dans la tuile). ── */}
+      {answered!==null&&!playingFull&&renderHeroFeedback()}
+
+      {phase==="done"&&answered!==null&&!playingFull&&(()=>{
         const bestEv=spot.ev[spot.acts[spot.ok]?.id]||0;
         const myEv=spot.ev[spot.acts[answered]?.id]||0;
         const evDiff=myEv-bestEv;
@@ -5754,66 +5847,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             );
           })()}
           <div style={{padding:"0 8px 8px"}}><RangeGrid pos={spot.hpos} action={spot.acts[spot.ok]?.id?.toLowerCase()||"open"} stackBB={parseFloat(spot.stack)||100} label={`RANGE ${spot.hpos} — ${spot.acts[spot.ok]?.l||"Optimal"}`}/></div>
+          {/* Pied de panneau — masqué pendant un coup complet : les contrôles
+              Full Hand (et le bilan par street) sont rendus plus haut par
+              renderFhActions(), identiques en 1T et en multi-table. */}
           {!playingFull&&<div className="nextrow">
             {numTables===1
               ?<button className="btn btng" style={{flex:1,fontSize:10}} disabled={nextBusy} onClick={callNext}>{nextShortLabel} ►</button>
               :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ OK</span>
             }
-            {spot.hand?.length>=2&&numTables===1&&<button className="btn btnx" style={{fontSize:9}} onClick={startFullHand}>▶ River</button>}
+            {spot.hand?.length>=2&&<button className="btn btnx" style={{fontSize:9}} onClick={startFullHand}>▶ River</button>}
             <button className="btn btns" style={{fontSize:9}} onClick={resetSpot}>↺</button>
           </div>}
-          {playingFull&&fhPhase==="hero"&&(
-            <div style={{padding:"6px 8px 8px",background:"#0a0a14",borderTop:"1px solid #181825"}}>
-              <div style={{fontSize:9,color:T.text2,fontFamily:T.stats,marginBottom:5,textAlign:"center"}}>
-                <span style={{fontFamily:T.brand,fontSize:8,color:T.gold}}>{fhStreet.toUpperCase()}</span> — Action ?
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4}}>
-                <button className="ab ab-CHECK" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("CHECK")}>Check<span className="ab-sub">0bb</span></button>
-                <button className="ab ab-CALL" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("BET")}>½ Pot<span className="ab-sub">{fmt(fhPot*.5|0)}</span></button>
-                <button className="ab ab-RAISE" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("RAISE")}>PSB<span className="ab-sub">{fmt(fhPot)}</span></button>
-                <button className="ab ab-FOLD" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroAct("FOLD")}>Fold<span className="ab-sub">—</span></button>
-              </div>
-            </div>
-          )}
-          {playingFull&&fhPhase==="hero_facing_bet"&&fhVilAct&&(
-            <div style={{padding:"6px 8px 8px",background:"#0a0a14",borderTop:"1px solid #181825"}}>
-              <div style={{fontSize:9,color:"#c090ff",fontFamily:T.stats,marginBottom:5,textAlign:"center",fontWeight:700}}>
-                {spot.vpos} <span style={{color:fhVilAct.color}}>{fhVilAct.label}</span> — ta réponse ?
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
-                <button className="ab ab-FOLD" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroFaceBet("FOLD")}>Fold<span className="ab-sub">—</span></button>
-                <button className="ab ab-CALL" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroFaceBet("CALL")}>Call<span className="ab-sub">{fmt(fhVilAct.amount||Math.round(fhPot*.5))}</span></button>
-                <button className="ab ab-RAISE" style={{padding:"9px 3px",fontSize:9}} onClick={()=>fhHeroFaceBet("RAISE")}>Raise<span className="ab-sub">2.5×</span></button>
-              </div>
-            </div>
-          )}
-          {playingFull&&fhPhase==="done"&&fhResult&&(()=>{
-            const rc=fhBuildRecap(fhActs,spot,fhResult,fhReport);
-            return(
-            <div style={{padding:"8px 8px 10px"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:6}}>
-                <div style={{fontFamily:T.brand,fontSize:12.5,fontWeight:900,color:fhResult==="win"?T.green:T.red}}>{fhResult==="win"?"🏆 GAGNÉE":"❌ PERDUE"}</div>
-                <span style={{fontFamily:T.mono,fontSize:9.5,fontWeight:800,color:rc.scoreCol,background:`${rc.scoreCol}1a`,border:`1px solid ${rc.scoreCol}55`,borderRadius:6,padding:"2px 7px"}}>{rc.score}/100</span>
-              </div>
-              {/* récap compact par street */}
-              <div style={{display:"flex",flexDirection:"column",gap:3,marginBottom:6}}>
-                {rc.streets.map((st,i)=>(
-                  <div key={i} style={{display:"flex",gap:6,alignItems:"center",fontSize:8.5,fontFamily:T.stats}}>
-                    <span style={{fontWeight:800,color:st.col,minWidth:34}}>{st.label}</span>
-                    <span style={{color:T.text3,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.line}</span>
-                    <span style={{color:st.col,fontWeight:700}}>{st.verdict}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:6,justifyContent:"center",alignItems:"center"}}>
-                {numTables===1
-                  ?<button className="btn btng" style={{fontSize:10}} disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{nextShortLabel} ►</button>
-                  :<span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.green,padding:"4px 10px",background:"rgba(16,216,122,.1)",borderRadius:5,border:"1px solid rgba(16,216,122,.25)"}}>✓ Main réglée</span>}
-                <button className="btn btns" style={{fontSize:10}} onClick={startFullHand}>↺</button>
-              </div>
-            </div>
-            );
-          })()}
         </>
         );
       })()}
@@ -6206,9 +6250,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[trainMode,setTrainMode]=useState(()=>{try{return localStorage.getItem("pf_train_mode")||"spot";}catch{return "spot";}});
   const[streetStart,setStreetStart]=useState("Flop"); // street de départ pour le mode Street
   useEffect(()=>{try{localStorage.setItem("pf_train_mode",trainMode);}catch{}},[trainMode]);
-  // Full Hand / Session = 1 table (le rendu de main complète street-par-street est dédié au mode 1T)
+  /* Full Hand / Session : coup complet joué street par street. Ces types de
+     session tournent désormais en 1T **comme en 2T/3T/4T** — chaque table
+     possède son propre moteur `fullHandEngine` (état, board, pot, stacks,
+     historique) et progresse indépendamment (§44). Le drapeau ne sert plus qu'à
+     l'affichage de l'aide contextuelle : AUCUN verrouillage du nombre de tables
+     n'en découle (la seule limite restante est le mobile, cf.
+     `mobileTrainingSingleTableOnly`, qui est une contrainte d'affichage). */
   const fullSolo=trainMode==="full"||trainMode==="session";
-  useEffect(()=>{if(fullSolo&&ntables!==1)setNtables(1);},[trainMode]);
   // ── Sidebar collapsible ──
   const[collapsed,setCollapsed]=useState(()=>{
     try{return localStorage.getItem("pf_sidebar_collapsed")==="true";}catch{return false;}
@@ -6249,7 +6298,19 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[mobFocus,setMobFocus]=useState(false);          // mode focus immersif
   const[expandedT,setExpandedT]=useState(null);         // table agrandie (double-tap)
   const[activeTable,setActiveTable]=useState(0);        // multi-table : table active (panneau droit + raccourcis F1-F4)
-  const[fhLive,setFhLive]=useState(null);               // état Full Hand remonté de SingleTable (§ P0-C : panneau droit synchro)
+  /* État Full Hand remonté par CHAQUE table (§ P0-C · multi-table).
+     Carte { [indexDeTable]: {active,street,pot,heroStack,done} | null } : le
+     panneau droit partagé lit la table active, et « Table N suivante » sait si
+     un coup complet est encore en cours sur cette table précise. */
+  const[fhLive,setFhLive]=useState({});
+  const setFhLiveFor=useCallback((t,st)=>{
+    setFhLive(m=>{
+      if(!st&&!m[t])return m;                 // rien à faire (évite un re-render inutile)
+      const n={...m};
+      if(st)n[t]=st;else delete n[t];
+      return n;
+    });
+  },[]);
   const[cfrPanelTick,setCfrPanelTick]=useState(0);      // §28 CFR : nudge de re-render du panneau quand le solve postflop remonte
   void cfrPanelTick;
   const[mtRangePopup,setMtRangePopup]=useState(null);   // multi-table : popup ranges GTO plein écran
@@ -6350,6 +6411,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTableIdx(Array.from({length:ntables},(_,t)=>base+t));
     spotCursorRef.current=base+ntables;
     nextTableLockRef.current={};
+    setFhLive({});   // aucun coup complet ne survit à un changement de session / de nb de tables
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sessionEpoch,ntables]);
   // `idx` (curseur de session, utilisé par tous les affichages) = plancher des
@@ -6808,7 +6870,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
       else{
         const bases=Array.from({length:ntables},(_,t)=>Math.min(cur+t,queue.length-1));
         spotCursorRef.current=cur+ntables;
-        setTableIdx(bases);setTableAns({});setTableSettled({});
+        setTableIdx(bases);setTableAns({});setTableSettled({});setFhLive({});
       }
       if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
       nextTransitionTimer.current=setTimeout(()=>{
@@ -6870,8 +6932,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const vp=VILLAIN_PROFILES[s.vtype]||null;
     const ans=tableAns[activeTable]||null;
     // §P0-C : en Full Hand, le panneau lit l'état LIVE du coup (pas le spot préflop).
-    const inFh=!!(fhLive&&fhLive.active&&activeTable===0);
-    const potN=inFh?fhLive.pot:(parseFloat(s.pot)||0), stackN=inFh?fhLive.heroStack:(parseFloat(s.stack)||100);
+    const fhCur=fhLive[activeTable]||null;
+    const inFh=!!(fhCur&&fhCur.active);
+    const potN=inFh?fhCur.pot:(parseFloat(s.pot)||0), stackN=inFh?fhCur.heroStack:(parseFloat(s.stack)||100);
     const spr=potN>0?(stackN/potN).toFixed(1):"—";
     const toCall=inFh?0:(Number(s.toCall)||0);
     const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
@@ -6924,12 +6987,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
 
         {/* SOLUTION / ANALYSE */}
         <section className="pf-p2-sec">
-          <div className="pf-p2-h">{inFh?`ANALYSE — ${fhLive.street.toUpperCase()}`:(isGto?"ANALYSE GTO":"ANALYSE")}</div>
+          <div className="pf-p2-h">{inFh?`ANALYSE — ${fhCur.street.toUpperCase()}`:(isGto?"ANALYSE GTO":"ANALYSE")}</div>
           {inFh?(
             /* §P0-C : en Full Hand, l'analyse préflop n'a plus de sens — chaque
                décision est évaluée sous la table (badge + bilan par street). */
             <div style={{padding:"8px 10px",borderRadius:7,background:"rgba(52,216,255,.06)",border:"1px solid rgba(52,216,255,.2)",fontFamily:T.stats,fontSize:9.5,color:T.text2,lineHeight:1.5}}>
-              🃏 <b style={{color:T.cyan}}>Main complète en cours</b> — {fhLive.done?"coup terminé, voir le bilan par street sous la table.":`street ${fhLive.street}. Chaque décision est analysée sous la table (≈ estimation).`}
+              🃏 <b style={{color:T.cyan}}>Main complète en cours</b> — {fhCur.done?"coup terminé, voir le bilan par street sous la table.":`street ${fhCur.street}. Chaque décision est analysée sous la table (≈ estimation).`}
             </div>
           ):!revealed?(
             <div className="pf-p2-locked">
@@ -6974,6 +7037,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 ))}
               </div>
               {best&&<div className="pf-p2-optimal">EV optimale <b>+{bestEv.toFixed(2)}bb</b></div>}
+              {/* §18 — même remarque « Style Hero » que le panneau 1T. */}
+              {(()=>{const n=heroStyleCoachNote(f.heroStyle||"GTO",s);if(!n)return null;return(
+                <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:`${n.col}12`,border:`1px solid ${n.col}3a`,fontFamily:"'Inter',sans-serif",fontSize:9.5,color:n.col,lineHeight:1.6}}>
+                  🎭 <b>Style {f.heroStyle||"GTO"}</b> — {n.text}
+                </div>
+              );})()}
               <button className="pf-p2-ranges" onClick={()=>setMtRangePopup({heroPos:s.hpos,vilPos:s.vpos,heroAction:best?.id?.toLowerCase()||"open",stackBB:stackN})}>🃏 Voir les ranges GTO</button>
             </>
           )}
@@ -6998,7 +7067,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         <section className="pf-p2-sec">
           <div className="pf-p2-h">INFORMATIONS</div>
           <div className="pf-p2-info">
-            {[["Street",inFh?fhLive.street:(s.street||"Preflop"),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+            {[["Street",inFh?fhCur.street:(s.street||"Preflop"),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
               <div key={k} className="pf-p2-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
             ))}
           </div>
@@ -7015,12 +7084,18 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             {(()=>{
               const activeAns=!!tableAns[activeTable];
               const busy=!!nextTableLockRef.current[activeTable];
+              // Full Hand / Session : la réponse préflop ne termine PAS la main.
+              // Tant que le coup complet de CETTE table n'est pas arrivé au bout
+              // (fhLive[t].done), passer à la main suivante l'abandonnerait en
+              // silence — le bouton reste donc verrouillé sur cette table.
+              const fhT=fhLive[activeTable];
+              const fhBusy=!!(fhT&&fhT.active&&!fhT.done);
               // §P1 : en 1T, une seule CTA « Main suivante » (pas de « Table 1
               // suivante » redondant) ; en multi-table, « Table N suivante ».
               const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":(ntables===1?"Main suivante":`Table ${activeTable+1} suivante`);
               return(
-                <button className="pf-p2-next" disabled={!activeAns||busy} onClick={()=>handleNextTable(activeTable)}>
-                  {activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
+                <button className="pf-p2-next" disabled={!activeAns||busy||fhBusy} onClick={()=>handleNextTable(activeTable)}>
+                  {fhBusy?`Coup en cours — ${fhT.street}`:activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
                 </button>
               );
             })()}
@@ -7104,8 +7179,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div className="sbsep"/>
           <div className="sb">
             <div className="sblbl">Multitabling</div>
-            <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(fullSolo&&n>1)||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{opacity:lock&&ntables!==n?.38:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
-            {fullSolo&&<div style={{marginTop:5,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 {trainMode==="full"?"Full Hand":"Session"} se joue en 1 table.</div>}
+            <div className="mtrow" style={{flexWrap:"wrap"}}>{TABLE_COUNTS.map(n=>{const lock=sessionActive||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} onClick={()=>!lock&&setNtables(n)} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{opacity:lock&&ntables!==n?.38:1,cursor:lock?"not-allowed":"pointer"}}>{n}T</div>;})}</div>
+            {fullSolo&&!mobileTrainingSingleTableOnly&&<div style={{marginTop:5,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 {trainMode==="full"?"Full Hand":"Session"} en {ntables}T : {ntables===1?"un coup complet à la fois.":`${ntables} coups complets indépendants, une table à la fois.`}</div>}
           </div>
           <div className="sbsep"/>
           {started&&!done&&<div className="sb">
@@ -7188,7 +7263,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               </div>
             )}
             {fullSolo&&(
-              <div style={{marginTop:6,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 Coup complet joué en 1 table (préflop → flop → turn → river → analyse).</div>
+              <div style={{marginTop:6,fontSize:8,color:T.cyan,fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>🃏 Coup complet (préflop → flop → turn → river → analyse){ntables>1?` — ${ntables} tables en parallèle, chacune avec son propre coup.`:"."}</div>
             )}
           </div>
           <div className="sbsep"/>
@@ -7584,7 +7659,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
             <div style={{display:"flex",gap:5,alignItems:"center"}}>
               <span style={{fontSize:11,color:T.text2}}>Tables :</span>
-              {[1,2,3,4].map(n=>{const lock=(fullSolo&&n>1)||(mobileTrainingSingleTableOnly&&n>1);return <div key={n} className={`mtbtn${ntables===n?" on":""}`} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{width:38,opacity:lock?.38:1,cursor:lock?"not-allowed":"pointer"}} onClick={()=>!lock&&setNtables(n)}>{n}T</div>;})}
+              {[1,2,3,4].map(n=>{const lock=mobileTrainingSingleTableOnly&&n>1;return <div key={n} className={`mtbtn${ntables===n?" on":""}`} title={mobileTrainingSingleTableOnly&&n>1?"Mobile : 1T uniquement pour garder la table lisible":undefined} style={{width:38,opacity:lock?.38:1,cursor:lock?"not-allowed":"pointer"}} onClick={()=>!lock&&setNtables(n)}>{n}T</div>;})}
             </div>
             <div onClick={()=>setShowSol(s=>!s)} style={{
               display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 18px",borderRadius:30,
@@ -7633,7 +7708,27 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div ref={gridRef} style={{flex:1,minHeight:0,display:"flex",flexDirection:"column"}}>
             <div className={`${gridClass}${ntables>1?" mt-zoom-wrap":""}`} style={ntables===1?{flex:1,minHeight:0,padding:0,gap:0,display:"flex",flexDirection:"column"}:{flex:1,minHeight:0}}>
               {Array.from({length:ntables},(_,t)=>{
-                const spot=queue[tblIdx(t)];if(!spot)return null;
+                const spot=queue[tblIdx(t)];
+                /* §16 — AUCUN fallback silencieux : si une table demandée ne peut
+                   pas être alimentée, on ne la fait PAS disparaître de la mosaïque
+                   (ce qui reviendrait à jouer en 3T alors que 4T a été demandé).
+                   On rend une tuile d'erreur explicite + un log exploitable. */
+                if(!spot){
+                  if(typeof console!=="undefined")console.error(
+                    `PF Trainer — table ${t+1}/${ntables} sans spot (index ${tblIdx(t)}, queue ${queue.length}) `+
+                    `· type=${trainMode} · mode=${trainerMode} · session=${smode}`);
+                  return(
+                    <div key={`empty-${t}`} className="mt-slot" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,padding:16,textAlign:"center"}}>
+                      <div style={{fontSize:24}}>⚠</div>
+                      <div style={{fontFamily:T.brand,fontSize:10,color:T.red,letterSpacing:".1em"}}>TABLE {t+1} — SPOT INDISPONIBLE</div>
+                      <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:T.text3,lineHeight:1.6,maxWidth:220}}>
+                        La génération n'a pas produit assez de spots pour {ntables} tables avec ces filtres.
+                        Élargis les filtres (position, format, type de spot) puis relance la session.
+                      </div>
+                      <button className="btn btns" style={{fontSize:9}} onClick={()=>handleNextTable(t)}>↻ Régénérer cette table</button>
+                    </div>
+                  );
+                }
                 const isAns=!!tableAns[t];
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
@@ -7660,7 +7755,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={ntables===1?setFhLive:undefined} onCfrUpgrade={ntables===1?()=>setCfrPanelTick(t=>t+1):undefined}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);

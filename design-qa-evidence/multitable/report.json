@@ -1,0 +1,4145 @@
+{
+ "url": "http://localhost:7799",
+ "viewport": "1600x900",
+ "at": "2026-08-12T20:18:11.820Z",
+ "cases": [
+  {
+   "id": "gto-spot-1T",
+   "mode": "gto",
+   "type": "spot",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 4,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Open 2.5bb4.5bbRel"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 4
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-spot-1T.png"
+  },
+  {
+   "id": "gto-spot-2T",
+   "mode": "gto",
+   "type": "spot",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-spot-2T.png"
+  },
+  {
+   "id": "gto-spot-3T",
+   "mode": "gto",
+   "type": "spot",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Open 3bb33% pot",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 12
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-spot-3T.png"
+  },
+  {
+   "id": "gto-spot-4T",
+   "mode": "gto",
+   "type": "spot",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Shove 22bbTapisTap",
+      "Check0bbPasser",
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 12
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 4,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-spot-4T.png"
+  },
+  {
+   "id": "gto-street-1T",
+   "mode": "gto",
+   "type": "street",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 7,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 7
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-street-1T.png"
+  },
+  {
+   "id": "gto-street-2T",
+   "mode": "gto",
+   "type": "street",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-street-2T.png"
+  },
+  {
+   "id": "gto-street-3T",
+   "mode": "gto",
+   "type": "street",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-street-3T.png"
+  },
+  {
+   "id": "gto-street-4T",
+   "mode": "gto",
+   "type": "street",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Call6bbSuivre",
+      "Call4bbSuivre",
+      "Call6bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-street-4T.png"
+  },
+  {
+   "id": "gto-full-1T",
+   "mode": "gto",
+   "type": "full",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 4,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "CO BET — ta réponse ?",
+     "fh": 3,
+     "cards": 7
+    }
+   ],
+   "tablesInFullHand": 1,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": []
+   },
+   "zonesInHand": [
+    {
+     "w": 866,
+     "h": 492
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-full-1T.png"
+  },
+  {
+   "id": "gto-full-2T",
+   "mode": "gto",
+   "type": "full",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre",
+      "Call1.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "CO BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 2,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": []
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 404
+    },
+    {
+     "w": 417,
+     "h": 404
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-full-2T.png"
+  },
+  {
+   "id": "gto-full-3T",
+   "mode": "gto",
+   "type": "full",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre",
+      "Call 18bb18bbSuivr",
+      "Call4bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 3,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 401,
+     "h": 308
+    },
+    {
+     "w": 397,
+     "h": 227
+    },
+    {
+     "w": 397,
+     "h": 227
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-full-3T.png"
+  },
+  {
+   "id": "gto-full-4T",
+   "mode": "gto",
+   "type": "full",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Open 2.5bb4.5bbRel",
+      "Open 3bb4.5bbRelan",
+      "Call1.5bbSuivre",
+      "Call3bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 4,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 307
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-full-4T.png"
+  },
+  {
+   "id": "gto-session-1T",
+   "mode": "gto",
+   "type": "session",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 4,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call1.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 7
+    }
+   ],
+   "tablesInFullHand": 1,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 866,
+     "h": 492
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-session-1T.png"
+  },
+  {
+   "id": "gto-session-2T",
+   "mode": "gto",
+   "type": "session",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call6.5bbSuivre",
+      "Call1.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 2,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 404
+    },
+    {
+     "w": 417,
+     "h": 404
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-session-2T.png"
+  },
+  {
+   "id": "gto-session-3T",
+   "mode": "gto",
+   "type": "session",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Limp1bbSuivre",
+      "Call2.5bbSuivre",
+      "Open 2.5bb4.5bbRel"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "BB BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "CO BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 3,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": []
+   },
+   "zonesInHand": [
+    {
+     "w": 397,
+     "h": 227
+    },
+    {
+     "w": 397,
+     "h": 227
+    },
+    {
+     "w": 397,
+     "h": 227
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-session-3T.png"
+  },
+  {
+   "id": "gto-session-4T",
+   "mode": "gto",
+   "type": "session",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call 18bb18bbSuivr",
+      "Call1.5bbSuivre",
+      "Call2.5bbSuivre",
+      "Call2bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 4,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 307
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-session-4T.png"
+  },
+  {
+   "id": "gto-mix-1T",
+   "mode": "gto",
+   "type": "mix",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 4,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Push 15bbTapisTapi"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 4
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-mix-1T.png"
+  },
+  {
+   "id": "gto-mix-2T",
+   "mode": "gto",
+   "type": "mix",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call17bbSuivre",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-mix-2T.png"
+  },
+  {
+   "id": "gto-mix-3T",
+   "mode": "gto",
+   "type": "mix",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Open 2.5bb4.5bbRel",
+      "Check0bbPasser",
+      "Call12bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 12
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-mix-3T.png"
+  },
+  {
+   "id": "gto-mix-4T",
+   "mode": "gto",
+   "type": "mix",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Push 25bbTapisTapi",
+      "Check0bbPasser",
+      "Call2bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 12
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    },
+    {
+     "t": 4,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\gto-mix-4T.png"
+  },
+  {
+   "id": "exploit-spot-1T",
+   "mode": "exploit",
+   "type": "spot",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 9,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call16bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 9
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-spot-1T.png"
+  },
+  {
+   "id": "exploit-spot-2T",
+   "mode": "exploit",
+   "type": "spot",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "CheckPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-spot-2T.png"
+  },
+  {
+   "id": "exploit-spot-3T",
+   "mode": "exploit",
+   "type": "spot",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Open 2.5bb4.5bbRel",
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 12
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-spot-3T.png"
+  },
+  {
+   "id": "exploit-spot-4T",
+   "mode": "exploit",
+   "type": "spot",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Call21.8bbSuivre",
+      "Check0bbPasser",
+      "Call2bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": "UTG BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-spot-4T.png"
+  },
+  {
+   "id": "exploit-street-1T",
+   "mode": "exploit",
+   "type": "street",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 7,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 7
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-street-1T.png"
+  },
+  {
+   "id": "exploit-street-2T",
+   "mode": "exploit",
+   "type": "street",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-street-2T.png"
+  },
+  {
+   "id": "exploit-street-3T",
+   "mode": "exploit",
+   "type": "street",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call4bbSuivre",
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-street-3T.png"
+  },
+  {
+   "id": "exploit-street-4T",
+   "mode": "exploit",
+   "type": "street",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Check0bbPasser",
+      "Check0bbPasser",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-street-4T.png"
+  },
+  {
+   "id": "exploit-full-1T",
+   "mode": "exploit",
+   "type": "full",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 6,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 9
+    }
+   ],
+   "tablesInFullHand": 1,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 866,
+     "h": 492
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-full-1T.png"
+  },
+  {
+   "id": "exploit-full-2T",
+   "mode": "exploit",
+   "type": "full",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre",
+      "Call1.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 2,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 404
+    },
+    {
+     "w": 417,
+     "h": 404
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-full-2T.png"
+  },
+  {
+   "id": "exploit-full-3T",
+   "mode": "exploit",
+   "type": "full",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call6.5bbSuivre",
+      "Call2.5bbSuivre",
+      "Call1.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 3,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 401,
+     "h": 308
+    },
+    {
+     "w": 397,
+     "h": 227
+    },
+    {
+     "w": 397,
+     "h": 227
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-full-3T.png"
+  },
+  {
+   "id": "exploit-full-4T",
+   "mode": "exploit",
+   "type": "full",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call1.5bbSuivre",
+      "Call2.5bbSuivre",
+      "Call2.5bbSuivre",
+      "Call2.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": "CO BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 4,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 307
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-full-4T.png"
+  },
+  {
+   "id": "exploit-session-1T",
+   "mode": "exploit",
+   "type": "session",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 4,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 7
+    }
+   ],
+   "tablesInFullHand": 1,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 866,
+     "h": 492
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-session-1T.png"
+  },
+  {
+   "id": "exploit-session-2T",
+   "mode": "exploit",
+   "type": "session",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call1.5bbSuivre",
+      "Call2.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 2,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 404
+    },
+    {
+     "w": 417,
+     "h": 404
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-session-2T.png"
+  },
+  {
+   "id": "exploit-session-3T",
+   "mode": "exploit",
+   "type": "session",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre",
+      "Call6.5bbSuivre",
+      "Call4bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 3,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 401,
+     "h": 308
+    },
+    {
+     "w": 397,
+     "h": 227
+    },
+    {
+     "w": 397,
+     "h": 227
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-session-3T.png"
+  },
+  {
+   "id": "exploit-session-4T",
+   "mode": "exploit",
+   "type": "session",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Call2.5bbSuivre",
+      "Call 18bb18bbSuivr",
+      "Open 2.5bb33% pot",
+      "Open 2.5bb33% pot"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": "SB BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    }
+   ],
+   "tablesInFullHand": 4,
+   "independence": {
+    "actedOn": 1,
+    "movedTables": [
+     1
+    ]
+   },
+   "zonesInHand": [
+    {
+     "w": 417,
+     "h": 307
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    },
+    {
+     "w": 368,
+     "h": 229
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-session-4T.png"
+  },
+  {
+   "id": "exploit-mix-1T",
+   "mode": "exploit",
+   "type": "mix",
+   "tables": 1,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 7,
+       "box": {
+        "w": 866,
+        "h": 794,
+        "x": 414,
+        "y": 106
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "CheckPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 1,
+   "slotsMounted": 1,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 7
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-mix-1T.png"
+  },
+  {
+   "id": "exploit-mix-2T",
+   "mode": "exploit",
+   "type": "mix",
+   "tables": 2,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 778,
+        "x": 851,
+        "y": 114
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Push 25bbTapisTapi",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 2,
+   "slotsMounted": 2,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 12
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-mix-2T.png"
+  },
+  {
+   "id": "exploit-mix-3T",
+   "mode": "exploit",
+   "type": "mix",
+   "tables": 3,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": true,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": false,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 430,
+        "y": 112
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 859,
+        "y": 112
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 405,
+        "h": 386,
+        "x": 645,
+        "y": 508
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Call19bbSuivre",
+      "Check0bbPasser"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 3,
+   "slotsMounted": 3,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 2,
+     "header": "FLOP — ACTION HERO",
+     "fh": 4,
+     "cards": 15
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-mix-3T.png"
+  },
+  {
+   "id": "exploit-mix-4T",
+   "mode": "exploit",
+   "type": "mix",
+   "tables": 4,
+   "ok": true,
+   "steps": [
+    {
+     "step": "config",
+     "ntState": [
+      {
+       "t": "1T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "2T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "3T",
+       "on": false,
+       "locked": false
+      },
+      {
+       "t": "4T",
+       "on": true,
+       "locked": false
+      }
+     ]
+    },
+    {
+     "step": "launched",
+     "tables": [
+      {
+       "t": 1,
+       "seats": 6,
+       "cards": 16,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 114
+       }
+      },
+      {
+       "t": 2,
+       "seats": 6,
+       "cards": 17,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 114
+       }
+      },
+      {
+       "t": 3,
+       "seats": 6,
+       "cards": 15,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 422,
+        "y": 507
+       }
+      },
+      {
+       "t": 4,
+       "seats": 6,
+       "cards": 12,
+       "box": {
+        "w": 421,
+        "h": 385,
+        "x": 851,
+        "y": 507
+       }
+      }
+     ]
+    },
+    {
+     "step": "heroActed",
+     "acted": [
+      "Check0bbPasser",
+      "Check0bbPasser",
+      "Check0bbPasser",
+      "Call2.5bbSuivre"
+     ]
+    }
+   ],
+   "consoleErrors": [],
+   "tableCountSelected": 4,
+   "slotsMounted": 4,
+   "uniformTiles": true,
+   "afterAct": [
+    {
+     "t": 1,
+     "header": null,
+     "fh": 0,
+     "cards": 16
+    },
+    {
+     "t": 2,
+     "header": null,
+     "fh": 0,
+     "cards": 17
+    },
+    {
+     "t": 3,
+     "header": null,
+     "fh": 0,
+     "cards": 15
+    },
+    {
+     "t": 4,
+     "header": "HJ BET — ta réponse ?",
+     "fh": 3,
+     "cards": 15
+    }
+   ],
+   "shot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\multitable\\exploit-mix-4T.png"
+  }
+ ]
+}
