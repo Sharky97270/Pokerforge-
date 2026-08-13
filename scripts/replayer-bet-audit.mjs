@@ -270,10 +270,14 @@ const PROBE = () => {
 
   /* Netteté (§7) : rapport taille source / taille affichée des jetons. */
   const chipImg = root.querySelector('.pf-bet-display .pf-chip-token-img');
+  const chipSrc = chipImg ? (chipImg.currentSrc || chipImg.src || '') : '';
   const chip = chipImg ? {
     displayed: Math.round(g(chipImg).width),
     natural: chipImg.naturalWidth || null,
-    vector: /\.svg(\?|$)/i.test(chipImg.currentSrc || chipImg.src),
+    // Les builds de prod et le standalone inlinent les petits SVG en data URI :
+    // ne tester que l'extension `.svg` déclarait le rendu raster à tort.
+    vector: /\.svg(\?|$)/i.test(chipSrc) || /^data:image\/svg\+xml/i.test(chipSrc),
+    inline: /^data:/i.test(chipSrc),
   } : null;
 
   const boardCard = root.querySelector('.pf-board-zone .card');
