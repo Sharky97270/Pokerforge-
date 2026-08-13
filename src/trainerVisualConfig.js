@@ -259,10 +259,23 @@ export function getTrainerVisualLayoutConfig(numTables = 1, viewport = "desktop"
   };
 }
 
-export function trainerBoardCollisionZone(hasBoard = false) {
-  return hasBoard
-    ? TRAINER_VISUAL_CONFIG.actionCollisionZones.withBoard
-    : TRAINER_VISUAL_CONFIG.actionCollisionZones.preflop;
+/* Demi-largeur RÉELLE du board, en % de la zone de table, mesurée par mode.
+   La zone de collision d'origine (xMin 30 / xMax 70, soit une demi-largeur de
+   20 %) est calée sur le 1T. Or l'emprise du board ne suit pas la largeur du
+   conteneur : mesuré, 5 cartes + 4 gouttières occupent
+     1T  ≈ 40 % de la zone   (demi-largeur 20)
+     2T  ≈ 52 %              (demi-largeur 26)  ← déborde la zone de 6 points
+     3T  ≈ 34 %              (demi-largeur 17)
+     4T  ≈ 33 %              (demi-largeur 17)
+   En 2T les marqueurs posés entre x=24 et x=30 étaient donc « hors zone » pour
+   le clamp, et pourtant sur le board (mesuré : board↔boutonD). */
+const BOARD_HALF_WIDTH_PCT = { 1: 20, 2: 24, 3: 19, 4: 19 };
+
+export function trainerBoardCollisionZone(hasBoard = false, numTables = 1) {
+  if (!hasBoard) return TRAINER_VISUAL_CONFIG.actionCollisionZones.preflop;
+  const base = TRAINER_VISUAL_CONFIG.actionCollisionZones.withBoard;
+  const half = BOARD_HALF_WIDTH_PCT[numTables] ?? 20;
+  return { ...base, xMin: 50 - half, xMax: 50 + half };
 }
 
 export function trainerChipValueBand(amount = 0) {

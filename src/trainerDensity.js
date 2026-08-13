@@ -1,0 +1,293 @@
+/* ═══════════════════════════════════════════════════════════════
+   PokerForge — DENSITÉ D'AFFICHAGE DU TRAINER (source unique).
+
+   Le problème que ce module remplace : les dimensions des objets posés sur la
+   table (avatar, bouton D, blindes, mises, board, boutons d'action) vivaient
+   éparpillées entre `TRAINING_LAYOUT` (inline JSX) et une trentaine de règles
+   `!important` de styles.js. Les deux se contredisaient — mesuré avant refonte :
+   `cfg.dbtnSz` valait 13px en 3T et 10px en 4T, mais `.dealer-btn{width:22px
+   !important}` gagnait, et le bouton D faisait 22px sur les QUATRE modes, soit
+   13 % de la hauteur du feutre en 3T/4T contre 3 % en 1T.
+
+   Le remplacement n'est PAS un `transform:scale()` global (§9 de la mission :
+   texte flou, cibles de clic rognées, ancres déplacées). C'est un jeu de
+   dimensions RÉELLES par mode, publié à la fois :
+     • en JS  → `trainerDensity(n)` pour les tailles passées en props ;
+     • en CSS → `trainerDensityVars(n)` pose des variables sur la tuile `.tw`,
+       consommées par les règles `.grid2/.grid3/.grid4`.
+   Une seule valeur par grandeur, donc, et elle est la même des deux côtés.
+
+   Échelle : 1T normal · 2T medium · 3T compact · 4T dense. Les tuiles 3T et 4T
+   ont presque la même taille (mesuré 361px et 360px de haut à 1680×910 : la
+   mosaïque 3T est une grille 2×2 dont la 3ᵉ cellule est centrée), donc `dense`
+   n'est qu'un cran sous `compact` — pas une rupture.
+═══════════════════════════════════════════════════════════════ */
+
+export const TRAINER_DENSITY_ORDER = ["normal", "medium", "compact", "dense"];
+
+export const TRAINER_DENSITY_BY_TABLES = {
+  1: "normal",
+  2: "medium",
+  3: "compact",
+  4: "dense",
+};
+
+/* Chaque jeton est une DIMENSION, pas un facteur d'échelle — sauf ceux dont le
+   nom finit par `Zoom`/`Scale`, qui pilotent une grappe entière (le zoom CSS
+   préserve le centre de l'élément, donc les ancres restent calées sur l'anneau).
+
+   Les valeurs de `normal` reproduisent EXACTEMENT le 1T livré : ce mode est la
+   référence visuelle validée, il ne doit rien changer. */
+export const TRAINER_DENSITY_TOKENS = {
+  normal: {
+    /* ── Sièges ── */
+    avatarSize: 68,          // diamètre du médaillon (px)
+    avatarRing: 7,           // épaisseur du halo décoratif (::before inset)
+    seatZoom: 1,             // densité de la grappe (cartes+plaque+badges)
+    seatGap: 3,              // écart avatar ↔ cartes / plaque (px)
+    nameplateFs: 11,
+    /* ── Marqueurs ── */
+    dealerSize: 22,
+    blindScale: 1,
+    betScale: 1,
+    /* ── Centre ── */
+    boardZoom: 1,
+    boardGap: 8,
+    potH: 30,
+    /* ── Zone de décision ── */
+    actionPad: "8px 10px 10px",
+    actionBtnMinH: 52,
+    actionBtnPadY: 8,
+    actionGap: 5,
+    actionLabelFs: 13,
+    actionSizingFs: 10,
+    sizingBtnH: 20,
+    sizingBtnFs: 9,
+    stepperH: 20,
+    /* ── Placement ── */
+    seatRingFactor: 1,       // multiplicateur du rayon des sièges
+    betOffset: 1,            // multiplicateur du rapprochement des mises
+    markerClearance: 1,      // ↓ voir MARKER_CLEARANCE_PX (TrainerTab)
+    markerApproachMax: 1.3,
+    underMaxH: 9999,
+  },
+  medium: {
+    avatarSize: 46,
+    avatarRing: 5,
+    seatZoom: 0.95,
+    seatGap: 2,
+    nameplateFs: 10.5,
+    dealerSize: 17,
+    blindScale: 0.84,
+    betScale: 0.88,
+    boardZoom: 0.72,
+    boardGap: 5,
+    potH: 24,
+    actionPad: "4px 7px 3px",
+    actionBtnMinH: 40,
+    actionBtnPadY: 5,
+    actionGap: 4,
+    actionLabelFs: 12,
+    actionSizingFs: 9,
+    sizingBtnH: 16,
+    sizingBtnFs: 8,
+    stepperH: 17,
+    seatRingFactor: 1,
+    betOffset: 1,
+    markerClearance: 0.7,
+    markerApproachMax: 1.24,
+    underMaxH: 300,
+  },
+  compact: {
+    avatarSize: 30,
+    avatarRing: 3.5,
+    seatZoom: 0.86,
+    seatGap: 1,
+    nameplateFs: 9.5,
+    dealerSize: 13,
+    blindScale: 0.6,
+    betScale: 0.72,
+    boardZoom: 0.45,
+    boardGap: 3,
+    potH: 18,
+    actionPad: "3px 5px 3px",
+    actionBtnMinH: 30,
+    actionBtnPadY: 3,
+    actionGap: 3,
+    actionLabelFs: 11,
+    actionSizingFs: 8,
+    sizingBtnH: 13,
+    sizingBtnFs: 7.5,
+    stepperH: 14,
+    seatRingFactor: 1,
+    betOffset: 1,
+    markerClearance: 0.55,
+    markerApproachMax: 1.34,
+    underMaxH: 88,
+  },
+  dense: {
+    avatarSize: 28,
+    avatarRing: 3,
+    seatZoom: 0.84,
+    seatGap: 1,
+    nameplateFs: 9,
+    dealerSize: 11.5,
+    blindScale: 0.54,
+    betScale: 0.66,
+    boardZoom: 0.58,
+    boardGap: 2,
+    potH: 17,
+    actionPad: "2px 5px 2px",
+    actionBtnMinH: 28,
+    actionBtnPadY: 2,
+    actionGap: 3,
+    actionLabelFs: 10.5,
+    actionSizingFs: 7.5,
+    sizingBtnH: 12,
+    sizingBtnFs: 7,
+    stepperH: 13,
+    seatRingFactor: 1,
+    betOffset: 1,
+    markerClearance: 0.52,
+    markerApproachMax: 1.36,
+    underMaxH: 88,
+  },
+};
+
+/* Écran étroit ou court : la tuile perd de la largeur (mosaïque à nombre de
+   colonnes constant) sans que rien de ce qu'on y pose ne rétrécisse. On descend
+   donc d'un demi-cran, sur les grandeurs qui coûtent de la place et sur elles
+   seules — les polices de décision ne bougent pas (lisibilité, §5). */
+export const TRAINER_DENSITY_TIGHT = {
+  normal: {},
+  medium: { avatarSize: 42, seatZoom: 0.88, boardZoom: 0.62 },
+  compact: { avatarSize: 27, seatZoom: 0.8, boardZoom: 0.41, blindScale: 0.54, betScale: 0.66 },
+  dense: { avatarSize: 25, seatZoom: 0.78, boardZoom: 0.53, blindScale: 0.5, betScale: 0.62 },
+};
+
+/* ── RAPPROCHEMENT DES MARQUEURS : UN BUDGET PAR TYPE ───────────────────────
+   `markerClearance` ci-dessus est le facteur GÉNÉRAL du mode. Il ne suffit pas :
+   les trois marqueurs ne butent pas sur le même obstacle et n'ont pas la même
+   taille, et l'écart se creuse en mosaïque.
+
+   Mesuré en 3T (feutre 360×184, demi-axes 180×92), avant cette table :
+     · siège BTN      ρ = 0.930   (sur l'anneau)
+     · bouton D       ρ = 0.639
+     · tas de mise    ρ = 0.515   ← à mi-chemin du centre, « impossible à
+                                    rattacher visuellement à son joueur » (§4)
+   Le tas restait au plancher parce que son budget (154px, calé sur les cartes
+   du Hero en 1T) reste énorme sur un feutre de 184px de haut. Et comme le
+   bouton, lui, avançait, les deux se croisaient : boutonD↔mise, 23 cas sur 60.
+
+   On sépare donc les trois budgets par mode. L'ordre voulu, du plus externe au
+   plus interne, est : siège → bouton D → blinde/mise → pot/board. Le bouton
+   appartient au JOUEUR, il reste donc collé à son siège ; le tas s'avance vers
+   le pot, mais pas au-delà du rayon où il cesse d'être lisible comme « la mise
+   de ce joueur-là ». */
+export const MARKER_CLEARANCE_BY_TYPE = {
+  normal:  { BLIND: 1,    DEALER: 1,    BET: 1 },
+  medium:  { BLIND: 0.7,  DEALER: 0.7,  BET: 0.7 },
+  compact: { BLIND: 0.55, DEALER: 0.55, BET: 0.55 },
+  dense:   { BLIND: 0.52, DEALER: 0.52, BET: 0.52 },
+};
+/* Une tentative de budget PAR TYPE (bouton D plus externe, tas plus interne) a
+   été mesurée et REJETÉE : à budget dealer 0.30, le bouton atteint bien son
+   siège mais tombe sur la PLAQUE de son joueur pour les sièges du haut — la
+   grappe n'est pas symétrique (cartes au-dessus de l'avatar, plaque en dessous),
+   donc « vers le centre » traverse la plaque en haut et les cartes en bas.
+   Mesuré, 3T, n=24 : boutonD↔plaque 0→40, avatar↔mise 0→22. Les trois marqueurs
+   partagent donc le même budget, et c'est le décalage ANGULAIRE du bouton qui
+   règle sa cohabitation avec le tas (voir DEALER_ANGLE_OFFSET). */
+/* Le plafond suit la même logique que le budget : il protège l'aération en 1T,
+   il doit se desserrer là où le risque est l'inverse. */
+export const MARKER_APPROACH_MAX_BY_TYPE = {
+  normal:  { BLIND: 1.3,  DEALER: 1.3,  BET: 1.3 },
+  medium:  { BLIND: 1.24, DEALER: 1.24, BET: 1.24 },
+  compact: { BLIND: 1.34, DEALER: 1.34, BET: 1.34 },
+  dense:   { BLIND: 1.36, DEALER: 1.36, BET: 1.36 },
+};
+/* Écran étroit : on resserre les trois d'un cran (le feutre y est bien plus
+   petit sans que les objets suivent). */
+export const MARKER_APPROACH_MAX_TIGHT = { compact: 1.18, dense: 1.18 };
+
+/* ── DÉCALAGE ANGULAIRE DU BOUTON D, en fraction d'écart entre deux sièges ──
+   Le bouton et le tas de mise du BTN vivent sur des rayons voisins ; ce qui les
+   sépare est un angle. À 0.34 (valeur historique), l'arc mesuré en 3T vaut 33px
+   pour un besoin de 37.5 (demi-badge 31 + demi-bouton 6.5) : il manquait 4px, et
+   c'est le chevauchement boutonD↔mise qui subsistait.
+
+   Élargir ce décalage avait été testé puis REJETÉ en 1T : le bouton allait alors
+   rencontrer les CARTES du voisin. Ce qui a changé depuis, c'est la taille du
+   bouton — 22px sur les quatre modes avant, 13px en 3T et 11.5px en 4T
+   maintenant — et celle des grappes voisines. L'arbitrage se rouvre donc, mais
+   UNIQUEMENT en mosaïque : le 1T garde 0.34, sa mesure d'origine tenant toujours. */
+export const DEALER_ANGLE_OFFSET = { normal: 0.34, medium: 0.42, compact: 0.46, dense: 0.46 };
+
+export function trainerDealerAngleOffset(numTables = 1) {
+  return DEALER_ANGLE_OFFSET[trainerDensityName(numTables)] ?? 0.34;
+}
+
+/** Facteur de budget de dégagement d'un marqueur, pour un mode donné. */
+export function trainerMarkerClearance(numTables = 1, markerType = "BET") {
+  const t = MARKER_CLEARANCE_BY_TYPE[trainerDensityName(numTables)];
+  return (t && t[markerType]) ?? trainerDensity(numTables).markerClearance ?? 1;
+}
+/** Plafond de rapprochement d'un marqueur, pour un mode donné. */
+export function trainerMarkerApproachMax(numTables = 1, markerType = "BET", opts = {}) {
+  const name = trainerDensityName(numTables);
+  if (opts.tight && MARKER_APPROACH_MAX_TIGHT[name] != null) return MARKER_APPROACH_MAX_TIGHT[name];
+  const t = MARKER_APPROACH_MAX_BY_TYPE[name];
+  return (t && t[markerType]) ?? trainerDensity(numTables).markerApproachMax ?? 1.3;
+}
+
+/* Hauteur nominale des tailles de carte de styles.js (.card-sm/md/lg/xl/2xl).
+   Le board n'utilise pas la même TAILLE DE BASE selon le mode (2xl en 1T, xl en
+   2T, lg en 3T, md en 4T) : `boardZoom` seul n'est donc pas comparable d'un mode
+   à l'autre — un zoom plus grand sur une base plus petite peut rendre une carte
+   plus petite. La grandeur qui compte, et la seule qu'on peut contrôler, est la
+   hauteur RENDUE. */
+export const CARD_BASE_HEIGHT = { sm: 33, smp: 39, md: 47, lg: 66, xl: 83, "2xl": 104 };
+export const BOARD_CARD_SIZE_BY_TABLES = { 1: "2xl", 2: "xl", 3: "lg", 4: "md" };
+
+/** Hauteur rendue d'une carte du board, en px, pour un mode donné. */
+export function trainerBoardCardHeight(numTables = 1, opts = {}) {
+  const base = CARD_BASE_HEIGHT[BOARD_CARD_SIZE_BY_TABLES[numTables] || "lg"] || 66;
+  return +(base * trainerDensity(numTables, opts).boardZoom).toFixed(1);
+}
+
+export function trainerDensityName(numTables = 1) {
+  return TRAINER_DENSITY_BY_TABLES[numTables] || (numTables > 4 ? "dense" : "medium");
+}
+
+/**
+ * Jetons de densité d'un mode.
+ * @param numTables 1..4
+ * @param opts.tight écran étroit/court → demi-cran plus dense
+ */
+export function trainerDensity(numTables = 1, opts = {}) {
+  const name = trainerDensityName(numTables);
+  const base = TRAINER_DENSITY_TOKENS[name];
+  return opts.tight ? { ...base, ...(TRAINER_DENSITY_TIGHT[name] || {}) } : { ...base };
+}
+
+/* Nom de variable CSS d'un jeton : `avatarSize` → `--pf-d-avatar-size`. */
+export function densityVarName(token) {
+  return `--pf-d-${String(token).replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+}
+
+const UNITLESS = new Set(["seatZoom", "blindScale", "betScale", "boardZoom", "seatRingFactor", "betOffset", "markerClearance", "markerApproachMax"]);
+const RAW = new Set(["actionPad"]);
+
+/**
+ * Style inline à poser sur la tuile (`.tw`) : publie TOUS les jetons en
+ * variables CSS. Les règles `.grid2/3/4` les consomment — plus aucune dimension
+ * de table n'est écrite en dur dans styles.js.
+ */
+export function trainerDensityVars(numTables = 1, opts = {}) {
+  const d = trainerDensity(numTables, opts);
+  const out = { "--pf-density": trainerDensityName(numTables) };
+  for (const [k, v] of Object.entries(d)) {
+    out[densityVarName(k)] = RAW.has(k) ? String(v) : UNITLESS.has(k) ? String(v) : `${v}px`;
+  }
+  return out;
+}
