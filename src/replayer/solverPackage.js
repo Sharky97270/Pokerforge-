@@ -31,6 +31,7 @@ export const SOLVER_PACKAGE_VERSION = "solver-pkg-1.0.0";
 /* ── Vocabulaire de provenance exposé à l'UI et au backend (§8) ── */
 export const PROV = {
   SOLVER: "SOLVER",
+  SOLVER_CFR: "SOLVER_CFR",
   LOOKUP_DB: "LOOKUP_DB",
   EQUITY_EXACT: "EQUITY_EXACT",
   EQUITY_MONTE_CARLO: "EQUITY_MONTE_CARLO",
@@ -44,7 +45,12 @@ export const PROV = {
 /* Métadonnées d'affichage des badges (§16) — couleurs DISTINCTES entre une
    donnée calculée (froides/vertes) et une interprétation IA (grise/violette). */
 export const PROV_META = {
-  SOLVER:             { label: "SOLVER",    color: "#34D8FF", computed: true,  desc: "Stratégie résolue par SharkSolver." },
+  SOLVER:             { label: "SOLVER",    color: "#10D87A", computed: true,  desc: "Stratégie résolue exactement par SharkSolver." },
+  /* Le CFR est un vrai calcul, mais ses RANGES D'ENTRÉE restent heuristiques —
+     et la composition de range pilote l'essentiel de la stratégie postflop.
+     Couleur et libellé distincts du solveur exact : jamais présenté comme un
+     solve GTO complet (§8/§16). */
+  SOLVER_CFR:         { label: "CFR",       color: "#34D8FF", computed: true,  desc: "Solution CFR postflop — calcul exact sur des ranges heuristiques (expérimental)." },
   LOOKUP_DB:          { label: "LOOKUP",    color: "#9B5CFF", computed: true,  desc: "Solution pré-solvée chargée depuis la bibliothèque." },
   EQUITY_EXACT:       { label: "EQUITY",    color: "#10D87A", computed: true,  desc: "Équité par énumération exhaustive." },
   EQUITY_MONTE_CARLO: { label: "EQUITY~",   color: "#FFB020", computed: true,  desc: "Équité estimée par Monte-Carlo (marge d'erreur)." },
@@ -58,7 +64,7 @@ export const PROV_META = {
 /* Niveaux de fallback (§19). */
 export const CONF_LEVEL = {
   1: { key: "LOOKUP_EXACT", label: "Lookup exact", badge: "SOLVER" },
-  2: { key: "SOLVER_LIVE", label: "SharkSolver", badge: "SOLVER" },
+  2: { key: "SOLVER_LIVE", label: "SharkSolver (calcul)", badge: "SOLVER" },
   3: { key: "EQUITY_HEURISTIC", label: "Équité + heuristiques PokerForge", badge: "HEURISTIQUE" },
   4: { key: "AI_ONLY", label: "Analyse pédagogique uniquement", badge: "IA" },
 };
@@ -120,7 +126,11 @@ export function heroEquity(handState, opts = {}) {
 /* decisionAnalysis.source ("solver"|"heuristic"|"none") → provenance §8. */
 function provFromDecision(d) {
   if (!d) return PROV.UNAVAILABLE;
-  if (d.source === "solver") return d.provenance === "solver-library" ? PROV.LOOKUP_DB : PROV.SOLVER;
+  if (d.source === "solver") {
+    if (d.provenance === "solver-library") return PROV.LOOKUP_DB;
+    if (d.provenance === "cfr-experimental") return PROV.SOLVER_CFR;
+    return PROV.SOLVER;
+  }
   if (d.source === "heuristic") return PROV.HEURISTIC;
   return PROV.UNAVAILABLE;
 }
@@ -167,6 +177,12 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
     strategy: strategyOf(d),
     ev: evOf(d),
     evLossBB: d.evLoss,
+    /* Deux mesures coexistent et ne doivent JAMAIS être confondues :
+       "ev" = perte d'EV en bb ; "frequency" = écart à la fréquence d'équilibre
+       en points de %. Le CFR ne produit que la seconde. */
+    metric: d.metric || "ev",
+    freqGapPts: d.freqGap ?? null,
+    playedFreq: d.playedFreq ?? null,
     grade: d.grade,
     verdict: d.verdict,
     classification: d.cls,
@@ -202,6 +218,8 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
         strategy: strategyOf(d),
         ev: evOf(d),
         evLossBB: d.evLoss,
+        metric: d.metric || "ev",
+        freqGapPts: d.freqGap ?? null,
         grade: d.grade,
         classification: d.cls,
         source: provFromDecision(d),
@@ -213,14 +231,16 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
   }
 
   const targetBlock = opts.step != null ? buildTarget(hand, snaps, ctx, opts.step) : null;
-  const eq = heroEquity(handState, opts);
+  /* L'équité est un Monte-Carlo : l'appelant peut la calculer une fois par main
+     et l'injecter, pour que l'arrivée d'une solution CFR ne la relance pas. */
+  const eq = opts.equity !== undefined ? opts.equity : heroEquity(handState, opts);
 
   // Niveau de confiance global (§19)
   const sources = new Set(decisions.map(d => d.source));
   if (targetBlock) sources.add(targetBlock.source);
   let level = 4;
   if (sources.has(PROV.LOOKUP_DB)) level = 1;
-  else if (sources.has(PROV.SOLVER)) level = 2;
+  else if (sources.has(PROV.SOLVER) || sources.has(PROV.SOLVER_CFR)) level = 2;
   else if (sources.has(PROV.HEURISTIC) || eq) level = 3;
 
   const streets = {};
@@ -247,6 +267,8 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
     disclaimer:
       level >= 3
         ? "Résultat solveur exact indisponible sur ce spot : les valeurs affichées sont des estimations PokerForge, pas des fréquences GTO."
-        : null,
+        : sources.has(PROV.SOLVER_CFR)
+          ? "Fréquences réellement calculées par CFR, mais sur des ranges d'entrée heuristiques : c'est un calcul, pas un solve GTO complet."
+          : null,
   };
 }

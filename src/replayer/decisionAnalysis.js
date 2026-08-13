@@ -64,6 +64,26 @@ export function classifyEvLoss(evLoss){
   return SCALE.find(s=>l<=s.max);
 }
 
+/* ── Barème « écart de fréquence » (points de %) ──
+   Le CFR renvoie des FRÉQUENCES d'équilibre, pas des EV par action. Convertir
+   un écart de fréquence en bb serait fabriquer un chiffre que le solveur n'a
+   pas produit — exactement ce que ce projet s'interdit. On classe donc sur
+   l'écart lui-même, et l'UI l'annonce comme tel.
+   Lecture : jouer une action que l'équilibre joue déjà souvent est correct ;
+   plus on s'éloigne de l'action majoritaire, plus la décision est exploitable. */
+const FREQ_SCALE = [
+  { max:5,        cls:CLASS.EXCELLENTE, grade:"A+", verdict:"Conforme à l'équilibre" },
+  { max:15,       cls:CLASS.BONNE,      grade:"A",  verdict:"Proche de l'équilibre" },
+  { max:35,       cls:CLASS.IMPRECISION,grade:"B",  verdict:"Écart notable" },
+  { max:60,       cls:CLASS.ERREUR,     grade:"C",  verdict:"Action minoritaire" },
+  { max:Infinity, cls:CLASS.CRITIQUE,   grade:"D",  verdict:"Action hors équilibre" },
+];
+export function classifyFreqGap(gap){
+  if(gap==null || !Number.isFinite(gap))
+    return { cls:CLASS.INCONNUE, grade:"—", verdict:"Non évaluée" };
+  return FREQ_SCALE.find(s=>Math.max(0,gap)<=s.max);
+}
+
 /* ── Chemin SOLVEUR : push/fold préflop heads-up (seule surface solvée) ── */
 function trySolverPushFold(snapshot, hero, ev, opts={}){
   if(!snapshot || !hero || !ev) return null;
@@ -114,6 +134,32 @@ function trySolverPushFold(snapshot, hero, ev, opts={}){
   };
 }
 
+/* ── Chemin CFR POSTFLOP : solution pré-calculée par le Worker ──
+   Le solve est asynchrone (CPU-bound, ~0,6 à 10 s) : il ne peut pas vivre dans
+   une fonction pure et synchrone. Le Replayer le lance en arrière-plan et
+   dépose le résultat plain-data dans `ctx.cfr[step]` ; on le consomme ici.
+   Absent → on retombe simplement sur l'heuristique, sans rien signaler de
+   faux à l'utilisateur. */
+function tryCfrPostflop(ctx, step){
+  const block = ctx?.cfr?.[step];
+  if(!block || !block.freqByAction) return null;
+  const alternatives = Object.entries(block.freqByAction).map(([action,freq])=>({
+    action, label: block.labels?.[action] || action,
+    freq: rb(freq), evBb: null,
+    comment: "",
+  }));
+  if(!alternatives.length) return null;
+  return {
+    source:"solver", provenance:block.provenance || "cfr-experimental",
+    metric:"frequency",
+    note: block.note || "Solution CFR postflop (ranges heuristiques).",
+    alternatives,
+    bestAction: block.bestAction || null,
+    recommended: alternatives.find(a=>a.action===block.bestAction) || null,
+    cfr: block,
+  };
+}
+
 /* ── Chemin HEURISTIQUE : moteur de scénario injecté ── */
 function tryHeuristic(hand, step, ctx){
   const { buildScenario, solve } = ctx;
@@ -155,13 +201,16 @@ export function analyzeDecision(hand, step, snapshot, ctx={}){
   if(ev.playerId !== hand.heroId) return null;   // pas une décision Hero
   const hero = snapshot.players.find(p=>p.id===hand.heroId);
 
+  /* Ordre de priorité des références (§19) : ce qui est réellement CALCULÉ
+     passe avant ce qui est estimé. Push/fold exact, puis CFR postflop, puis
+     heuristique. */
   const solved = trySolverPushFold(snapshot, hero, ev, { solve:ctx.solvePushFold });
-  const base = solved || tryHeuristic(hand, step, ctx);
+  const base = solved || tryCfrPostflop(ctx, step) || tryHeuristic(hand, step, ctx);
   if(!base){
     return { step, street:snapshot.street, isHeroDecision:true,
       played, playedLabel:ev.label, source:"none",
       note:"Aucune référence stratégique disponible pour ce spot.",
-      alternatives:[], evLoss:null, ...classifyEvLoss(null) };
+      alternatives:[], evLoss:null, metric:"ev", ...classifyEvLoss(null) };
   }
 
   // Correspondance action jouée ↔ alternative de référence
@@ -169,6 +218,24 @@ export function analyzeDecision(hand, step, snapshot, ctx={}){
   if(!match && played===ACT.BET) match = base.alternatives.find(a=>a.action===ACT.RAISE);
   if(!match && played===ACT.RAISE) match = base.alternatives.find(a=>a.action===ACT.BET);
   if(!match && played===ACT.ALLIN) match = base.alternatives.find(a=>a.action===ACT.RAISE);
+
+  /* Référence en FRÉQUENCES (CFR) : on mesure l'écart à l'action d'équilibre
+     majoritaire, en points de %. Aucune EV n'est fabriquée — le solveur n'en
+     a pas produit. */
+  if(base.metric==="frequency"){
+    const bestFreq = Math.max(...base.alternatives.map(a=>a.freq ?? 0));
+    const playedFreq = match?.freq ?? null;
+    const freqGap = playedFreq==null ? null : rb(Math.max(0, bestFreq - playedFreq));
+    return {
+      step, street:snapshot.street, isHeroDecision:true,
+      played, playedLabel:ev.label, playedMatch:match||null,
+      source:base.source, provenance:base.provenance, note:base.note,
+      recommended:base.recommended||null, bestAction:base.bestAction||null,
+      alternatives:base.alternatives, coach:base.coach||null,
+      evLoss:null, metric:"frequency", freqGap, playedFreq, bestFreq,
+      cfr:base.cfr||null, ...classifyFreqGap(freqGap),
+    };
+  }
 
   let evLoss = base.evLoss ?? null;
   if(evLoss==null){
@@ -187,7 +254,7 @@ export function analyzeDecision(hand, step, snapshot, ctx={}){
     source:base.source, provenance:base.provenance, note:base.note,
     recommended:base.recommended||null, bestAction:base.bestAction||null,
     alternatives:base.alternatives, coach:base.coach||null,
-    evLoss, ...verdict,
+    evLoss, metric:"ev", ...verdict,
   };
 }
 

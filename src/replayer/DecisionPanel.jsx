@@ -24,11 +24,14 @@ const CLASS_META = {
 };
 const metaOf = c => CLASS_META[c] || CLASS_META[CLASS.INCONNUE];
 
-function SourceBadge({ source, note }){
+function SourceBadge({ source, note, provenance }){
+  const cfr = provenance==="cfr-experimental";
   const solver = source==="solver";
   const none = source==="none";
-  const col = solver ? "#34D8FF" : none ? "#6F81A8" : T.gold;
-  const lbl = solver ? "SOLVEUR" : none ? "AUCUNE RÉFÉRENCE" : "ESTIMATION";
+  /* Le CFR est un vrai calcul, mais sur des ranges d'entrée heuristiques : il ne
+     porte donc ni le libellé ni la couleur du solveur exact (§8/§16). */
+  const col = cfr ? "#34D8FF" : solver ? "#10D87A" : none ? "#6F81A8" : T.gold;
+  const lbl = cfr ? "CFR POSTFLOP" : solver ? "SOLVEUR" : none ? "AUCUNE RÉFÉRENCE" : "ESTIMATION";
   return (
     <span title={note||""} style={{fontSize:7,fontWeight:800,letterSpacing:".06em",color:col,
       background:`${col}1A`,border:`1px solid ${col}55`,borderRadius:4,padding:"1px 5px",
@@ -108,7 +111,7 @@ export default function DecisionPanel({ hand, snaps, step, setStep, ctx, quickRe
         <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:decision?7:0}}>
           <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",
             textTransform:"uppercase",fontWeight:700,flex:1}}>Évaluation de la décision</span>
-          {decision && <SourceBadge source={decision.source} note={decision.note}/>}
+          {decision && <SourceBadge source={decision.source} note={decision.note} provenance={decision.provenance}/>}
         </div>
 
         {!decision && (
@@ -134,11 +137,18 @@ export default function DecisionPanel({ hand, snaps, step, setStep, ctx, quickRe
                   {decision.recommended && <> · Référence : <b style={{color:"#3ED598"}}>{decision.recommended.label}</b></>}
                 </div>
               </div>
+              {/* Deux mesures, jamais confondues : perte d'EV en bb (heuristique)
+                  ou écart à la fréquence d'équilibre en points (CFR). */}
               <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>EV perdue</div>
+                <div style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>
+                  {decision.metric==="frequency"?"Écart à l'équilibre":"EV perdue"}
+                </div>
                 <div style={{fontFamily:T.brand,fontSize:14,fontWeight:900,
-                  color:decision.evLoss==null?T.text4:decision.evLoss<=0.02?"#10D87A":m.col}}>
-                  {decision.evLoss==null?"—":`-${(Math.round(decision.evLoss*100)/100).toFixed(2)}bb`}
+                  color:(decision.metric==="frequency"?decision.freqGap:decision.evLoss)==null?T.text4
+                    :(decision.metric==="frequency"?decision.freqGap<=5:decision.evLoss<=0.02)?"#10D87A":m.col}}>
+                  {decision.metric==="frequency"
+                    ?(decision.freqGap==null?"—":`${Math.round(decision.freqGap)} pts`)
+                    :(decision.evLoss==null?"—":`-${(Math.round(decision.evLoss*100)/100).toFixed(2)}bb`)}
                 </div>
               </div>
             </div>
@@ -231,15 +241,20 @@ export default function DecisionPanel({ hand, snaps, step, setStep, ctx, quickRe
                     <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,minWidth:44,textTransform:"capitalize"}}>{d.street}</span>
                     <span style={{flex:1,fontSize:8.5,color:T.text2,fontFamily:T.stats,overflow:"hidden",
                       textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.playedLabel||d.played}</span>
-                    <span style={{fontSize:8,fontWeight:800,color:dm.col,fontFamily:T.stats}}>
-                      {d.evLoss==null?"—":`-${(Math.round(d.evLoss*100)/100).toFixed(2)}`}
+                    <span style={{fontSize:8,fontWeight:800,color:dm.col,fontFamily:T.stats}}
+                      title={d.metric==="frequency"?"Écart à la fréquence d'équilibre (points)":"Perte d'EV estimée (bb)"}>
+                      {d.metric==="frequency"
+                        ?(d.freqGap==null?"—":`${Math.round(d.freqGap)}pts`)
+                        :(d.evLoss==null?"—":`-${(Math.round(d.evLoss*100)/100).toFixed(2)}`)}
                     </span>
                   </div>
                 );
               })}
             </div>
             <div style={{marginTop:5,fontSize:7.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic"}}>
-              {full.source==="solver"?"Référence : solveur PokerForge."
+              {full.decisions.some(d=>d.provenance==="cfr-experimental")
+                ? "Référence : CFR postflop (calcul réel sur ranges heuristiques) — les écarts sont en points de fréquence, pas en bb."
+                : full.source==="solver"?"Référence : solveur PokerForge."
                 :full.source==="mixed"?"Référence mixte : solveur + estimations heuristiques."
                 :full.source==="heuristic"?"Estimations heuristiques — pas une solution GTO exacte."
                 :"Aucune référence stratégique disponible."}

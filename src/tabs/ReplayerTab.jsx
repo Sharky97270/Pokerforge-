@@ -18,10 +18,13 @@ import DecisionPanel from "../replayer/DecisionPanel.jsx";
 /* ── Analyse IA sécurisée : HandState normalisé → SharkSolver → backend → IA ── */
 import { buildHandState, spotLabel } from "../replayer/handState.js";
 import { publishAnalysisContext } from "../replayer/handoff.js";
-import { buildSolverPackage, buildTarget } from "../replayer/solverPackage.js";
+import { buildSolverPackage, buildTarget, heroEquity } from "../replayer/solverPackage.js";
 import { analyzeWithCache, LOADING_STEPS } from "../replayer/aiAnalysis.js";
 import AiAnalysisPanel from "../replayer/AiAnalysisPanel.jsx";
 import { recordHand, handObservations } from "../replayer/leakEngine.js";
+/* ── Solveur CFR postflop : pré-solve en arrière-plan (Web Worker) ── */
+import { buildReplayerCfrRequest, cfrResultToBlock, solvableSteps } from "../replayer/postflopSolve.js";
+import { solvePostflopAsync, isCfrWorkerAvailable } from "../solver/cfrPostflopClient.js";
 import { getSession, onAuthChange } from "../auth.js";
 
 /* Enrichit un NormalizedHand de champs de compatibilité (seats/actions/site…)
@@ -1378,14 +1381,38 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const sampleHand=useMemo(()=>{const s=pfParseSessionV2(SAMPLE_HH);return s.hands[0]?hydrateReplayHand(s.hands[0]):null;},[]);
   /* Contexte d'analyse (§22) : le scénario vient du snapshot, la référence
      stratégique du solveur quand c'est solvable, sinon du moteur heuristique. */
-  const analysisCtx=useMemo(()=>({buildScenario:scenarioFromHand,solve:solveScenario}),[]);
+  /* ══════════════════════════════════════════════════════════════
+     SOLVEUR CFR POSTFLOP — pré-solve en arrière-plan (§19)
+
+     Le solve est synchrone et CPU-bound (~0,6 à 10 s) : il vit dans un Web
+     Worker, jamais sur le thread principal. Le rejeu reste donc fluide et la
+     décision affichée est d'abord heuristique ; quand le CFR arrive, il la
+     REMPLACE et le badge passe de « HEURISTIQUE » à « CFR ».
+
+     Les résultats sont mémorisés par étape (`cfrByStep`) : revenir sur une
+     décision déjà résolue est instantané, et l'analyse de toute la main
+     bénéficie de tout ce qui a été calculé pendant que l'utilisateur navigue.
+     Si les Workers sont indisponibles (build standalone en fichier unique),
+     on reste simplement sur l'heuristique — sans rien annoncer de faux.
+  ══════════════════════════════════════════════════════════════ */
+  const[cfrByStep,setCfrByStep]=useState({});
+  const[cfrSolving,setCfrSolving]=useState(false);
+  const cfrHandRef=useRef(null);
+
+  const analysisCtx=useMemo(()=>({
+    buildScenario:scenarioFromHand, solve:solveScenario, cfr:cfrByStep,
+  }),[cfrByStep]);
 
   /* ── HandState normalisé (§6) : forme unique envoyée au backend ── */
   const handState=useMemo(()=>hand?buildHandState(hand):null,[hand]);
   /* ── Package solveur (§7) : calculé UNE FOIS par main (l'équité Monte-Carlo
      ne doit pas être relancée à chaque déplacement du curseur). ── */
+  /* L'équité (Monte-Carlo) ne dépend que de la main : calculée une seule fois,
+     elle n'est pas relancée à chaque solution CFR qui arrive. */
+  const heroEq=useMemo(()=>handState?heroEquity(handState):null,[handState]);
   const solverBase=useMemo(()=>(hand&&snaps&&handState)
-    ?buildSolverPackage(hand,snaps,handState,analysisCtx):null,[hand,snaps,handState,analysisCtx]);
+    ?buildSolverPackage(hand,snaps,handState,analysisCtx,{equity:heroEq}):null,
+    [hand,snaps,handState,analysisCtx,heroEq]);
   /* ── Décision ciblée : suit le curseur, sans recalculer le reste. ── */
   const solverPkg=useMemo(()=>{
     if(!solverBase)return null;
@@ -1394,6 +1421,40 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
     if(target)sources.add(target.source);
     return {...solverBase,target,sources:[...sources]};
   },[solverBase,hand,snaps,analysisCtx,snapStep]);
+  /* Nouvelle main → on repart d'un cache vide (les étapes ne désignent plus
+     les mêmes décisions). */
+  useEffect(()=>{
+    if(cfrHandRef.current!==hand?.id){cfrHandRef.current=hand?.id||null;setCfrByStep({});setCfrSolving(false);}
+  },[hand?.id]);
+
+  /* Décisions Hero résolubles par le CFR dans cette main. */
+  const cfrSteps=useMemo(()=>(hand&&snaps)?solvableSteps(hand,snaps):[],[hand,snaps]);
+
+  /* Pré-solve : la décision sous le curseur d'abord (c'est celle que
+     l'utilisateur regarde), puis les autres, une à la fois pour ne pas saturer
+     le worker. Un résultat périmé (main changée) est ignoré. */
+  useEffect(()=>{
+    if(!hand||!snaps||!cfrSteps.length||!isCfrWorkerAvailable())return;
+    const pending=cfrSteps.filter(s=>!cfrByStep[s]);
+    if(!pending.length){setCfrSolving(false);return;}
+    // Priorité à l'étape courante, sinon la plus proche du curseur.
+    const target=pending.includes(snapStep)?snapStep
+      :pending.slice().sort((a,b)=>Math.abs(a-snapStep)-Math.abs(b-snapStep))[0];
+    const built=buildReplayerCfrRequest(hand,snaps,target);
+    if(!built){setCfrByStep(m=>({...m,[target]:{unsolvable:true}}));return;}
+    const myHand=hand.id;let cancelled=false;
+    setCfrSolving(true);
+    solvePostflopAsync(built.request).then(res=>{
+      if(cancelled||cfrHandRef.current!==myHand)return;      // résultat périmé
+      const block=cfrResultToBlock(res,built);
+      // Un échec est mémorisé aussi : sans ça on relancerait le même solve en
+      // boucle à chaque rendu.
+      setCfrByStep(m=>({...m,[target]:block||{unsolvable:true,reason:res?.reason||"no-solution"}}));
+      setCfrSolving(false);
+    });
+    return()=>{cancelled=true;};
+  },[hand,snaps,cfrSteps,cfrByStep,snapStep]);
+
   /* ── Motifs & tendances (§13/§14) : agrégat local alimenté par les mains vues. ── */
   const [leakAgg,setLeakAgg]=useState(null);
   useEffect(()=>{
@@ -1754,7 +1815,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     aiState={ai} solverPkg={solverPkg}
                     mode={aiMode} setMode={setAiMode}
                     onAnalyze={()=>deepAnalyze()} onRetry={()=>deepAnalyze()}
-                    signedIn={signedIn} hasHand={!!hand}/>
+                    signedIn={signedIn} hasHand={!!hand} cfrSolving={cfrSolving}/>
                   {cur?.note&&(
                     <div style={{padding:"6px 8px",background:"rgba(255,69,96,.06)",border:"1px solid rgba(255,69,96,.18)",borderRadius:6,fontSize:8.5,color:T.text2,fontFamily:T.stats}}>
                       <span style={{color:T.red}}>⚠ </span>{cur.note}

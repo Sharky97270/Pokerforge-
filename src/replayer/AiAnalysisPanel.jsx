@@ -78,8 +78,26 @@ function FreqRow({ label, value, evBb, highlight }) {
   );
 }
 
+/* Mesure d'écart affichée. Le CFR renvoie des FRÉQUENCES, pas des EV : on
+   annonce alors un écart à l'équilibre en points, jamais une perte en bb. */
+function GapReadout({ metric, evLossBB, freqGapPts, label, col }) {
+  const freq = metric === "frequency";
+  const v = freq ? freqGapPts : evLossBB;
+  if (v == null) return null;
+  return (
+    <div style={{ textAlign: "right", flexShrink: 0 }}>
+      <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>
+        {freq ? "Écart à l'équilibre" : label}
+      </div>
+      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900, color: col }}>
+        {freq ? `${Math.round(v)} pts` : `-${v.toFixed(2)}bb`}
+      </div>
+    </div>
+  );
+}
+
 export default function AiAnalysisPanel({
-  aiState, solverPkg, mode, setMode, onAnalyze, onRetry, signedIn, hasHand,
+  aiState, solverPkg, mode, setMode, onAnalyze, onRetry, signedIn, hasHand, cfrSolving,
 }) {
   const status = aiState?.status || "idle";
   const analysis = aiState?.analysis || null;
@@ -108,10 +126,18 @@ export default function AiAnalysisPanel({
                     <span style={{ minWidth: 42, fontSize: 8, color: T.text4, fontFamily: T.stats, textTransform: "capitalize" }}>{d.street}</span>
                     <span style={{ flex: 1, fontSize: 8.5, color: T.text3, fontFamily: T.stats, overflow: "hidden",
                       textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.playedLabel || d.played}</span>
-                    <span style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono',monospace",
-                      color: d.evLossBB == null ? T.text4 : d.evLossBB > 0.4 ? "#FF8A3D" : "#3ED598" }}>
-                      {d.evLossBB == null ? "—" : `-${d.evLossBB.toFixed(2)}`}
-                    </span>
+                    {(() => {
+                      const freq = d.metric === "frequency";
+                      const v = freq ? d.freqGapPts : d.evLossBB;
+                      const bad = freq ? v > 20 : v > 0.4;
+                      return (
+                        <span style={{ fontSize: 8.5, fontFamily: "'JetBrains Mono',monospace",
+                          color: v == null ? T.text4 : bad ? "#FF8A3D" : "#3ED598" }}
+                          title={freq ? "Écart à la fréquence d'équilibre (points)" : "Perte d'EV estimée (bb)"}>
+                          {v == null ? "—" : freq ? `${Math.round(v)}pts` : `-${v.toFixed(2)}`}
+                        </span>
+                      );
+                    })()}
                   </div>
                 ))
               : <div style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats }}>Aucune décision Hero évaluable.</div>)
@@ -163,6 +189,12 @@ export default function AiAnalysisPanel({
           border: `1px solid ${solverPkg.level <= 2 ? "rgba(52,216,255,.2)" : "rgba(255,194,71,.2)"}` }}>
           <span style={{ fontSize: 8, color: T.text4, fontFamily: T.stats, fontWeight: 700 }}>NIVEAU {solverPkg.level}</span>
           <span style={{ flex: 1, fontSize: 8.5, color: T.text3, fontFamily: T.stats }}>{solverPkg.levelLabel}</span>
+          {/* Le CFR tourne dans un Worker : on le dit, sans bloquer la lecture. */}
+          {cfrSolving && (
+            <span style={{ fontSize: 8, color: "#34D8FF", fontFamily: T.stats, whiteSpace: "nowrap" }}>
+              ◆ CFR en cours…
+            </span>
+          )}
         </div>
       )}
       {solverPkg?.disclaimer && status !== "loading" && (
@@ -238,14 +270,10 @@ export default function AiAnalysisPanel({
                       {analysis.verdict?.preferredAction && <> · Préférée : <b style={{ color: "#3ED598" }}>{analysis.verdict.preferredAction}</b></>}
                     </div>
                   </div>
-                  {/* EV perdue : valeur SOLVEUR, jamais celle du modèle. */}
-                  {typeof target?.evLossBB === "number" && mode === "decision" && (
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>EV perdue</div>
-                      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900, color: rm.col }}>
-                        -{target.evLossBB.toFixed(2)}bb
-                      </div>
-                    </div>
+                  {/* Écart : valeur SOLVEUR, jamais celle du modèle. */}
+                  {mode === "decision" && target && (
+                    <GapReadout metric={target.metric} evLossBB={target.evLossBB}
+                      freqGapPts={target.freqGapPts} label="EV perdue" col={rm.col} />
                   )}
                   {mode === "full_hand" && typeof solverPkg?.totalEvLossBB === "number" && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>

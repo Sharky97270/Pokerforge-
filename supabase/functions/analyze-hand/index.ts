@@ -27,7 +27,11 @@ const CORS = {
 };
 
 // ── Versions (§26) : toute analyse enregistre celles qui l'ont produite ──
-const PROMPT_VERSION = "pokerforge-hand-analysis-v1";
+// v2 : le solveur peut désormais fournir des FRÉQUENCES d'équilibre (CFR
+// postflop) là où il ne fournissait que des EV estimées. Le prompt doit
+// distinguer les deux, sinon le modèle parle d'« EV perdue » pour une mesure
+// qui n'en est pas une. Changer cette version invalide le cache (§20).
+const PROMPT_VERSION = "pokerforge-hand-analysis-v2";
 const FUNCTION_VERSION = "analyze-hand-1.0.0";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
@@ -227,6 +231,15 @@ l'indiques explicitement (champ dataGaps) au lieu de l'estimer.
 Quand la provenance d'une valeur est HEURISTIC, tu la présentes comme une
 estimation PokerForge et jamais comme un résultat GTO.
 
+Deux mesures d'écart existent et ne doivent JAMAIS être confondues :
+  • metric "ev" — une perte d'EV, exprimée en big blinds ;
+  • metric "frequency" — un écart à la fréquence d'équilibre, en points de
+    pourcentage. Dans ce cas tu ne parles PAS d'EV perdue ni de bb : tu dis que
+    l'action jouée s'écarte de la fréquence d'équilibre.
+Quand la provenance est SOLVER_CFR, les fréquences sont réellement calculées
+mais les ranges d'entrée restent heuristiques : dis-le plutôt que d'annoncer
+un solve GTO complet.
+
 Tu peux : interpréter les données, expliquer les mécanismes poker, identifier
 les erreurs stratégiques, comparer les décisions et produire du coaching clair.
 
@@ -242,6 +255,9 @@ function userPrompt(body: any) {
     body.analysisMode === "decision" && sd.target
       ? `Décision ciblée : street ${sd.target.street}, action jouée « ${sd.target.playedLabel || sd.target.played} », provenance ${sd.target.source}.`
       : "Analyse chaque street effectivement jouée, puis conclus.",
+    sd.target?.metric === "frequency"
+      ? "MESURE : pour cette décision le solveur fournit des FRÉQUENCES d'équilibre, pas des EV. N'écris jamais « EV perdue » ni un chiffre en bb pour cette décision ; parle d'écart à la fréquence d'équilibre."
+      : "",
     `Niveau de confiance des données : ${sd.level ?? "?"} (${sd.levelLabel ?? "inconnu"}).`,
     sd.disclaimer ? `AVERTISSEMENT À RESPECTER : ${sd.disclaimer}` : "",
     "",

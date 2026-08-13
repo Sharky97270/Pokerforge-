@@ -17,7 +17,7 @@ import { supabaseFunctionUrl, supabaseAnonHeaders } from "../config/supabase.js"
 import { SOLVER_PACKAGE_VERSION } from "./solverPackage.js";
 
 /* Version du prompt serveur attendue (doit rester alignée avec l'edge function). */
-export const PROMPT_VERSION = "pokerforge-hand-analysis-v1";
+export const PROMPT_VERSION = "pokerforge-hand-analysis-v2";
 export const CLIENT_VERSION = "replayer-ai-1.0.0";
 export const ANALYSIS_MODES = ["decision", "full_hand"];
 
