@@ -17,8 +17,10 @@ import {
   trainerPotPosition,
 } from "../../trainerVisualConfig.js";
 
+/* Zone à ne pas recouvrir au centre du feutre. Le Replayer ne s'en sert plus
+   pour placer les mises (il mesure le board réel — cf. tableAnchors.js), mais
+   la constante reste la référence partagée avec le Trainer. */
 export const BOARD_SAFE_ZONE = TRAINER_VISUAL_CONFIG.boardSafeZone;
-const BOARD_SAFE_PADDING = 3.5;
 
 /* Insets propres au Replayer (§2 « table — réduction & alignement »).
    Le feutre mono-table du Trainer (left/right 2.4 %) est trop large ici : la
@@ -47,21 +49,6 @@ export function feltGeometry(boxH, seatCount=0){
 export function boardPoint(){ return trainerBoardPosition(1); }
 /* Position du pot (au-dessus du board si présent). */
 export function potPoint(hasBoard=false){ return trainerPotPosition(1, hasBoard); }
-
-function clamp(v,min=3,max=97){ return Math.max(min, Math.min(max, v)); }
-
-/* Empêche un point (jetons de mise) de recouvrir le board central. */
-export function clampOutsideBoard(pt, seat, safeZone=BOARD_SAFE_ZONE, padding=BOARD_SAFE_PADDING){
-  const zone = {
-    xMin:safeZone.xMin-padding, xMax:safeZone.xMax+padding,
-    yMin:safeZone.yMin-padding, yMax:safeZone.yMax+padding,
-  };
-  const inside = pt.x>=zone.xMin && pt.x<=zone.xMax && pt.y>=zone.yMin && pt.y<=zone.yMax;
-  if(!inside) return { x:clamp(pt.x), y:clamp(pt.y) };
-  const dx = seat.x-50, dy = seat.y-50;
-  if(Math.abs(dx)>Math.abs(dy)) return { x:clamp(dx<0?zone.xMin:zone.xMax), y:clamp(pt.y) };
-  return { x:clamp(pt.x), y:clamp(dy<0?zone.yMin:zone.yMax) };
-}
 
 /**
  * Anneau de sièges elliptique, hero en bas-centre (porté de la branche
@@ -103,30 +90,13 @@ export function heroCentricSeatRing(positions, heroPos, opts={}){
   return seats;
 }
 
-/* Ancre de mise d'un siège : point poussé vers le centre, hors du board. */
-export function seatActionPoint(seatCoord, { hasBoard=false, push=0.42 }={}){
-  if(!seatCoord) return { x:50, y:50 };
-  let pt = {
-    x: seatCoord.x + (50-seatCoord.x)*push,
-    y: seatCoord.y + (50-seatCoord.y)*push,
-  };
-  // Sièges haut/bas CENTRÉS (Hero en bas, siège opposé en haut) : les cartes sont
-  // empilées à la verticale au-dessus de l'avatar → une mise poussée droit vers le
-  // centre les recouvre. On la décale SUR LE CÔTÉ, à hauteur intermédiaire.
-  if(Math.abs(seatCoord.x-50) < 12){
-    pt = { x: seatCoord.x + 20, y: seatCoord.y + (50-seatCoord.y)*0.18 };
-  }
-  return hasBoard ? clampOutsideBoard(pt, seatCoord) : { x:clamp(pt.x), y:clamp(pt.y) };
-}
-
-/* Jeton dealer : décalé vers le CENTRE de la table depuis le siège BTN, à hauteur
-   d'avatar → ne recouvre pas la plaque (nom/stack) posée sous l'avatar. */
-export function dealerPoint(btnCoord){
-  if(!btnCoord) return { x:50, y:50 };
-  const dx = btnCoord.x < 50 ? 9 : -9;   // vers l'intérieur horizontalement
-  const dy = btnCoord.y > 55 ? -7 : btnCoord.y < 30 ? 7 : 4; // vers le centre vertical
-  return { x:clamp(btnCoord.x + dx), y:clamp(btnCoord.y + dy) };
-}
+/* Les ancres de MISE et de DEALER ne vivent plus ici : elles dépendent de la
+   taille mesurée de la table et de l'emprise réelle des blocs sièges, que ce
+   module (purement fondé sur des %) ne peut pas connaître. Elles sont désormais
+   calculées par `tableAnchors.js` — source unique (§24).
+   L'ancienne `seatActionPoint` poussait tout siège centré de +20 points en x :
+   sur une table 6-max, la mise de Hero (BTN, x=50) atterrissait à x=70, soit
+   PLUS PRÈS du CO (x=85) que de Hero lui-même. C'est le défaut corrigé. */
 
 /* Style du feutre ovale premium (reproduit trainerFeltStyle, état statique). */
 export function feltStyle(geometry){

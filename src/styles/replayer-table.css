@@ -1,0 +1,230 @@
+/* ═══════════════════════════════════════════════════════════════
+   PokerForge — Replayer : système de MISES (BetDisplay), jetons en vol,
+   bouton dealer et hiérarchie d'action.
+
+   TOUT est scopé sous `.pf-replayer-table` : le Trainer partage les
+   composants de jetons mais garde son propre habillage (badges horizontaux),
+   aucune règle d'ici ne peut l'atteindre.
+═══════════════════════════════════════════════════════════════ */
+
+.pf-replayer-table{
+  --pf-bet-gap:2px;
+  --pf-cine-dur:230ms;
+  --pf-cine-ease:cubic-bezier(.22,.9,.3,1);
+}
+
+/* ───────────────────────── BetDisplay (§9) ───────────────────────── */
+
+.pf-replayer-table .pf-bet-display{
+  position:absolute;
+  /* AU-DESSUS des blocs sièges (z-index 20). Sur une table très courte
+     (1366×768, 9 joueurs), le solveur d'ancrage finit par poser la mise sur le
+     bord des cartes de SON PROPRE joueur faute de place ; passer dessous la
+     rendait alors totalement invisible — un montant illisible est un défaut
+     plus grave qu'un coin de carte masqué (§30). Physiquement c'est d'ailleurs
+     juste : les jetons sont posés sur le tapis, devant les cartes. */
+  z-index:23;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:var(--pf-bet-gap);
+  transform:translate(-50%,-50%);
+  will-change:transform,opacity;
+  contain:layout style;
+}
+
+/* Les piles.
+   Deux corrections par rapport au rendu partagé avec le Trainer :
+   1. le diamètre du jeton vient d'UNE seule variable (`--pf-chip-base-size`),
+      celle-là même que consomment la boîte de la pile ET chaque jeton — sinon
+      la boîte et les jetons sont dimensionnés par deux échelles différentes et
+      la pile déborde à gauche de son conteneur ;
+   2. la garde de +34 px que la règle globale ajoute autour d'une pile (utile au
+      badge HORIZONTAL du Trainer) est ramenée à +8 px : dans une colonne, cette
+      garde décentrait visiblement les jetons par rapport à leur étiquette. */
+.pf-replayer-table .pf-bet-display .pf-bet-chips,
+.pf-replayer-table .pf-chip-fly .pf-bet-chips{
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:0;
+  line-height:0;
+}
+.pf-replayer-table .pf-bet-display .pf-chip-stack-v2{
+  --pf-chip-base-size:calc(23px * var(--pf-bet-scale,1));
+}
+.pf-replayer-table .pf-chip-fly .pf-chip-stack-v2{
+  --pf-chip-base-size:calc(20px * var(--pf-bet-scale,1));
+}
+.pf-replayer-table .pf-bet-chips>.pf-chip-stack-v2{
+  width:calc(var(--pf-chip-base-size) + 8px)!important;
+  margin-left:-4px!important;
+}
+.pf-replayer-table .pf-bet-chips>.pf-chip-stack-v2:first-child{margin-left:0!important;}
+.pf-replayer-table .pf-bet-chips.piles-1>.pf-chip-stack-v2{margin-left:0!important;}
+
+/* Étiquette : le MONTANT domine, le type d'action reste discret (§9). */
+.pf-replayer-table .pf-bet-label{
+  display:flex;
+  align-items:baseline;
+  gap:3px;
+  padding:1.5px 7px 2.5px;
+  border-radius:999px;
+  background:linear-gradient(180deg,rgba(5,15,38,.97),rgba(1,5,15,.95));
+  border:1px solid rgba(31,139,255,.42);
+  box-shadow:0 3px 11px rgba(0,0,0,.74),inset 0 1px 0 rgba(255,255,255,.09);
+  white-space:nowrap;
+  line-height:1;
+}
+.pf-replayer-table .pf-bet-amount{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:900;
+  font-size:calc(11.5px * var(--pf-bet-scale,1));
+  color:#FFFFFF;
+  letter-spacing:-.01em;
+  text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 10px rgba(31,139,255,.45);
+}
+.pf-replayer-table .pf-bet-amount i{
+  font-style:normal;
+  font-size:.72em;
+  opacity:.68;
+  margin-left:.5px;
+}
+.pf-replayer-table .pf-bet-tag{
+  font-family:'Space Grotesk',sans-serif;
+  font-style:normal;
+  font-weight:800;
+  font-size:calc(6.6px * var(--pf-bet-scale,1));
+  letter-spacing:.09em;
+  color:rgba(220,232,255,.52);
+}
+
+/* Couleurs par type d'action — mêmes codes que le reste de l'app. */
+.pf-replayer-table .pf-bet-call .pf-bet-label{border-color:rgba(16,216,122,.5);}
+.pf-replayer-table .pf-bet-call .pf-bet-amount{color:#A6FBD6;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 10px rgba(16,216,122,.42);}
+.pf-replayer-table .pf-bet-raise .pf-bet-label{border-color:rgba(96,176,255,.58);}
+.pf-replayer-table .pf-bet-raise .pf-bet-amount{color:#CDE6FF;}
+.pf-replayer-table .pf-bet-bet .pf-bet-label,
+.pf-replayer-table .pf-bet-blind .pf-bet-label{border-color:rgba(255,194,71,.5);}
+.pf-replayer-table .pf-bet-bet .pf-bet-amount{color:#FFE9B8;}
+.pf-replayer-table .pf-bet-blind .pf-bet-amount{color:#E6EEFB;}
+.pf-replayer-table .pf-bet-blind .pf-bet-tag{opacity:.6;}
+.pf-replayer-table .pf-bet-allin .pf-bet-label{
+  border-color:rgba(255,69,96,.62);
+  background:linear-gradient(180deg,rgba(46,4,13,.95),rgba(22,2,7,.9));
+  box-shadow:0 3px 12px rgba(0,0,0,.66),0 0 14px rgba(255,69,96,.28);
+}
+.pf-replayer-table .pf-bet-allin .pf-bet-amount{color:#FF97AE;text-shadow:0 0 12px rgba(255,69,96,.6);}
+.pf-replayer-table .pf-bet-allin .pf-bet-tag{color:rgba(255,151,174,.86);}
+
+/* §21 — micro-hiérarchie pendant l'action : la mise du joueur qui vient
+   d'agir est légèrement mise en avant. Aucune obscurcissement de la table. */
+.pf-replayer-table .pf-bet-display.is-active .pf-bet-label{
+  border-color:rgba(255,208,90,.62);
+  box-shadow:0 3px 12px rgba(0,0,0,.62),0 0 15px rgba(255,194,71,.26);
+}
+.pf-replayer-table .pf-bet-display.is-active .pf-bet-chips{
+  filter:drop-shadow(0 0 9px rgba(255,194,71,.34));
+}
+
+/* ───────────────────────── cinématique (§11–17) ───────────────────────── */
+
+/* Entrée : les jetons partent du SIÈGE et arrivent sur leur ancre. */
+@keyframes pfBetToss{
+  0%{
+    transform:translate(-50%,-50%) translate(var(--pf-toss-dx,0px),var(--pf-toss-dy,0px)) scale(.78);
+    opacity:0;
+  }
+  22%{opacity:1;}
+  100%{
+    transform:translate(-50%,-50%) translate(0,0) scale(1);
+    opacity:1;
+  }
+}
+.pf-replayer-table .pf-bet-display.is-toss{
+  animation:pfBetToss var(--pf-cine-dur,230ms) var(--pf-cine-ease) both;
+}
+
+/* §14 — RAISE : la pile en place ne bouge pas, seul le montant « encaisse »
+   l'arrivée des nouveaux jetons. */
+@keyframes pfBetBump{
+  0%{transform:scale(1);}
+  38%{transform:scale(1.13);}
+  100%{transform:scale(1);}
+}
+.pf-replayer-table .pf-bet-display.is-bump .pf-bet-label{
+  animation:pfBetBump var(--pf-cine-dur,210ms) cubic-bezier(.34,1.5,.5,1) both;
+  transform-origin:center;
+}
+
+/* Jetons en vol (raise → pile, piles → pot). */
+.pf-replayer-table .pf-chip-fly{
+  position:absolute;
+  z-index:30;
+  pointer-events:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:1px;
+  animation:pfChipFly var(--pf-cine-dur,300ms) var(--pf-cine-ease) both;
+}
+@keyframes pfChipFly{
+  0%{
+    transform:translate(-50%,-50%) translate(var(--pf-fly-dx,0px),var(--pf-fly-dy,0px)) scale(1);
+    opacity:0;
+  }
+  14%{opacity:1;}
+  78%{opacity:1;}
+  100%{
+    transform:translate(-50%,-50%) translate(0,0) scale(.58);
+    opacity:0;
+  }
+}
+.pf-replayer-table .pf-fly-label{
+  font-family:'JetBrains Mono',monospace;
+  font-style:normal;
+  font-weight:900;
+  font-size:8px;
+  color:#F2F7FF;
+  background:rgba(2,9,24,.74);
+  border-radius:5px;
+  padding:0 4px;
+  text-shadow:0 0 8px rgba(31,139,255,.5);
+}
+.pf-replayer-table .pf-chip-fly.is-allin .pf-fly-label{color:#FF97AE;}
+
+/* ───────────────────────── bouton dealer (§20) ───────────────────────── */
+
+.pf-replayer-table .pf-dealer-button{
+  position:absolute;
+  transform:translate(-50%,-50%);
+  z-index:21;
+  pointer-events:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:calc(21px * var(--pf-dealer-scale,1));
+  height:calc(21px * var(--pf-dealer-scale,1));
+  border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,#ffffff,#cdd8ea 58%,#8da9d7);
+  border:1px solid rgba(3,10,26,.55);
+  box-shadow:0 2px 8px rgba(0,0,0,.55),0 0 0 2px rgba(255,255,255,.1),inset 0 -2px 4px rgba(0,0,0,.24);
+  font-family:'Space Grotesk',sans-serif;
+  font-size:calc(11px * var(--pf-dealer-scale,1));
+  font-weight:900;
+  color:#0b2f77;
+  letter-spacing:-.02em;
+  transition:left .22s var(--pf-cine-ease),top .22s var(--pf-cine-ease);
+}
+
+/* ───────────────────────── responsive ───────────────────────── */
+
+@media (max-width:900px){
+  .pf-replayer-table .pf-bet-label{padding:0 5px 1px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .pf-replayer-table .pf-bet-display.is-toss,
+  .pf-replayer-table .pf-bet-display.is-bump .pf-bet-label,
+  .pf-replayer-table .pf-chip-fly{animation-duration:1ms!important;}
+}
