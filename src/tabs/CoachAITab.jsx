@@ -4,6 +4,8 @@ import { T } from "../theme.js";
 import { analyzeHandHistory, parseSessionText } from "../coachEngine.js";
 import { CoachAIOrchestrator, VILLAIN_PROFILES as CE_VILLAIN_PROFILES, FIELDS as CE_FIELDS } from "../coachAgents.js";
 import { coachChat } from "../coachLLM.js";
+/* §32 — contexte structuré transmis par le Replayer (canal additif). */
+import { readAnalysisContext, toCoachContext } from "../replayer/handoff.js";
 import { calcPokerIQ, buildDailyProgram, loadStats, loadHistory, loadHands, saveHands } from "../stats.js";
 import { MiniCard } from "../components/table/Cards.jsx";
 import MentalGameTab from "./MentalGameTab.jsx";
@@ -613,6 +615,11 @@ function CoachAnalyzeHand({onGoTrainer,onNav,onGoReplayer,initialRaw,onInitialCo
       score:result.scoreData&&{score:result.scoreData.score,grade:result.scoreData.grade,confiance:result.scoreData.confidence},
       erreurs:(result.mistakes||[]).map(m=>m.text),leaks:result.leakTags,pointsPositifs:result.goodPoints,
       flagsMentaux:(result.mentalFlags||[]).map(f=>f.patternType)};
+    /* §32 — si la main vient du Replayer, on joint le contexte STRUCTURÉ
+       (solveur, verdict, concepts) au lieu d'un simple texte. Les chiffres
+       transmis sont ceux calculés par PokerForge : le LLM ne les invente pas. */
+    const fromReplayer=(()=>{try{return toCoachContext(readAnalysisContext());}catch{return null;}})();
+    if(fromReplayer)context.pokerforge=fromReplayer;
     const r=await coachChat({mode:"explain",userMessage:"Explique ce spot à un joueur (coaching premium, concis, actionnable) en t'appuyant sur les DONNÉES fournies.",context});
     setLlmBusy(false);
     if(r&&r.ok&&r.text)setLlmText(r.text);

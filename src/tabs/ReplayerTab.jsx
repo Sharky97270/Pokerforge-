@@ -15,6 +15,14 @@ import { parseSession as pfParseSessionV2 } from "../replayer/handModel.js";
 import { computeSnapshot, computeAllSnapshots } from "../replayer/stateEngine.js";
 import ReplayTableImmersive from "../replayer/ReplayTableImmersive.jsx";
 import DecisionPanel from "../replayer/DecisionPanel.jsx";
+/* ── Analyse IA sécurisée : HandState normalisé → SharkSolver → backend → IA ── */
+import { buildHandState, spotLabel } from "../replayer/handState.js";
+import { publishAnalysisContext } from "../replayer/handoff.js";
+import { buildSolverPackage, buildTarget } from "../replayer/solverPackage.js";
+import { analyzeWithCache, LOADING_STEPS } from "../replayer/aiAnalysis.js";
+import AiAnalysisPanel from "../replayer/AiAnalysisPanel.jsx";
+import { recordHand, handObservations } from "../replayer/leakEngine.js";
+import { getSession, onAuthChange } from "../auth.js";
 
 /* Enrichit un NormalizedHand de champs de compatibilité (seats/actions/site…)
    pour les panneaux existants (header, solveur, analyse), et pré-calcule les
@@ -55,27 +63,20 @@ function hydrateReplayHand(nh){
 function repLoadNotes(){try{return JSON.parse(localStorage.getItem("pf_rep_notes")||"{}");}catch{return {};}}
 function repSaveNotes(o){try{localStorage.setItem("pf_rep_notes",JSON.stringify(o));}catch{}}
 
-const _PF_KEY_SALT="PF7_SALT_2026";
-function _xorStr(str,key){
-  let out="";
-  for(let i=0;i<str.length;i++)out+=String.fromCharCode(str.charCodeAt(i)^key.charCodeAt(i%key.length));
-  return out;
-}
-function storeApiKey(raw){
-  if(!raw)return localStorage.removeItem("pf_ak");
-  try{localStorage.setItem("pf_ak",btoa(_xorStr(raw,_PF_KEY_SALT)));}catch(e){}
-  localStorage.removeItem("pf_apikey"); // nettoyage ancien stockage en clair
-}
-function readApiKey(){
+/* ── §2/§33 — PURGE DES CLÉS API UTILISATEUR ──
+   Le Replayer appelait autrefois le fournisseur d'IA DEPUIS LE NAVIGATEUR avec
+   une clé saisie par l'utilisateur (stockée en localStorage). Cette logique est
+   supprimée : la clé vit désormais uniquement côté serveur (edge function
+   `analyze-hand`). On efface au chargement toute trace des anciens stockages —
+   un utilisateur qui avait saisi sa clé ne doit plus l'avoir sur sa machine. */
+(function purgeLegacyApiKeys(){
   try{
-    const enc=localStorage.getItem("pf_ak");
-    if(enc)return _xorStr(atob(enc),_PF_KEY_SALT);
-    // Migration : si ancienne clé en clair existe, on la migre
-    const old=localStorage.getItem("pf_apikey");
-    if(old){storeApiKey(old);localStorage.removeItem("pf_apikey");return old;}
-    return "";
-  }catch{return "";}
-}
+    localStorage.removeItem("pf_ak");
+    localStorage.removeItem("pf_apikey");
+    sessionStorage.removeItem("pf_ak");
+    sessionStorage.removeItem("pf_apikey");
+  }catch{ /* stockage indisponible : rien à purger */ }
+})();
 
 function sanitizeHH(raw){
   if(typeof raw!=="string")return "";
@@ -452,7 +453,7 @@ function HandListing({hand,step,onStep}){
 }
 
 /* ── Écran d'accueil premium (aucune main chargée) ── */
-function RepEmptyState({handList,onImport,onGoTrainer,apiKey}){
+function RepEmptyState({handList,onImport,onGoTrainer}){
   const totalAnalyzed=handList.length;
   const avgScore=handList.length?Math.round(handList.reduce((a,h)=>a+(Number(h.score)||5),0)/handList.length):0;
   const recentSites=[...new Set(handList.slice(0,5).map(h=>h.site))].filter(Boolean);
@@ -469,7 +470,7 @@ function RepEmptyState({handList,onImport,onGoTrainer,apiKey}){
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
         {[
           {ico:"📂",lbl:"Importer",sub:"Drag & drop ou coller",fn:onImport,accent:T.blue},
-          {ico:"⚡",lbl:"Analyse IA",sub:apiKey?"Clé API prête":"Configurer la clé",fn:onImport,accent:T.gold},
+          {ico:"⚡",lbl:"Analyse IA",sub:"SharkSolver + PokerForge AI",fn:onImport,accent:T.gold},
           {ico:"🎯",lbl:"Trainer",sub:"Travailler un spot",fn:onGoTrainer,accent:T.green},
           {ico:"📋",lbl:"Bibliothèque",sub:`${totalAnalyzed} main${totalAnalyzed!==1?"s":""} sauvegardée${totalAnalyzed!==1?"s":""}`,fn:null,accent:T.purple},
         ].map((b,i)=>(
@@ -1194,13 +1195,14 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const[step,setStep]=useState(0);
   const[playing,setPlaying]=useState(false);
   const[playSpeed,setPlaySpeed]=useState(1);
-  const[analyzing,setAnalyzing]=useState(false);
-  const[aiResult,setAiResult]=useState(null);
   const[quickRes,setQuickRes]=useState(null);
   const[handList,setHandList]=useState(()=>loadHands());
   const[selHand,setSelHand]=useState(null);
-  const[apiKey,setApiKey]=useState(()=>readApiKey());
-  const[showApiKeyInput,setShowApiKeyInput]=useState(false);
+  /* Analyse IA : état unique partagé par le bouton de gauche et le panneau droit.
+     status : idle | loading | ready | error (§17/§18). */
+  const[ai,setAi]=useState({status:"idle",analysis:null,meta:null,error:null,stepIndex:0});
+  const[aiMode,setAiMode]=useState("decision");   // §11/§12
+  const[signedIn,setSignedIn]=useState(false);    // §22 : l'endpoint exige une session
   const[toast,setToast]=useState(null);
   const[dragOver,setDragOver]=useState(false);
   const[cinema,setCinema]=useState(false);
@@ -1211,13 +1213,19 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const[importInfo,setImportInfo]=useState(null); // §6/§31 : comptes de validation
   const[handIdx,setHandIdx]=useState(0);       // index de la main active
   const[importMode,setImportMode]=useState("session"); // "session" | "single"
-  const[analyzeScope,setAnalyzeScope]=useState("hand"); // "hand" | "session"
   const fileRef=useRef();const playRef=useRef();
   const fmt=v=>unit==="BB"?`${v}bb`:`${(v*2).toFixed(0)}$`;
   const SITES=[{n:"PokerStars",c:"#FFC247"},{n:"Winamax",c:"#FF4560"},{n:"GGPoker",c:"#1F8BFF"},{n:"888",c:"#10D87A"},{n:"PMU",c:"#FF4560"}];
 
   function showToast(msg,type="info"){setToast({msg,type});setTimeout(()=>setToast(null),3500);}
-  function saveApiKeyLocal(k){const clean=k.trim().slice(0,200);setApiKey(clean);storeApiKey(clean);}
+
+  /* Session Supabase — l'analyse IA passe par un endpoint authentifié (§22). */
+  useEffect(()=>{
+    let alive=true;
+    getSession().then(s=>{ if(alive) setSignedIn(!!s); }).catch(()=>{});
+    const unsub=onAuthChange(s=>setSignedIn(!!s));
+    return()=>{alive=false;try{unsub&&unsub();}catch{}};
+  },[]);
 
   /* Charge un texte (fichier complet OU main collée) → session + 1ʳᵉ main */
   /* Hydrate un lot (mains brutes → mains prêtes pour le rejeu). */
@@ -1227,7 +1235,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
     const sess={...parsed, site:parsed.room, hands, count:hands.length,
       single:forceSingle||parsed.total<=1, lotIndex:li, lotCount:lots.length};
     setSession(sess);setLotIdx(li);setHandIdx(0);
-    setHand(hands[0]);setStep(0);setAiResult(null);setPlaying(false);
+    setHand(hands[0]);setStep(0);resetAi();setPlaying(false);
     setQuickRes(quickAnalysis(hands[0]?.raw||""));
     setImportMode(sess.single?"single":"session");
     return sess;
@@ -1255,7 +1263,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   }
   function loadHandAt(i){
     if(!session||i<0||i>=session.hands.length)return;
-    setHandIdx(i);setHand(session.hands[i]);setStep(0);setPlaying(false);setAiResult(null);
+    setHandIdx(i);setHand(session.hands[i]);setStep(0);setPlaying(false);resetAi();
     setQuickRes(quickAnalysis(session.hands[i].raw||""));
   }
   const goPrevHand=()=>session&&loadHandAt(Math.max(0,handIdx-1));
@@ -1304,35 +1312,56 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
     return()=>clearInterval(playRef.current);
   },[playing,hand,playSpeed]);
 
-  async function deepAnalyze(){
-    const wholeSession=analyzeScope==="session"&&session&&!session.single;
-    const analyzeText=wholeSession
-      ?session.hands.map(h=>h.raw||"").join("\n\n").slice(0,6000)
-      :(hand?.raw||hh||"");
-    if(!analyzeText.trim()){showToast("⚠ Importe d'abord une main","warn");return;}
-    if(!apiKey.trim()){setShowApiKeyInput(true);showToast("🔑 Clé API requise","warn");return;}
+  /* ══════════════════════════════════════════════════════════════
+     ANALYSE IA (§4/§7/§17/§18/§20)
+
+     Chaîne stricte, sans raccourci :
+       main normalisée → HandState (§6) → SharkSolver/équité (§7) →
+       backend PokerForge (§4) → OpenAI → explication structurée (§10).
+
+     Le navigateur n'a aucune clé et n'appelle aucun fournisseur d'IA.
+     Les chiffres affichés proviennent du package solveur, jamais du modèle.
+  ══════════════════════════════════════════════════════════════ */
+  const aiSeq=useRef(0);
+  async function deepAnalyze(mode){
+    const wanted=mode||aiMode;
+    if(!hand){showToast("⚠ Importe d'abord une main","warn");return;}
+    if(!handState){showToast("⚠ Main illisible — réimporte la hand history","warn");return;}
     if(!_canCallApi()){showToast(`⏳ Réessayez dans ${_secondsUntilNextCall()}s`,"warn");return;}
-    setAnalyzing(true);setRightTab("ai");
+
+    const seq=++aiSeq.current;                     // §21 : une seule analyse fait foi
+    setAiMode(wanted);setRightTab("ai");
+    setAi({status:"loading",analysis:null,meta:null,error:null,stepIndex:0});
+    const tick=setInterval(()=>setAi(a=>a.status==="loading"
+      ?{...a,stepIndex:Math.min(LOADING_STEPS.length-1,a.stepIndex+1)}:a),1400);
     try{
-      const gameType=detectGameType(analyzeText);
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({model:"claude-opus-4-5",max_tokens:wholeSession?1100:800,
-          system:`Expert GTO poker. Analyse en francais. ${wholeSession?`Analyse de SESSION (${session.count} mains) : score global/10 | leaks récurrents par street | meilleurs et pires spots | EV totale estimée.`:`Analyse d'UNE main. Format: SCORE/10 | TOP 3 ERREURS (EV perdue) | LIGNE OPTIMALE.`} CONTEXTE ${gameType==="mtt"?"MTT (ICM)":"Cash Game"}. Max ${wholeSession?450:300} mots. Chiffres precis.`,
-          messages:[{role:"user",content:`${wholeSession?"Session poker a analyser":"Main poker a analyser"}:\n${analyzeText.slice(0,wholeSession?6000:2000)}`}]
-        })
+      const res=await analyzeWithCache({
+        handState, solverData:solverPkg, analysisMode:wanted,
+        step:wanted==="decision"?snapStep:null, language:"fr",
       });
-      if(res.status===401){showToast("❌ Clé API invalide","error");setAnalyzing(false);return;}
-      if(!res.ok){showToast(`❌ Erreur API ${res.status}`,"error");setAnalyzing(false);return;}
-      const data=await res.json();
-      const txt=data.content?.map(b=>b.text||"").join("\n")||"Réponse vide";
-      setAiResult(txt);incrementAnalysesCount();
-      const saved={id:Date.now(),desc:`${hand?.site||"?"} — ${new Date().toLocaleTimeString()}`,score:quickRes?.score||"?",site:hand?.site||"?",gameType:hand?.gameType||"cash",hh:hh.slice(0,500),analysis:txt};
+      clearInterval(tick);
+      if(seq!==aiSeq.current)return;               // analyse obsolète (main changée)
+      if(!res.ok){
+        setAi({status:"error",analysis:null,meta:null,error:res.error,stepIndex:0});
+        showToast(`⚠ ${res.error.title}`,"warn");
+        return;
+      }
+      setAi({status:"ready",analysis:res.analysis,meta:res.meta,error:null,stepIndex:LOADING_STEPS.length});
+      if(res.meta?.cache!=="HIT")incrementAnalysesCount();
+      /* Historique local (§28) : on garde une trace lisible dans la bibliothèque. */
+      const saved={id:Date.now(),desc:`${hand?.site||"?"} — ${new Date().toLocaleTimeString()}`,
+        score:quickRes?.score||"?",site:hand?.site||"?",gameType:hand?.gameType||"cash",
+        handId:handState.handId,mode:wanted,analysis:res.analysis?.summary||""};
       const newList=[saved,...handList];setHandList(newList);saveHands(newList);
-      showToast("✓ Analyse terminée","success");
-    }catch(e){showToast(`❌ Erreur réseau: ${e.message}`,"error");}
-    setAnalyzing(false);
+      showToast(res.meta?.cache==="HIT"?"✓ Analyse récupérée du cache":"✓ Analyse terminée","success");
+    }catch{
+      clearInterval(tick);
+      if(seq!==aiSeq.current)return;
+      setAi({status:"error",analysis:null,meta:null,
+        error:{title:"Analyse IA indisponible",
+          message:"Analyse IA temporairement indisponible. Les données SharkSolver restent accessibles.",
+          retryable:true},stepIndex:0});
+    }
   }
 
   const cur=hand?.actions[Math.max(0,Math.min(step,(hand?.actions?.length||1)-1))];
@@ -1350,6 +1379,70 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   /* Contexte d'analyse (§22) : le scénario vient du snapshot, la référence
      stratégique du solveur quand c'est solvable, sinon du moteur heuristique. */
   const analysisCtx=useMemo(()=>({buildScenario:scenarioFromHand,solve:solveScenario}),[]);
+
+  /* ── HandState normalisé (§6) : forme unique envoyée au backend ── */
+  const handState=useMemo(()=>hand?buildHandState(hand):null,[hand]);
+  /* ── Package solveur (§7) : calculé UNE FOIS par main (l'équité Monte-Carlo
+     ne doit pas être relancée à chaque déplacement du curseur). ── */
+  const solverBase=useMemo(()=>(hand&&snaps&&handState)
+    ?buildSolverPackage(hand,snaps,handState,analysisCtx):null,[hand,snaps,handState,analysisCtx]);
+  /* ── Décision ciblée : suit le curseur, sans recalculer le reste. ── */
+  const solverPkg=useMemo(()=>{
+    if(!solverBase)return null;
+    const target=buildTarget(hand,snaps,analysisCtx,snapStep);
+    const sources=new Set(solverBase.sources);
+    if(target)sources.add(target.source);
+    return {...solverBase,target,sources:[...sources]};
+  },[solverBase,hand,snaps,analysisCtx,snapStep]);
+  /* ── Motifs & tendances (§13/§14) : agrégat local alimenté par les mains vues. ── */
+  const [leakAgg,setLeakAgg]=useState(null);
+  useEffect(()=>{
+    if(!hand||!snaps)return;
+    try{ setLeakAgg(recordHand(hand,snaps,solverBase?.decisions||[])); }catch{}
+  },[hand,snaps]); // eslint-disable-line react-hooks/exhaustive-deps
+  function resetAi(){setAi({status:"idle",analysis:null,meta:null,error:null,stepIndex:0});}
+
+  /* ── §31 — Caractéristiques STRATÉGIQUES du spot courant ──
+     Ce que doit reproduire un « spot similaire » : le type de pot, la texture
+     du board, le SPR, la position relative et la zone de stack — pas un simple
+     tirage de nouvelles cartes. */
+  function spotStrategyTraits(){
+    if(!hand||!snap)return {};
+    const heroP=snap.players.find(p=>p.isHero);
+    const board=snap.board||[];
+    const suits=board.slice(0,3).map(c=>c.s), ranks=board.slice(0,3).map(c=>c.r);
+    const texture=board.length<3?null
+      :(ranks[0]===ranks[1]||ranks[1]===ranks[2]||ranks[0]===ranks[2])?"paired"
+      :(suits[0]===suits[1]&&suits[1]===suits[2])?"monotone"
+      :(new Set(suits).size===2)?"two-tone":"rainbow";
+    const eff=Math.min(...snap.players.filter(p=>!p.folded).map(p=>p.stack+p.committed));
+    const pot=snap.potTotal||0;
+    return {
+      potType:hand.potType||null,
+      boardTexture:texture,
+      spr:pot>0&&board.length?Math.round((eff/pot)*10)/10:null,
+      inPosition:["BTN","CO","HJ"].includes(heroP?.pos||""),
+      stackZone:eff<=25?"short":eff<=60?"mid":"deep",
+      effStackBb:Math.round(eff),
+      format:hand.gameType==="mtt"?"MTT":"Cash",
+      solverLevel:solverPkg?.level??null,
+    };
+  }
+
+  /* ── §30/§32 — Publication du contexte structuré vers Trainer / Coach AI ──
+     Canal ADDITIF : les callbacks existants gardent exactement leur signature. */
+  function publishSpotContext(){
+    if(!handState)return;
+    try{
+      publishAnalysisContext({
+        handId:handState.handId, handState, solverData:solverPkg,
+        analysis:ai.status==="ready"?ai.analysis:null,
+        concepts:ai.status==="ready"?(ai.analysis?.keyConcepts||[]):[],
+        observations:(()=>{try{return handObservations(hand,snaps,solverPkg?.decisions||[]);}catch{return [];}})(),
+        spot:spotLabel(handState), traits:spotStrategyTraits(),
+      });
+    }catch{ /* la passerelle est un confort, jamais un bloquant */ }
+  }
 
   const NAV_TABS=[
     {id:"replay",l:"▶ Replay"},{id:"ai",l:"⚡ Analyse IA"},
@@ -1383,7 +1476,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
             <>
               <span className={`fmt-badge ${hand.gameType==="mtt"?"fmt-mtt":"fmt-cash"}`}>{hand.gameType==="mtt"?"MTT":"Cash"}</span>
               <span style={{fontSize:9.5,color:T.text2,fontFamily:T.stats}}>{hand.site}</span>
-              <button className="btn btns" style={{fontSize:8,padding:"2px 7px"}} onClick={()=>{setHand(null);setHh("");setSession(null);setLotsRaw(null);setImportInfo(null);setLotIdx(0);setHandIdx(0);setAiResult(null);setQuickRes(null);setStep(0);}}>✕ Fermer</button>
+              <button className="btn btns" style={{fontSize:8,padding:"2px 7px"}} onClick={()=>{setHand(null);setHh("");setSession(null);setLotsRaw(null);setImportInfo(null);setLotIdx(0);setHandIdx(0);resetAi();setQuickRes(null);setStep(0);}}>✕ Fermer</button>
             </>
           )}
         </div>
@@ -1432,36 +1525,32 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                   <button className="btn btng" style={{flex:1,fontSize:9.5,fontWeight:700}} onClick={()=>loadFromText(hh,importMode==="single")} disabled={!hh.trim()}>
                     📥 Charger {importMode==="single"?"la main":"les mains"}
                   </button>
-                  <button className="btn btns" style={{fontSize:9,padding:"0 8px"}} onClick={()=>{setHh("");setHand(null);setSession(null);setAiResult(null);setQuickRes(null);}}>✕</button>
+                  <button className="btn btns" style={{fontSize:9,padding:"0 8px"}} onClick={()=>{setHh("");setHand(null);setSession(null);resetAi();setQuickRes(null);}}>✕</button>
                 </div>
-                {/* Analyse IA + portée */}
-                <div style={{display:"flex",gap:4,marginTop:6}}>
-                  {session&&!session.single&&(
-                    <select value={analyzeScope} onChange={e=>setAnalyzeScope(e.target.value)} style={{fontSize:8,background:"#030D2A",border:"1px solid #152D6E",borderRadius:6,color:T.text2,fontFamily:T.stats,padding:"0 4px",outline:"none"}}>
-                      <option value="hand">Analyser la main</option>
-                      <option value="session">Analyser la session</option>
-                    </select>
-                  )}
-                  <button className="btn btng" style={{flex:1,fontSize:9,fontWeight:700,background:"linear-gradient(135deg,#9B5CFF,#34D8FF)"}} onClick={deepAnalyze} disabled={analyzing||!hand}>
-                    {analyzing?<><span className="aidot"/><span className="aidot"/><span className="aidot"/></>:"⚡ Analyser avec l'IA"}
-                  </button>
-                </div>
+                {/* Analyse IA — deux modes (§11/§12). Aucune clé à fournir : la
+                    requête part vers le backend PokerForge, jamais vers un
+                    fournisseur d'IA depuis le navigateur. */}
+                <select value={aiMode} onChange={e=>setAiMode(e.target.value)} style={{width:"100%",marginTop:6,height:24,fontSize:8.5,background:"#030D2A",border:"1px solid #152D6E",borderRadius:6,color:T.text2,fontFamily:T.stats,padding:"0 6px",outline:"none",boxSizing:"border-box"}}>
+                  <option value="decision">Analyser la décision</option>
+                  <option value="full_hand">Analyser toute la main</option>
+                </select>
+                <button className="btn btng" style={{width:"100%",marginTop:4,fontSize:9,fontWeight:700,whiteSpace:"nowrap",background:"linear-gradient(135deg,#9B5CFF,#34D8FF)"}} onClick={()=>deepAnalyze()} disabled={ai.status==="loading"||!hand}>
+                  {ai.status==="loading"?<><span className="aidot"/><span className="aidot"/><span className="aidot"/></>:"⚡ Analyser avec l'IA"}
+                </button>
+                {ai.status==="loading"&&(
+                  <div style={{marginTop:5,fontSize:8,color:T.text4,fontFamily:T.stats}}>
+                    {LOADING_STEPS[Math.min(ai.stepIndex,LOADING_STEPS.length-1)]}
+                  </div>
+                )}
               </div>
 
-              {/* Clé API */}
-              {(!apiKey||showApiKeyInput)&&(
-                <div style={{order:4,background:"rgba(255,194,71,.04)",border:"1px solid rgba(255,194,71,.18)",borderRadius:7,padding:"8px"}}>
-                  <div style={{fontSize:8,color:T.gold,fontFamily:T.stats,fontWeight:700,letterSpacing:".1em",marginBottom:4}}>🔑 CLÉ API</div>
-                  <input type="password" placeholder="sk-ant-api03-..." value={apiKey} onChange={e=>saveApiKeyLocal(e.target.value)}
-                    style={{width:"100%",background:"#030712",border:"1px solid #1A3A80",color:"#fff",borderRadius:5,padding:"4px 7px",fontSize:9,outline:"none",fontFamily:"'JetBrains Mono',monospace",boxSizing:"border-box"}}/>
-                  <div style={{fontSize:7.5,color:T.text4,marginTop:3}}><a href="https://console.anthropic.com" target="_blank" rel="noreferrer" style={{color:T.blue}}>console.anthropic.com</a></div>
-                  {apiKey&&<button className="btn btns" style={{fontSize:8,marginTop:4,width:"100%"}} onClick={()=>setShowApiKeyInput(false)}>Fermer</button>}
-                </div>
-              )}
-              {apiKey&&!showApiKeyInput&&(
-                <div style={{order:4,display:"flex",alignItems:"center",gap:5,padding:"4px 7px",background:"rgba(16,216,122,.04)",border:"1px solid rgba(16,216,122,.13)",borderRadius:5}}>
-                  <span style={{fontSize:9,color:T.green,flex:1}}>✓ Clé API configurée</span>
-                  <button className="btn btns" style={{fontSize:7.5,padding:"2px 6px"}} onClick={()=>setShowApiKeyInput(true)}>Modifier</button>
+              {/* §2/§22 — plus aucune clé côté utilisateur. Le seul prérequis
+                  visible est la session PokerForge (l'endpoint est authentifié). */}
+              {!signedIn&&(
+                <div style={{order:4,display:"flex",alignItems:"center",gap:5,padding:"5px 8px",background:"rgba(255,194,71,.04)",border:"1px solid rgba(255,194,71,.18)",borderRadius:6}}>
+                  <span style={{fontSize:8.5,color:T.gold,fontFamily:T.stats,flex:1,lineHeight:1.5}}>
+                    Connecte-toi pour activer l'analyse IA.
+                  </span>
                 </div>
               )}
 
@@ -1584,7 +1673,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     fontFamily:T.stats,letterSpacing:".04em",transition:"all .15s",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
                     onMouseEnter={e=>e.currentTarget.style.background="rgba(255,194,71,.11)"}
                     onMouseLeave={e=>e.currentTarget.style.background="rgba(255,194,71,.05)"}
-                    onClick={()=>{if(onGoTrainer){const h2=hand.seats.find(s=>s.isHero);const v=hand.seats.find(s=>!s.isHero);onGoTrainer({hpos:h2?.pos||"BTN",vpos:v?.pos||"BB",street:cur?.street||"Preflop",tableSize:hand.seats.length});}}}>
+                    onClick={()=>{if(onGoTrainer){publishSpotContext();const h2=hand.seats.find(s=>s.isHero);const v=hand.seats.find(s=>!s.isHero);onGoTrainer({hpos:h2?.pos||"BTN",vpos:v?.pos||"BB",street:cur?.street||"Preflop",tableSize:hand.seats.length,...spotStrategyTraits()});}}}>
                     🎯 Travailler ce spot dans le Trainer
                   </button>
                   {/* §48/§51/§52 — Replayer → Trainer : spots similaires + session depuis cette main */}
@@ -1596,11 +1685,15 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                       stack:Math.round(h2?.stack||40),toCall:cur?.amt||0,pot:Math.round((cur?.pot||0)/2),
                       tableSize:hand.seats.length,vtype:v?.profile||"Reg",
                       actionHistory:(hand.steps||[]).slice(0,(cur?.step??0)+1).map(s=>({position:s.actor,actionType:(s.action||"").split(" ")[0].toUpperCase()})),
+                      /* §31 — les spots similaires reprennent les CARACTÉRISTIQUES
+                         STRATÉGIQUES du spot (type de pot, texture, SPR, IP/OOP,
+                         zone de stack) et pas seulement d'autres cartes. */
+                      ...spotStrategyTraits(),
                     });
                     const btn=(bg,bd,col,hov,label,extra)=>(
                       <button style={{width:"100%",marginTop:6,padding:"8px",borderRadius:7,border:`1px solid ${bd}`,background:bg,color:col,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:T.stats,letterSpacing:".04em",transition:"all .15s",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
                         onMouseEnter={e=>e.currentTarget.style.background=hov} onMouseLeave={e=>e.currentTarget.style.background=bg}
-                        onClick={()=>onGoTrainer({...seed(),...extra})}>{label}</button>
+                        onClick={()=>{publishSpotContext();onGoTrainer({...seed(),...extra});}}>{label}</button>
                     );
                     return(<>
                       {btn("rgba(52,216,255,.05)","rgba(52,216,255,.25)","#34D8FF","rgba(52,216,255,.12)","🃏 Générer 10 spots similaires",{similar:true,count:10})}
@@ -1613,7 +1706,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                       fontFamily:T.stats,letterSpacing:".04em",transition:"all .15s",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}
                       onMouseEnter={e=>e.currentTarget.style.background="rgba(155,92,255,.14)"}
                       onMouseLeave={e=>e.currentTarget.style.background="rgba(155,92,255,.07)"}
-                      onClick={()=>onGoCoach(hand.raw||hh)}>
+                      onClick={()=>{publishSpotContext();onGoCoach(hand.raw||hh);}}>
                       🧠 Analyser dans Coach AI
                     </button>
                   )}
@@ -1621,7 +1714,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
               </div>
             </>
           ):(
-            <RepEmptyState handList={handList} onImport={()=>fileRef.current?.click()} onGoTrainer={onGoTrainer} apiKey={apiKey}/>
+            <RepEmptyState handList={handList} onImport={()=>fileRef.current?.click()} onGoTrainer={onGoTrainer}/>
           )}
         </div>
 
@@ -1650,41 +1743,18 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
               {rightTab==="analyse"&&(
                 <div style={{flex:1,overflowY:"auto",padding:"10px 10px 14px"}}>
                   {hand
-                    ? <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes}/>
+                    ? <DecisionPanel hand={hand} snaps={snaps} step={snapStep} setStep={setStep} ctx={analysisCtx} quickRes={quickRes} leakAgg={leakAgg}/>
                     : <div style={{textAlign:"center",padding:"30px 12px",color:T.text4,fontFamily:T.stats,fontSize:10,lineHeight:1.7}}>Charge une main pour voir l'évaluation des décisions, les fréquences et l'analyse complète.</div>}
                 </div>
               )}
 
               {rightTab==="ai"&&(
                 <div style={{flex:1,overflowY:"auto",padding:"10px",display:"flex",flexDirection:"column",gap:8}}>
-                  {!apiKey&&(
-                    <div style={{textAlign:"center",padding:"24px 0"}}>
-                      <div style={{fontSize:28,marginBottom:8}}>🔑</div>
-                      <div style={{fontFamily:T.stats,fontSize:10.5,color:T.gold,fontWeight:700,marginBottom:8}}>Clé API requise</div>
-                      <div style={{fontSize:9,color:T.text4,fontFamily:T.stats,lineHeight:1.6,marginBottom:10}}>Ajoutez votre clé API<br/>Anthropic pour activer<br/>l'analyse IA profonde.</div>
-                      <button className="btn btng" style={{fontSize:9,width:"100%"}} onClick={()=>setShowApiKeyInput(true)}>Configurer →</button>
-                    </div>
-                  )}
-                  {apiKey&&!aiResult&&!analyzing&&(
-                    <div style={{textAlign:"center",padding:"20px 8px"}}>
-                      <div style={{fontSize:30,marginBottom:8}}>⚡</div>
-                      <div style={{fontSize:9.5,color:T.text3,fontFamily:T.stats,marginBottom:12,lineHeight:1.65}}>Analyse GTO approfondie<br/>disponible dès l'import.</div>
-                      <button className="btn btng" style={{fontSize:9,width:"100%"}} onClick={deepAnalyze} disabled={!hh.trim()}>⚡ Analyser</button>
-                    </div>
-                  )}
-                  {analyzing&&(
-                    <div style={{display:"flex",gap:5,alignItems:"center",padding:"12px 4px"}}>
-                      <div className="aidot"/><div className="aidot"/><div className="aidot"/>
-                      <span style={{fontSize:9.5,color:T.text3,marginLeft:4,fontFamily:T.stats}}>Analyse en cours...</span>
-                    </div>
-                  )}
-                  {aiResult&&!analyzing&&(
-                    <div>
-                      <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".1em",fontWeight:700,marginBottom:8}}>RÉSULTAT COMPLET</div>
-                      <div style={{fontSize:9.5,color:T.text2,fontFamily:T.stats,lineHeight:1.75,whiteSpace:"pre-wrap"}}>{aiResult}</div>
-                      {hand&&<button className="btn btns" style={{fontSize:8,marginTop:10,width:"100%"}} onClick={deepAnalyze}>↻ Réanalyser</button>}
-                    </div>
-                  )}
+                  <AiAnalysisPanel
+                    aiState={ai} solverPkg={solverPkg}
+                    mode={aiMode} setMode={setAiMode}
+                    onAnalyze={()=>deepAnalyze()} onRetry={()=>deepAnalyze()}
+                    signedIn={signedIn} hasHand={!!hand}/>
                   {cur?.note&&(
                     <div style={{padding:"6px 8px",background:"rgba(255,69,96,.06)",border:"1px solid rgba(255,69,96,.18)",borderRadius:6,fontSize:8.5,color:T.text2,fontFamily:T.stats}}>
                       <span style={{color:T.red}}>⚠ </span>{cur.note}
