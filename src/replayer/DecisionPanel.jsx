@@ -12,6 +12,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { T } from "../theme.js";
 import { analyzeDecision, analyzeHand, CLASS } from "./decisionAnalysis.js";
+import { handObservations, detectLeaks } from "./leakEngine.js";
 
 const CLASS_META = {
   [CLASS.EXCELLENTE]:{ col:"#10D87A", ico:"★", lbl:"Excellente" },
@@ -60,9 +61,19 @@ function AltRow({ alt, isPlayed, isBest, fmtEv }){
   );
 }
 
-export default function DecisionPanel({ hand, snaps, step, setStep, ctx, quickRes }){
+export default function DecisionPanel({ hand, snaps, step, setStep, ctx, quickRes, leakAgg }){
   const [full,setFull] = useState(null);
   const [errIdx,setErrIdx] = useState(0);
+
+  // §13 — observations factuelles de CETTE main (n = 1, jamais un leak).
+  const observations = useMemo(()=>{
+    if(!hand || !snaps) return [];
+    try{ return handObservations(hand, snaps, full?.decisions||[]); }catch{ return []; }
+  },[hand, snaps, full]);
+  // §14 — tendances agrégées sur l'historique local.
+  const leaks = useMemo(()=>{
+    try{ return detectLeaks(leakAgg); }catch{ return []; }
+  },[leakAgg]);
 
   // Nouvelle main → on réinitialise l'analyse complète
   useEffect(()=>{ setFull(null); setErrIdx(0); },[hand?.id]);
@@ -237,16 +248,53 @@ export default function DecisionPanel({ hand, snaps, step, setStep, ctx, quickRe
         )}
       </div>
 
-      {/* ── Motifs détectés (analyse rapide, non-GTO) ── */}
-      {quickRes?.errors?.length>0 && (
+      {/* ── Motifs détectés (§13) — OBSERVATIONS de CETTE main, calculées sur
+          les événements réels, pas devinées à partir du texte de la HH. ── */}
+      {observations.length>0 && (
         <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"9px 10px"}}>
-          <div style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",
-            textTransform:"uppercase",fontWeight:700,marginBottom:5}}>Motifs détectés</div>
-          {quickRes.errors.map((e,i)=>(
-            <div key={i} style={{display:"flex",gap:5,fontSize:8.5,color:T.text3,fontFamily:T.stats,padding:"2px 0"}}>
-              <span style={{color:T.gold}}>●</span><span>{e}</span>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+            <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",
+              textTransform:"uppercase",fontWeight:700,flex:1}}>Motifs détectés</span>
+            <span style={{fontSize:6.5,color:T.text4,fontFamily:T.stats,border:"1px solid #1A3A80",
+              borderRadius:3,padding:"0 4px"}}>CETTE MAIN</span>
+          </div>
+          {observations.map((o,i)=>(
+            <div key={i} style={{display:"flex",gap:5,fontSize:8.5,color:T.text3,fontFamily:T.stats,padding:"2px 0",alignItems:"flex-start"}}>
+              <span style={{color:o.tone==="ok"?"#3ED598":T.gold,lineHeight:1.4}}>{o.tone==="ok"?"✓":"⚠"}</span>
+              <span style={{lineHeight:1.5}}>{o.text}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Tendances multi-mains (§14) — un leak n'est jamais affirmé sur un
+          échantillon insuffisant : sous le seuil, c'est « à confirmer ». ── */}
+      {leaks.length>0 && (
+        <div style={{background:"rgba(255,255,255,.02)",border:"1px solid #0F2258",borderRadius:8,padding:"9px 10px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+            <span style={{fontSize:8,color:T.text4,fontFamily:T.stats,letterSpacing:".12em",
+              textTransform:"uppercase",fontWeight:700,flex:1}}>Tendances récurrentes</span>
+            <span style={{fontSize:6.5,color:T.text4,fontFamily:T.stats,border:"1px solid #1A3A80",
+              borderRadius:3,padding:"0 4px"}}>{leakAgg?.hands||0} MAINS</span>
+          </div>
+          {leaks.slice(0,5).map((l,i)=>{
+            const col=l.established?(l.severity==="high"?"#FF4560":l.severity==="medium"?"#FFC247":"#8AA0C0"):"#6F81A8";
+            return(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0"}}>
+                <span style={{color:col,fontSize:9}}>●</span>
+                <span style={{flex:1,fontSize:8.5,color:T.text3,fontFamily:T.stats}}>{l.label}</span>
+                <span style={{fontSize:8,fontFamily:"'JetBrains Mono',monospace",color:col}}>
+                  {Math.round(l.observed*100)}% <span style={{color:T.text4}}>/ {Math.round(l.reference*100)}%</span>
+                </span>
+                <span style={{fontSize:7,color:T.text4,fontFamily:T.stats,minWidth:26,textAlign:"right"}}>n={l.samples}</span>
+              </div>
+            );
+          })}
+          <div style={{marginTop:5,fontSize:7.5,color:T.text4,fontFamily:T.stats,fontStyle:"italic",lineHeight:1.5}}>
+            {leaks.some(l=>l.established)
+              ? "Fréquences observées vs repères PokerForge (estimations, pas des valeurs GTO)."
+              : "Échantillon encore insuffisant : tendances à confirmer, pas des leaks établis."}
+          </div>
         </div>
       )}
     </div>
