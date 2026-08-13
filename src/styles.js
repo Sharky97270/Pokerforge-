@@ -5786,4 +5786,245 @@ export const CSS_TABLE=`
   .t1-actions-under .mtr-actions{padding:5px 10px 6px!important;}
   .t1-actions-under .mtr-actions>div{margin-bottom:4px!important;}
 }
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  DENSITÉ MULTI-TABLE — 2T medium · 3T compact · 4T dense                 ║
+   ╚══════════════════════════════════════════════════════════════════════════╝
+   Toutes les dimensions ci-dessous lisent les variables posées par
+   «trainerDensityVars()» (src/trainerDensity.js) sur la tuile «.tw[data-density]».
+   Une grandeur = une valeur, partagée par le JS et le CSS.
+
+   Pourquoi ce bloc EXISTE plutôt que d'éditer les règles d'origine : elles sont
+   dispersées sur ~30 déclarations «!important» réparties entre «CSS» et
+   «CSS_TABLE», chacune calibrée pour un cas particulier. Les neutraliser une à
+   une aurait multiplié les régressions ; on les recouvre ici, en dernier, avec
+   une spécificité «:is(.grid2,.grid3,.grid4) .tw[data-density]» (0,3,1) qui
+   passe devant toutes (au plus (0,3,0)) sans dépendre de l'ordre du fichier.
+
+   Le 1T n'est JAMAIS touché : il n'a pas de «.gridN» parent multi. */
+
+/* ── 1. SIÈGE ANCRÉ PAR LE CENTRE DE L'AVATAR (§1) ──────────────────────────
+   La boîte en flux du siège se réduit au slot avatar ; cartes et plaque passent
+   hors flux, au-dessus et au-dessous. «translate(-50%,-50%)» pose alors le
+   CENTRE DU MÉDAILLON sur le point d'anneau, identique pour tous les sièges.
+   Avant : ρ (rayon normalisé sur l'ellipse) 0.64 → 0.95 selon le siège ;
+   la position dépendait de la hauteur du contenu, donc changeait de street en
+   street — d'où les éléments « qui bougent » entre préflop et river. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-seat-avatar-anchored{
+  display:block!important;
+  transform:translate(-50%,-50%)!important;
+  gap:0!important;
+  zoom:var(--pf-d-seat-zoom,1);
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-avatar-slot{margin:0 auto!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-above{
+  position:absolute;left:50%;bottom:100%;transform:translateX(-50%);
+  margin-bottom:var(--pf-d-seat-gap,2px);
+  display:flex;align-items:flex-end;justify-content:center;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-below{
+  position:absolute;left:50%;top:100%;transform:translateX(-50%);
+  margin-top:var(--pf-d-seat-gap,2px);
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+}
+/* Les pastilles Fold / In pot étaient sorties du flux pour gagner 12px sous
+   l'avatar ; «.pf-seat-below» étant lui-même hors flux, elles rentrent dans son
+   flux à lui — même gain, sans ancre flottante. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat .pf-fold-chip,
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat .pf-multiway-chip{
+  position:static!important;transform:none!important;bottom:auto!important;left:auto!important;margin-top:0!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat .pf-seat-below>*{margin-top:0!important;}
+/* Le macaron « TOI » / « IA… » vivait à top:-16px DANS le slot avatar : depuis
+   que les cartes sont collées au-dessus de l'avatar, il tombait dessus. On le
+   sort sur le FLANC intérieur du siège, où il ne croise ni cartes ni plaque. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat .hero-seat-badge{
+  top:50%!important;left:100%!important;transform:translateY(-50%)!important;
+  margin-left:2px!important;white-space:nowrap!important;
+}
+
+/* ── 2. AVATARS (§2) ─────────────────────────────────────────────────────────
+   Réduction PROPORTIONNELLE au mode, jamais en dessous du seuil de
+   reconnaissance : le médaillon garde son art, son anneau et son halo. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-avatar-premium{
+  width:var(--pf-d-avatar-size,46px)!important;
+  height:var(--pf-d-avatar-size,46px)!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-avatar-premium::before{
+  inset:calc(-1 * var(--pf-d-avatar-ring,5px))!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-avatar-art{inset:3px!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-nameplate{
+  font-size:var(--pf-d-nameplate-fs,10px)!important;
+  padding:1px 5px!important;
+}
+
+/* ── 3. BOUTON D / SB / BB (§3) ──────────────────────────────────────────────
+   Le bouton D lisait «width:22px!important» sur les quatre modes. Il vaut
+   maintenant «--pf-d-dealer-size» : 22px en 1T (inchangé), 17 · 13 · 11.5 px
+   ensuite — soit ~7 % de la hauteur du feutre partout au lieu de 13 % en 4T. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .dealer-btn{
+  width:var(--pf-d-dealer-size,17px)!important;
+  height:var(--pf-d-dealer-size,17px)!important;
+  font-size:calc(var(--pf-d-dealer-size,17px) * .46)!important;
+  border-width:1.4px!important;
+  box-shadow:0 0 5px rgba(255,255,255,.32),0 1px 4px rgba(0,0,0,.6)!important;
+}
+/* Marqueur de blinde : au lieu d'une colonne [tas][montant][pastille] haute de
+   46px (27 % du feutre en 4T), une grille 2 lignes — tas au-dessus, montant et
+   position CÔTE À CÔTE. La position reste écrite, le montant reste lisible, et
+   la hauteur tombe de moitié sur l'axe qui manque. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack,
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack.compact{
+  display:grid!important;grid-template-columns:auto auto;
+  justify-content:center;align-items:center;gap:0 3px!important;
+  transform:none!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>.pf-chip-stack{grid-column:1 / span 2;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>strong{
+  grid-column:1;font-size:calc(9px * var(--pf-d-blind-scale,1) + 3px)!important;margin-top:0!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>em{
+  grid-column:2;
+  min-width:calc(14px * var(--pf-d-blind-scale,1) + 6px)!important;
+  height:calc(10px * var(--pf-d-blind-scale,1) + 6px)!important;
+  font-size:calc(3px * var(--pf-d-blind-scale,1) + 4.4px)!important;
+}
+/* 3T/4T — la pastille SB/BB passe à la ligne… et disparaît. Ce n'est pas de la
+   place gagnée en hauteur (elle en coûte peu) mais en LARGEUR : le marqueur
+   faisait 50px de large, et c'est la largeur qui le faisait mordre sur les
+   cartes de son propre joueur pour les sièges du bas (mesuré 340px² en 4T) —
+   leurs cartes sont rendues au-dessus de l'avatar, donc du côté du centre, juste
+   là où va le marqueur. En colonne il tombe à ~28px et passe à côté.
+   Rien n'est perdu à la lecture : le montant (0.5bb / 1bb) dit la blinde, le
+   marqueur touche son siège, et la plaque du joueur porte déjà sa position. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack{grid-template-columns:auto!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>.pf-chip-stack,
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>strong,
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>em{grid-column:1;}
+/* 2T garde sa pastille SB/BB (il a la hauteur pour) ; 3T/4T ne l'ont pas. */
+:is(.grid3,.grid4) .tw[data-density] .pf-blind-stack>em{display:none!important;}
+/* La pile de jetons réservait 34px de large FIXES (empattement de l'éventail),
+   quel que soit le mode : 76 % de la largeur du marqueur en 4T. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-stack>.pf-chip-stack.pf-chip-stack-v2{
+  width:calc(var(--pf-chip-base-size) * var(--pf-chip-stack-scale,1) + 34px * var(--pf-d-blind-scale,1))!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-blind-anchor{z-index:19!important;}
+
+/* ── 4. MISES (§4) ───────────────────────────────────────────────────────────
+   Le badge de mise doit rester rattachable à SON joueur : on le rétrécit, on ne
+   le déplace pas. «--pf-d-bet-scale» agit sur les marges et l'empattement de
+   l'éventail de jetons, pas sur le MONTANT — c'est le chiffre dont dépend la
+   décision, il garde sa taille. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-badge{
+  min-height:calc(24px * var(--pf-d-bet-scale,1) + 6px)!important;
+  max-width:calc(96px * var(--pf-d-bet-scale,1) + 14px)!important;
+  padding:calc(2px * var(--pf-d-bet-scale,1)) calc(5px * var(--pf-d-bet-scale,1) + 1px)!important;
+  gap:2px!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-badge .pf-chip-stack.pf-chip-stack-v2{
+  width:calc(var(--pf-chip-base-size) * var(--pf-chip-stack-scale,1) + 34px * var(--pf-d-bet-scale,1))!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy strong{font-size:7.5px!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy em{font-size:9px!important;}
+
+/* ── 5. BOARD & POT ──────────────────────────────────────────────────────────
+   Le board est l'élément le plus lu : son échelle est un arbitrage à part
+   entière, donc elle vit dans les jetons de densité et pas dans une media query. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-board-zone{zoom:var(--pf-d-board-zoom,.72);}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-pot-readout{
+  height:var(--pf-d-pot-h,20px)!important;min-height:0!important;padding:0 6px!important;
+}
+/* Amas de jetons du POT — masqué en 3T/4T seulement. Sur un feutre de 186px il
+   ajoutait 14px de haut et ~40px de large au CENTRE, l'endroit exact où le
+   couloir manque, et son éventail se posait sur la première carte du board
+   (mesuré). Le pot reste identifiable : « POT 17bb », lisible et à sa place.
+   Le 2T, dont le feutre fait 337px, garde ses jetons.
+   (Une règle existait déjà avec cette intention mais visait «.pf-pot-chip-stack»,
+   une classe que le composant ne rend pas — elle n'a jamais eu d'effet.) */
+:is(.grid3,.grid4) .tw[data-density] .pf-pot-chip-cluster{display:none!important;}
+
+/* ── 6. BARRE DE COMMANDE (§5/§6) ────────────────────────────────────────────
+   Objectif : une BARRE, pas un second panneau. Mesuré avant : 105-116px pour
+   une tuile de 361px en 3T (29-32 %). Les trois étages (boutons · sizings ·
+   stepper) sont compactés ensemble pour rester cohérents entre eux, et la
+   hauteur rendue va au feutre (bloc 7). */
+/* HAUTEUR FIXE, pas seulement «min-height» (§7 « une table active ne doit pas
+   subir un changement brutal de géométrie »). Mesuré : à min-height seule, une
+   tuile à 3 actions rendait des boutons de 41px et sa voisine à 2 actions 30px —
+   soit 11px de feutre en moins pour l'une des trois tables de la mosaïque
+   (zone 232px contre 243px). La barre de commande a donc une hauteur qui ne
+   dépend PAS du nombre d'actions ni de la longueur des libellés. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .gto-btn{
+  height:var(--pf-d-action-btn-min-h,40px)!important;
+  min-height:var(--pf-d-action-btn-min-h,40px)!important;
+  padding:0 6px!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mtr-actions-multi .gto-btn-inner{
+  padding:var(--pf-d-action-btn-pad-y,5px) 4px calc(var(--pf-d-action-btn-pad-y,5px) - 1px)!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .gto-btn-label{font-size:var(--pf-d-action-label-fs,12px)!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .gto-btn-sizing{
+  font-size:var(--pf-d-action-sizing-fs,9px)!important;padding:1px 4px!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mtr-actions-multi .sizing-btn{
+  min-height:var(--pf-d-sizing-btn-h,16px)!important;height:var(--pf-d-sizing-btn-h,16px)!important;
+  font-size:var(--pf-d-sizing-btn-fs,8px)!important;padding:0 1px!important;line-height:1!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mtr-actions-multi .sizing-custom{
+  min-height:var(--pf-d-stepper-h,17px)!important;padding:0 5px!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mtr-actions-multi .sizing-step-btn{
+  width:calc(var(--pf-d-stepper-h,17px) - 2px)!important;
+  height:calc(var(--pf-d-stepper-h,17px) - 2px)!important;
+  font-size:calc(var(--pf-d-stepper-h,17px) * .68)!important;
+}
+/* Barre Full Hand (Check / Bet ½ / PSB / Fold) : même barème que le bandeau GTO
+   — elle vivait encore à sa hauteur de 1T alors qu'elle est le seul contrôle
+   affiché pendant un coup complet. */
+:is(.grid3,.grid4) .tw[data-density] .mtr-actions .ab{
+  height:var(--pf-d-action-btn-min-h,30px)!important;
+  min-height:var(--pf-d-action-btn-min-h,30px)!important;
+  padding:0 3px!important;
+  font-size:var(--pf-d-action-label-fs,11px)!important;
+  border-radius:6px!important;
+  display:flex!important;flex-direction:column!important;justify-content:center!important;
+}
+:is(.grid3,.grid4) .tw[data-density] .mtr-actions .ab .ab-sub{font-size:7px!important;}
+
+/* ── 7. LA HAUTEUR RENDUE VA AU FEUTRE (§6) ──────────────────────────────────
+   Compacter la barre ne doit pas créer du vide : la borne d'aplatissement de
+   l'ovale est desserrée en 3T/4T pour que la zone reprenne la place. Le ratio
+   reste BORNÉ (jamais figé) — c'est la cellule qui décide, l'ovale reste dans
+   sa famille de proportions. */
+:is(.grid3,.grid4) .tw[data-density] .training-table-zone{
+  width:min(100cqw,calc(100cqh * var(--pf-zone-ar-max,1.6)));
+  height:min(100cqh,calc(100cqw / var(--pf-zone-ar-min,1.15)));
+}
+/* La région sous la table est BORNÉE (voir le commentaire de .mt-under dans
+   TrainerTab) : elle défile en interne plutôt que de rogner le feutre. Sans
+   plafond, un bilan de coup complet à 38vh laissait 180px de zone à sa tuile
+   contre 224px à ses voisines. Le plafond vaut ~1.35× la barre de commande :
+   de quoi afficher le verdict et ses boutons sans jamais dépasser d'un tiers
+   ce que coûtait déjà la barre. */
+.tw[data-density] .mt-under{display:flex;flex-direction:column;min-height:0;flex:0 0 auto;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under{
+  max-height:var(--pf-d-under-max-h,180px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+/* 3T/4T : hauteur FIXE, pas seulement plafonnée. C'est la seule façon d'obtenir
+   la propriété demandée au §7 — le feutre a exactement la même géométrie sur
+   les trois (ou quatre) tuiles, à tout instant. Sinon une table qui affiche son
+   bilan (118px) et sa voisine qui montre sa barre de décision (86px) n'ont pas
+   le même ovale, et les objets « bougent » quand on passe d'une street à
+   l'autre. La région défile en interne quand son contenu dépasse. */
+:is(.grid3,.grid4) .tw[data-density] .mt-under{
+  flex:0 0 var(--pf-d-under-max-h,110px);height:var(--pf-d-under-max-h,110px);
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under::-webkit-scrollbar{width:5px;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under::-webkit-scrollbar-thumb{background:rgba(120,150,200,.35);border-radius:3px;}
+/* Les blocs internes n'ont plus besoin de leur propre plafond en vh — il vivait
+   dans le vide (38vh = 346px pour une tuile de 343px). */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under>div[style*="vh"]{max-height:none!important;}
 `;

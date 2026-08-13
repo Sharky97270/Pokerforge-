@@ -13,6 +13,7 @@ import { useRangeTheme } from "../components/range/useRangeTheme.js";
 import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorSettings.jsx";
 import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
+import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset } from "../trainerDensity.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
@@ -167,9 +168,23 @@ function chipRingFactor(seatCount=6,numTables=1){
    format n'a aucune marge (0px de déplacement libre mesuré), et tout gain qu'on
    y prend se paie immédiatement en chevauchements. Vérifié par audit apparié. */
 const MARKER_CLEARANCE_PX={BLIND:105,DEALER:120,BET:154};
+/* ── LE BUDGET SUIT LA DENSITÉ (mission 3T/4T, §4) ──
+   Ces trois nombres décrivent un OBSTACLE : demi-bloc de siège + demi-marqueur,
+   mesurés en 1T. En multi-table les deux rétrécissent — avatar 68→30px, tas de
+   blinde 46→33px de haut — mais le budget, lui, restait celui du 1T. Sur un
+   feutre 3T (demi-axes 181×93px) un budget de 105px dépassait le demi-axe
+   vertical : la formule rendait systématiquement « format contraint », les
+   marqueurs retombaient sur le PLANCHER (ρ≈0.50) et se retrouvaient tous groupés
+   à mi-tapis, sans lien visuel avec leur joueur — exactement le défaut signalé.
+   Le facteur par mode le ramène à la taille réelle des obstacles de ce mode. */
+function markerClearanceFor(markerType,numTables){
+  return (MARKER_CLEARANCE_PX[markerType]||0)*trainerMarkerClearance(numTables,markerType);
+}
 /* Le plafond n'est pas là pour la sécurité (la formule est déjà bornée par le
    siège) mais pour la LISIBILITÉ : au-delà, sur un très grand écran, le marqueur
-   se collerait au joueur et la table perdrait son aération. */
+   se collerait au joueur et la table perdrait son aération. En mosaïque le
+   risque est l'inverse — un marqueur trop loin de son joueur — donc le plafond
+   se desserre avec la densité. */
 const MARKER_APPROACH_MAX=1.30;
 /* Demi-axes du feutre en PIXELS. `ringGeom` vient de la mesure du conteneur
    (useTrainerRingScale) : sans elle on ne peut pas raisonner en pixels, et on
@@ -184,7 +199,7 @@ function feltPixelRadii(layout,numTables,ringGeom){
 }
 /* Multiplicateur de rayon d'UN siège, pour UN type de marqueur. 1 = inchangé. */
 function markerApproach(seat,ell,{numTables=1,seatCount=6,markerType="BET",ringGeom=null,layout=null}={}){
-  const budget=MARKER_CLEARANCE_PX[markerType];
+  const budget=markerClearanceFor(markerType,numTables);
   const px=budget?feltPixelRadii(layout,numTables,ringGeom):null;
   if(!px)return 1;
   const {cx,cy,rx,ry}=ell;
@@ -201,7 +216,15 @@ function markerApproach(seat,ell,{numTables=1,seatCount=6,markerType="BET",ringG
   const rhoTarget=rhoSeat-budget*(ringGeom.scale||1)/rDir;
   const m=rhoTarget/rhoRing;
   if(!(m>1))return 1;                       // format contraint : on garde le plancher
-  return Math.min(m,MARKER_APPROACH_MAX);
+  /* Le plafond se resserre sur les feutres VRAIMENT étroits. Le critère est le
+     demi-grand axe MESURÉ, pas une media query : il réagit aussi au repli des
+     panneaux latéraux, qui change la largeur de la tuile sans changer celle de
+     la fenêtre. Mesuré à 1366×768, la mosaïque 4T passe sur une seule rangée et
+     le feutre tombe à 226px de large (rx=113) contre 305 (rx=152) à 1680 : à
+     plafond inchangé, les tas venaient sur la plaque de leur joueur et sur le
+     pot (mise↔plaque 9, mise↔pot 9 sur 12 tirages). */
+  const tight=px.rxPx<130;
+  return Math.min(m,trainerMarkerApproachMax(numTables,markerType,{tight}));
 }
 /* ── POCHE LATÉRALE : même correction, exprimée en pixels ──
    L'écart de la poche était un POURCENTAGE de la table (15%). En pixels il suit
@@ -722,7 +745,7 @@ function dealerAnchorPoint(layout,numTables=1,ringGeom=null){
   // éviter la blinde SB — mesuré sur 15 tirages, le taux de tables sans collision
   // visible chute de 72% à 13% : le bouton vient alors se loger contre le tas du
   // BTN lui-même. Le sens actuel est le bon, ne pas l'inverser.
-  const a2=ang+(2*Math.PI/Math.max(2,seatCount))*.34;
+  const a2=ang+(2*Math.PI/Math.max(2,seatCount))*trainerDealerAngleOffset(numTables);
   const m=markerApproach(seat,ell,{numTables,seatCount,markerType:"DEALER",ringGeom,layout});
   return {x:clampTrainingPoint(cx+Math.cos(a2)*rx*f.x*m),y:clampTrainingPoint(cy+Math.sin(a2)*ry*f.y*m)};
 }
@@ -831,7 +854,7 @@ function resolveTrainerActionPoint(layout,pos,{hasBoard=false,numTables=1,ringGe
   // Le board occupe une BANDE horizontale au centre du feutre : les rayons qui la
   // traversent (sièges des flancs) doivent poser leur tas juste en dehors. C'est
   // la SEULE correction qui subsiste — tout le reste est garanti par l'anneau.
-  const collisionZone=trainerBoardCollisionZone(hasBoard);
+  const collisionZone=trainerBoardCollisionZone(hasBoard,numTables);
   if(pointInsideZone(pt,collisionZone)){
     pt=clampPointOutsideBoard(pt,seat,collisionZone,3);
   }
@@ -854,7 +877,20 @@ function resolveTrainerBlindPoint(layout,pos,numTables=1,ringGeom=null){
    Spot / Street / Full Hand / Session / Mix — hérite donc du même placement. */
 function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null}={}){
   if(!layout)return {x:50,y:50};
-  if(markerType==="DEALER")return dealerAnchorPoint(layout,numTables,ringGeom);
+  if(markerType==="DEALER"){
+    /* Le bouton D était le SEUL marqueur à ne pas passer par la protection du
+       board : il vit sur le même anneau que les mises, au même rayon, mais
+       sortait par cette branche avant le clamp. Sans conséquence tant qu'il
+       restait loin du centre ; depuis qu'il se rapproche de son joueur (§4), il
+       traverse la bande du board sur les sièges de flanc — mesuré 10 cas sur 48
+       relevés en 2T, board↔boutonD. Même clamp que les tas, donc. */
+    const d=dealerAnchorPoint(layout,numTables,ringGeom);
+    const zone=trainerBoardCollisionZone(hasBoard,numTables);
+    if(!pointInsideZone(d,zone))return d;
+    const btn=layout.seats?.BTN||layout.seats?.SB||{x:50,y:50};
+    const c=clampPointOutsideBoard(d,btn,zone,3);
+    return {x:clampTrainingPoint(c.x),y:clampTrainingPoint(c.y)};
+  }
   return resolveTrainerActionPoint(layout,pos,{hasBoard,numTables,ringGeom,markerType});
 }
 
@@ -3116,6 +3152,12 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   useEffect(()=>()=>{animQRef.current?.cancel();clearAnimTimers();if(fhFeedbackTimer.current)clearTimeout(fhFeedbackTimer.current);},[]); // §63 : annule au démontage
   // ── Mobile v9 : solution plein écran + swipe ──
   const isMobile=useIsMobile();
+  /* Densité d'affichage (§9) : mêmes seuils que les media queries de la mosaïque
+     (max-width:1560px / écran court), pour que le JS et le CSS ne puissent pas
+     diverger d'un cran sur la même fenêtre. */
+  const tightViewport=useMaxWidth(1560);
+  const density=useMemo(()=>trainerDensity(numTables,{tight:tightViewport}),[numTables,tightViewport]);
+  const densityVars=useMemo(()=>trainerDensityVars(numTables,{tight:tightViewport}),[numTables,tightViewport]);
   const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
     ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
     :null;
@@ -3880,8 +3922,19 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     // l'ellipse, plongeaient leur plaque sur le pot (chevauchement 15-20px). On
     // remonte les sièges vers le rail (ringFactorY plus haut) : ça dégage le centre
     // (pot/board) ET rapproche les joueurs de l'anneau doré comme demandé (§2).
+    /* MULTI : le HERO retrouve le rayon de tout le monde.
+       `heroDrop` (0.665) existait parce que le siège était ancré par une fraction
+       de la hauteur de son BLOC : celui du Hero est le plus haut de la table
+       (cartes ouvertes grand format + plaque), il fallait donc le rentrer pour
+       qu'il ne déborde pas. Depuis que l'ancrage se fait par le CENTRE DE
+       L'AVATAR, cette compensation n'a plus d'objet — et elle devenait nuisible :
+       elle laissait le Hero à ρ=0.665 quand ses voisins étaient à 0.93, soit
+       visiblement « enfoncé dans le tapis », exactement le défaut du §1.
+       On l'aligne donc sur `ringFactorY` : TOUS les avatars, Hero compris, sont
+       sur l'anneau doré, quelle que soit la position du Hero (§12). */
     const ellipse=(ellipseBase&&numTables>=2)
-      ?{...ellipseBase,ringFactorY:Math.min(0.96,(ellipseBase.ringFactorY??0.84)+0.06)}
+      ?(()=>{const ry=Math.min(0.96,(ellipseBase.ringFactorY??0.84)+0.06);
+             return {...ellipseBase,ringFactorY:ry,heroDrop:ry};})()
       :ellipseBase;
     const seats=computeHeroCentricSeats(positions,spot?.hpos,cfgViz.tableGeometry,{web:!isMobile,canonical,ellipse});
     const layout=createTrainingTableLayout(isMobile?"1T-mobile-dyn":`${numTables}T-web-dyn`,seats,cfgViz);
@@ -4486,10 +4539,17 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
       // chaque table). Corrige le chevauchement au niveau du stack Hero : les actions
       // vivent dans un bandeau dédié sous le feutre, jamais sur la table.
       const multi=numTables>1;
+      /* ── BARRE DE COMMANDE (§5) ──
+         En 3T/4T ce bandeau pesait 105 à 116px pour une tuile de 361px : 29 à 32 %
+         de la hauteur, alors que la priorité est TABLE > CARTES > ACTION. Toutes
+         ses dimensions viennent maintenant de la densité, donc elles décroissent
+         avec le mode au lieu d'être figées. Les POLICES, elles, ne suivent pas la
+         même pente que les espacements : on rend de la place sur le padding et les
+         gouttières, pas sur la lisibilité des libellés. */
       const az=multi
-        ?{pad:"4px 6px 2px",hdrMb:2,chip:Math.max(7,cfg.actFnt-4),htxt:Math.max(7,cfg.actFnt-4),
-          bgap:cfg.compact?3:4,bmb:3,lbl:cfg.actFnt,siz:Math.max(7,cfg.actFnt-3),hint:Math.max(6,cfg.actFnt-4),
-          szMb:2,stepFs:Math.max(9,cfg.actFnt-2),grid:`repeat(${spot.acts.length},minmax(0,1fr))`}
+        ?{pad:density.actionPad,hdrMb:numTables>=3?1:2,chip:Math.max(7,cfg.actFnt-4),htxt:Math.max(7,cfg.actFnt-4),
+          bgap:density.actionGap,bmb:density.actionGap,lbl:density.actionLabelFs,siz:density.actionSizingFs,hint:Math.max(6,cfg.actFnt-4),
+          szMb:numTables>=3?2:3,stepFs:Math.max(9,cfg.actFnt-2),grid:`repeat(${spot.acts.length},minmax(0,1fr))`}
         :{pad:"8px 10px 10px",hdrMb:7,chip:8,htxt:8.5,bgap:5,bmb:7,lbl:13,siz:10,hint:8,szMb:5,stepFs:11,grid:null};
       return(
         <div className={`mtr-actions${multi?" mtr-actions-multi":""}`} style={{flexShrink:0,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(255,194,71,.18)",padding:az.pad}}>
@@ -4548,10 +4608,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
        tuile de mosaïque. Le rendu est identique en 1T/2T/3T/4T — seule la taille
        change, jamais la disponibilité des actions. */
     const fhC=numTables>1;                     // densité compacte (mosaïque)
-    const fhPad=fhC?"6px 8px 8px":"8px 14px 14px";
-    const fhBtnPad=fhC?"9px 3px":"12px 4px";
-    const fhHdrFs=fhC?8:9;
-    const fhGap=fhC?4:6;
+    /* Même barème que le bandeau GTO (§5) : la barre Full Hand est le SEUL
+       contrôle visible pendant un coup complet, elle ne doit pas être la seule à
+       garder sa taille de 1T quand la tuile est divisée par quatre. */
+    const fhPad=fhC?density.actionPad:"8px 14px 14px";
+    const fhBtnPad=fhC?`${density.actionBtnPadY}px 3px`:"12px 4px";
+    const fhHdrFs=fhC?(numTables>=3?7:8):9;
+    const fhGap=fhC?density.actionGap:6;
     const renderFhActions=()=>(
       <>
         {playingFull&&fhPhase==="hero"&&(
@@ -5267,7 +5330,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           })}
 
           {(()=>{
-            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,ringGeom});
+            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom});
             return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
@@ -5364,7 +5427,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
     );
 
   return(
-    <div className="tw" style={{background:"#040B1F"}}>
+    <div className="tw" data-density={trainerDensityName(numTables)} style={{background:"#040B1F",...densityVars}}>
       {/* Multi-table : la table ACTIVE projette le VRAI panneau 1T dans la colonne partagée */}
       {/* multi-table : panneau droit rendu par le parent (renderMultiPanel) */}
       {/* ── BARRE TOP compacte : streets + timeline + timer ── */}
@@ -5457,10 +5520,18 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
             // 3T/4T : le couloir central (bas du siège haut → haut de la grappe Hero)
             // est trop court pour descendre le board de +13 comme en 2T ; mesuré, il
             // finissait SOUS les cartes du Hero. On le remonte donc au ras du pot.
+            /* 3T/4T — BUDGET DU COULOIR CENTRAL, mesuré et non estimé.
+               Entre le bas du bloc du siège du haut (rel. 75px de la zone) et le
+               haut des cartes du Hero (rel. 135px) il y a 60px. Il faut y loger
+               le pot (18px) ET le board (33px) + deux écarts de 4px = 59px.
+               Les offsets d'origine (+9 pour le pot, +7 pour le board) les
+               posaient tous les deux 20px trop bas : le board passait sous les
+               cartes du Hero et le pot mordait le board (mesuré 306px² de
+               recouvrement board↔pot, 280px² board↔cartes). */
             const tight=numTables>=3;
-            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+(tight?9:11);
-            const potYpre=(WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y)+12;
-            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+(tight?7:9);
+            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+(tight?0:5);
+            const potYpre=(WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y)+(tight?4:10);
+            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+(tight?3:7);
             return(
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
@@ -5509,8 +5580,13 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
 
         {/* DEALER BUTTON — taille cfg.dbtnSz (aligné sur le siège BTN multi-table) */}
         {(()=>{
-          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,ringGeom});
-          const sz=cfg.dbtnSz;
+          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom});
+          /* Taille pilotée par la DENSITÉ (§3). `cfg.dbtnSz` était du code mort :
+             `.dealer-btn{width:22px!important}` gagnait sur l'inline, si bien que
+             le bouton D mesurait 22px sur les quatre modes — 13 % de la hauteur du
+             feutre en 3T/4T contre 3 % en 1T. La règle CSS lit désormais la même
+             variable de densité que cette valeur. */
+          const sz=density.dealerSize;
           return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`,width:sz,height:sz}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
         })()}
 
@@ -5584,34 +5660,42 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
-          // Sièges bas (dont le Hero) : la grappe est ancrée plus BAS sur l'anneau
-          // (-48% → -36%). C'est elle qui plafonnait le board — les cartes du Hero
-          // remontaient jusqu'au milieu du feutre et le board finissait dessous.
-          // Le bloc reste dans la zone (overflow visible) et sous l'anneau doré.
-          const mtSeatTransform=isMobile
-            ?(isTopSeatMt?"translate(-50%,-27%)":isBottomSeatMt?"translate(-50%,-55%)":"translate(-50%,-50%)")
-            :isTopSeatMt?"translate(-50%,-22%)":isBottomSeatMt?"translate(-50%,-36%)":"translate(-50%,-50%)";
+          /* ── ANCRAGE PAR LE CENTRE DE L'AVATAR (§1) ──
+             Ce qu'on pose sur l'anneau est un BLOC (cartes ▸ avatar ▸ plaque), pas
+             un avatar. L'ancrer par une fraction arbitraire de sa propre hauteur
+             (-22% en haut, -36% en bas, -50% sur les flancs) laissait donc le
+             médaillon tomber où la composition du bloc voulait bien — et elle
+             diffère selon le siège (cartes fermées du Hero ≫ dos de cartes) et
+             selon la street. Mesuré avant correction, rayon normalisé du CENTRE
+             de l'avatar sur l'ellipse du feutre (ρ=1 ⇒ pile sur l'anneau) :
+               3T ρ = 0.643 … 0.949  (écart-type 0.116)
+               4T ρ = 0.637 … 0.952  (écart-type 0.119)
+             — le siège du HAUT flottait 36 % à l'intérieur du tapis.
+             Correction : le bloc se réduit en flux au SLOT AVATAR, les cartes et
+             la plaque passent hors flux (au-dessus / au-dessous). Un simple
+             translate(-50%,-50%) met alors le centre du médaillon exactement sur
+             le point d'anneau, quels que soient le siège, la street et le contenu.
+             Le transform vit en CSS (bloc DENSITÉ) — plus de valeur par siège. */
           const mtHeroCardSize=isTopSeatMt?(numTables===2?"md":numTables===3?"smp":"sm"):cfg.heroCard;
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
-          const mtHeroMargin=isTopSeatMt?1:(numTables>=3?1:3);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}`} style={{left:`${x}%`,top:`${y}%`,transform:mtSeatTransform,gap:1,zIndex:20}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:20}}>
 
-              {/* Cartes Hero au-dessus du siège — toutes tables, taille cfg.heroCard + glow doré */}
-              {isH&&(
-                <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3} style={{marginBottom:mtHeroMargin}}/>
-              )}
-              {!isH&&(
-                <VillainBackCards size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway} folded={seatFolded} style={{marginBottom:numTables>=3?0:2}}/>
-              )}
+              {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
+              <div className="pf-seat-above">
+                {isH&&(
+                  <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3}/>
+                )}
+                {!isH&&(
+                  <VillainBackCards size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway} folded={seatFolded}/>
+                )}
+              </div>
 
-              {/* Chip principal — HERO premium */}
-              {/* Multi-table : le halo ne garde que 2px de marge sous/sur l'avatar (au
-                  lieu de 10/12). Sur un ovale court, ces ~10px de vide par siège
-                  suffisaient à faire mordre les grappes voisines sur l'anneau. */}
+              {/* EN FLUX — le slot avatar, et lui seul : c'est la boîte du siège,
+                  donc c'est son centre qui se pose sur l'anneau doré. */}
               <div
-                className={isH?(isActive?"seat-active-hero seat-hero-halo":"seat-hero-halo"):""}
+                className={`pf-seat-avatar-slot${isH?(isActive?" seat-active-hero seat-hero-halo":" seat-hero-halo"):""}`}
                 style={{
                   width:isH?sz+12:sz+10,height:sz+2,borderRadius:"50%",
                   background:"transparent",
@@ -5630,6 +5714,8 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 {(thinking||fhVilThink)&&isV&&<div style={{position:"absolute",bottom:-Math.round(sz*.3)}}><span className="think"><span>·</span><span>·</span><span>·</span></span></div>}
               </div>
 
+              {/* HORS FLUX — sous l'avatar : plaque, statut, badge d'action */}
+              <div className="pf-seat-below">
               <div className="pf-mt-nameplate" style={{fontSize:cfg.fstk-1,color:isH?T.gold:isV?"#c090ff":T.text4}}>
                 {isH&&<span className="pf-seat-hero-chip" style={{fontSize:numTables>=3?5:6,padding:"1px 5px",margin:0}}>HERO</span>}
                 <span style={{fontFamily:"'Space Grotesk',sans-serif",fontWeight:900,lineHeight:1}}>{pos}</span>
@@ -5645,6 +5731,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
                 const aCls=aId==="FOLD"?"action-fold":aId==="CALL"?"action-call":aId==="CHECK"||aId==="CHECK_BACK"?"action-check":aId==="RAISE"||aId==="3BET"||aId==="4BET"||aId==="5BET"?"action-raise":aId==="ALLIN"?"action-allin":"action-bet";
                 return <span className={`seat-action-badge ${aCls}`} style={{fontSize:cfg.fstk-2,padding:"2px 5px",marginTop:1,maxWidth:numTables>=3?82:118,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>;
               })()}
+              </div>{/* ── fin pf-seat-below ── */}
             </PlayerSeat>
             <SeatActionZone
               pos={pos}
@@ -5665,6 +5752,22 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         })}
       </div>
       </div>{/* ── fin mt-zone-fit ── */}
+
+      {/* ══ SOUS LA TABLE — RÉGION BORNÉE ══════════════════════════════════
+         Tout ce qui vit sous le feutre (bandeau de décision, réaction du
+         vilain, verdict, bilan de coup complet, ranges) est un frère de la
+         zone de table dans un flex column. Chacun de ces blocs prend donc sa
+         hauteur naturelle SUR le feutre, qui est le seul élément élastique.
+         Mesuré en 4T, quatre tables au même instant : celles qui affichaient
+         leur bilan de coup complet (maxHeight 38vh, soit 346px) tombaient à
+         180px de zone contre 224px pour les autres — 20 % de feutre en moins,
+         et le retour des chevauchements pot↔board (les positions sont en % du
+         conteneur, les objets en pixels). C'est aussi ce qui faisait « bouger »
+         les éléments d'une street à l'autre.
+         On borne donc la région entière : elle défile en interne au lieu de
+         manger la table, et la géométrie du feutre devient indépendante de ce
+         qui se passe dessous. ══════════════════════════════════════════════ */}
+      <div className="mt-under">
 
       {/* ── TOAST ── */}
       {showToast&&<div className="error-toast"><span className="error-toast-icon">⚠</span>{showToast}</div>}
@@ -5861,6 +5964,7 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
         </>
         );
       })()}
+      </div>{/* ── fin mt-under ── */}
       {/* ── Solution plein écran mobile (multi-table) ── */}
       {isMobile&&solOpen&&renderMobileSolution()}
     </div>

@@ -13,9 +13,7 @@ import { buildSolverFreqs } from "../solver/preflopRanges.js";
 /* ── Replayer refonte v1 : moteur normalisé + table immersive ── */
 import { parseSession as pfParseSessionV2 } from "../replayer/handModel.js";
 import { computeSnapshot, computeAllSnapshots } from "../replayer/stateEngine.js";
-import { heroCentricSeatRing, seatActionPoint, feltGeometry } from "../components/table/geometry.js";
 import ReplayTableImmersive from "../replayer/ReplayTableImmersive.jsx";
-import { useReplayAnimation } from "../replayer/useReplayAnimation.js";
 import DecisionPanel from "../replayer/DecisionPanel.jsx";
 
 /* Enrichit un NormalizedHand de champs de compatibilité (seats/actions/site…)
@@ -1345,15 +1343,9 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const snapStep=snaps?Math.max(0,Math.min(step,stepMax)):0;
   const snap=snaps?snaps[snapStep]:null;
   const prevSnap=snaps?(snaps[snapStep-1]||null):null;
-  const seatAnchors=useMemo(()=>{
-    if(!hand?.players)return {};
-    const players=[...hand.players].sort((a,b)=>a.seat-b.seat);
-    const ring=heroCentricSeatRing(players.map(p=>p.pos),players.find(p=>p.isHero)?.pos,{geometry:feltGeometry()});
-    const hasBoard=(snap?.board?.length||0)>0;
-    const m={};players.forEach(p=>{const c=ring[p.pos]||{x:50,y:50};m[p.id]=seatActionPoint(c,{hasBoard});});
-    return m;
-  },[hand,snap?.board?.length]);
-  const replayAnim=useReplayAnimation(snap,prevSnap,{speed:playSpeed,anchorOf:pid=>seatAnchors[pid]});
+  /* Les ancres de mise/dealer sont calculées PAR LA TABLE (elle seule connaît
+     sa taille réelle et l'emprise mesurée des blocs sièges) — cf. §24 : plus
+     aucune géométrie dupliquée ici. */
   const sampleHand=useMemo(()=>{const s=pfParseSessionV2(SAMPLE_HH);return s.hands[0]?hydrateReplayHand(s.hands[0]):null;},[]);
   /* Contexte d'analyse (§22) : le scénario vient du snapshot, la référence
      stratégique du solveur quand c'est solvable, sinon du moteur heuristique. */
@@ -1574,7 +1566,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
 
               {/* Table zone — table immersive (moteur de snapshots) */}
               <div style={{flex:1,overflow:"hidden",padding:cinema?"14px 24px 0":"10px 16px 0",minHeight:0}}>
-                <ReplayTableImmersive hand={hand} snapshot={snap} fmt={fmt} flies={replayAnim.flies} potPulse={replayAnim.potPulse} compact={isNarrow}/>
+                <ReplayTableImmersive hand={hand} snapshot={snap} prevSnapshot={prevSnap} fmt={fmt} speed={playSpeed} compact={isNarrow}/>
               </div>
 
               {/* Contrôles */}
