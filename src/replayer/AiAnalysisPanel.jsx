@@ -49,7 +49,7 @@ function Section({ title, right, children }) {
   return (
     <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid #0F2258", borderRadius: 8, padding: "9px 10px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 8, color: T.text4, fontFamily: T.stats, letterSpacing: ".12em",
+        <span style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats, letterSpacing: ".12em",
           textTransform: "uppercase", fontWeight: 700, flex: 1 }}>{title}</span>
         {right}
       </div>
@@ -227,13 +227,13 @@ export default function AiAnalysisPanel({
             return (
               <Section title="Verdict" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
                     background: `radial-gradient(circle,${rm.col}25,${rm.col}08)`, border: `2px solid ${rm.col}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 14, color: rm.col, fontWeight: 900 }}>{rm.ico}</div>
+                    fontSize: 17, color: rm.col, fontWeight: 900 }}>{rm.ico}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 800, color: rm.col, fontFamily: T.stats }}>{rm.lbl}</div>
-                    <div style={{ fontSize: 8.5, color: T.text3, fontFamily: T.stats, marginTop: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: rm.col, fontFamily: T.stats }}>{rm.lbl}</div>
+                    <div style={{ fontSize: 10.5, color: T.text3, fontFamily: T.stats, marginTop: 2, lineHeight: 1.5 }}>
                       Hero : <b style={{ color: T.gold }}>{analysis.verdict?.heroAction || "—"}</b>
                       {analysis.verdict?.preferredAction && <> · Préférée : <b style={{ color: "#3ED598" }}>{analysis.verdict.preferredAction}</b></>}
                     </div>
@@ -241,23 +241,23 @@ export default function AiAnalysisPanel({
                   {/* EV perdue : valeur SOLVEUR, jamais celle du modèle. */}
                   {typeof target?.evLossBB === "number" && mode === "decision" && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 7, color: T.text4, fontFamily: T.stats }}>EV perdue</div>
-                      <div style={{ fontFamily: T.brand, fontSize: 13, fontWeight: 900, color: rm.col }}>
+                      <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>EV perdue</div>
+                      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900, color: rm.col }}>
                         -{target.evLossBB.toFixed(2)}bb
                       </div>
                     </div>
                   )}
                   {mode === "full_hand" && typeof solverPkg?.totalEvLossBB === "number" && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 7, color: T.text4, fontFamily: T.stats }}>EV perdue totale</div>
-                      <div style={{ fontFamily: T.brand, fontSize: 13, fontWeight: 900, color: rm.col }}>
+                      <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>EV perdue totale</div>
+                      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900, color: rm.col }}>
                         -{solverPkg.totalEvLossBB}bb
                       </div>
                     </div>
                   )}
                 </div>
                 {analysis.verdict?.rationale && (
-                  <div style={{ marginTop: 7, fontSize: 9, color: T.text2, fontFamily: T.stats, lineHeight: 1.6 }}>
+                  <div style={{ marginTop: 8, fontSize: 11.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.65 }}>
                     {analysis.verdict.rationale}
                   </div>
                 )}
@@ -266,7 +266,7 @@ export default function AiAnalysisPanel({
           })()}
 
           <Section title="Pourquoi ?" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>
-            <div style={{ fontSize: 9.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            <div style={{ fontSize: 11.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
               {analysis.summary}
             </div>
           </Section>
@@ -280,13 +280,13 @@ export default function AiAnalysisPanel({
                 return (
                   <div key={s} style={{ marginBottom: 7 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: sm.col, fontFamily: T.stats,
+                      <span style={{ fontSize: 11, fontWeight: 800, color: sm.col, fontFamily: T.stats,
                         textTransform: "capitalize" }}>{s}</span>
                       <span style={{ fontSize: 7, color: sm.col, border: `1px solid ${sm.col}55`,
                         background: `${sm.col}14`, borderRadius: 3, padding: "0 4px", fontFamily: T.stats,
                         fontWeight: 700 }}>{sm.lbl}</span>
                     </div>
-                    <div style={{ fontSize: 8.5, color: T.text3, fontFamily: T.stats, lineHeight: 1.6 }}>{st.analysis}</div>
+                    <div style={{ fontSize: 10.5, color: T.text3, fontFamily: T.stats, lineHeight: 1.6 }}>{st.analysis}</div>
                   </div>
                 );
               })}
@@ -297,7 +297,7 @@ export default function AiAnalysisPanel({
             <Section title="Concepts">
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {analysis.keyConcepts.slice(0, 8).map((c, i) => (
-                  <span key={i} style={{ fontSize: 8, color: "#7EB8FF", background: "rgba(31,139,255,.08)",
+                  <span key={i} style={{ fontSize: 9.5, color: "#7EB8FF", background: "rgba(31,139,255,.08)",
                     border: "1px solid rgba(31,139,255,.2)", borderRadius: 20, padding: "2px 8px",
                     fontFamily: T.stats }}>{c}</span>
                 ))}
@@ -311,7 +311,7 @@ export default function AiAnalysisPanel({
                 <div key={i} style={{ display: "flex", gap: 6, padding: "3px 0", alignItems: "flex-start" }}>
                   <span style={{ color: SEV_COL[l.severity] || T.text4, fontSize: 9, marginTop: 1 }}>●</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 8.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.5 }}>{l.description}</div>
+                    <div style={{ fontSize: 10.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.55 }}>{l.description}</div>
                     <div style={{ fontSize: 7, color: T.text4, fontFamily: T.stats, marginTop: 1 }}>
                       {l.street} · {l.type}
                     </div>
@@ -326,14 +326,14 @@ export default function AiAnalysisPanel({
 
           {analysis.coachAdvice && (
             <Section title="Conseil du coach" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>
-              <div style={{ fontSize: 9, color: T.text2, fontFamily: T.stats, lineHeight: 1.7 }}>{analysis.coachAdvice}</div>
+              <div style={{ fontSize: 11.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.7 }}>{analysis.coachAdvice}</div>
             </Section>
           )}
 
           {analysis.dataGaps?.length > 0 && (
             <Section title="Données indisponibles" right={<ProvBadge prov={PROV.UNAVAILABLE} />}>
               {analysis.dataGaps.slice(0, 5).map((g, i) => (
-                <div key={i} style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats, padding: "1px 0" }}>— {g}</div>
+                <div key={i} style={{ fontSize: 10, color: T.text4, fontFamily: T.stats, padding: "2px 0", lineHeight: 1.5 }}>— {g}</div>
               ))}
             </Section>
           )}
