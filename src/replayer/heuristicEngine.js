@@ -18,6 +18,9 @@
 import { buildSolverFreqs } from "../solver/preflopRanges.js";
 import { computeSnapshot } from "./stateEngine.js";
 import { SEM, semFr, buildBettingContext } from "./pokerState.js";
+import { handNotation } from "../trainerStrategyProvider.js";
+
+const rb = v => Math.round(v * 100) / 100;
 
 export const SOLVER_VPROFILES=[
   {id:"Nit",adj:{fold:+2,bluff:-1,value:-1}},{id:"Fish",adj:{fold:-2,bluff:-2,value:+2}},
@@ -137,9 +140,9 @@ export function solveScenario(sc){
       const sz=isIso?Math.round((openSz+limpers)*10)/10:openSz;
       reco={action:openSem,label:`${semFr(openSem)} ${sz}bb`,freq:ip?78:62,evBb:+(0.18+(ip?0.06:0)).toFixed(2),sizing:`${sz}bb`,sizingBb:sz,confidence:"Moyenne"};
       alts=[
-        {action:openSem,sem:openSem,freq:ip?78:62,evBb:+(0.18).toFixed(2),sizingBb:sz,comment:`Sizing standard ${sz}bb.`},
-        {action:"Fold",sem:SEM.FOLD,freq:ip?20:36,evBb:0,comment:"Mains hors range d'ouverture."},
-        {action:isIso?"Overlimp":"Limp",sem:isIso?SEM.OVERLIMP:SEM.LIMP,freq:2,evBb:-0.2,comment:"Rare, déconseillé (sauf SB)."},
+        {action:openSem,sem:openSem,chartKey:"r",freq:ip?78:62,evBb:+(0.18).toFixed(2),sizingBb:sz,comment:`Sizing standard ${sz}bb.`},
+        {action:"Fold",sem:SEM.FOLD,chartKey:"f",freq:ip?20:36,evBb:0,comment:"Mains hors range d'ouverture."},
+        {action:isIso?"Overlimp":"Limp",sem:isIso?SEM.OVERLIMP:SEM.LIMP,chartKey:"c",freq:2,evBb:-0.2,comment:"Rare, déconseillé (sauf SB)."},
       ];
       coach={explanation:`En ${sc.heroPos} (${ip?"in position":"out of position"}), ${isIso?`iso-raise les limpeurs à ${sz}bb`:`ouvre ta range RFI à ${sz}bb`}. Plus tu es proche du bouton, plus ta range s'élargit.`,
         mistake:"Open trop large UTG/HJ ou limp passif.",exploit:`vs ${prof.id} : ${prof.id==="Nit"?"vole plus large ses blindes":prof.id==="Fish"?"value-bet épais post-flop":"reste équilibré"}.`};
@@ -150,11 +153,11 @@ export function solveScenario(sc){
       reco={action:SEM.THREE_BET,label:sz?`3-bet ${sz}bb`:(eff<25?"3-bet/fold":"3-bet ou call"),
         freq:38,evBb:+0.12,sizing:sz?`${sz}bb`:null,sizingBb:sz,confidence:"Moyenne"};
       alts=[
-        {action:"3-Bet",sem:SEM.THREE_BET,freq:exploit&&prof.adj.fold>0?24:18,evBb:+0.2,sizingBb:sz,
+        {action:"3-Bet",sem:SEM.THREE_BET,chartKey:"r",freq:exploit&&prof.adj.fold>0?24:18,evBb:+0.2,sizingBb:sz,
           comment:(sz?`Sizing usuel ${sz}bb (${ip?"3×":"4×"} l'open${node?.callersInFront?` +1× par caller`:""}). `:"")
             +(prof.adj.fold>0?"Élargis les bluff-3bets (il sur-fold).":"Value + bluffs équilibrés.")},
-        {action:"Call",sem:SEM.CALL_OPEN,freq:ip?34:22,evBb:+0.08,comment:ip?"Cold-call IP correct.":"Call OOP capé — prudence."},
-        {action:"Fold",sem:SEM.FOLD_TO_OPEN,freq:48,evBb:0,comment:"Défends ~MDF, fold le reste."},
+        {action:"Call",sem:SEM.CALL_OPEN,chartKey:"c",freq:ip?34:22,evBb:+0.08,comment:ip?"Cold-call IP correct.":"Call OOP capé — prudence."},
+        {action:"Fold",sem:SEM.FOLD_TO_OPEN,chartKey:"f",freq:48,evBb:0,comment:"Défends ~MDF, fold le reste."},
       ];
       coach={explanation:`Face à l'open de ${sc.vilPos}, en ${sc.heroPos}, choisis entre 3-bet (value+bluff) et call ${ip?"IP":"OOP"}. À ${eff}bb effectifs, ${eff<25?"privilégie 3-bet/fold (peu de jeu post-flop)":"tu peux call et jouer post-flop"}.`,
         mistake:"Cold-call OOP trop large, ou 3-bet sans plan.",exploit:`vs ${prof.id} : ${prof.adj.fold>0?"3-bet bluff plus":prof.adj.fold<0?"value-3bet, coupe les bluffs":"équilibre"}.`};
@@ -169,9 +172,9 @@ export function solveScenario(sc){
       const sz=reraiseSizing(node,eff,ip,2.2,2.5);
       reco={action:foldSem,label:semFr(foldSem),freq:58,evBb:0,sizing:null,sizingBb:null,confidence:"Moyenne"};
       alts=[
-        {action:semFr(foldSem),sem:foldSem,freq:58,evBb:0,comment:"La majorité des mains ne défendent pas face à cette agression."},
-        {action:semFr(callSem),sem:callSem,freq:deep?27:12,evBb:+0.05,comment:deep?"Continue avec les mains qui réalisent leur équité.":"Call-off réservé au haut de range."},
-        {action:semFr(upSem),sem:upSem,freq:deep?15:5,evBb:+0.1,sizingBb:sz,
+        {action:semFr(foldSem),sem:foldSem,chartKey:"f",freq:58,evBb:0,comment:"La majorité des mains ne défendent pas face à cette agression."},
+        {action:semFr(callSem),sem:callSem,chartKey:"c",freq:deep?27:12,evBb:+0.05,comment:deep?"Continue avec les mains qui réalisent leur équité.":"Call-off réservé au haut de range."},
+        {action:semFr(upSem),sem:upSem,chartKey:"r",freq:deep?15:5,evBb:+0.1,sizingBb:sz,
           comment:(sz?`Sizing usuel ${sz}bb${sz>=eff?" (tapis)":""}. `:"")+"Value premium + quelques bluffs à blockers."},
       ];
       coach={explanation:`Face au ${deep?"3-bet":"4-bet"} de ${sc.vilPos}, la range se resserre fortement. À ${eff}bb effectifs, ${eff<40?"le jeu devient un choix binaire (continuer tapis ou jeter)":"tu gardes de la marge post-flop en call"}.`,
@@ -219,8 +222,47 @@ export function solveScenario(sc){
   const heroFreqs=buildSolverFreqs(sc.heroPos,heroAct,eff,sc.vilPos);
   const vilFreqs=buildSolverFreqs(sc.vilPos,vilAct,eff,sc.heroPos);
   const heroPct=(()=>{const v=Object.values(heroFreqs);if(!v.length)return 0;const played=v.filter(x=>(x.r||0)+(x.c||0)>=40).length;return Math.round(played/v.length*100);})();
+
+  /* ══════════════════════════════════════════════════════════════
+     FRÉQUENCES DE LA MAIN DE HERO, PAS DE SA RANGE
+
+     `heroFreqs` contient déjà, pour CHAQUE notation de main, la répartition
+     {r, c, f} du nœud. Le moteur ne s'en servait que pour dessiner la grille :
+     les alternatives affichées restaient des constantes de range (« 3-bet
+     18 % · call 22 % · fold 48 % »), identiques pour AA et pour 72o. Le
+     panneau annonçait donc à un joueur tenant K8o un mix qui n'était pas le
+     sien — et recommandait un 3-bet là où la table dit de jeter.
+
+     PÉRIMÈTRE STRICTEMENT PRÉFLOP. Les grilles postflop (`cbet_ip`, `vs_bet`)
+     sont indexées par la main PRÉFLOP et ignorent totalement le board : les
+     présenter comme spécifiques à la main serait une fausse précision (« K8o
+     c-bet 25 % » que le board soit K72 ou AQJ). En postflop on garde donc les
+     fréquences de range, honnêtement étiquetées, et c'est le CFR — lui seul —
+     qui répond pour la main.
+
+     Conséquence : ces chiffres sont des FRÉQUENCES, pas des EV. On abandonne
+     donc les `evBb` constants du nœud, qui contrediraient la répartition
+     (recommander un 3-bet à 0 % parce qu'on lui a attribué une EV plus haute).
+     La mesure d'écart devient l'écart à la fréquence, comme pour le CFR.
+  ══════════════════════════════════════════════════════════════ */
+  const notation=sc.street==="Preflop"?handNotation(ceParseBoardCards(sc.heroCards).slice(0,2)):null;
+  const hf=notation?heroFreqs[notation]:null;
+  const handSpecific=!!(hf&&alts.some(a=>a.chartKey));
+  if(handSpecific){
+    alts=alts.filter(a=>a.chartKey).map(a=>({...a,freq:rb(hf[a.chartKey]||0),evBb:null}));
+    const best=alts.slice().sort((x,y)=>(y.freq||0)-(x.freq||0))[0];
+    if(best){
+      reco={action:best.sem,label:`${semFr(best.sem)}${best.sizingBb!=null?` ${best.sizingBb}bb`:""}`,
+        freq:best.freq,evBb:null,sizing:best.sizingBb!=null?`${best.sizingBb}bb`:null,
+        sizingBb:best.sizingBb??null,confidence:"Estimée (table de range)"};
+    }
+  }
+
   if(icm&&reco){reco.confidence="ICM (estimée)";if(alts[0])alts[0].comment+=" ⚖ ICM : resserre les call-offs marginaux.";}
   return {ok:true,estimated:true,
+    metric:handSpecific?"frequency":"ev",
+    strategyScope:handSpecific?"hand":"range",
+    handNotation:notation,
     spot:{heroPos:sc.heroPos,heroStack:sc.heroStack,vilPos:sc.vilPos,vilStack:sc.vilStack,street:sc.street,potBb:sc.potBb,spr,board:sc.board,heroCards:sc.heroCards,prevAction:sc.prevAction,eff},
     reco,alts,coach,
     heroRange:{freqs:heroFreqs,label:heroLabel,pos:sc.heroPos,pct:heroPct},

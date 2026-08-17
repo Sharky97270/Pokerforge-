@@ -231,6 +231,19 @@ function strategyBySemantic(d) {
   }
   return Object.keys(out).length ? out : null;
 }
+/* Sizings connus, par action sémantique. On ne transmet pas que celui de
+   l'action recommandée : quand le moteur conseille de jeter, il connaît quand
+   même la taille usuelle du 3-bet, et le coach doit pouvoir en parler
+   (« si tu défends, c'est 8bb »). Un sizing absent d'ici reste incitable. */
+function sizingBySemantic(d) {
+  if (!d || !d.alternatives?.length) return null;
+  const out = {};
+  for (const a of d.alternatives) {
+    if (typeof a.sizingBb !== "number" || !a.sem) continue;
+    out[a.sem] = a.sizingBb;
+  }
+  return Object.keys(out).length ? out : null;
+}
 function evOf(d) {
   if (!d || !d.alternatives?.length) return null;
   const out = {};
@@ -276,6 +289,7 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
        solveur, et le coach ne doit pas le présenter comme telle. */
     recommendedSizingBb: typeof d.recommended?.sizingBb === "number" ? d.recommended.sizingBb : null,
     recommendedSizingOrigin: typeof d.recommended?.sizingBb === "number" ? origin : null,
+    sizingBySemantic: sizingBySemantic(d),
     /* ── §6 : provenance et formule autorisée ── */
     origin,
     originLabel: ORIGIN_META[origin].label,

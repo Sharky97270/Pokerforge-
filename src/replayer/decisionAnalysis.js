@@ -217,6 +217,22 @@ function tryHeuristic(hand, step, ctx){
   const bestEv = evs.length ? Math.max(...evs.map(a=>a.evBb)) : null;
   const best = evs.length ? evs.find(a=>a.evBb===bestEv)
                           : alternatives.slice().sort((a,b)=>(b.freq||0)-(a.freq||0))[0];
+
+  /* Le moteur peut répondre POUR LA MAIN de Hero (table de range préflop
+     indexée par notation) plutôt que pour sa range entière. Dans ce cas il
+     renvoie des FRÉQUENCES sans EV : on mesure alors l'écart à la fréquence,
+     exactement comme pour le CFR. Fabriquer une EV à partir d'une table de
+     fréquences serait inventer un chiffre que rien n'a calculé. */
+  if(res.metric==="frequency"){
+    return {
+      source:"heuristic", provenance:"heuristic-engine",
+      metric:"frequency", strategyScope:res.strategyScope || "hand",
+      note:`Table de range PokerForge pour ${res.handNotation || "cette main"} — fréquences estimées, pas une solution GTO.`,
+      alternatives, bestAction:best?.action || null, recommended:best,
+      bestEv:null, coach:res.coach || null, reco:res.reco || null,
+    };
+  }
+
   return {
     source:"heuristic", provenance:"heuristic-engine",
     /* PORTÉE des fréquences (§5/§9) : le moteur heuristique décrit le mix d'une

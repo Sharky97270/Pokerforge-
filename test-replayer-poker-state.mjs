@@ -274,9 +274,29 @@ section("Non-régression : « ouvrir à 2.1bb » en BB face à un open");
   const step = lastHeroStep(hand);
   const t = buildTarget(hand, snaps, CTX(snaps), step);
 
-  ok(t.recommendedSemantic === SEM.THREE_BET,
-    `action recommandée = 3-bet, pas une ouverture (reçu ${t.recommendedSemantic})`);
+  /* La recommandation dépend désormais de la MAIN, plus d'une constante de
+     range. Avec K8o face à un open du hijack, jeter est correct — l'ancien
+     « préférée : raise » était faux sur le fond, pas seulement dans les mots.
+     Ce qui reste interdit dans TOUS les cas : proposer une ouverture. */
+  ok(t.recommendedSemantic === SEM.FOLD_TO_OPEN,
+    `K8o face à un open → fold recommandé (reçu ${t.recommendedSemantic})`);
+  ok(t.recommendedSemantic !== SEM.OPEN_RAISE && t.recommendedSemantic !== SEM.LIMP,
+    "jamais une ouverture ni un limp sur un pot déjà ouvert");
   ok(t.heroSemantic === SEM.FOLD_TO_OPEN, "action Hero = fold face à l'open");
+  ok(t.freqGapPts === 0 && t.metric === "frequency",
+    `le fold de K8o est conforme (écart ${t.freqGapPts} pts, mesure ${t.metric})`);
+
+  /* Et une main qui DOIT 3-better le reçoit bien : la table est lue par main. */
+  {
+    const { hand: h2, snaps: s2 } = makeHand("BB",
+      ["UTGp: folds", "HJp: raises 1 to 2", "COp: folds", "BTNp: calls 2", "SBp: folds", "Hero: folds"],
+      { cards: "Ah Ks" });
+    const t2 = buildTarget(h2, s2, CTX(s2), lastHeroStep(h2));
+    ok(t2.recommendedSemantic === SEM.THREE_BET,
+      `AKo face au même open → 3-bet recommandé (reçu ${t2.recommendedSemantic})`);
+    ok(t2.strategyBySemantic[SEM.THREE_BET] > t.strategyBySemantic[SEM.THREE_BET],
+      "AKo 3-bet plus souvent que K8o — les fréquences ne sont plus des constantes");
+  }
   ok(!(SEM.OPEN_RAISE in (t.strategyBySemantic || {})),
     "OPEN_RAISE absent des alternatives : une BB confrontée ne peut pas ouvrir");
   ok(!(SEM.LIMP in (t.strategyBySemantic || {})), "LIMP absent : le pot est ouvert");
@@ -387,13 +407,17 @@ section("§7 — Validation de la sortie structurée");
   const target = buildTarget(hand, snaps, CTX(snaps), step);
   const facts = { pokerState: target.pokerState, solverData: { target } };
 
+  /* La réponse conforme RECOPIE le moteur : avec K8o face à un open, celui-ci
+     recommande de jeter. Une réponse qui prêcherait le 3-bet serait rejetée,
+     même si « 3-bet » sonne plus savant. */
   const good = {
-    heroAction: SEM.FOLD_TO_OPEN, recommendedAction: SEM.THREE_BET,
-    strategicReason: "En big blind face à l'open du hijack, la cote du pot justifie une défense plus large.",
-    coachAdvice: "Construis une range de 3-bet en BB ; le sizing exact n'est pas disponible pour ce spot.",
+    heroAction: target.heroSemantic, recommendedAction: target.recommendedSemantic,
+    strategicReason: "En big blind face à l'open du hijack, cette main n'a pas assez de réalisation d'équité hors de position pour continuer.",
+    coachAdvice: "Garde une range de défense construite ; le sizing exact n'est pas disponible pour ce spot.",
     concepts: ["cote du pot", "défense de blinde"], warnings: [],
   };
-  ok(validateAiResponse(good, facts).valid, "réponse conforme acceptée");
+  ok(validateAiResponse(good, facts).valid,
+    `réponse conforme acceptée (${target.heroSemantic} / ${target.recommendedSemantic})`);
 
   const wrongReco = { ...good, recommendedAction: SEM.OPEN_RAISE };
   const r1 = validateAiResponse(wrongReco, facts);
@@ -552,8 +576,11 @@ section("Montants postflop (reset de `committed` par street)");
 ═══════════════════════════════════════════════════════════════ */
 section("§5 — Sizing de re-relance : calculé, jamais inventé");
 {
+  /* Main qui 3-bet à 100 % : le sizing n'existe que pour une action
+     AGRESSIVE recommandée. Recommander un fold, c'est n'avoir aucun sizing —
+     et l'afficher « non disponible » est alors la bonne réponse. */
   const sizing = (heroPos, lines, stacks) => {
-    const { hand, snaps } = makeHand(heroPos, lines, { stacks });
+    const { hand, snaps } = makeHand(heroPos, lines, { stacks, cards: "Ah Ks" });
     const t = buildTarget(hand, snaps, CTX(snaps), lastHeroStep(hand));
     return t ? { sz: t.recommendedSizingBb, reco: t.recommendedSemantic, origin: t.recommendedSizingOrigin } : null;
   };

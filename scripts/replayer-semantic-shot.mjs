@@ -58,8 +58,9 @@ const SPOTS = [
     recit: 'HJ ouvre à 2bb, BTN suit, SB jette. Hero (BB) jette K8o.',
     hh: hh('BB', ['UTGp: folds', 'HJp: raises 1 to 2', 'COp: folds', 'BTNp: calls 2', 'SBp: folds', 'Hero: folds'],
       { stacks: { BB: 28, HJ: 92, BTN: 40, SB: 38, UTG: 25, CO: 16 } }),
-    /* 10bb = 4× l'open (Hero est OOP) + 1× l'open pour le caller du BTN. */
-    attendus: ["fold face à l'open", 'open (ouverture)', 'HJ · 2bb', '3-bet', '10bb', 'repère usuel'],
+    /* Les fréquences sont désormais celles de K8o, pas d'une range : le fold
+       est conforme, et la recommandation n'est plus un 3-bet de principe. */
+    attendus: ["fold face à l'open", 'open (ouverture)', 'HJ · 2bb', 'Écart équilibre'],
     interdits: ['ouvrir', 'Open RFI', 'limp', '2.1bb'],
   },
   {
@@ -93,18 +94,18 @@ const SPOTS = [
    exact de production). La seconde DOIT être refusée par le client. */
 const AI_CLEAN = {
   summary: "En big blind face à l'open du hijack, jeter K8o reste défendable, mais la cote proposée autorise une défense plus large.",
-  heroAction: 'FOLD_TO_OPEN', recommendedAction: 'THREE_BET',
-  strategicReason: "Hors de position face à un ouvreur en position tardive, la construction d'une range de 3-bet compense l'absence de réalisation d'équité.",
+  heroAction: 'FOLD_TO_OPEN', recommendedAction: 'FOLD_TO_OPEN',
+  strategicReason: "Hors de position, cette main ne réalise pas assez son équité pour continuer face à cette ouverture.",
   observation: "Aucune tendance ne se déduit d'une main isolée.",
   confidence: 'medium', warnings: ["Estimation PokerForge : aucun résultat solveur exact sur ce spot."],
-  verdict: { rating: 'neutral', heroAction: 'FOLD_TO_OPEN', preferredAction: 'THREE_BET',
-    rationale: "Le fold n'est pas une faute grave, mais la range de défense en BB gagnerait à inclure cette main." },
+  verdict: { rating: 'good', heroAction: 'FOLD_TO_OPEN', preferredAction: 'FOLD_TO_OPEN',
+    rationale: "Jeter cette main hors de position face à un ouvreur en position tardive est conforme." },
   streets: {
     preflop: { status: 'neutral', analysis: "Fold face à l'open du hijack." },
     flop: { status: 'not_played', analysis: '' }, turn: { status: 'not_played', analysis: '' }, river: { status: 'not_played', analysis: '' },
   },
   keyConcepts: ['défense de blinde', 'cote du pot', 'construction de range'],
-  detectedLeaks: [], coachAdvice: "Le 3-bet est préféré selon les données disponibles ; le sizing exact n'est pas disponible pour ce spot.",
+  detectedLeaks: [], coachAdvice: "Garde une range de défense construite ; le sizing exact n'est pas disponible pour ce spot.",
   dataGaps: ['Sizing de 3-bet non disponible pour ce spot.'],
 };
 const AI_FABRICATED = {
@@ -214,7 +215,10 @@ try {
 
     // ── Confrontation écran / déroulement réel ──
     const bloc = panel.verdict || panel.full;
-    const manquants = spot.attendus.filter(a => !bloc.includes(a));
+    /* Les titres de section sont mis en capitales par le CSS et innerText les
+       restitue ainsi : la comparaison doit ignorer la casse. */
+    const norm = bloc.toLowerCase();
+    const manquants = spot.attendus.filter(a => !norm.includes(a.toLowerCase()));
     const fautifs = spot.interdits.filter(a => new RegExp(a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(bloc));
     const okSpot = !manquants.length && !fautifs.length;
     if (!okSpot) failures++;
