@@ -11,6 +11,7 @@
  * Usage : node scripts/replayer-cfr-shot.mjs [--url=…] [--wait=45000] [--out=…]
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 
@@ -48,11 +49,31 @@ const CHROMES = [
   '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ];
-const executablePath = CHROMES.find(p => fs.existsSync(p));
-if (!executablePath) { console.error('Aucun Chrome/Edge trouvé.'); process.exit(2); }
-
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const browser = await puppeteer.launch({ executablePath, headless: 'new', args: ['--hide-scrollbars'], defaultViewport: { width: W, height: H } });
+
+/* Lancement tolérant. Deux pièges rencontrés en usage réel :
+   • si l'utilisateur a déjà Chrome ouvert, une seconde instance délègue à
+     celle en cours et puppeteer échoue sur un « browser is already running »
+     qui n'a rien à voir avec ce qu'on teste → on essaie le navigateur suivant ;
+   • un profil partagé se verrouille après un run interrompu → profil dédié à
+     chaque exécution. */
+async function launchAny() {
+  const found = CHROMES.filter(p => fs.existsSync(p));
+  if (!found.length) { console.error('Aucun Chrome/Edge trouvé.'); process.exit(2); }
+  const errs = [];
+  for (const executablePath of found) {
+    try {
+      return await puppeteer.launch({
+        executablePath, headless: 'new', args: ['--hide-scrollbars'],
+        userDataDir: path.join(os.tmpdir(), `pf-cfr-shot-${process.pid}-${Date.now()}`),
+        defaultViewport: { width: W, height: H },
+      });
+    } catch (e) { errs.push(`${path.basename(executablePath)} : ${String(e.message).split('\n')[0]}`); }
+  }
+  console.error('Aucun navigateur n\'a pu démarrer.\n  ' + errs.join('\n  '));
+  process.exit(2);
+}
+const browser = await launchAny();
 
 try {
   const page = await browser.newPage();
@@ -63,7 +84,13 @@ try {
   await page.goto(URL, { waitUntil: 'networkidle2' });
   await page.evaluate(() => localStorage.setItem('pf_active_tab', 'replayer'));
   await page.reload({ waitUntil: 'networkidle2' });
-  await sleep(700);
+  /* Attendre l'ÉLÉMENT, pas une durée : selon le navigateur réellement utilisé
+     (Chrome ou repli Edge) l'hydratation de React prend de 0,3 à plusieurs
+     secondes, et un `sleep` fixe cliquait dans le vide. */
+  await page.waitForSelector('textarea', { timeout: 20000 });
+  await page.waitForFunction(
+    () => [...document.querySelectorAll('button')].some(b => /Charger les mains|Charger la main/.test(b.textContent)),
+    { timeout: 20000 });
 
   await page.evaluate((hh) => {
     const ta = document.querySelector('textarea');
