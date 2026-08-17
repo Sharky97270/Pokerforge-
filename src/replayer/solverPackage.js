@@ -19,6 +19,7 @@
    Module PUR (aucune dépendance React/DOM) → testable en Node.
 ═══════════════════════════════════════════════════════════════ */
 import { analyzeDecision, analyzeHand } from "./decisionAnalysis.js";
+import { semFr } from "./pokerState.js";
 import { computeEquity } from "../solver/api.js";
 import { buildSolverFreqs } from "../solver/preflopRanges.js";
 import { rangeComboList, EQ_RANKVAL, EQ_SUITIDX } from "../solver/core/combos.js";
@@ -31,6 +32,7 @@ export const SOLVER_PACKAGE_VERSION = "solver-pkg-1.0.0";
 /* ── Vocabulaire de provenance exposé à l'UI et au backend (§8) ── */
 export const PROV = {
   SOLVER: "SOLVER",
+  SOLVER_CFR: "SOLVER_CFR",
   LOOKUP_DB: "LOOKUP_DB",
   EQUITY_EXACT: "EQUITY_EXACT",
   EQUITY_MONTE_CARLO: "EQUITY_MONTE_CARLO",
@@ -44,7 +46,12 @@ export const PROV = {
 /* Métadonnées d'affichage des badges (§16) — couleurs DISTINCTES entre une
    donnée calculée (froides/vertes) et une interprétation IA (grise/violette). */
 export const PROV_META = {
-  SOLVER:             { label: "SOLVER",    color: "#34D8FF", computed: true,  desc: "Stratégie résolue par SharkSolver." },
+  SOLVER:             { label: "SOLVER",    color: "#10D87A", computed: true,  desc: "Stratégie résolue exactement par SharkSolver." },
+  /* Le CFR est un vrai calcul, mais ses RANGES D'ENTRÉE restent heuristiques —
+     et la composition de range pilote l'essentiel de la stratégie postflop.
+     Couleur et libellé distincts du solveur exact : jamais présenté comme un
+     solve GTO complet (§8/§16). */
+  SOLVER_CFR:         { label: "CFR",       color: "#34D8FF", computed: true,  desc: "Solution CFR postflop — calcul exact sur des ranges heuristiques (expérimental)." },
   LOOKUP_DB:          { label: "LOOKUP",    color: "#9B5CFF", computed: true,  desc: "Solution pré-solvée chargée depuis la bibliothèque." },
   EQUITY_EXACT:       { label: "EQUITY",    color: "#10D87A", computed: true,  desc: "Équité par énumération exhaustive." },
   EQUITY_MONTE_CARLO: { label: "EQUITY~",   color: "#FFB020", computed: true,  desc: "Équité estimée par Monte-Carlo (marge d'erreur)." },
@@ -55,10 +62,44 @@ export const PROV_META = {
   UNAVAILABLE:        { label: "INDISPO",   color: "#6A7690", computed: false, desc: "Aucune donnée disponible pour ce spot." },
 };
 
+/* ── §6 : PROVENANCE explicite, et vocabulaire imposé au coach ──
+   Le ton d'une phrase doit dépendre de la solidité de la donnée. Une
+   heuristique annoncée comme « la solution calculée » est un mensonge, même si
+   le conseil est bon. On transporte donc, avec chaque valeur, la formule que
+   le coach a le DROIT d'employer. */
+export const ORIGIN = {
+  SOLVER_EXACT:         "SOLVER_EXACT",
+  SOLVER_LOOKUP:        "SOLVER_LOOKUP",
+  SOLVER_APPROXIMATION: "SOLVER_APPROXIMATION",
+  POKERFORGE_HEURISTIC: "POKERFORGE_HEURISTIC",
+  AI_INTERPRETATION:    "AI_INTERPRETATION",
+  UNAVAILABLE:          "UNAVAILABLE",
+};
+export const ORIGIN_META = {
+  SOLVER_EXACT:         { label: "Solveur exact",       phrase: "La solution calculée indique", trust: "high" },
+  SOLVER_LOOKUP:        { label: "Bibliothèque solvée", phrase: "La solution pré-calculée indique", trust: "high" },
+  SOLVER_APPROXIMATION: { label: "Solveur approché",    phrase: "Le calcul CFR (ranges d'entrée estimées) indique", trust: "medium" },
+  POKERFORGE_HEURISTIC: { label: "Estimation PokerForge", phrase: "Selon l'estimation PokerForge disponible pour ce spot", trust: "low" },
+  AI_INTERPRETATION:    { label: "Interprétation IA",   phrase: "Interprétation pédagogique", trust: "none" },
+  UNAVAILABLE:          { label: "Indisponible",        phrase: "Les données disponibles ne permettent pas d'établir cette conclusion avec suffisamment de fiabilité", trust: "none" },
+};
+
+/* Provenance §8 (badge d'affichage) → provenance §6 (vocabulaire du coach). */
+export function originOf(prov) {
+  switch (prov) {
+    case PROV.LOOKUP_DB: return ORIGIN.SOLVER_LOOKUP;
+    case PROV.SOLVER: return ORIGIN.SOLVER_EXACT;
+    case PROV.SOLVER_CFR: return ORIGIN.SOLVER_APPROXIMATION;
+    case PROV.HEURISTIC: return ORIGIN.POKERFORGE_HEURISTIC;
+    case PROV.UNAVAILABLE: return ORIGIN.UNAVAILABLE;
+    default: return ORIGIN.POKERFORGE_HEURISTIC;
+  }
+}
+
 /* Niveaux de fallback (§19). */
 export const CONF_LEVEL = {
   1: { key: "LOOKUP_EXACT", label: "Lookup exact", badge: "SOLVER" },
-  2: { key: "SOLVER_LIVE", label: "SharkSolver", badge: "SOLVER" },
+  2: { key: "SOLVER_LIVE", label: "SharkSolver (calcul)", badge: "SOLVER" },
   3: { key: "EQUITY_HEURISTIC", label: "Équité + heuristiques PokerForge", badge: "HEURISTIQUE" },
   4: { key: "AI_ONLY", label: "Analyse pédagogique uniquement", badge: "IA" },
 };
@@ -77,23 +118,56 @@ export function cardToInt(str) {
   return r * 4 + su;
 }
 
+/* Cartes visibles à une street donnée. Le HandState porte le board COMPLET de
+   la main ; une décision préflop, elle, se prend sans board. */
+export const STREETS = ["preflop", "flop", "turn", "river"];
+export function boardUpTo(handState, street) {
+  const b = handState?.board || {};
+  const i = STREETS.indexOf(street);
+  if (i <= 0) return [];                                    // préflop (ou street inconnue)
+  const out = [...(b.flop || [])];
+  if (i >= 2 && b.turn) out.push(b.turn);
+  if (i >= 3 && b.river) out.push(b.river);
+  return out;
+}
+
 /**
- * Équité Hero sur la street courante face à la range estimée du vilain.
+ * Équité Hero à une STREET donnée, face à la range estimée du vilain.
  * Retourne null si les cartes Hero sont inconnues (aucune invention §9).
+ *
+ * `opts.street` est déterminant : sans lui, on calculait l'équité sur le board
+ * COMPLET de la main et on l'affichait à côté de CHAQUE décision — y compris la
+ * décision préflop. Le panneau annonçait alors une équité qui suppose de
+ * connaître l'avenir (K8o « à 76 % » en préflop parce que la river donne deux
+ * paires). Une équité n'a de sens qu'attachée à un board précis.
  */
 export function heroEquity(handState, opts = {}) {
   const cards = handState?.hero?.cards || [];
   if (cards.length !== 2) return null;
   const hi = cards.map(cardToInt);
   if (hi.some(c => c == null)) return null;
-  const board = [...(handState.board?.flop || []), handState.board?.turn, handState.board?.river]
-    .filter(Boolean).map(cardToInt).filter(c => c != null);
+  const boardCards = opts.board
+    || (opts.street ? boardUpTo(handState, opts.street)
+      : [...(handState.board?.flop || []), handState.board?.turn, handState.board?.river].filter(Boolean));
+  const board = boardCards.map(cardToInt).filter(c => c != null);
   if (board.length && board.length < 3) return null;
 
   const heroList = [{ cards: hi, w: 1 }];
-  // Range du vilain : range d'ouverture estimée à sa position (provenance HEURISTIC
-  // pour la RANGE — l'équité, elle, est bien calculée sur cette range).
-  const vilPos = (handState.players || []).find(p => !p.isHero)?.position || "BB";
+  /* Range du vilain : range d'ouverture estimée à SA position (provenance
+     HEURISTIC pour la RANGE — l'équité, elle, est bien calculée dessus).
+
+     Le vilain de référence est l'AGRESSEUR, pas le premier siège de la table.
+     L'ancienne version prenait `players.find(p => !p.isHero)` : sur une main
+     « HJ ouvre, Hero BB », elle opposait donc Hero à la range d'UTG pendant que
+     le reste du panneau parlait du hijack. Deux chiffres, deux adversaires, une
+     seule main : l'incohérence était garantie. */
+  const aggressor = (handState.actions || [])
+    .filter(a => !a.isHero && ["bet", "raise", "allin"].includes(a.action))
+    .pop();
+  const vilPos = opts.villainPosition
+    || aggressor?.position
+    || (handState.players || []).find(p => !p.isHero)?.position
+    || "BB";
   const heroPos = handState.hero.position || "BTN";
   const eff = Math.round(handState.hero.stackBB || 100);
   let villList = [];
@@ -110,7 +184,13 @@ export function heroEquity(handState, opts = {}) {
       engine: "SharkSolver/Equity",
       confidence: r.exact ? "high" : "medium",
       rangeSource: PROV.HEURISTIC,
-      rangeNote: `Équité de ${cards.join("")} face à la range estimée de ${vilPos} (range heuristique, calcul d'équité réel).`,
+      villainPosition: vilPos,
+      /* La street est transportée AVEC la valeur : l'UI et le prompt doivent
+         pouvoir dire de quel board on parle, sinon le chiffre redevient
+         ambigu dès qu'il change d'écran. */
+      street: opts.street || (board.length === 0 ? "preflop" : board.length === 3 ? "flop" : board.length === 4 ? "turn" : "river"),
+      boardCards,
+      rangeNote: `Équité de ${cards.join("")} ${board.length ? `sur ${boardCards.join(" ")}` : "préflop"} face à la range estimée de ${vilPos} (range heuristique, calcul d'équité réel).`,
       samples: r.samples ?? null,
       board: board.length,
     };
@@ -120,7 +200,11 @@ export function heroEquity(handState, opts = {}) {
 /* decisionAnalysis.source ("solver"|"heuristic"|"none") → provenance §8. */
 function provFromDecision(d) {
   if (!d) return PROV.UNAVAILABLE;
-  if (d.source === "solver") return d.provenance === "solver-library" ? PROV.LOOKUP_DB : PROV.SOLVER;
+  if (d.source === "solver") {
+    if (d.provenance === "solver-library") return PROV.LOOKUP_DB;
+    if (d.provenance === "cfr-experimental") return PROV.SOLVER_CFR;
+    return PROV.SOLVER;
+  }
   if (d.source === "heuristic") return PROV.HEURISTIC;
   return PROV.UNAVAILABLE;
 }
@@ -133,6 +217,30 @@ function strategyOf(d) {
     if (a.freq == null) continue;
     const k = String(a.action || "").toLowerCase();
     out[k] = rb((a.freq || 0) / 100);
+  }
+  return Object.keys(out).length ? out : null;
+}
+/* Fréquences indexées par ACTION SÉMANTIQUE — c'est cette forme que lit l'UI
+   du verdict et le prompt : « THREE_BET 62 % », jamais « raise 62 % ». */
+function strategyBySemantic(d) {
+  if (!d || !d.alternatives?.length) return null;
+  const out = {};
+  for (const a of d.alternatives) {
+    if (a.freq == null || !a.sem) continue;
+    out[a.sem] = rb(a.freq);
+  }
+  return Object.keys(out).length ? out : null;
+}
+/* Sizings connus, par action sémantique. On ne transmet pas que celui de
+   l'action recommandée : quand le moteur conseille de jeter, il connaît quand
+   même la taille usuelle du 3-bet, et le coach doit pouvoir en parler
+   (« si tu défends, c'est 8bb »). Un sizing absent d'ici reste incitable. */
+function sizingBySemantic(d) {
+  if (!d || !d.alternatives?.length) return null;
+  const out = {};
+  for (const a of d.alternatives) {
+    if (typeof a.sizingBb !== "number" || !a.sem) continue;
+    out[a.sem] = a.sizingBb;
   }
   return Object.keys(out).length ? out : null;
 }
@@ -155,8 +263,13 @@ function evOf(d) {
 export function buildTarget(hand, snaps, ctx = {}, step = null) {
   if (step == null || !snaps?.[step]) return null;
   let d = null;
-  try { d = analyzeDecision(hand, step, snaps[step], ctx); } catch { d = null; }
+  /* `snaps` alimente la reconstruction du contexte de mise : sans lui,
+     l'action sémantique retomberait à null et le coach reparlerait en
+     « raise / call » génériques. */
+  try { d = analyzeDecision(hand, step, snaps[step], { ...ctx, snaps: ctx.snaps || snaps }); } catch { d = null; }
   if (!d) return null;
+  const prov = provFromDecision(d);
+  const origin = originOf(prov);
   return {
     step: d.step,
     street: d.street,
@@ -164,16 +277,47 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
     playedLabel: d.playedLabel,
     recommended: d.recommended?.action || d.bestAction || null,
     recommendedLabel: d.recommended?.label || null,
+    /* ── §3 : les DEUX actions, nommées en vocabulaire poker exact ── */
+    heroSemantic: d.heroSemantic || null,
+    heroSemanticFr: d.heroSemantic ? semFr(d.heroSemantic) : null,
+    recommendedSemantic: d.recommendedSemantic || null,
+    recommendedSemanticFr: d.recommendedSemantic ? semFr(d.recommendedSemantic) : null,
+    /* ── §5 : sizing UNIQUEMENT s'il existe réellement ──
+       Absent = absent : le coach doit dire qu'il n'est pas disponible, jamais
+       en proposer un. Présent, il porte SA provenance : un sizing conventionnel
+       calculé depuis la mise réelle de l'adversaire n'est pas une lecture de
+       solveur, et le coach ne doit pas le présenter comme telle. */
+    recommendedSizingBb: typeof d.recommended?.sizingBb === "number" ? d.recommended.sizingBb : null,
+    recommendedSizingOrigin: typeof d.recommended?.sizingBb === "number" ? origin : null,
+    sizingBySemantic: sizingBySemantic(d),
+    /* ── §6 : provenance et formule autorisée ── */
+    origin,
+    originLabel: ORIGIN_META[origin].label,
+    originPhrase: ORIGIN_META[origin].phrase,
     strategy: strategyOf(d),
+    strategyBySemantic: strategyBySemantic(d),
+    /* Portée des fréquences : "hand" = elles valent pour la main de Hero ;
+       "range" = c'est le mix de la range entière à ce nœud. Le coach n'a pas
+       le droit de confondre les deux. */
+    strategyScope: d.strategyScope || null,
     ev: evOf(d),
     evLossBB: d.evLoss,
+    /* Deux mesures coexistent et ne doivent JAMAIS être confondues :
+       "ev" = perte d'EV en bb ; "frequency" = écart à la fréquence d'équilibre
+       en points de %. Le CFR ne produit que la seconde. */
+    metric: d.metric || "ev",
+    freqGapPts: d.freqGap ?? null,
+    playedFreq: d.playedFreq ?? null,
     grade: d.grade,
     verdict: d.verdict,
     classification: d.cls,
-    source: provFromDecision(d),
+    source: prov,
     note: d.note || null,
     comments: (d.alternatives || []).map(a => a.comment).filter(Boolean).slice(0, 4),
     coach: d.coach?.explanation || null,
+    /* Le PokerState complet accompagne la cible : c'est LUI que le backend
+       transmet au modèle, pas une reconstruction textuelle du coup. */
+    pokerState: d.pokerState || null,
   };
 }
 
@@ -189,7 +333,7 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
 export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) {
   const decisions = [];
   let full = null;
-  try { full = analyzeHand(hand, snaps, ctx); } catch { full = null; }
+  try { full = analyzeHand(hand, snaps, { ...ctx, snaps: ctx.snaps || snaps }); } catch { full = null; }
   if (full) {
     for (const d of full.decisions) {
       decisions.push({
@@ -197,11 +341,25 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
         street: d.street,
         played: d.played,
         playedLabel: d.playedLabel,
+        heroSemantic: d.heroSemantic || null,
+        heroSemanticFr: d.heroSemantic ? semFr(d.heroSemantic) : null,
+        recommendedSemantic: d.recommendedSemantic || null,
+        recommendedSemanticFr: d.recommendedSemantic ? semFr(d.recommendedSemantic) : null,
+        recommendedSizingBb: typeof d.recommended?.sizingBb === "number" ? d.recommended.sizingBb : null,
+        facingAction: d.pokerState?.facingAction || null,
+        facingActionFr: d.pokerState?.facingAction ? semFr(d.pokerState.facingAction) : null,
+        aggressorPosition: d.pokerState?.lastAggressor?.position || null,
+        aggressorToBb: d.pokerState?.lastAggressor?.toAmountBB ?? null,
+        heroPosition: d.pokerState?.hero?.position || null,
+        legalActions: d.pokerState?.legalActions || null,
+        strategyScope: d.strategyScope || null,
         recommended: d.recommended?.action || d.bestAction || null,
         recommendedLabel: d.recommended?.label || null,
         strategy: strategyOf(d),
         ev: evOf(d),
         evLossBB: d.evLoss,
+        metric: d.metric || "ev",
+        freqGapPts: d.freqGap ?? null,
         grade: d.grade,
         classification: d.cls,
         source: provFromDecision(d),
@@ -213,14 +371,26 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
   }
 
   const targetBlock = opts.step != null ? buildTarget(hand, snaps, ctx, opts.step) : null;
-  const eq = heroEquity(handState, opts);
+  /* L'équité est un Monte-Carlo : l'appelant peut la calculer et l'injecter
+     pour que l'arrivée d'une solution CFR ne la relance pas. Elle doit
+     correspondre à la STREET DE LA DÉCISION analysée — pas au board final de
+     la main. Le vilain de référence est l'agresseur du spot. */
+  const eqStreet = targetBlock?.street || null;
+  const eq = opts.equity !== undefined
+    ? opts.equity
+    : heroEquity(handState, {
+        ...opts,
+        street: eqStreet,
+        villainPosition: opts.villainPosition
+          || targetBlock?.pokerState?.lastAggressor?.position || undefined,
+      });
 
   // Niveau de confiance global (§19)
   const sources = new Set(decisions.map(d => d.source));
   if (targetBlock) sources.add(targetBlock.source);
   let level = 4;
   if (sources.has(PROV.LOOKUP_DB)) level = 1;
-  else if (sources.has(PROV.SOLVER)) level = 2;
+  else if (sources.has(PROV.SOLVER) || sources.has(PROV.SOLVER_CFR)) level = 2;
   else if (sources.has(PROV.HEURISTIC) || eq) level = 3;
 
   const streets = {};
@@ -247,6 +417,8 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
     disclaimer:
       level >= 3
         ? "Résultat solveur exact indisponible sur ce spot : les valeurs affichées sont des estimations PokerForge, pas des fréquences GTO."
-        : null,
+        : sources.has(PROV.SOLVER_CFR)
+          ? "Fréquences réellement calculées par CFR, mais sur des ranges d'entrée heuristiques : c'est un calcul, pas un solve GTO complet."
+          : null,
   };
 }

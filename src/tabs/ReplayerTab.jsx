@@ -1,5 +1,5 @@
 // PokerForge — Replayer : parser multi-room, rejeu pas-a-pas, analyse IA, solver de spot (extrait de App.jsx, Phase 3.3)
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { T } from "../theme.js";
 import { useIsMobile } from "../utils/ui.js";
 import { apiSolverAnalyze, apiRangesCompare, apiSaveSpot, apiListSpots, apiDeleteSpot } from "../solverApi.js";
@@ -7,21 +7,29 @@ import { loadStats, saveStats, saveStatsSafe, loadHands, saveHands } from "../st
 import { POSITIONS_BY_SIZE, SPOTS } from "../data/content.js";
 import { MiniCard, Card, CardFlip } from "../components/table/Cards.jsx";
 import RangesTab from "./RangesTab.jsx";
-/* Ranges heuristiques du solveur — source unique (SharkSolver). `solveScenario`
-   les utilisait sans les importer → ReferenceError silencieuse (bug préexistant). */
+/* Ranges heuristiques du solveur — source unique (SharkSolver). */
 import { buildSolverFreqs } from "../solver/preflopRanges.js";
+/* Moteur heuristique de scénario — extrait dans un module PUR (testable Node). */
+import {
+  SOLVER_VPROFILES, RSOLV_MODES, RSOLV_FORMATS, SOLVER_POS,
+  SOLVER_DEFAULT_SC, scenarioFromHand, solveScenario,
+} from "../replayer/heuristicEngine.js";
 /* ── Replayer refonte v1 : moteur normalisé + table immersive ── */
 import { parseSession as pfParseSessionV2 } from "../replayer/handModel.js";
-import { computeSnapshot, computeAllSnapshots } from "../replayer/stateEngine.js";
+import { computeAllSnapshots } from "../replayer/stateEngine.js";
 import ReplayTableImmersive from "../replayer/ReplayTableImmersive.jsx";
 import DecisionPanel from "../replayer/DecisionPanel.jsx";
 /* ── Analyse IA sécurisée : HandState normalisé → SharkSolver → backend → IA ── */
 import { buildHandState, spotLabel } from "../replayer/handState.js";
+import { validatePokerState } from "../replayer/pokerStateValidator.js";
 import { publishAnalysisContext } from "../replayer/handoff.js";
-import { buildSolverPackage, buildTarget } from "../replayer/solverPackage.js";
+import { buildSolverPackage, buildTarget, heroEquity } from "../replayer/solverPackage.js";
 import { analyzeWithCache, LOADING_STEPS } from "../replayer/aiAnalysis.js";
 import AiAnalysisPanel from "../replayer/AiAnalysisPanel.jsx";
 import { recordHand, handObservations } from "../replayer/leakEngine.js";
+/* ── Solveur CFR postflop : pré-solve en arrière-plan (Web Worker) ── */
+import { buildReplayerCfrRequest, cfrResultToBlock, solvableSteps } from "../replayer/postflopSolve.js";
+import { solvePostflopAsync, isCfrWorkerAvailable } from "../solver/cfrPostflopClient.js";
 import { getSession, onAuthChange } from "../auth.js";
 
 /* Enrichit un NormalizedHand de champs de compatibilité (seats/actions/site…)
@@ -846,128 +854,83 @@ function SingleHandSummary({hand,unit}){
 
 /* ═══════════════════════════════════════════════════════════════
    REPLAYER · SOLVER — moteur heuristique (« Analyse estimée »)
-   Dérive un scénario depuis la main + step, recommande une action,
-   construit les ranges Hero/Vilain (buildSolverFreqs) et l'explication.
+   Extrait dans src/replayer/heuristicEngine.js : un module PUR est testable
+   en Node, contrairement à ce fichier JSX. C'est là que vivait le bug de
+   nommage d'action (« Open 2.1bb » proposé à une BB face à un open), et
+   c'est là qu'il est désormais couvert par des tests.
 ═══════════════════════════════════════════════════════════════ */
-const SOLVER_VPROFILES=[
-  {id:"Nit",adj:{fold:+2,bluff:-1,value:-1}},{id:"Fish",adj:{fold:-2,bluff:-2,value:+2}},
-  {id:"TAG",adj:{fold:0,bluff:0,value:0}},{id:"LAG",adj:{fold:-1,bluff:+1,value:0}},
-  {id:"Reg",adj:{fold:0,bluff:0,value:0}},{id:"Maniac",adj:{fold:-2,bluff:+2,value:+1}},
-];
-const RSOLV_MODES=[["gto","GTO"],["exploit","Exploit"],["icm","ICM"],["chipev","ChipEV"]];
-const RSOLV_FORMATS=["Cash","MTT","KO","PKO"];
-const SOLVER_POS=["UTG","HJ","CO","BTN","SB","BB"];
-/* Board "A♥ K♦ 7♣" ou "Ah Kd 7c" → [{r,s}]. Local et tolérant : `parseBoardToken`
-   (SharkSolver) n'était pas importé ici ET renvoie {valid,cards:[ints]}, pas un
-   tableau — d'où un comptage toujours nul (« board incomplet ») en postflop. */
-function ceParseBoardCards(str){
-  const m=String(str||"").replace(/10/g,"T").match(/[2-9TJQKAtjqka][shdc♠♥♦♣]/g)||[];
-  return m.map(tok=>({r:tok[0].toUpperCase(),s:tok[1]}));
-}
-function ceBoardCount(str){ return ceParseBoardCards(str).length; }
-function scenarioFromHand(hand,step){
-  if(!hand||!hand.events)return null;
+
+/* ═══════════════════════════════════════════════════════════════
+   §11 — TRAÇABILITÉ INTER-COUCHES (développement)
+
+   Une information ne doit pas changer de sens en traversant le pipeline :
+     HAND HISTORY → SNAPSHOT → POKER STATE → SOLVEUR → PAYLOAD IA → RÉPONSE → UI
+   Ces logs impriment chaque couche côte à côte pour qu'un écart saute aux yeux
+   pendant la mise au point. Ils ne s'activent QU'EN DÉVELOPPEMENT (ou avec
+   `localStorage.pf_debug_ai = "1"`) : en production, la console reste muette.
+═══════════════════════════════════════════════════════════════ */
+function aiDebugOn(){
   try{
-    const snap=computeSnapshot(hand,step);
-    const cap=s=>s?s[0].toUpperCase()+s.slice(1):s;
-    const hero=snap.players.find(p=>p.isHero)||snap.players[0];
-    const heroPos=hero?.pos||hand.heroPos||"BTN";
-    const heroStack=Math.max(0,Math.round(hero?.stack||100));
-    let vil=snap.players.find(p=>!p.isHero&&p.pos===hand.vilPos)||snap.players.find(p=>!p.isHero&&!p.folded)||snap.players.find(p=>!p.isHero);
-    const vilPos=vil?.pos||hand.vilPos||"BB";
-    const vilStack=Math.max(0,Math.round(vil?.stack||100));
-    const street=cap(snap.street)||"Preflop";
-    const board=(snap.board||[]).map(c=>c.r+c.s).join(" ");
-    const heroCards=(hero?.hole||[]).map(c=>c.r+c.s).join(" ");
-    /* Action précédente = dernière action d'un ADVERSAIRE sur la MÊME street,
-       avant l'étape courante (et non l'action de Hero lui-même — sinon le
-       moteur croyait Hero « non confronté » et proposait des alternatives
-       d'ouverture face à une mise). */
-    const prevEv=hand.events.slice(0,step).reverse()
-      .find(e=>["bet","raise","allin","call","check"].includes(e.type)
-        && e.playerId!==hand.heroId && e.street===snap.street);
-    const prevAction=prevEv?prevEv.label:"—";
-    return {format:hand.gameType==="mtt"?"MTT":"Cash",players:snap.players.length,heroPos,vilPos,
-      heroStack,vilStack,potBb:Math.round(snap.potTotal*10)/10,board,heroCards,street,prevAction,
-      villainProfile:"Reg",mode:"gto"};
-  }catch{return null;}
+    if(localStorage.getItem("pf_debug_ai")==="1")return true;
+    return !!(import.meta && import.meta.env && import.meta.env.DEV);
+  }catch{return false;}
 }
-const SOLVER_DEFAULT_SC={format:"Cash",players:6,heroPos:"BTN",vilPos:"BB",heroStack:100,vilStack:100,potBb:1.5,board:"",heroCards:"",street:"Preflop",prevAction:"—",villainProfile:"Reg",mode:"gto"};
-function solveScenario(sc){
-  const fixes=[];
-  const need={Preflop:0,Flop:3,Turn:4,River:5}[sc.street]??0;
-  const bc=ceBoardCount(sc.board);
-  if(sc.heroStack<=0)return {ok:false,error:"Scénario impossible — stack Hero insuffisant.",why:"stack",fix:{heroStack:100}};
-  if(sc.heroPos===sc.vilPos)return {ok:false,error:"Scénario incohérent — Hero et Vilain à la même position.",why:"position",fix:{vilPos:sc.heroPos==="BB"?"BTN":"BB"}};
-  if(sc.potBb<0)return {ok:false,error:"Scénario incohérent — pot négatif.",why:"pot",fix:{potBb:1.5}};
-  if(need>0&&bc<need)return {ok:false,error:`Board incomplet pour ${sc.street} (${bc}/${need} cartes).`,why:"board",fix:{board:["As","Kd","7h","2c","9s"].slice(0,need).join(" ")}};
-  const eff=Math.min(sc.heroStack,sc.vilStack);
-  const spr=sc.street==="Preflop"?null:Math.round((eff/Math.max(0.5,sc.potBb))*10)/10;
-  const exploit=sc.mode==="exploit"; const icm=sc.mode==="icm";
-  const prof=SOLVER_VPROFILES.find(p=>p.id===sc.villainProfile)||SOLVER_VPROFILES[4];
-  const ip=["BTN","CO","HJ"].includes(sc.heroPos);
-  const facing=/raise|bet|3-?bet|all-?in|relance|mise/i.test(sc.prevAction||"");
-  let heroAct,vilAct,heroLabel,vilLabel,reco,alts,coach;
-  if(sc.street==="Preflop"){
-    if(!facing){
-      heroAct="rfi"; heroLabel="Open RFI"; vilAct="rfi"; vilLabel="Range d'ouverture";
-      const openSz=sc.format==="Cash"?(ip?2.3:2.5):2.1;
-      reco={action:"Open",label:`Open ${openSz}bb`,freq:ip?78:62,evBb:+(0.18+(ip?0.06:0)).toFixed(2),sizing:`${openSz}bb`,confidence:"Moyenne"};
-      alts=[
-        {action:"Open",freq:ip?78:62,evBb:+(0.18).toFixed(2),comment:`Sizing standard ${openSz}bb.`},
-        {action:"Fold",freq:ip?20:36,evBb:0,comment:"Mains hors range d'ouverture."},
-        {action:"Limp",freq:2,evBb:-0.2,comment:"Rare, déconseillé (sauf SB)."},
-      ];
-      coach={explanation:`En ${sc.heroPos} (${ip?"in position":"out of position"}), ouvre ta range RFI à ${openSz}bb. Plus tu es proche du bouton, plus ta range s'élargit.`,
-        mistake:"Open trop large UTG/HJ ou limp passif.",exploit:`vs ${prof.id} : ${prof.id==="Nit"?"vole plus large ses blindes":prof.id==="Fish"?"value-bet épais post-flop":"reste équilibré"}.`};
-    } else {
-      heroAct="vs_open"; heroLabel="Défense vs Open"; vilAct="rfi"; vilLabel="Range d'open estimée";
-      const threeBetSz=ip?3:4;
-      reco={action:eff<25?"3-Bet/Fold":"3-Bet ou Call",label:`3-Bet ${threeBetSz}x ou Call IP`,freq:38,evBb:+0.12,sizing:`${threeBetSz}x`,confidence:"Moyenne"};
-      alts=[
-        {action:"3-Bet",freq:exploit&&prof.adj.fold>0?24:18,evBb:+0.2,comment:prof.adj.fold>0?"Élargis les bluff-3bets (il sur-fold).":"Value + bluffs équilibrés."},
-        {action:"Call",freq:ip?34:22,evBb:+0.08,comment:ip?"Cold-call IP correct.":"Call OOP capé — prudence."},
-        {action:"Fold",freq:48,evBb:0,comment:"Défends ~MDF, fold le reste."},
-      ];
-      coach={explanation:`Face à l'open, en ${sc.heroPos}, choisis entre 3-bet (value+bluff) et call ${ip?"IP":"OOP"}. À ${eff}bb effectifs, ${eff<25?"privilégie 3-bet/fold (peu de jeu post-flop)":"tu peux call et jouer post-flop"}.`,
-        mistake:"Cold-call OOP trop large, ou 3-bet sans plan.",exploit:`vs ${prof.id} : ${prof.adj.fold>0?"3-bet bluff plus":prof.adj.fold<0?"value-3bet, coupe les bluffs":"équilibre"}.`};
+function logAnalysisLayers({hand,snaps,handState,solverPkg,step,mode}){
+  if(!aiDebugOn())return;
+  try{
+    const t=solverPkg?.target||null, ps=t?.pokerState||null;
+    console.groupCollapsed(`%c[PokerForge] Analyse ${mode} — étape ${step}`,"color:#34D8FF;font-weight:700");
+
+    const ev=hand?.events?.[step];
+    console.log("① HAND HISTORY  ", {type:ev?.type,label:ev?.label,street:ev?.street,
+      montant:ev?.amount,total:ev?.toAmount});
+    console.log("② SNAPSHOT      ", {street:snaps?.[step]?.street,
+      potAvant:snaps?.[step-1]?.potTotal,potApres:snaps?.[step]?.potTotal,
+      actifs:snaps?.[step]?.players?.filter(p=>!p.folded).map(p=>p.pos)});
+    console.log("③ POKER STATE   ", ps?{
+      heroPos:ps.hero.position,cartes:ps.hero.cards.join(""),
+      affronte:`${ps.facingAction} (${ps.facingActionFr})`,
+      agresseur:ps.lastAggressor?`${ps.lastAggressor.position} ${ps.lastAggressor.semantic} ${ps.lastAggressor.toAmountBB}bb`:"—",
+      actionHero:`${ps.heroAction} (${ps.heroActionFr})`,
+      legales:ps.legalActions.join(" / "),
+      betLevel:ps.betLevel,aPayer:ps.toCallBB,pot:ps.potBB,cote:ps.potOddsPct,
+    }:"(pas de décision Hero à cette étape)");
+    if(ps){
+      const v=validatePokerState(ps);
+      console.log(v.valid?"   ✓ état cohérent":"   ✗ ÉTAT INCOHÉRENT",v.valid?"":v.errors);
     }
-  } else {
-    heroAct="rfi"; heroLabel="Range (continuation)"; vilAct="rfi"; vilLabel="Range estimée";
-    const tex=(()=>{try{const cs=ceParseBoardCards(sc.board).slice(0,3);if(cs.length<3)return "—";const rk=cs.map(c=>c.r);const su=cs.map(c=>c.s);const paired=rk[0]===rk[1]||rk[1]===rk[2]||rk[0]===rk[2];const mono=su[0]===su[1]&&su[1]===su[2];return paired?"appariée":mono?"monocolore":"dispersée";}catch{return "—";}})();
-    const wet=tex!=="dispersée";
-    if(facing){
-      const toCall=Math.max(0.5,sc.potBb*0.5); const potOdds=Math.round(toCall/(sc.potBb+toCall)*100);
-      reco={action:"Call/Fold selon équité",label:wet?"Prudence (board humide)":"Bluff-catch possible",freq:50,evBb:0,sizing:"—",confidence:"Estimée"};
-      alts=[
-        {action:"Call",freq:exploit&&prof.adj.fold<0?60:45,evBb:+0.05,comment:`Pot odds ≈ ${potOdds}% — call si ton équité dépasse ce seuil.`},
-        {action:"Raise",freq:wet?18:12,evBb:+0.1,comment:wet?"Raise value/semi-bluff sur board dynamique.":"Raise polarisé."},
-        {action:"Fold",freq:40,evBb:0,comment:"Fold les mains sous le seuil de pot odds."},
-      ];
-      coach={explanation:`${sc.street} ${tex}, SPR ${spr}. Face à une mise, compare ton équité aux pot odds (${potOdds}%). ${wet?"Board humide : attention aux tirages.":"Board sec : bluff-catch plus large."}`,
-        mistake:"Call river de curiosité / fold trop fort vs sizing faible.",exploit:`vs ${prof.id} : ${prof.adj.bluff>0?"hero-call plus (il bluffe)":prof.adj.value>0?"fold tes bluff-catchs faibles (il value)":"équilibre"}.`};
-    } else {
-      const cbet=ip?(wet?66:33):(wet?75:40);
-      reco={action:"C-bet",label:`C-bet ${cbet}% pot`,freq:wet?55:70,evBb:+0.14,sizing:`${cbet}% pot`,confidence:"Estimée"};
-      alts=[
-        {action:"Bet",freq:wet?55:70,evBb:+0.14,comment:`Sizing ${cbet}% adapté à un board ${tex}.`},
-        {action:"Check",freq:wet?45:30,evBb:+0.05,comment:wet?"Check une partie de ta range sur board humide.":"Check-back tes mains moyennes."},
-        {action:"All-in",freq:spr&&spr<2?20:3,evBb:+0.1,comment:spr&&spr<2?"SPR bas : jam value/semi-bluff.":"Réservé aux spots polarisés."},
-      ];
-      coach={explanation:`${sc.street} ${tex}, SPR ${spr}, ${ip?"IP":"OOP"}. C-bet ${cbet}% : ${wet?"sur board humide, mise plus gros et plus polarisé":"sur board sec, range-bet petit"}.`,
-        mistake:"C-bet automatique 100% sur board humide multiway.",exploit:`vs ${prof.id} : ${prof.adj.fold>0?"c-bet bluff plus (il fold trop)":prof.adj.fold<0?"value-bet, coupe les bluffs (il call)":"équilibre"}.`};
-    }
-  }
-  const heroFreqs=buildSolverFreqs(sc.heroPos,heroAct,eff,sc.vilPos);
-  const vilFreqs=buildSolverFreqs(sc.vilPos,vilAct,eff,sc.heroPos);
-  const heroPct=(()=>{const v=Object.values(heroFreqs);if(!v.length)return 0;const played=v.filter(x=>(x.r||0)+(x.c||0)>=40).length;return Math.round(played/v.length*100);})();
-  if(icm&&reco){reco.confidence="ICM (estimée)";if(alts[0])alts[0].comment+=" ⚖ ICM : resserre les call-offs marginaux.";}
-  return {ok:true,estimated:true,
-    spot:{heroPos:sc.heroPos,heroStack:sc.heroStack,vilPos:sc.vilPos,vilStack:sc.vilStack,street:sc.street,potBb:sc.potBb,spr,board:sc.board,heroCards:sc.heroCards,prevAction:sc.prevAction,eff},
-    reco,alts,coach,
-    heroRange:{freqs:heroFreqs,label:heroLabel,pos:sc.heroPos,pct:heroPct},
-    vilRange:{freqs:vilFreqs,label:vilLabel,pos:sc.vilPos},
-    fixes};
+    console.log("④ SOLVEUR       ", t?{
+      provenance:t.origin,portee:t.strategyScope,mesure:t.metric,
+      recommande:`${t.recommendedSemantic} (${t.recommendedSemanticFr})`,
+      sizing:t.recommendedSizingBb??"non disponible",
+      frequences:t.strategyBySemantic,
+      ecart:t.metric==="frequency"?`${t.freqGapPts} pts`:`${t.evLossBB} bb`,
+    }:"(aucune cible)");
+    console.log("⑤ PAYLOAD IA    ", {handStateOctets:JSON.stringify(handState||{}).length,
+      solverOctets:JSON.stringify(solverPkg||{}).length,niveau:solverPkg?.level});
+    console.groupEnd();
+  }catch{ /* un log ne doit jamais casser une analyse */ }
+}
+function logAnalysisOutput(res,solverPkg){
+  if(!aiDebugOn())return;
+  try{
+    const t=solverPkg?.target||null;
+    console.groupCollapsed(`%c[PokerForge] Réponse IA — ${res.ok?"acceptée":"refusée"}`,
+      `color:${res.ok?"#3ED598":"#FF4560"};font-weight:700`);
+    if(!res.ok){ console.log("⑥ ERREUR", res.error); console.groupEnd(); return; }
+    const a=res.analysis;
+    console.log("⑥ RÉPONSE       ",{heroAction:a.heroAction,recommendedAction:a.recommendedAction,
+      confiance:a.confidence,avertissements:a.warnings});
+    /* Le point de contrôle qui manquait : l'IA a-t-elle dit LA MÊME CHOSE que
+       le moteur ? Toute divergence est un bug, pas une nuance de style. */
+    const okHero=!t?.pokerState?.heroAction||a.heroAction===t.pokerState.heroAction;
+    const okReco=!t?.recommendedSemantic||a.recommendedAction===t.recommendedSemantic;
+    console.log(okHero&&okReco?"   ✓ IA alignée sur le moteur":"   ✗ DIVERGENCE IA / MOTEUR",
+      okHero&&okReco?"":{moteurHero:t?.pokerState?.heroAction,iaHero:a.heroAction,
+        moteurReco:t?.recommendedSemantic,iaReco:a.recommendedAction});
+    console.log("⑦ META          ",res.meta);
+    console.groupEnd();
+  }catch{ /* idem */ }
 }
 function loadSolverSpots(){try{return JSON.parse(localStorage.getItem("pf_solver_spots")||"[]");}catch{return [];}}
 function saveSolverSpots(a){try{localStorage.setItem("pf_solver_spots",JSON.stringify(a.slice(0,120)));}catch{}}
@@ -1334,6 +1297,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
     setAi({status:"loading",analysis:null,meta:null,error:null,stepIndex:0});
     const tick=setInterval(()=>setAi(a=>a.status==="loading"
       ?{...a,stepIndex:Math.min(LOADING_STEPS.length-1,a.stepIndex+1)}:a),1400);
+    logAnalysisLayers({hand,snaps,handState,solverPkg,step:snapStep,mode:wanted});
     try{
       const res=await analyzeWithCache({
         handState, solverData:solverPkg, analysisMode:wanted,
@@ -1341,6 +1305,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
       });
       clearInterval(tick);
       if(seq!==aiSeq.current)return;               // analyse obsolète (main changée)
+      logAnalysisOutput(res,solverPkg);
       if(!res.ok){
         setAi({status:"error",analysis:null,meta:null,error:res.error,stepIndex:0});
         showToast(`⚠ ${res.error.title}`,"warn");
@@ -1378,22 +1343,97 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
   const sampleHand=useMemo(()=>{const s=pfParseSessionV2(SAMPLE_HH);return s.hands[0]?hydrateReplayHand(s.hands[0]):null;},[]);
   /* Contexte d'analyse (§22) : le scénario vient du snapshot, la référence
      stratégique du solveur quand c'est solvable, sinon du moteur heuristique. */
-  const analysisCtx=useMemo(()=>({buildScenario:scenarioFromHand,solve:solveScenario}),[]);
+  /* ══════════════════════════════════════════════════════════════
+     SOLVEUR CFR POSTFLOP — pré-solve en arrière-plan (§19)
+
+     Le solve est synchrone et CPU-bound (~0,6 à 10 s) : il vit dans un Web
+     Worker, jamais sur le thread principal. Le rejeu reste donc fluide et la
+     décision affichée est d'abord heuristique ; quand le CFR arrive, il la
+     REMPLACE et le badge passe de « HEURISTIQUE » à « CFR ».
+
+     Les résultats sont mémorisés par étape (`cfrByStep`) : revenir sur une
+     décision déjà résolue est instantané, et l'analyse de toute la main
+     bénéficie de tout ce qui a été calculé pendant que l'utilisateur navigue.
+     Si les Workers sont indisponibles (build standalone en fichier unique),
+     on reste simplement sur l'heuristique — sans rien annoncer de faux.
+  ══════════════════════════════════════════════════════════════ */
+  const[cfrByStep,setCfrByStep]=useState({});
+  const[cfrSolving,setCfrSolving]=useState(false);
+  const cfrHandRef=useRef(null);
+
+  /* `snaps` est déclaré plus bas (zone morte temporelle d'un const) : on relit
+     donc la source mémoïsée directement. */
+  const analysisCtx=useMemo(()=>({
+    buildScenario:scenarioFromHand, solve:solveScenario, cfr:cfrByStep, snaps:hand?._snaps||null,
+  }),[cfrByStep,hand]);
 
   /* ── HandState normalisé (§6) : forme unique envoyée au backend ── */
   const handState=useMemo(()=>hand?buildHandState(hand):null,[hand]);
-  /* ── Package solveur (§7) : calculé UNE FOIS par main (l'équité Monte-Carlo
-     ne doit pas être relancée à chaque déplacement du curseur). ── */
+  /* ── ÉQUITÉ : une par STREET, mémoïsée ──
+     Une équité n'a de sens qu'attachée à un board. La calculer une seule fois
+     par main revenait à l'évaluer sur le board FINAL puis à l'afficher à côté
+     de chaque décision, y compris préflop : le panneau annonçait une équité
+     qui suppose de connaître l'avenir. On en calcule donc une par street (4 au
+     maximum), et le cache évite de relancer le Monte-Carlo à chaque solution
+     CFR qui arrive ou à chaque déplacement du curseur. */
+  const eqCache=useRef({hand:null,byStreet:{}});
+  const heroEqFor=useCallback(street=>{
+    if(!handState||!street)return null;
+    const c=eqCache.current;
+    if(c.hand!==hand?.id){ c.hand=hand?.id||null; c.byStreet={}; }
+    if(!(street in c.byStreet)) c.byStreet[street]=heroEquity(handState,{street});
+    return c.byStreet[street];
+  },[handState,hand?.id]);
+
+  /* ── Package solveur (§7) ── */
   const solverBase=useMemo(()=>(hand&&snaps&&handState)
-    ?buildSolverPackage(hand,snaps,handState,analysisCtx):null,[hand,snaps,handState,analysisCtx]);
+    ?buildSolverPackage(hand,snaps,handState,analysisCtx,{equity:null}):null,
+    [hand,snaps,handState,analysisCtx]);
   /* ── Décision ciblée : suit le curseur, sans recalculer le reste. ── */
   const solverPkg=useMemo(()=>{
     if(!solverBase)return null;
     const target=buildTarget(hand,snaps,analysisCtx,snapStep);
     const sources=new Set(solverBase.sources);
     if(target)sources.add(target.source);
-    return {...solverBase,target,sources:[...sources]};
-  },[solverBase,hand,snaps,analysisCtx,snapStep]);
+    /* L'équité suit la street de la décision regardée. Sans décision Hero sous
+       le curseur, on n'en affiche aucune plutôt qu'une équité d'une autre
+       street. */
+    return {...solverBase,target,equity:target?heroEqFor(target.street):null,sources:[...sources]};
+  },[solverBase,hand,snaps,analysisCtx,snapStep,heroEqFor]);
+  /* Nouvelle main → on repart d'un cache vide (les étapes ne désignent plus
+     les mêmes décisions). */
+  useEffect(()=>{
+    if(cfrHandRef.current!==hand?.id){cfrHandRef.current=hand?.id||null;setCfrByStep({});setCfrSolving(false);}
+  },[hand?.id]);
+
+  /* Décisions Hero résolubles par le CFR dans cette main. */
+  const cfrSteps=useMemo(()=>(hand&&snaps)?solvableSteps(hand,snaps):[],[hand,snaps]);
+
+  /* Pré-solve : la décision sous le curseur d'abord (c'est celle que
+     l'utilisateur regarde), puis les autres, une à la fois pour ne pas saturer
+     le worker. Un résultat périmé (main changée) est ignoré. */
+  useEffect(()=>{
+    if(!hand||!snaps||!cfrSteps.length||!isCfrWorkerAvailable())return;
+    const pending=cfrSteps.filter(s=>!cfrByStep[s]);
+    if(!pending.length){setCfrSolving(false);return;}
+    // Priorité à l'étape courante, sinon la plus proche du curseur.
+    const target=pending.includes(snapStep)?snapStep
+      :pending.slice().sort((a,b)=>Math.abs(a-snapStep)-Math.abs(b-snapStep))[0];
+    const built=buildReplayerCfrRequest(hand,snaps,target);
+    if(!built){setCfrByStep(m=>({...m,[target]:{unsolvable:true}}));return;}
+    const myHand=hand.id;let cancelled=false;
+    setCfrSolving(true);
+    solvePostflopAsync(built.request).then(res=>{
+      if(cancelled||cfrHandRef.current!==myHand)return;      // résultat périmé
+      const block=cfrResultToBlock(res,built);
+      // Un échec est mémorisé aussi : sans ça on relancerait le même solve en
+      // boucle à chaque rendu.
+      setCfrByStep(m=>({...m,[target]:block||{unsolvable:true,reason:res?.reason||"no-solution"}}));
+      setCfrSolving(false);
+    });
+    return()=>{cancelled=true;};
+  },[hand,snaps,cfrSteps,cfrByStep,snapStep]);
+
   /* ── Motifs & tendances (§13/§14) : agrégat local alimenté par les mains vues. ── */
   const [leakAgg,setLeakAgg]=useState(null);
   useEffect(()=>{
@@ -1754,7 +1794,7 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
                     aiState={ai} solverPkg={solverPkg}
                     mode={aiMode} setMode={setAiMode}
                     onAnalyze={()=>deepAnalyze()} onRetry={()=>deepAnalyze()}
-                    signedIn={signedIn} hasHand={!!hand}/>
+                    signedIn={signedIn} hasHand={!!hand} cfrSolving={cfrSolving}/>
                   {cur?.note&&(
                     <div style={{padding:"6px 8px",background:"rgba(255,69,96,.06)",border:"1px solid rgba(255,69,96,.18)",borderRadius:6,fontSize:8.5,color:T.text2,fontFamily:T.stats}}>
                       <span style={{color:T.red}}>⚠ </span>{cur.note}
