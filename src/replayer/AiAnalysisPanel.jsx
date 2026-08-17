@@ -111,7 +111,7 @@ function ActionLine({ label, value, sub, col, big }) {
   );
 }
 
-function VerdictBlock({ target, mode, totalEvLossBB, ratingCol }) {
+function VerdictBlock({ target, mode, ratingCol }) {
   if (mode === "full_hand" || !target) return null;
   const heroFr = target.heroSemanticFr || target.playedLabel || "—";
   const recoFr = target.recommendedSemanticFr || null;
@@ -262,7 +262,15 @@ export default function AiAnalysisPanel({
         {solverPkg?.equity && (
           <div style={{ marginTop: 7, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.06)",
             display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 8.5, color: T.text3, fontFamily: T.stats, flex: 1 }}>Équité Hero</span>
+            {/* La street est affichée AVEC la valeur : une équité sans son board
+                est ambiguë, et c'est ainsi qu'une équité de river a pu s'afficher
+                à côté d'une décision préflop. */}
+            <span style={{ fontSize: 8.5, color: T.text3, fontFamily: T.stats, flex: 1 }}>
+              Équité Hero
+              {solverPkg.equity.street && (
+                <span style={{ color: T.text4 }}> · {solverPkg.equity.street}</span>
+              )}
+            </span>
             <span style={{ fontFamily: T.brand, fontSize: 13, fontWeight: 900, color: T.cyan }}>
               {solverPkg.equity.value}%
             </span>
@@ -291,7 +299,6 @@ export default function AiAnalysisPanel({
       {/* ── §8 : verdict factuel PokerForge — visible SANS l'IA. C'est le
              moteur qui décrit le spot ; l'IA ne fait que l'expliquer plus bas. ── */}
       <VerdictBlock target={target} mode={mode}
-        totalEvLossBB={solverPkg?.totalEvLossBB}
         ratingCol={(RATING_META[analysis?.verdict?.rating] || RATING_META.neutral).col} />
 
       {/* ── Chiffres solveur : toujours visibles, même sans IA (§18/§19) ── */}

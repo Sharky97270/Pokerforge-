@@ -24,7 +24,7 @@ import {
   FACING_MATRIX, collectNumbers,
 } from "./src/replayer/pokerStateValidator.js";
 import { scenarioFromHand, solveScenario } from "./src/replayer/heuristicEngine.js";
-import { buildTarget, heroEquity, ORIGIN } from "./src/replayer/solverPackage.js";
+import { buildTarget, buildSolverPackage, heroEquity, boardUpTo, ORIGIN } from "./src/replayer/solverPackage.js";
 
 let passed = 0, failed = 0;
 function ok(c, m) { if (c) passed++; else { failed++; console.error("  ✗ " + m); } }
@@ -590,6 +590,86 @@ section("§5 — Sizing de re-relance : calculé, jamais inventé");
   const allowed = allowedNumbers({ ps: t.pokerState, sd: t });
   ok(scanForeignNumbers("Le 3-bet usuel est de 8bb.", allowed).clean, "le sizing réel est citable par le coach");
   ok(!scanForeignNumbers("Le 3-bet usuel est de 7bb.", allowed).clean, "un sizing voisin mais faux reste rejeté");
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   11. ÉQUITÉ : UNE PAR STREET
+
+   L'équité était calculée UNE fois par main, sur le board COMPLET, puis
+   affichée à côté de chaque décision. Sur une main qui va à la river, le
+   panneau annonçait donc en préflop une équité qui suppose de connaître
+   l'avenir (K8o « à 76 % » parce que la river donne deux paires).
+   Une équité n'existe qu'attachée à un board.
+═══════════════════════════════════════════════════════════════ */
+section("Équité attachée à la street de la décision");
+{
+  const { hand, snaps } = makeHand("BB",
+    ["HJp: folds", "COp: folds", "BTNp: raises 1.5 to 2.5", "SBp: folds", "Hero: calls 1.5",
+     "*** FLOP *** [Ah 7d 2c]", "Hero: checks", "BTNp: bets 2.5", "Hero: calls 2.5",
+     "*** TURN *** [Ah 7d 2c] [8d]", "Hero: checks", "BTNp: checks",
+     "*** RIVER *** [Ah 7d 2c 8d] [Kd]", "Hero: bets 5", "BTNp: folds"],
+    { cards: "Kh 8s" });
+  const hs = buildHandState(hand);
+
+  ok(boardUpTo(hs, "preflop").length === 0, "board préflop = aucune carte");
+  ok(boardUpTo(hs, "flop").length === 3, "board flop = 3 cartes");
+  ok(boardUpTo(hs, "turn").length === 4, "board turn = 4 cartes");
+  ok(boardUpTo(hs, "river").length === 5, "board river = 5 cartes");
+
+  const seen = [];
+  for (let i = 0; i < snaps.length; i++) {
+    const pkg = buildSolverPackage(hand, snaps, hs, CTX(snaps), { step: i });
+    if (!pkg.target) continue;
+    const eq = pkg.equity;
+    ok(eq != null, `[${pkg.target.street}] équité disponible`);
+    if (!eq) continue;
+    ok(eq.street === pkg.target.street,
+      `[${pkg.target.street}] équité étiquetée à la bonne street (reçu ${eq.street})`);
+    const need = { preflop: 0, flop: 3, turn: 4, river: 5 }[pkg.target.street];
+    ok(eq.board === need,
+      `[${pkg.target.street}] équité calculée sur ${need} carte(s) (reçu ${eq.board})`);
+    ok(eq.villainPosition === "BTN", `[${pkg.target.street}] équité face à l'agresseur BTN`);
+    seen.push([pkg.target.street, eq.value]);
+  }
+  /* La valeur DOIT évoluer avec le board : une équité identique partout est la
+     signature du bug (un seul calcul réutilisé). */
+  const vals = [...new Set(seen.map(s => s[1]))];
+  ok(vals.length > 1, `l'équité varie selon la street (${seen.map(s => s[0] + ":" + s[1]).join(" ")})`);
+  const pre = seen.find(s => s[0] === "preflop");
+  const riv = seen.find(s => s[0] === "river");
+  ok(pre && riv && pre[1] !== riv[1], "l'équité préflop n'est plus celle de la river");
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   12. MODE « MAIN COMPLÈTE » — chaque décision porte son nom
+═══════════════════════════════════════════════════════════════ */
+section("Mode main complète : actions nommées pour chaque décision");
+{
+  const { hand, snaps } = makeHand("BB",
+    ["HJp: folds", "COp: folds", "BTNp: raises 1.5 to 2.5", "SBp: folds", "Hero: calls 1.5",
+     "*** FLOP *** [Ah 7d 2c]", "Hero: checks", "BTNp: bets 2.5", "Hero: raises 6 to 8.5", "BTNp: folds"]);
+  const hs = buildHandState(hand);
+  const pkg = buildSolverPackage(hand, snaps, hs, CTX(snaps), {});
+  const ds = pkg.decisions;
+
+  ok(ds.length === 3, `3 décisions Hero relevées (reçu ${ds.length})`);
+  ok(ds.every(d => d.heroSemantic && d.heroSemanticFr),
+    "chaque décision porte son action sémantique et sa traduction");
+  ok(ds.every(d => d.heroPosition === "BB"), "chaque décision porte la position de Hero");
+  ok(ds[0].heroSemantic === SEM.CALL_OPEN && ds[0].facingAction === SEM.OPEN_RAISE,
+    `décision 1 : call de l'open face à l'open (reçu ${ds[0].heroSemantic}/${ds[0].facingAction})`);
+  ok(ds[1].heroSemantic === SEM.CHECK, `décision 2 : check (reçu ${ds[1].heroSemantic})`);
+  ok(ds[2].heroSemantic === SEM.CHECK_RAISE, `décision 3 : check-raise (reçu ${ds[2].heroSemantic})`);
+  ok(ds[0].aggressorPosition === "BTN" && ds[0].aggressorToBb === 2.5,
+    "l'agresseur et son montant accompagnent la décision");
+  ok(ds.every(d => Array.isArray(d.legalActions) && d.legalActions.includes(d.heroSemantic)),
+    "l'action jouée figure dans les options légales de chaque décision");
+
+  /* La garde du backend s'appuie sur ces listes : une action jamais jouée dans
+     la main doit être détectable comme telle. */
+  const jouees = ds.map(d => d.heroSemantic);
+  ok(!jouees.includes(SEM.OPEN_RAISE), "aucune ouverture dans cette main — le coach ne peut pas en inventer une");
+  ok(jouees.includes(SEM.CHECK_RAISE), "le check-raise est bien recensé");
 }
 
 console.log(`\n${failed ? "❌" : "✅"} Replayer PokerState : ${passed} ok, ${failed} échec(s)`);

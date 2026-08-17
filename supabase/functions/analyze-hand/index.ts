@@ -34,7 +34,7 @@ const CORS = {
 //      et une garde rejette toute valeur numérique absente des données.
 //      Changer cette version invalide le cache (§20).
 const PROMPT_VERSION = "pokerforge-hand-analysis-v3";
-const FUNCTION_VERSION = "analyze-hand-2.0.0";
+const FUNCTION_VERSION = "analyze-hand-2.1.0";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
 // Tarifs USD / million de tokens — sert UNIQUEMENT à estimer un coût interne (§25).
@@ -260,6 +260,9 @@ Le nom de chaque action est DÉJÀ CALCULÉ. Emploie exactement celui-là.
 Les champs heroAction et recommendedAction de ta réponse doivent REPRODUIRE
 ces valeurs à l'identique. Tu ne les choisis pas.
 
+En mode TOUTE LA MAIN, le bloc « DÉCISIONS HERO » liste chaque décision avec
+son nom déjà calculé : n'attribue à Hero aucune action absente de cette liste.
+
 Conséquences, sans exception :
   • Hero affronte OPEN_RAISE → il ne peut PAS « ouvrir ». Ses options sont
     fold, call, ou 3-bet. N'écris jamais « ouvrir » ni « open » dans ce cas.
@@ -278,6 +281,9 @@ En particulier, si le sizing recommandé n'est pas fourni
 (recommendedSizingBb = null), n'en propose AUCUN. Écris par exemple :
 « Le 3-bet est préféré selon les données disponibles ; le sizing exact n'est
 pas disponible pour ce spot. »
+
+Une équité n'a de sens qu'attachée à SA street : ne transpose jamais l'équité
+d'une street à une autre.
 
 Tu n'inventes pas non plus : une action adverse, une position, un profil de
 vilain, une range précise, un nombre de joueurs, ni une lecture de solveur.
@@ -373,6 +379,38 @@ function spotBriefing(ps: any, target: any): string[] {
   return out;
 }
 
+// Mode « main complète » : les faits établis de CHAQUE décision Hero. Sans ce
+// bloc, le modèle recevait le JSON brut et redevenait libre de nommer les
+// actions lui-même — exactement ce qu'on interdit en mode décision. Les noms
+// viennent du même moteur validé ; le modèle les recopie.
+function decisionsBriefing(sd: any): string[] {
+  const ds = Array.isArray(sd?.decisions) ? sd.decisions : [];
+  if (!ds.length) return ["(Aucune décision Hero évaluable dans cette main.)"];
+  const out = ["── DÉCISIONS HERO — FAITS ÉTABLIS PAR LE MOTEUR, NE PAS LES RECALCULER ──"];
+  ds.forEach((d: any, i: number) => {
+    const bits = [
+      `${i + 1}. ${d.street}`,
+      d.heroPosition ? `Hero ${d.heroPosition}` : null,
+      d.facingAction
+        ? `face à ${d.facingAction} (${d.facingActionFr})${d.aggressorPosition ? ` de ${d.aggressorPosition}${d.aggressorToBb != null ? ` à ${d.aggressorToBb}bb` : ""}` : ""}`
+        : "sans mise à suivre",
+      `A JOUÉ : ${d.heroSemantic || d.played} (${d.heroSemanticFr || d.playedLabel})`,
+      d.recommendedSemantic
+        ? `RECOMMANDÉ : ${d.recommendedSemantic} (${d.recommendedSemanticFr})`
+        : "RECOMMANDÉ : indisponible — dis-le",
+      d.recommendedSizingBb != null ? `sizing ${d.recommendedSizingBb}bb (repère usuel)` : "sizing non disponible",
+      d.legalActions?.length ? `options légales : ${d.legalActions.join(", ")}` : null,
+      `provenance ${d.source}`,
+      d.metric === "frequency"
+        ? (d.freqGapPts != null ? `écart à l'équilibre ${d.freqGapPts} pts` : "écart non chiffré")
+        : (d.evLossBB != null ? `EV perdue estimée ${d.evLossBB}bb` : "EV perdue non chiffrée"),
+    ].filter(Boolean);
+    out.push("  · " + bits.join(" · "));
+  });
+  out.push("Emploie EXACTEMENT ces noms d'action. N'en invente aucun autre, et n'attribue à Hero aucune action absente de cette liste.");
+  return out;
+}
+
 function userPrompt(body: any) {
   const mode = body.analysisMode === "full_hand" ? "TOUTE LA MAIN" : "LA DÉCISION HERO CIBLÉE";
   const sd = body.solverData || {};
@@ -383,7 +421,7 @@ function userPrompt(body: any) {
       ? ""
       : "Analyse chaque street effectivement jouée, puis conclus.",
     "",
-    ...(body.analysisMode === "decision" ? spotBriefing(ps, sd.target) : []),
+    ...(body.analysisMode === "decision" ? spotBriefing(ps, sd.target) : decisionsBriefing(sd)),
     "",
     "── PROVENANCE ET TON IMPOSÉ ──",
     sd.target?.origin
@@ -396,6 +434,9 @@ function userPrompt(body: any) {
         : "",
     sd.target?.metric === "frequency"
       ? "MESURE : pour cette décision le solveur fournit des FRÉQUENCES d'équilibre, pas des EV. N'écris jamais « EV perdue » ni un chiffre en bb pour cette décision ; parle d'écart à la fréquence d'équilibre."
+      : "",
+    sd.equity?.street
+      ? `ÉQUITÉ : la valeur fournie vaut pour la street ${sd.equity.street} uniquement.`
       : "",
     sd.disclaimer ? `AVERTISSEMENT À RESPECTER : ${sd.disclaimer}` : "",
     "",
@@ -573,6 +614,20 @@ function guardAnalysis(a: any, body: any): string[] {
     errs.push(`recommendedAction "${a.recommendedAction}" hors des actions légales`);
   }
 
+  // Mode « main complète » : pas de décision unique à confronter, mais le
+  // modèle ne doit pas pour autant attribuer à Hero une action qu'il n'a jamais
+  // jouée, ni recommander une action qu'aucun nœud de la main n'autorisait.
+  if (!ps && Array.isArray(sd.decisions) && sd.decisions.length) {
+    const played = sd.decisions.map((d: any) => d.heroSemantic).filter(Boolean);
+    const reco = sd.decisions.map((d: any) => d.recommendedSemantic).filter(Boolean);
+    if (played.length && a?.heroAction && !played.includes(a.heroAction)) {
+      errs.push(`heroAction "${a.heroAction}" ne correspond à aucune décision de la main`);
+    }
+    if (reco.length && a?.recommendedAction && !reco.includes(a.recommendedAction)) {
+      errs.push(`recommendedAction "${a.recommendedAction}" ne correspond à aucun nœud de la main`);
+    }
+  }
+
   // §5 — aucun nombre inventé.
   const allowed = allowedNumbers({ hs: body.handState, sd });
   for (const t of analysisTexts(a)) {
@@ -744,6 +799,7 @@ Deno.serve(async (req: Request) => {
     facingAction: body.solverData?.target?.pokerState?.facingAction ?? null,
     recommendedAction: body.solverData?.target?.recommendedSemantic ?? null,
     origin: body.solverData?.target?.origin ?? null,
+    equityStreet: body.solverData?.equity?.street ?? null,
     guardAttempts: attempts,
     durationMs: Date.now() - t0,
     inputTokens: inTok, outputTokens: outTok,

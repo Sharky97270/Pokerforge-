@@ -118,17 +118,38 @@ export function cardToInt(str) {
   return r * 4 + su;
 }
 
+/* Cartes visibles à une street donnée. Le HandState porte le board COMPLET de
+   la main ; une décision préflop, elle, se prend sans board. */
+export const STREETS = ["preflop", "flop", "turn", "river"];
+export function boardUpTo(handState, street) {
+  const b = handState?.board || {};
+  const i = STREETS.indexOf(street);
+  if (i <= 0) return [];                                    // préflop (ou street inconnue)
+  const out = [...(b.flop || [])];
+  if (i >= 2 && b.turn) out.push(b.turn);
+  if (i >= 3 && b.river) out.push(b.river);
+  return out;
+}
+
 /**
- * Équité Hero sur la street courante face à la range estimée du vilain.
+ * Équité Hero à une STREET donnée, face à la range estimée du vilain.
  * Retourne null si les cartes Hero sont inconnues (aucune invention §9).
+ *
+ * `opts.street` est déterminant : sans lui, on calculait l'équité sur le board
+ * COMPLET de la main et on l'affichait à côté de CHAQUE décision — y compris la
+ * décision préflop. Le panneau annonçait alors une équité qui suppose de
+ * connaître l'avenir (K8o « à 76 % » en préflop parce que la river donne deux
+ * paires). Une équité n'a de sens qu'attachée à un board précis.
  */
 export function heroEquity(handState, opts = {}) {
   const cards = handState?.hero?.cards || [];
   if (cards.length !== 2) return null;
   const hi = cards.map(cardToInt);
   if (hi.some(c => c == null)) return null;
-  const board = [...(handState.board?.flop || []), handState.board?.turn, handState.board?.river]
-    .filter(Boolean).map(cardToInt).filter(c => c != null);
+  const boardCards = opts.board
+    || (opts.street ? boardUpTo(handState, opts.street)
+      : [...(handState.board?.flop || []), handState.board?.turn, handState.board?.river].filter(Boolean));
+  const board = boardCards.map(cardToInt).filter(c => c != null);
   if (board.length && board.length < 3) return null;
 
   const heroList = [{ cards: hi, w: 1 }];
@@ -164,7 +185,12 @@ export function heroEquity(handState, opts = {}) {
       confidence: r.exact ? "high" : "medium",
       rangeSource: PROV.HEURISTIC,
       villainPosition: vilPos,
-      rangeNote: `Équité de ${cards.join("")} face à la range estimée de ${vilPos} (range heuristique, calcul d'équité réel).`,
+      /* La street est transportée AVEC la valeur : l'UI et le prompt doivent
+         pouvoir dire de quel board on parle, sinon le chiffre redevient
+         ambigu dès qu'il change d'écran. */
+      street: opts.street || (board.length === 0 ? "preflop" : board.length === 3 ? "flop" : board.length === 4 ? "turn" : "river"),
+      boardCards,
+      rangeNote: `Équité de ${cards.join("")} ${board.length ? `sur ${boardCards.join(" ")}` : "préflop"} face à la range estimée de ${vilPos} (range heuristique, calcul d'équité réel).`,
       samples: r.samples ?? null,
       board: board.length,
     };
@@ -305,7 +331,14 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
         heroSemanticFr: d.heroSemantic ? semFr(d.heroSemantic) : null,
         recommendedSemantic: d.recommendedSemantic || null,
         recommendedSemanticFr: d.recommendedSemantic ? semFr(d.recommendedSemantic) : null,
+        recommendedSizingBb: typeof d.recommended?.sizingBb === "number" ? d.recommended.sizingBb : null,
         facingAction: d.pokerState?.facingAction || null,
+        facingActionFr: d.pokerState?.facingAction ? semFr(d.pokerState.facingAction) : null,
+        aggressorPosition: d.pokerState?.lastAggressor?.position || null,
+        aggressorToBb: d.pokerState?.lastAggressor?.toAmountBB ?? null,
+        heroPosition: d.pokerState?.hero?.position || null,
+        legalActions: d.pokerState?.legalActions || null,
+        strategyScope: d.strategyScope || null,
         recommended: d.recommended?.action || d.bestAction || null,
         recommendedLabel: d.recommended?.label || null,
         strategy: strategyOf(d),
@@ -324,9 +357,19 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
   }
 
   const targetBlock = opts.step != null ? buildTarget(hand, snaps, ctx, opts.step) : null;
-  /* L'équité est un Monte-Carlo : l'appelant peut la calculer une fois par main
-     et l'injecter, pour que l'arrivée d'une solution CFR ne la relance pas. */
-  const eq = opts.equity !== undefined ? opts.equity : heroEquity(handState, opts);
+  /* L'équité est un Monte-Carlo : l'appelant peut la calculer et l'injecter
+     pour que l'arrivée d'une solution CFR ne la relance pas. Elle doit
+     correspondre à la STREET DE LA DÉCISION analysée — pas au board final de
+     la main. Le vilain de référence est l'agresseur du spot. */
+  const eqStreet = targetBlock?.street || null;
+  const eq = opts.equity !== undefined
+    ? opts.equity
+    : heroEquity(handState, {
+        ...opts,
+        street: eqStreet,
+        villainPosition: opts.villainPosition
+          || targetBlock?.pokerState?.lastAggressor?.position || undefined,
+      });
 
   // Niveau de confiance global (§19)
   const sources = new Set(decisions.map(d => d.source));

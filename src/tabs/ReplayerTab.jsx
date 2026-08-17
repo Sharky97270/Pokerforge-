@@ -1,5 +1,5 @@
 // PokerForge — Replayer : parser multi-room, rejeu pas-a-pas, analyse IA, solver de spot (extrait de App.jsx, Phase 3.3)
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { T } from "../theme.js";
 import { useIsMobile } from "../utils/ui.js";
 import { apiSolverAnalyze, apiRangesCompare, apiSaveSpot, apiListSpots, apiDeleteSpot } from "../solverApi.js";
@@ -1369,22 +1369,37 @@ export default function ReplayerTab({unit,onGoTrainer,onGoCoach,onGoRanges,initi
 
   /* ── HandState normalisé (§6) : forme unique envoyée au backend ── */
   const handState=useMemo(()=>hand?buildHandState(hand):null,[hand]);
-  /* ── Package solveur (§7) : calculé UNE FOIS par main (l'équité Monte-Carlo
-     ne doit pas être relancée à chaque déplacement du curseur). ── */
-  /* L'équité (Monte-Carlo) ne dépend que de la main : calculée une seule fois,
-     elle n'est pas relancée à chaque solution CFR qui arrive. */
-  const heroEq=useMemo(()=>handState?heroEquity(handState):null,[handState]);
+  /* ── ÉQUITÉ : une par STREET, mémoïsée ──
+     Une équité n'a de sens qu'attachée à un board. La calculer une seule fois
+     par main revenait à l'évaluer sur le board FINAL puis à l'afficher à côté
+     de chaque décision, y compris préflop : le panneau annonçait une équité
+     qui suppose de connaître l'avenir. On en calcule donc une par street (4 au
+     maximum), et le cache évite de relancer le Monte-Carlo à chaque solution
+     CFR qui arrive ou à chaque déplacement du curseur. */
+  const eqCache=useRef({hand:null,byStreet:{}});
+  const heroEqFor=useCallback(street=>{
+    if(!handState||!street)return null;
+    const c=eqCache.current;
+    if(c.hand!==hand?.id){ c.hand=hand?.id||null; c.byStreet={}; }
+    if(!(street in c.byStreet)) c.byStreet[street]=heroEquity(handState,{street});
+    return c.byStreet[street];
+  },[handState,hand?.id]);
+
+  /* ── Package solveur (§7) ── */
   const solverBase=useMemo(()=>(hand&&snaps&&handState)
-    ?buildSolverPackage(hand,snaps,handState,analysisCtx,{equity:heroEq}):null,
-    [hand,snaps,handState,analysisCtx,heroEq]);
+    ?buildSolverPackage(hand,snaps,handState,analysisCtx,{equity:null}):null,
+    [hand,snaps,handState,analysisCtx]);
   /* ── Décision ciblée : suit le curseur, sans recalculer le reste. ── */
   const solverPkg=useMemo(()=>{
     if(!solverBase)return null;
     const target=buildTarget(hand,snaps,analysisCtx,snapStep);
     const sources=new Set(solverBase.sources);
     if(target)sources.add(target.source);
-    return {...solverBase,target,sources:[...sources]};
-  },[solverBase,hand,snaps,analysisCtx,snapStep]);
+    /* L'équité suit la street de la décision regardée. Sans décision Hero sous
+       le curseur, on n'en affiche aucune plutôt qu'une équité d'une autre
+       street. */
+    return {...solverBase,target,equity:target?heroEqFor(target.street):null,sources:[...sources]};
+  },[solverBase,hand,snaps,analysisCtx,snapStep,heroEqFor]);
   /* Nouvelle main → on repart d'un cache vide (les étapes ne désignent plus
      les mêmes décisions). */
   useEffect(()=>{

@@ -118,9 +118,8 @@ export function solveScenario(sc){
      Le moteur ne devine plus. Quand la main fournit un contexte de mise
      (`sc.node`), le nœud vient du compteur d'agressions ; sinon — Solver
      manuel, où l'utilisateur saisit un scénario libre — on retombe sur une
-     lecture du libellé, mais on le SAIT et on le dit (`nodeSource`). */
+     lecture du libellé — un repli assumé, jamais utilisé sur une main réelle. */
   const node=sc.node||null;
-  const nodeSource=node?"betting-context":"label-fallback";
   const facing=node?(node.toCallBB>1e-4):/raise|bet|3-?bet|all-?in|relance|mise/i.test(sc.prevAction||"");
   const betLevel=node?node.betLevel:(sc.street==="Preflop"?(facing?2:1):(facing?1:0));
   const limpers=node?node.limpers.length:0;
