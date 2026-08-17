@@ -19,6 +19,7 @@
    Module PUR (aucune dépendance React/DOM) → testable en Node.
 ═══════════════════════════════════════════════════════════════ */
 import { analyzeDecision, analyzeHand } from "./decisionAnalysis.js";
+import { semFr } from "./pokerState.js";
 import { computeEquity } from "../solver/api.js";
 import { buildSolverFreqs } from "../solver/preflopRanges.js";
 import { rangeComboList, EQ_RANKVAL, EQ_SUITIDX } from "../solver/core/combos.js";
@@ -61,6 +62,40 @@ export const PROV_META = {
   UNAVAILABLE:        { label: "INDISPO",   color: "#6A7690", computed: false, desc: "Aucune donnée disponible pour ce spot." },
 };
 
+/* ── §6 : PROVENANCE explicite, et vocabulaire imposé au coach ──
+   Le ton d'une phrase doit dépendre de la solidité de la donnée. Une
+   heuristique annoncée comme « la solution calculée » est un mensonge, même si
+   le conseil est bon. On transporte donc, avec chaque valeur, la formule que
+   le coach a le DROIT d'employer. */
+export const ORIGIN = {
+  SOLVER_EXACT:         "SOLVER_EXACT",
+  SOLVER_LOOKUP:        "SOLVER_LOOKUP",
+  SOLVER_APPROXIMATION: "SOLVER_APPROXIMATION",
+  POKERFORGE_HEURISTIC: "POKERFORGE_HEURISTIC",
+  AI_INTERPRETATION:    "AI_INTERPRETATION",
+  UNAVAILABLE:          "UNAVAILABLE",
+};
+export const ORIGIN_META = {
+  SOLVER_EXACT:         { label: "Solveur exact",       phrase: "La solution calculée indique", trust: "high" },
+  SOLVER_LOOKUP:        { label: "Bibliothèque solvée", phrase: "La solution pré-calculée indique", trust: "high" },
+  SOLVER_APPROXIMATION: { label: "Solveur approché",    phrase: "Le calcul CFR (ranges d'entrée estimées) indique", trust: "medium" },
+  POKERFORGE_HEURISTIC: { label: "Estimation PokerForge", phrase: "Selon l'estimation PokerForge disponible pour ce spot", trust: "low" },
+  AI_INTERPRETATION:    { label: "Interprétation IA",   phrase: "Interprétation pédagogique", trust: "none" },
+  UNAVAILABLE:          { label: "Indisponible",        phrase: "Les données disponibles ne permettent pas d'établir cette conclusion avec suffisamment de fiabilité", trust: "none" },
+};
+
+/* Provenance §8 (badge d'affichage) → provenance §6 (vocabulaire du coach). */
+export function originOf(prov) {
+  switch (prov) {
+    case PROV.LOOKUP_DB: return ORIGIN.SOLVER_LOOKUP;
+    case PROV.SOLVER: return ORIGIN.SOLVER_EXACT;
+    case PROV.SOLVER_CFR: return ORIGIN.SOLVER_APPROXIMATION;
+    case PROV.HEURISTIC: return ORIGIN.POKERFORGE_HEURISTIC;
+    case PROV.UNAVAILABLE: return ORIGIN.UNAVAILABLE;
+    default: return ORIGIN.POKERFORGE_HEURISTIC;
+  }
+}
+
 /* Niveaux de fallback (§19). */
 export const CONF_LEVEL = {
   1: { key: "LOOKUP_EXACT", label: "Lookup exact", badge: "SOLVER" },
@@ -97,9 +132,21 @@ export function heroEquity(handState, opts = {}) {
   if (board.length && board.length < 3) return null;
 
   const heroList = [{ cards: hi, w: 1 }];
-  // Range du vilain : range d'ouverture estimée à sa position (provenance HEURISTIC
-  // pour la RANGE — l'équité, elle, est bien calculée sur cette range).
-  const vilPos = (handState.players || []).find(p => !p.isHero)?.position || "BB";
+  /* Range du vilain : range d'ouverture estimée à SA position (provenance
+     HEURISTIC pour la RANGE — l'équité, elle, est bien calculée dessus).
+
+     Le vilain de référence est l'AGRESSEUR, pas le premier siège de la table.
+     L'ancienne version prenait `players.find(p => !p.isHero)` : sur une main
+     « HJ ouvre, Hero BB », elle opposait donc Hero à la range d'UTG pendant que
+     le reste du panneau parlait du hijack. Deux chiffres, deux adversaires, une
+     seule main : l'incohérence était garantie. */
+  const aggressor = (handState.actions || [])
+    .filter(a => !a.isHero && ["bet", "raise", "allin"].includes(a.action))
+    .pop();
+  const vilPos = opts.villainPosition
+    || aggressor?.position
+    || (handState.players || []).find(p => !p.isHero)?.position
+    || "BB";
   const heroPos = handState.hero.position || "BTN";
   const eff = Math.round(handState.hero.stackBB || 100);
   let villList = [];
@@ -116,6 +163,7 @@ export function heroEquity(handState, opts = {}) {
       engine: "SharkSolver/Equity",
       confidence: r.exact ? "high" : "medium",
       rangeSource: PROV.HEURISTIC,
+      villainPosition: vilPos,
       rangeNote: `Équité de ${cards.join("")} face à la range estimée de ${vilPos} (range heuristique, calcul d'équité réel).`,
       samples: r.samples ?? null,
       board: board.length,
@@ -146,6 +194,17 @@ function strategyOf(d) {
   }
   return Object.keys(out).length ? out : null;
 }
+/* Fréquences indexées par ACTION SÉMANTIQUE — c'est cette forme que lit l'UI
+   du verdict et le prompt : « THREE_BET 62 % », jamais « raise 62 % ». */
+function strategyBySemantic(d) {
+  if (!d || !d.alternatives?.length) return null;
+  const out = {};
+  for (const a of d.alternatives) {
+    if (a.freq == null || !a.sem) continue;
+    out[a.sem] = rb(a.freq);
+  }
+  return Object.keys(out).length ? out : null;
+}
 function evOf(d) {
   if (!d || !d.alternatives?.length) return null;
   const out = {};
@@ -165,8 +224,13 @@ function evOf(d) {
 export function buildTarget(hand, snaps, ctx = {}, step = null) {
   if (step == null || !snaps?.[step]) return null;
   let d = null;
-  try { d = analyzeDecision(hand, step, snaps[step], ctx); } catch { d = null; }
+  /* `snaps` alimente la reconstruction du contexte de mise : sans lui,
+     l'action sémantique retomberait à null et le coach reparlerait en
+     « raise / call » génériques. */
+  try { d = analyzeDecision(hand, step, snaps[step], { ...ctx, snaps: ctx.snaps || snaps }); } catch { d = null; }
   if (!d) return null;
+  const prov = provFromDecision(d);
+  const origin = originOf(prov);
   return {
     step: d.step,
     street: d.street,
@@ -174,7 +238,28 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
     playedLabel: d.playedLabel,
     recommended: d.recommended?.action || d.bestAction || null,
     recommendedLabel: d.recommended?.label || null,
+    /* ── §3 : les DEUX actions, nommées en vocabulaire poker exact ── */
+    heroSemantic: d.heroSemantic || null,
+    heroSemanticFr: d.heroSemantic ? semFr(d.heroSemantic) : null,
+    recommendedSemantic: d.recommendedSemantic || null,
+    recommendedSemanticFr: d.recommendedSemantic ? semFr(d.recommendedSemantic) : null,
+    /* ── §5 : sizing UNIQUEMENT s'il existe réellement ──
+       Absent = absent : le coach doit dire qu'il n'est pas disponible, jamais
+       en proposer un. Présent, il porte SA provenance : un sizing conventionnel
+       calculé depuis la mise réelle de l'adversaire n'est pas une lecture de
+       solveur, et le coach ne doit pas le présenter comme telle. */
+    recommendedSizingBb: typeof d.recommended?.sizingBb === "number" ? d.recommended.sizingBb : null,
+    recommendedSizingOrigin: typeof d.recommended?.sizingBb === "number" ? origin : null,
+    /* ── §6 : provenance et formule autorisée ── */
+    origin,
+    originLabel: ORIGIN_META[origin].label,
+    originPhrase: ORIGIN_META[origin].phrase,
     strategy: strategyOf(d),
+    strategyBySemantic: strategyBySemantic(d),
+    /* Portée des fréquences : "hand" = elles valent pour la main de Hero ;
+       "range" = c'est le mix de la range entière à ce nœud. Le coach n'a pas
+       le droit de confondre les deux. */
+    strategyScope: d.strategyScope || null,
     ev: evOf(d),
     evLossBB: d.evLoss,
     /* Deux mesures coexistent et ne doivent JAMAIS être confondues :
@@ -186,10 +271,13 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
     grade: d.grade,
     verdict: d.verdict,
     classification: d.cls,
-    source: provFromDecision(d),
+    source: prov,
     note: d.note || null,
     comments: (d.alternatives || []).map(a => a.comment).filter(Boolean).slice(0, 4),
     coach: d.coach?.explanation || null,
+    /* Le PokerState complet accompagne la cible : c'est LUI que le backend
+       transmet au modèle, pas une reconstruction textuelle du coup. */
+    pokerState: d.pokerState || null,
   };
 }
 
@@ -205,7 +293,7 @@ export function buildTarget(hand, snaps, ctx = {}, step = null) {
 export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) {
   const decisions = [];
   let full = null;
-  try { full = analyzeHand(hand, snaps, ctx); } catch { full = null; }
+  try { full = analyzeHand(hand, snaps, { ...ctx, snaps: ctx.snaps || snaps }); } catch { full = null; }
   if (full) {
     for (const d of full.decisions) {
       decisions.push({
@@ -213,6 +301,11 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
         street: d.street,
         played: d.played,
         playedLabel: d.playedLabel,
+        heroSemantic: d.heroSemantic || null,
+        heroSemanticFr: d.heroSemantic ? semFr(d.heroSemantic) : null,
+        recommendedSemantic: d.recommendedSemantic || null,
+        recommendedSemanticFr: d.recommendedSemantic ? semFr(d.recommendedSemantic) : null,
+        facingAction: d.pokerState?.facingAction || null,
         recommended: d.recommended?.action || d.bestAction || null,
         recommendedLabel: d.recommended?.label || null,
         strategy: strategyOf(d),

@@ -224,7 +224,11 @@ const cliSrc = (await import("node:fs")).readFileSync("./src/replayer/aiAnalysis
 const v = fnSrc.match(/PROMPT_VERSION = "([^"]+)"/)[1];
 ok(cliSrc.includes(`"${v}"`), `version de prompt alignée (${v})`);
 ok(/frequency/.test(fnSrc), "le prompt serveur distingue EV et fréquence");
-ok(/SOLVER_CFR/.test(fnSrc), "le prompt serveur connaît la provenance CFR");
+/* Depuis le prompt v3, la provenance CFR porte son nom §6 —
+   SOLVER_APPROXIMATION — et le prompt impose la formulation associée
+   (« calcul CFR », ranges d'entrée estimées, pas un solve GTO complet). */
+ok(/SOLVER_APPROXIMATION/.test(fnSrc) && /CFR/.test(fnSrc),
+  "le prompt serveur connaît la provenance CFR (SOLVER_APPROXIMATION)");
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} Replayer CFR : ${passed} assertions OK, ${failed} échec(s)`);
 process.exit(failed === 0 ? 0 : 1);

@@ -195,25 +195,35 @@ export function parseHand(block, idx=0){
     // Marqueurs de board tolérants : « *** FLOP *** [..] » (PS/Winamax/GG) comme
     // « ** Dealing Flop ** [..] » (PartyPoker/888). On accepte n'importe quoi entre
     // le mot-clé et le crochet ; turn/river prennent le DERNIER crochet de la ligne.
+    /* `committed` suit la mise engagée SUR LA STREET COURANTE — c'est la
+       référence des hand histories : « raises 6 to 8.5 » veut dire « porte ma
+       mise DE CETTE STREET à 8.5 ». Il doit donc être remis à zéro à chaque
+       nouvelle street. Sans ce reset, deux valeurs partaient fausses en
+       postflop : `toAmount` cumulait les streets (une mise de 2.5bb au flop
+       s'affichait « 5bb » après un pot préflop de 2.5bb) et l'incrément d'une
+       relance était sous-évalué de tout ce qui avait été investi avant
+       (`inc = total - cOf`), faussant pot et tapis. */
+    function newStreet(){ for(const k in committed) delete committed[k]; }
+
     function streetMarker(ln){
       const fl = ln.match(/\bFLOP\b[^\[]*\[([^\]]+)\]/i);
       const tl = ln.match(/\bTURN\b.*\[([^\]]+)\]\s*$/i);
       const rl = ln.match(/\bRIVER\b.*\[([^\]]+)\]\s*$/i);
       if(fl && !/TURN|RIVER/i.test(ln)){
         const cs = pfParseCards(fl[1]).slice(0,3);
-        board.flop = cs; street = "flop";
+        board.flop = cs; street = "flop"; newStreet();
         pushEv({ street, type:"deal-flop", cards:cs, label:"Flop" });
         return true;
       }
       if(tl && /TURN/i.test(ln)){
         const cs = pfParseCards(tl[1]).slice(-1);
-        board.turn = cs; street = "turn";
+        board.turn = cs; street = "turn"; newStreet();
         pushEv({ street, type:"deal-turn", cards:cs, label:"Turn" });
         return true;
       }
       if(rl && /RIVER/i.test(ln)){
         const cs = pfParseCards(rl[1]).slice(-1);
-        board.river = cs; street = "river";
+        board.river = cs; street = "river"; newStreet();
         pushEv({ street, type:"deal-river", cards:cs, label:"River" });
         return true;
       }

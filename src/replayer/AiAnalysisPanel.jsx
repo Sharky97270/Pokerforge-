@@ -12,7 +12,8 @@
 ═══════════════════════════════════════════════════════════════ */
 import React from "react";
 import { T } from "../theme.js";
-import { PROV, PROV_META } from "./solverPackage.js";
+import { PROV, PROV_META, ORIGIN, ORIGIN_META } from "./solverPackage.js";
+import { semFr, familyOf } from "./pokerState.js";
 import { LOADING_STEPS } from "./aiAnalysis.js";
 
 const RATING_META = {
@@ -63,8 +64,15 @@ function FreqRow({ label, value, evBb, highlight }) {
   const p = Math.max(0, Math.min(100, Math.round((value ?? 0) * 100)));
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-      <span style={{ minWidth: 50, fontSize: 9, fontWeight: 700, fontFamily: T.stats,
-        color: highlight ? "#10D87A" : T.text3, textTransform: "capitalize" }}>{label}</span>
+      {/* Pas de `capitalize` : les libellés sémantiques sont déjà rédigés
+          (« call de l'open »), et la règle CSS les massacrait mot à mot en
+          « Call De L'open ». On met une majuscule initiale, rien de plus. */}
+      <span style={{ minWidth: 62, fontSize: 9, fontWeight: 700, fontFamily: T.stats,
+        color: highlight ? "#10D87A" : T.text3,
+        display: "inline-block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        title={label}>
+        {typeof label === "string" && label ? label[0].toUpperCase() + label.slice(1) : label}
+      </span>
       <div style={{ flex: 1, height: 6, background: "rgba(255,255,255,.06)", borderRadius: 4, overflow: "hidden", minWidth: 34 }}>
         <div style={{ height: "100%", width: `${p}%`, borderRadius: 4,
           background: highlight ? "linear-gradient(90deg,#10D87A,#3ED598)" : "rgba(159,176,204,.45)" }} />
@@ -78,21 +86,109 @@ function FreqRow({ label, value, evBb, highlight }) {
   );
 }
 
-/* Mesure d'écart affichée. Le CFR renvoie des FRÉQUENCES, pas des EV : on
-   annonce alors un écart à l'équilibre en points, jamais une perte en bb. */
-function GapReadout({ metric, evLossBB, freqGapPts, label, col }) {
-  const freq = metric === "frequency";
-  const v = freq ? freqGapPts : evLossBB;
-  if (v == null) return null;
+
+/* ═══════════════════════════════════════════════════════════════
+   §8 — BLOC VERDICT
+
+   L'ancien affichage tenait en une ligne : « Hero : fold · Préférée : raise ».
+   Deux mots génériques, aucune indication de ce que Hero affrontait, aucune
+   idée de la solidité de la donnée. On déplie donc : action réellement jouée,
+   action recommandée NOMMÉE en vocabulaire poker, alternatives chiffrées,
+   écart mesuré, et provenance — l'indisponibilité du solveur exact étant
+   affichée franchement plutôt que masquée.
+
+   Ce bloc ne lit QUE `target` (données PokerForge). Aucun de ses libellés ni
+   de ses chiffres ne vient du modèle de langage.
+═══════════════════════════════════════════════════════════════ */
+function ActionLine({ label, value, sub, col, big }) {
   return (
-    <div style={{ textAlign: "right", flexShrink: 0 }}>
-      <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>
-        {freq ? "Écart à l'équilibre" : label}
-      </div>
-      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900, color: col }}>
-        {freq ? `${Math.round(v)} pts` : `-${v.toFixed(2)}bb`}
-      </div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 7, padding: "2px 0" }}>
+      <span style={{ minWidth: 92, fontSize: 7.5, color: T.text4, fontFamily: T.stats,
+        letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: big ? 13 : 11, fontWeight: 800, color: col || T.text2, fontFamily: T.stats }}>{value}</span>
+      {sub && <span style={{ fontSize: 9, color: T.text4, fontFamily: T.stats }}>{sub}</span>}
     </div>
+  );
+}
+
+function VerdictBlock({ target, mode, totalEvLossBB, ratingCol }) {
+  if (mode === "full_hand" || !target) return null;
+  const heroFr = target.heroSemanticFr || target.playedLabel || "—";
+  const recoFr = target.recommendedSemanticFr || null;
+  const strat = target.strategyBySemantic || null;
+  const recoFreq = recoFr && strat ? strat[target.recommendedSemantic] : null;
+  const origin = target.origin || ORIGIN.UNAVAILABLE;
+  const om = ORIGIN_META[origin] || ORIGIN_META.UNAVAILABLE;
+  const solverExact = origin === ORIGIN.SOLVER_EXACT || origin === ORIGIN.SOLVER_LOOKUP;
+  const freqMetric = target.metric === "frequency";
+  const gap = freqMetric ? target.freqGapPts : target.evLossBB;
+
+  /* Alternatives = tout sauf l'action recommandée, triées par fréquence. */
+  const alts = strat
+    ? Object.entries(strat).filter(([k]) => k !== target.recommendedSemantic)
+        .sort((a, b) => b[1] - a[1])
+    : [];
+
+  return (
+    <Section title="Verdict" right={<ProvBadge prov={target.source || PROV.UNAVAILABLE} />}>
+      <ActionLine label="Action Hero" value={heroFr} col={T.gold} big />
+      {target.pokerState?.facingActionFr && (
+        <ActionLine label="Face à" value={target.pokerState.facingActionFr}
+          sub={target.pokerState.lastAggressor
+            ? `${target.pokerState.lastAggressor.position} · ${target.pokerState.lastAggressor.toAmountBB}bb`
+            : null} />
+      )}
+      <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "5px 0" }} />
+      {recoFr
+        ? <ActionLine label="Recommandée" value={recoFr}
+            sub={recoFreq != null ? `${Math.round(recoFreq)} %` : null} col="#3ED598" big />
+        : <ActionLine label="Recommandée" value="non disponible"
+            sub="aucune référence stratégique sur ce spot" col={T.text4} />}
+      {/* §5 : le sizing n'est affiché que s'il existe. Pas de « 2.1bb » fantôme.
+          Et quand il existe sans venir d'un solveur, on le dit : « usuel » n'est
+          pas « optimal ». */}
+      <ActionLine label="Sizing"
+        value={target.recommendedSizingBb != null ? `${target.recommendedSizingBb}bb` : "non disponible"}
+        sub={target.recommendedSizingBb != null && !solverExact ? "repère usuel" : null}
+        col={target.recommendedSizingBb != null ? T.text2 : T.text4} />
+
+      {alts.length > 0 && (
+        <>
+          <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "5px 0" }} />
+          <div style={{ fontSize: 7.5, color: T.text4, fontFamily: T.stats, letterSpacing: ".1em",
+            textTransform: "uppercase", fontWeight: 700, marginBottom: 2 }}>Alternatives</div>
+          {alts.map(([k, v]) => (
+            <div key={k} style={{ display: "flex", alignItems: "baseline", gap: 6, padding: "1px 0" }}>
+              <span style={{ flex: 1, fontSize: 10, color: T.text3, fontFamily: T.stats }}>{semFr(k)}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: T.text3 }}>{Math.round(v)} %</span>
+            </div>
+          ))}
+        </>
+      )}
+
+      {gap != null && (
+        <>
+          <div style={{ height: 1, background: "rgba(255,255,255,.07)", margin: "5px 0" }} />
+          <ActionLine
+            label={freqMetric ? "Écart équilibre" : "EV perdue est."}
+            value={freqMetric ? `${Math.round(gap)} pts` : `-${Number(gap).toFixed(2)}bb`}
+            col={ratingCol} big />
+        </>
+      )}
+
+      {/* §6/§8 : la provenance est une information de premier plan, pas une note
+          de bas de page. Quand le solveur exact n'a pas de réponse, on le dit. */}
+      <div style={{ marginTop: 7, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.07)" }}>
+        <ActionLine label="Source" value={om.label} col={solverExact ? "#10D87A" : "#FFC247"} />
+        {!solverExact && (
+          <div style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats, lineHeight: 1.5, marginTop: 2 }}>
+            Solveur exact indisponible sur ce spot.
+            {target.strategyScope === "range" &&
+              " Les fréquences décrivent la range entière à ce nœud, pas cette main précise."}
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
@@ -109,9 +205,16 @@ export default function AiAnalysisPanel({
     if (!solverPkg) return null;
     const full = mode === "full_hand";
     const src = full ? null : target;
-    const strat = src?.strategy || null;
+    /* Fréquences indexées par ACTION SÉMANTIQUE quand elles existent : « 3-bet
+       18 % » plutôt que « raise 18 % ». Le repli sur les familles mécaniques
+       ne sert que pour les spots sans contexte de mise. */
+    const bySem = src?.strategyBySemantic || null;
+    const strat = bySem || src?.strategy || null;
+    const semKeys = !!bySem;
     const ev = src?.ev || null;
-    const best = src?.recommended ? String(src.recommended).toLowerCase() : null;
+    const best = semKeys
+      ? src?.recommendedSemantic || null
+      : (src?.recommended ? String(src.recommended).toLowerCase() : null);
     const decisions = solverPkg.decisions || [];
     return (
       // Les chiffres viennent TOUJOURS du package solveur (§9) : en mode
@@ -143,7 +246,13 @@ export default function AiAnalysisPanel({
               : <div style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats }}>Aucune décision Hero évaluable.</div>)
           : strat
             ? Object.entries(strat).map(([k, v]) => (
-                <FreqRow key={k} label={k} value={v} evBb={ev?.[k]} highlight={k === best} />
+                /* Les EV sont indexées par FAMILLE mécanique (raise/call/fold)
+                   alors que les fréquences le sont par action sémantique : on
+                   traduit, sinon la colonne EV se vide sans raison. */
+                <FreqRow key={k} label={semKeys ? semFr(k) : k}
+                  value={semKeys ? v / 100 : v}
+                  evBb={semKeys ? ev?.[String(familyOf(k) || "").toLowerCase()] : ev?.[k]}
+                  highlight={k === best} />
               ))
             : <div style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats, lineHeight: 1.55 }}>
                 {!src
@@ -178,6 +287,12 @@ export default function AiAnalysisPanel({
           }}>{lbl}</button>
         ))}
       </div>
+
+      {/* ── §8 : verdict factuel PokerForge — visible SANS l'IA. C'est le
+             moteur qui décrit le spot ; l'IA ne fait que l'expliquer plus bas. ── */}
+      <VerdictBlock target={target} mode={mode}
+        totalEvLossBB={solverPkg?.totalEvLossBB}
+        ratingCol={(RATING_META[analysis?.verdict?.rating] || RATING_META.neutral).col} />
 
       {/* ── Chiffres solveur : toujours visibles, même sans IA (§18/§19) ── */}
       {numbersBlock}
@@ -257,7 +372,12 @@ export default function AiAnalysisPanel({
           {(() => {
             const rm = RATING_META[analysis.verdict?.rating] || RATING_META.neutral;
             return (
-              <Section title="Verdict" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>
+              /* Appréciation de l'IA. Les FAITS (action jouée, action
+                 recommandée, fréquences, écart, provenance) sont déjà affichés
+                 plus haut par VerdictBlock, à partir des seules données
+                 PokerForge : on ne les redit pas ici avec les mots du modèle,
+                 sinon deux versions du même fait cohabitent à l'écran. */
+              <Section title="Appréciation" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
                     background: `radial-gradient(circle,${rm.col}25,${rm.col}08)`, border: `2px solid ${rm.col}`,
@@ -265,16 +385,12 @@ export default function AiAnalysisPanel({
                     fontSize: 17, color: rm.col, fontWeight: 900 }}>{rm.ico}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: rm.col, fontFamily: T.stats }}>{rm.lbl}</div>
-                    <div style={{ fontSize: 10.5, color: T.text3, fontFamily: T.stats, marginTop: 2, lineHeight: 1.5 }}>
-                      Hero : <b style={{ color: T.gold }}>{analysis.verdict?.heroAction || "—"}</b>
-                      {analysis.verdict?.preferredAction && <> · Préférée : <b style={{ color: "#3ED598" }}>{analysis.verdict.preferredAction}</b></>}
-                    </div>
+                    {analysis.confidence && (
+                      <div style={{ fontSize: 9, color: T.text4, fontFamily: T.stats, marginTop: 2 }}>
+                        Confiance de l'analyse : {{ high: "élevée", medium: "moyenne", low: "faible" }[analysis.confidence] || analysis.confidence}
+                      </div>
+                    )}
                   </div>
-                  {/* Écart : valeur SOLVEUR, jamais celle du modèle. */}
-                  {mode === "decision" && target && (
-                    <GapReadout metric={target.metric} evLossBB={target.evLossBB}
-                      freqGapPts={target.freqGapPts} label="EV perdue" col={rm.col} />
-                  )}
                   {mode === "full_hand" && typeof solverPkg?.totalEvLossBB === "number" && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>EV perdue totale</div>
@@ -289,6 +405,13 @@ export default function AiAnalysisPanel({
                     {analysis.verdict.rationale}
                   </div>
                 )}
+                {analysis.warnings?.length > 0 && (
+                  <div style={{ marginTop: 7, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.07)" }}>
+                    {analysis.warnings.slice(0, 3).map((w, i) => (
+                      <div key={i} style={{ fontSize: 9.5, color: "#FFC247", fontFamily: T.stats, lineHeight: 1.5 }}>⚠ {w}</div>
+                    ))}
+                  </div>
+                )}
               </Section>
             );
           })()}
@@ -298,6 +421,16 @@ export default function AiAnalysisPanel({
               {analysis.summary}
             </div>
           </Section>
+
+          {/* §9 — le raisonnement stratégique, séparé du résumé : c'est la
+              partie qui doit généraliser (principe, pas anecdote). */}
+          {analysis.strategicReason && (
+            <Section title="Raisonnement stratégique" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>
+              <div style={{ fontSize: 11.5, color: T.text2, fontFamily: T.stats, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                {analysis.strategicReason}
+              </div>
+            </Section>
+          )}
 
           {mode === "full_hand" && analysis.streets && (
             <Section title="Street par street" right={<ProvBadge prov={PROV.AI_INTERPRETATION} />}>

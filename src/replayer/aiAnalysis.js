@@ -15,10 +15,14 @@
 ═══════════════════════════════════════════════════════════════ */
 import { supabaseFunctionUrl, supabaseAnonHeaders } from "../config/supabase.js";
 import { SOLVER_PACKAGE_VERSION } from "./solverPackage.js";
+import { validatePokerState, validateAiResponse } from "./pokerStateValidator.js";
 
-/* Version du prompt serveur attendue (doit rester alignée avec l'edge function). */
-export const PROMPT_VERSION = "pokerforge-hand-analysis-v2";
-export const CLIENT_VERSION = "replayer-ai-1.0.0";
+/* Version du prompt serveur attendue (doit rester alignée avec l'edge function).
+   v3 : le modèle reçoit un POKER STATE normalisé (action sémantique, action
+   affrontée, options légales, provenance) et ne reconstruit plus le coup
+   depuis du texte libre. Changer cette version invalide le cache (§20). */
+export const PROMPT_VERSION = "pokerforge-hand-analysis-v3";
+export const CLIENT_VERSION = "replayer-ai-2.0.0";
 export const ANALYSIS_MODES = ["decision", "full_hand"];
 
 const CACHE_KEY = "pf_rep_ai_cache";
@@ -100,6 +104,11 @@ export const AI_ERRORS = {
     message: "Cette main n'a pas pu être validée — réimporte-la depuis la hand history.", retryable: false },
   INVALID_OUTPUT: { code: "INVALID_OUTPUT", title: "Réponse inexploitable",
     message: "La réponse de l'IA n'a pas pu être validée. Les données SharkSolver restent accessibles.", retryable: true },
+  /* §4/§5 — état contrôlé : mieux vaut ne rien affirmer qu'affirmer faux. */
+  INCOHERENT_STATE: { code: "INCOHERENT_STATE", title: "Analyse suspendue",
+    message: "Les données de cette main ne sont pas cohérentes entre elles — PokerForge préfère ne rien affirmer plutôt que de produire une explication fausse.", retryable: false },
+  FABRICATED_DATA: { code: "FABRICATED_DATA", title: "Réponse rejetée",
+    message: "La réponse citait des valeurs absentes des données PokerForge : elle a été rejetée. Les chiffres SharkSolver restent affichés.", retryable: true },
   PROVIDER: { code: "PROVIDER", title: "Analyse IA indisponible",
     message: "Analyse IA temporairement indisponible. Les données SharkSolver restent accessibles.", retryable: true },
   NETWORK: { code: "NETWORK", title: "Connexion perdue",
@@ -154,6 +163,19 @@ export function validateAnalysis(a) {
   return { valid: errors.length === 0, errors };
 }
 
+/* ── §4 : contrôle AVANT envoi ──
+   Le backend refait ces vérifications ; on les fait aussi ici pour ne pas
+   dépenser un appel payant sur un spot dont on sait déjà qu'il est mal décrit.
+   Un `pokerState` absent (main hors périmètre) n'est PAS une erreur : on laisse
+   simplement passer, le prompt saura qu'il n'a pas de description sémantique. */
+export function preflightCheck({ solverData, analysisMode }) {
+  if (analysisMode === "full_hand") return { ok: true };
+  const ps = solverData?.target?.pokerState;
+  if (!ps) return { ok: true };
+  const v = validatePokerState(ps);
+  return v.valid ? { ok: true } : { ok: false, errors: v.errors };
+}
+
 /* Jeton de session Supabase (§22) — chargé dynamiquement pour garder ce module
    importable en Node (les tests n'ont ni navigateur ni session). */
 async function accessToken() {
@@ -176,6 +198,14 @@ export async function requestAnalysis({ handState, solverData, analysisMode = "d
                                         fetchImpl, tokenProvider } = {}) {
   if (!ANALYSIS_MODES.includes(analysisMode)) return aiError("INVALID_INPUT");
   if (!handState) return aiError("INVALID_INPUT");
+
+  /* §4 — un spot incohérent ne part pas au modèle. On journalise pour le
+     diagnostic et on affiche un état contrôlé. */
+  const pre = preflightCheck({ solverData, analysisMode });
+  if (!pre.ok) {
+    try { console.warn("[PokerForge] PokerState incohérent — analyse suspendue :", pre.errors); } catch { /* noop */ }
+    return aiError("INCOHERENT_STATE", { detail: pre.errors.slice(0, 3).join(" · ") });
+  }
 
   const token = await (tokenProvider || accessToken)();
   if (!token) return aiError("UNAUTHENTICATED");
@@ -203,6 +233,17 @@ export async function requestAnalysis({ handState, solverData, analysisMode = "d
     if (payload.ok === false) return mapServerError(200, payload);
     const check = validateAnalysis(payload.analysis);
     if (!check.valid) return aiError("INVALID_OUTPUT", { detail: check.errors.slice(0, 3).join(", ") });
+
+    /* §5/§7 — dernière barrière AVANT l'affichage. Le backend a déjà rejeté et
+       régénéré ; ce second passage protège contre une version de fonction plus
+       ancienne encore déployée, et rend la garde testable côté client. */
+    const fact = validateAiResponse(payload.analysis, {
+      pokerState: solverData?.target?.pokerState || null, solverData,
+    });
+    if (!fact.valid) {
+      try { console.warn("[PokerForge] Réponse IA rejetée :", fact.errors); } catch { /* noop */ }
+      return aiError("FABRICATED_DATA", { detail: fact.errors.slice(0, 2).join(" · ") });
+    }
     return { ok: true, analysis: payload.analysis, meta: payload.meta || {} };
   } catch (e) {
     if (timer) clearTimeout(timer);

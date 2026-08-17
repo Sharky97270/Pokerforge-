@@ -122,5 +122,64 @@ section("Aucune référence disponible");
   ok(d && d.evLoss===null && d.cls===CLASS.INCONNUE, "pas d'EV inventée");
 }
 
+/* ── 7. Push/fold préflop HU : la SEULE surface exactement solvée ──
+   Ce chemin ne s'était en réalité JAMAIS déclenché. Trois défauts cumulés :
+     • le jam est typé `raise` par le parser (« raises $38 to $40 and is
+       all-in »), alors qu'on exigeait un événement `allin` ;
+     • `toCall` était mesuré APRÈS application de l'action, donc un call de
+       tapis donnait un écart de mises nul et se lisait comme une ouverture ;
+     • Hero qui se couche sort des joueurs actifs, ce qui faisait échouer le
+       test heads-up sur le cas le plus utile (« avais-je raison de folder ? »).
+   Ces six nœuds sont donc des tests de non-régression, pas de confort.      */
+section("Push/fold préflop HU — solveur exact");
+{
+  const HU = (tag, btnSeat, heroCards, line) => `PokerStars Hand #94000${tag}: Hold'em No Limit ($1/$2) - 2025/05/20
+Table 'PF' 2-max Seat #${btnSeat} is the button
+Seat 1: Hero ($40 in chips)
+Seat 2: Villain ($40 in chips)
+${btnSeat===1?"Hero: posts small blind $1\nVillain: posts big blind $2":"Villain: posts small blind $1\nHero: posts big blind $2"}
+Dealt to Hero [${heroCards}]
+${line}`;
+
+  const decide = (hh) => {
+    const h = parseHand(hh,0), s = computeAllSnapshots(h);
+    const i = h.events.findIndex(e=>e.playerId===h.heroId && canonFromEvent(e.type));
+    return analyzeDecision(h,i,s[i],{});
+  };
+
+  const cases = [
+    ["SB jam AKo",   HU(1,1,"Ah Ks","Hero: raises $38 to $40 and is all-in\nVillain: folds"), 0],
+    ["SB fold 72o",  HU(2,1,"7h 2s","Hero: folds"), 0],
+    ["SB fold AKo",  HU(3,1,"Ah Ks","Hero: folds"), 100],
+    ["BB call AKo",  HU(4,2,"Ah Ks","Villain: raises $38 to $40 and is all-in\nHero: calls $38"), 0],
+    ["BB call 72o",  HU(5,2,"7h 2s","Villain: raises $38 to $40 and is all-in\nHero: calls $38"), 100],
+    ["BB fold 72o",  HU(6,2,"7h 2s","Villain: raises $38 to $40 and is all-in\nHero: folds"), 0],
+  ];
+
+  for (const [tag, hh, expectedGap] of cases) {
+    const d = decide(hh);
+    ok(d && d.source==="solver", `${tag} : référence solveur atteinte`);
+    ok(d && d.metric==="frequency", `${tag} : mesure déclarée comme une fréquence`);
+    ok(d && d.evLoss===null, `${tag} : aucune EV fabriquée depuis une fréquence`);
+    ok(d && d.freqGap===expectedGap, `${tag} : écart ${expectedGap} pts (obtenu ${d&&d.freqGap})`);
+  }
+
+  // Les décisions correctes sont notées A+, les hors-range sanctionnées.
+  ok(decide(cases[0][1]).cls===CLASS.EXCELLENTE, "jam AKo 20bb classé conforme");
+  ok(decide(cases[2][1]).cls===CLASS.CRITIQUE, "fold AKo 20bb classé hors équilibre");
+  ok(decide(cases[4][1]).cls===CLASS.CRITIQUE, "call 72o face à un jam classé hors équilibre");
+
+  // Hors zone push/fold (200bb) : on refuse plutôt que d'appliquer la matrice.
+  const deep = `PokerStars Hand #940007: Hold'em No Limit ($1/$2) - 2025/05/20
+Table 'PF' 2-max Seat #1 is the button
+Seat 1: Hero ($400 in chips)
+Seat 2: Villain ($400 in chips)
+Hero: posts small blind $1
+Villain: posts big blind $2
+Dealt to Hero [Ah Ks]
+Hero: folds`;
+  ok(decide(deep).source!=="solver", "200bb : hors zone push/fold, pas de matrice appliquée");
+}
+
 console.log(`\n${failed===0?"✅":"❌"} Replayer Decision Analysis : ${passed} ok, ${failed} échec(s)`);
 process.exit(failed===0?0:1);
