@@ -393,10 +393,16 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
   else if (sources.has(PROV.SOLVER) || sources.has(PROV.SOLVER_CFR)) level = 2;
   else if (sources.has(PROV.HEURISTIC) || eq) level = 3;
 
+  /* ── §B : STREETS OÙ HERO A RÉELLEMENT AGI ──
+     À ne jamais confondre avec les streets de la MAIN. Quand Hero jette
+     préflop, le coup continue sans lui : le board va jusqu'à la river et le
+     HandState transporte flop/turn/river. Sans cette liste, rien n'empêchait
+     l'IA de commenter « le flop » d'un joueur qui n'y était plus. */
   const streets = {};
   for (const d of decisions) {
     (streets[d.street] = streets[d.street] || []).push(d);
   }
+  const heroStreets = STREETS.filter(s => streets[s]);
 
   return {
     solverVersion: SOLVER_PACKAGE_VERSION,
@@ -404,13 +410,23 @@ export function buildSolverPackage(hand, snaps, handState, ctx = {}, opts = {}) 
     level,
     levelLabel: CONF_LEVEL[level].label,
     decisions,
-    streets: Object.keys(streets),
+    streets: heroStreets,
+    /* Nom explicite : c'est CE champ que lisent le prompt et les deux gardes.
+       `streets` reste pour la compatibilité des panneaux existants. */
+    heroStreets,
     target: targetBlock,
+    /* null = aucune décision n'a été chiffrée en bb. Ce n'est PAS zéro : voir
+       analyzeHand. L'UI doit masquer la ligne plutôt qu'afficher « −0bb ». */
     totalEvLossBB: full ? full.totalEvLoss : null,
+    worstFreqGapPts: full ? full.worstFreqGapPts : null,
+    ratedEvCount: full ? full.rated : null,
+    ratedFreqCount: full ? full.ratedFreq : null,
     errorCount: full ? full.errors.length : null,
     decisionCount: decisions.length,
     worst: full?.worst
-      ? { step: full.worst.step, street: full.worst.street, played: full.worst.playedLabel, evLossBB: full.worst.evLoss }
+      ? { step: full.worst.step, street: full.worst.street, played: full.worst.playedLabel,
+          evLossBB: full.worst.evLoss ?? null, freqGapPts: full.worst.freqGap ?? null,
+          metric: full.worst.metric || "ev", grade: full.worst.grade || null }
       : null,
     equity: eq,
     sources: [...sources],

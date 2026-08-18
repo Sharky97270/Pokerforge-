@@ -196,6 +196,35 @@ ok(/anti|inventer/i.test(schemaSrc), "le prompt système porte la règle anti-ha
 ok(schemaSrc.includes("PROMPT_VERSION"), "le prompt est versionné");
 ok(schemaSrc.includes(`"${PROMPT_VERSION}"`), "la version de prompt serveur correspond au client");
 
+/* ── Défauts B et C : les DEUX gardes doivent contrôler la même chose ──
+   Une barrière présente d'un seul côté laisse passer chez l'un ce que l'autre
+   rejette : c'est ainsi qu'une réponse validée (et facturée) par le serveur se
+   faisait refuser par le client. */
+const validatorSrc = readFileSync("./src/replayer/pokerStateValidator.js", "utf8");
+ok(/heroStreetsOf/.test(schemaSrc) && /heroStreetsOf/.test(validatorSrc),
+  "le contrôle des streets de Hero existe côté serveur ET côté client");
+ok(/n'y a pris aucune décision/.test(schemaSrc) && /n'y a pris aucune décision/.test(validatorSrc),
+  "les deux gardes refusent une street que Hero n'a pas jouée");
+ok(/allowedNumbers\(\{\s*hs:\s*body\.handState,\s*ps,\s*sd\s*\}\)/.test(schemaSrc),
+  "la garde serveur inventorie HandState + PokerState + package solveur");
+ok(/allowedNumbers\(\{\s*hs:\s*facts\.handState,\s*ps:\s*facts\.pokerState,\s*sd:\s*facts\.solverData\s*\}\)/.test(validatorSrc),
+  "la garde client inventorie exactement les mêmes sources");
+{
+  /* Les deux listes de champs scannés doivent être identiques, sinon un champ
+     n'est contrôlé que d'un côté. On compare les champs cités entre les deux
+     fonctions `analysisTexts`. */
+  const champs = src => {
+    const i = src.indexOf("function analysisTexts");
+    const bloc = src.slice(i, src.indexOf("\n}", i));
+    return [...new Set((bloc.match(/\ba\??\.?\??\.(\w+)/g) || [])
+      .map(m => m.split(".").pop()).filter(x => x !== "forEach"))].sort().join(",");
+  };
+  ok(champs(schemaSrc) === champs(validatorSrc),
+    `les deux gardes scannent les mêmes champs (serveur « ${champs(schemaSrc)} » / client « ${champs(validatorSrc)} »)`);
+  ok(/keyConcepts/.test(champs(validatorSrc)) && !/\bconcepts\b/.test(champs(validatorSrc).replace("keyConcepts", "")),
+    "le client scanne keyConcepts (le nom réel du schéma), pas `concepts`");
+}
+
 /* ═══════════════════════════════════════════════════════════════
    §18 — ERREURS PROPRES
 ═══════════════════════════════════════════════════════════════ */

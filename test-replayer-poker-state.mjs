@@ -699,5 +699,87 @@ section("Mode main complète : actions nommées pour chaque décision");
   ok(jouees.includes(SEM.CHECK_RAISE), "le check-raise est bien recensé");
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   13. LES 4 DÉFAUTS D'AUDIT — non-régression
+
+   Constatés sur une main JETÉE PRÉFLOP dont le coup continue jusqu'à la
+   river : le cas le plus fréquent d'une session, et le moins bien couvert.
+═══════════════════════════════════════════════════════════════ */
+section("Audit — main foldée préflop, le coup continue sans Hero");
+{
+  /* Hero (BB) jette face à l'open du HJ ; HJ et BTN se disputent le pot
+     jusqu'à la river. Board complet, actions adverses sur trois streets. */
+  const lignes = ["UTGp: folds", "HJp: raises 1 to 2", "COp: folds", "BTNp: calls 2", "SBp: folds", "Hero: folds",
+    "*** FLOP *** [Ah 7d 2c]", "HJp: bets 3", "BTNp: calls 3",
+    "*** TURN *** [Ah 7d 2c] [9s]", "HJp: bets 8", "BTNp: calls 8",
+    "*** RIVER *** [Ah 7d 2c 9s] [2d]", "HJp: checks", "BTNp: checks"];
+
+  /* ── Défaut A : « EV perdue totale −0bb » affichée sur une erreur critique ── */
+  const AA = makeHand("BB", lignes, { cards: "Ah Ac" });
+  const pkgAA = buildSolverPackage(AA.hand, AA.snaps, buildHandState(AA.hand), CTX(AA.snaps), {});
+  const dAA = pkgAA.decisions[0];
+  ok(dAA && dAA.grade === "D" && dAA.classification === "ERREUR_CRITIQUE",
+    `jeter AA face à un open est noté D / erreur critique (reçu ${dAA && dAA.grade})`);
+  ok(pkgAA.totalEvLossBB === null,
+    `aucune décision chiffrée en bb → totalEvLossBB null, jamais 0 (reçu ${pkgAA.totalEvLossBB})`);
+  ok(pkgAA.worstFreqGapPts != null && pkgAA.worstFreqGapPts > 60,
+    `l'écart à l'équilibre, lui, est bien chiffré (reçu ${pkgAA.worstFreqGapPts} pts)`);
+  ok(pkgAA.worst && pkgAA.worst.metric === "frequency" && pkgAA.worst.grade === "D",
+    "la pire décision existe même quand rien n'est mesuré en bb");
+
+  const K8 = makeHand("BB", lignes, { cards: "Kh 8s" });
+  const pkgK8 = buildSolverPackage(K8.hand, K8.snaps, buildHandState(K8.hand), CTX(K8.snaps), {});
+  ok(pkgK8.decisions[0].grade === "A+",
+    `jeter K8o face à l'open reste conforme (reçu ${pkgK8.decisions[0].grade})`);
+
+  /* ── Défaut B : les streets de HERO ne sont pas celles de la MAIN ── */
+  const hsK8 = buildHandState(K8.hand);
+  ok(hsK8.streetsPlayed.join(",") === "preflop,flop,turn,river",
+    "le HandState transporte bien les 4 streets de la main");
+  ok(pkgK8.heroStreets.join(",") === "preflop",
+    `Hero n'a joué QUE le préflop (reçu ${pkgK8.heroStreets.join(",")})`);
+  ok(pkgK8.streets.join(",") === "preflop", "`streets` reflète les décisions de Hero, pas le board");
+
+  const vide = { status: "not_played", analysis: "" };
+  const reponse = streets => ({
+    heroAction: SEM.FOLD_TO_OPEN, recommendedAction: pkgK8.decisions[0].recommendedSemantic,
+    summary: "s", verdict: { rating: "good", rationale: "r" },
+    keyConcepts: [], detectedLeaks: [], coachAdvice: "", dataGaps: [], warnings: [], streets,
+  });
+  const propre = validateAiResponse(
+    reponse({ preflop: { status: "neutral", analysis: "Fold face à l'open." }, flop: vide, turn: vide, river: vide }),
+    { pokerState: null, solverData: pkgK8, handState: hsK8 });
+  ok(propre.valid, `une analyse limitée au préflop passe (${propre.errors.join(" · ")})`);
+
+  const inventee = validateAiResponse(
+    reponse({ preflop: { status: "neutral", analysis: "Fold." },
+      flop: { status: "mistake", analysis: "Sur ce flop tu aurais dû continuer." }, turn: vide, river: vide }),
+    { pokerState: null, solverData: pkgK8, handState: hsK8 });
+  ok(!inventee.valid && inventee.errors.some(e => /street flop/.test(e)),
+    "commenter le flop d'une main jetée préflop est REFUSÉ");
+
+  /* ── Défaut C : les deux gardes doivent avoir le même inventaire ── */
+  const cible = buildTarget(K8.hand, K8.snaps, CTX(K8.snaps), pkgK8.decisions[0].step);
+  const sd = { ...pkgK8, target: cible };
+  const complet = allowedNumbers({ hs: hsK8, ps: cible.pokerState, sd });
+  const sansHandState = allowedNumbers({ ps: cible.pokerState, sd });
+  ok([...complet].some(n => !sansHandState.has(n)),
+    "le HandState apporte des valeurs citables que le seul package solveur n'a pas");
+  const base = reponse({ preflop: { status: "neutral", analysis: "x" }, flop: vide, turn: vide, river: vide });
+  const citeStack = { ...base, coachAdvice: `Avec ${hsK8.hero.stackBB}bb, garde une range de défense construite.` };
+  ok(validateAiResponse(citeStack, { pokerState: cible.pokerState, solverData: sd, handState: hsK8 }).valid,
+    "citer le tapis de Hero (présent dans le HandState) n'est plus rejeté côté client");
+
+  /* `keyConcepts` est le nom réel du schéma : il doit être scanné. */
+  const conceptSale = { ...base, keyConcepts: ["défendre 41 % de sa range"] };
+  ok(!validateAiResponse(conceptSale, { pokerState: cible.pokerState, solverData: sd, handState: hsK8 }).valid,
+    "un nombre inventé dans keyConcepts est bien détecté");
+
+  /* ── Défaut D : le verdict du moteur existe sans le moindre appel IA ── */
+  const cibleAA = buildTarget(AA.hand, AA.snaps, CTX(AA.snaps), pkgAA.decisions[0].step);
+  ok(cibleAA.grade === "D" && cibleAA.classification === "ERREUR_CRITIQUE" && !!cibleAA.verdict,
+    "la cible porte note, classification et verdict — de quoi juger sans l'IA");
+}
+
 console.log(`\n${failed ? "❌" : "✅"} Replayer PokerState : ${passed} ok, ${failed} échec(s)`);
 process.exit(failed ? 1 : 0);

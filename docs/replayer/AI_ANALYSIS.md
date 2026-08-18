@@ -131,6 +131,42 @@ taille optimale d'un solveur.
 un `step: 7` rendait « 7bb » citable : la garde s'auto-affaiblissait avec des
 indices internes.
 
+### Les deux gardes doivent être JUMELLES
+
+La garde vit en double : `guardAnalysis` (edge function) avant de renvoyer la
+réponse, `validateAiResponse` (client) avant de l'afficher. Les deux doivent
+inventorier **les mêmes sources** — `handState` + `pokerState` + `solverData` —
+et **scanner les mêmes champs**. Une divergence ne rend pas le système plus sûr,
+elle le rend incohérent : le client rejetait des réponses que le serveur venait
+de valider *et de facturer*, parce que son inventaire ignorait le HandState (un
+tapis cité devenait « valeur inventée »). Le même écart existait sur les champs
+scannés : le client lisait `concepts`, alors que le schéma produit `keyConcepts`
+— ce tableau n'était donc contrôlé que d'un seul côté.
+
+`test-replayer-ai-analysis.mjs` compare les deux listes de champs et les deux
+appels à `allowedNumbers` : toute désynchronisation fait échouer la suite.
+
+### Streets de HERO ≠ streets de la MAIN (prompt v4)
+
+Quand Hero se couche, **le coup continue sans lui**. Le HandState transporte
+alors le board complet et les mises des adversaires jusqu'à la river : rien,
+dans les données, ne dit que Hero n'y était plus. Le modèle pouvait donc
+commenter « son » flop — sur la main la plus fréquente d'une session.
+
+`solverPackage` expose désormais `heroStreets` (les streets portant une décision
+Hero). Le prompt les énonce en toutes lettres et impose `not_played` partout
+ailleurs ; les deux gardes refusent une street analysée hors de cette liste ; et
+le panneau filtre l'affichage en dernier recours.
+
+### « EV perdue » et « écart à l'équilibre » ne se remplacent pas
+
+`analyzeHand.totalEvLoss` vaut **`null`**, jamais `0`, quand aucune décision n'a
+été chiffrée en bb. Le préflop est aujourd'hui mesuré en *points d'écart à la
+fréquence d'équilibre* : sommer un ensemble vide donnait `0`, et l'UI affichait
+« EV perdue totale −0bb » à côté d'un fold noté **D**. Le pendant fréquentiel
+(`worstFreqGapPts`) expose le **pire** écart — deux mesures ne s'additionnent
+jamais entre elles.
+
 ---
 
 ## 2. Fichiers
