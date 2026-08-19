@@ -3084,7 +3084,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
+export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
@@ -3193,8 +3193,16 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
   const fmt=v=>unit==="BB"?`${v}bb`:`${(v*2).toFixed(0)}$`;
   const nextLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Main suivante";
   const nextShortLabel=nextBusy?"Chargement...":nextError?"Reessayer":isLast?"Resultats":"Suivante";
+  /* SEUL chemin de sortie d'une main, quel que soit le bouton qui le déclenche.
+     Le nettoyage du coup complet vivait auparavant SUR UN SEUL des boutons
+     (`onClick={()=>{setPlayingFull(false);callNext();}}` du récap Full Hand) :
+     avancer par le CTA du panneau droit laissait donc `playingFull` à true et
+     l'état du coup précédent en place. Deux boutons, deux nettoyages — c'est
+     ce qui rendait « le bouton de droite » capricieux. Le nettoyage est
+     désormais ICI, en amont de tout appel. */
   const callNext=useCallback(()=>{
     if(nextBusy)return;
+    setPlayingFull(false);
     onNext?.();
   },[nextBusy,onNext]);
 
@@ -4668,8 +4676,16 @@ export function SingleTable({spot,unit,numTables,showSol,sidebarCollapsed=false,
               {recap.decisions>0&&<span style={{fontFamily:T.stats,fontSize:9,color:recap.totalEvLost<0?T.red:T.green,background:recap.totalEvLost<0?"rgba(255,69,96,.1)":"rgba(16,216,122,.1)",border:`1px solid ${recap.totalEvLost<0?"rgba(255,69,96,.3)":"rgba(16,216,122,.3)"}`,borderRadius:6,padding:"3px 8px"}}>EV totale {recap.totalEvLost>=0?"+":""}{recap.totalEvLost.toFixed(2)}bb</span>}
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
+            {/* §1 — UN SEUL CTA « Main suivante » à l'écran. Quand le panneau
+                d'analyse est monté (desktop), c'est LUI qui porte la CTA : en
+                ajouter une seconde ici produisait deux boutons au même libellé,
+                à deux endroits, avec deux nettoyages différents. Sans panneau
+                (mobile), le récap reste le seul point de sortie et garde donc
+                sa CTA. Le doublon est supprimé à la source, pas masqué en CSS. */}
             <div style={{display:"flex",gap:7,justifyContent:"center"}}>
-              <button className="btn btng" disabled={nextBusy} onClick={()=>{setPlayingFull(false);callNext();}}>{numTables===1?nextLabel:nextShortLabel} ►</button>
+              {!hasPrimaryNext&&(
+                <button className="btn btng" disabled={nextBusy} onClick={callNext}>{numTables===1?nextLabel:nextShortLabel} ►</button>
+              )}
               <button className="btn btns" onClick={startFullHand}>↺ Rejouer</button>
             </div>
           </div>
@@ -6390,11 +6406,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[results,setResults]=useState([]);
   const[tableAns,setTableAns]=useState({});
   const[tableSettled,setTableSettled]=useState({});
-  const[nextTransitioning,setNextTransitioning]=useState(false);
+  /* Chargement de la main suivante, PAR PORTÉE : `all` ou `t<index>`.
+     Un état (pas une ref) : c'est lui qui pilote l'attribut `disabled` des
+     boutons, et une ref ne redéclenche aucun rendu. */
+  const[nextLoading,setNextLoading]=useState({});
   const[nextError,setNextError]=useState(null);
-  const nextTransitionRef=useRef(false);
-  const nextTransitionTimer=useRef(null);
-  useEffect(()=>()=>{if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);},[]);
   const[history,setHistory]=useState(()=>loadHistory());
   /* ══ MOBILE v9 — états ══ */
   const isMobile=useIsMobile();
@@ -6503,7 +6519,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const[sessionEpoch,setSessionEpoch]=useState(0); // incrémenté à chaque (re)démarrage de session
   const sessionBaseRef=useRef(0);             // index de queue de départ (0, ou resume.idx)
   const spotCursorRef=useRef(1);              // prochain index de queue à distribuer
-  const nextTableLockRef=useRef({});          // anti-double-clic PAR table (§45)
+  /* Les verrous d'avance vivent avec le contrôleur `nextHand` (plus bas) : un
+     seul endroit décide, un seul endroit verrouille. */
   const recoveryRef=useRef(createSpotRecoveryManager()); // SpotRecoveryManager (§42)
   // Signale un nouveau lot/session : réinitialise les pointeurs par table.
   const bumpSession=useCallback((base=0)=>{sessionBaseRef.current=base;setSessionEpoch(e=>e+1);},[]);
@@ -6514,7 +6531,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const base=sessionBaseRef.current||0;
     setTableIdx(Array.from({length:ntables},(_,t)=>base+t));
     spotCursorRef.current=base+ntables;
-    nextTableLockRef.current={};
+    nextLockRef.current={};setNextLoading({});  // aucun verrou d'avance ne survit à un changement de session
     setFhLive({});   // aucun coup complet ne survit à un changement de session / de nb de tables
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sessionEpoch,ntables]);
@@ -6957,63 +6974,101 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   function handleTableSettled(tid){
     setTableSettled(s=>({...s,[tid]:true}));
   }
-  // Avance TOUTES les tables vers le lot suivant (bouton « Tables suivantes » /
-   // Main suivante en 1T). N'utilise plus idx directement : déplace les pointeurs
-   // par table (idx reste dérivé = min(tableIdx)).
-  function handleNext(){
-    if(nextTransitionRef.current)return;
-    nextTransitionRef.current=true;
-    setNextTransitioning(true);
+  /* ══════════════════════════════════════════════════════════════════
+     CONTRÔLEUR UNIQUE « MAIN SUIVANTE »
+
+     Il n'existait pas UNE façon d'avancer, mais DEUX, avec chacune sa
+     logique, son verrou et son allocateur de spot :
+       • `handleNext`      — lot entier, curseur `spotCursorRef` avancé « en
+                             bloc », verrou `nextTransitionRef` ;
+       • `handleNextTable` — une table, allocateur `allocNextSpotIndex`,
+                             verrou `nextTableLockRef`.
+     Les deux étaient exposées SIMULTANÉMENT à l'écran en multi-table
+     (« Table N suivante » dans le panneau droit, « Tables suivantes » sous
+     les tables). Deux verrous indépendants ne se protègent pas l'un
+     l'autre : enchaîner les deux sautait des mains et désynchronisait le
+     compteur. C'est le doublon signalé.
+
+     Désormais : UNE fonction décide, l'UI se contente de demander une
+     PORTÉE. Un seul allocateur, donc un seul curseur de queue.
+
+     Deux défauts corrigés au passage :
+       ① `fhLive[t]` n'était PAS remis à zéro par l'avance par table. L'état
+          du coup complet précédent survivait à la nouvelle main ; un coup
+          laissé `active && !done` gardait le bouton du panneau droit
+          désactivé indéfiniment — « visible mais ne fonctionne pas ».
+       ② les verrous vivaient dans des `useRef` LUS PENDANT LE RENDU. Muter
+          une ref ne redéclenche aucun rendu : l'état `disabled` du bouton
+          était périmé. Ils vivent maintenant dans un état React.
+  ══════════════════════════════════════════════════════════════════ */
+  /* Verrou synchrone (les mises à jour d'état sont asynchrones : deux clics
+     dans la même frame passeraient tous les deux). L'AFFICHAGE, lui, lit
+     `nextLoading` — un état, donc réactif. */
+  const nextLockRef=useRef({});
+  const nextLoadingTimers=useRef({});
+  useEffect(()=>()=>{Object.values(nextLoadingTimers.current).forEach(clearTimeout);},[]);
+
+  /* Purge tout ce qui appartient à la main écoulée d'une table. Les
+     informations de SESSION (résultats, historique, stats) ne sont jamais
+     touchées ici. */
+  const clearTableHandState=useCallback(t=>{
+    setTableAns(a=>{const n={...a};delete n[t];return n;});
+    setTableSettled(s=>{const n={...s};delete n[t];return n;});
+    setFhLive(f=>{const n={...f};delete n[t];return n;});
+  },[]);
+
+  /**
+   * Charge la main suivante. SEUL point d'entrée : aucun composant ne décide
+   * lui-même quel spot afficher.
+   * @param scope {table:number} une table · {all:true} toutes les tables
+   */
+  const nextHand=useCallback(scope=>{
+    const all=!!scope?.all;
+    const tables=all?Array.from({length:ntables},(_,i)=>i):[scope?.table??activeTable];
+    const key=all?"all":`t${tables[0]}`;
+    if(nextLockRef.current[key])return;                       // double-clic
+    /* Une avance globale ne doit pas passer par-dessus une avance de table
+       déjà en cours, et réciproquement : un seul mouvement à la fois. */
+    if(Object.values(nextLockRef.current).some(Boolean))return;
+    nextLockRef.current[key]=true;
+    setNextLoading(l=>({...l,[key]:true}));
     setNextError(null);
     try{
-      setExpandedT(null); // referme la table agrandie (mobile)
-      spotStartRef.current=Date.now(); // chrono du spot suivant
-      const effLimit=smode===999?Infinity:smode;
-      const cur=spotCursorRef.current;
-      if(results.length>=effLimit||cur>=queue.length){setDone(true);setStoppedEarly(false);vibrate(VIB.win);}
-      else{
-        const bases=Array.from({length:ntables},(_,t)=>Math.min(cur+t,queue.length-1));
-        spotCursorRef.current=cur+ntables;
-        setTableIdx(bases);setTableAns({});setTableSettled({});setFhLive({});
-      }
-      if(nextTransitionTimer.current)clearTimeout(nextTransitionTimer.current);
-      nextTransitionTimer.current=setTimeout(()=>{
-        nextTransitionRef.current=false;
-        setNextTransitioning(false);
-      },260);
-    }catch(err){
-      nextTransitionRef.current=false;
-      setNextTransitioning(false);
-      setNextError("Generation impossible. Reessayez.");
-      if(typeof console!=="undefined")console.error("PF Trainer next hand failed",err);
-    }
-  }
-  /* Main suivante PAR TABLE (§44) : n'avance QUE la table `t`, laisse les autres
-     intactes. Anti-double-clic par table (§45). Régénère à la demande si la
-     queue est épuisée (§42) → l'utilisateur n'est jamais bloqué. */
-  function handleNextTable(t){
-    if(nextTableLockRef.current[t])return;
-    nextTableLockRef.current[t]=true;
-    setNextError(null);
-    try{
-      // Fin de session atteinte (hors illimité) : bascule sur les résultats.
+      // Fin de session atteinte (hors illimité) → écran de résultats.
       const effLimit=smode===999?Infinity:smode;
       if(results.length>=effLimit){setDone(true);setStoppedEarly(false);vibrate(VIB.win);return;}
-      const ni=allocNextSpotIndex();
-      if(ni<0){setNextError("Génération impossible. Réessayez.");return;} // jamais bloquant : le bouton reste
-      setTableIdx(arr=>{const a=[...arr];a[t]=ni;return a;});
-      setTableAns(a=>{const n={...a};delete n[t];return n;});
-      setTableSettled(s=>{const n={...s};delete n[t];return n;});
-      if(t===activeTable||ntables===1)spotStartRef.current=Date.now();
-      setExpandedT(null);
+      /* UN SEUL allocateur pour les deux portées : c'est lui qui garantit
+         qu'aucun spot n'est distribué deux fois ni sauté, et il régénère à
+         la demande quand la queue est épuisée (§42) — jamais bloquant. */
+      const alloc=tables.map(()=>allocNextSpotIndex());
+      if(alloc.some(i=>i<0)){setNextError("Génération impossible. Réessayez.");return;}
+      setTableIdx(arr=>{
+        const a=[...arr];
+        tables.forEach((t,i)=>{a[t]=alloc[i];});
+        return a;
+      });
+      tables.forEach(clearTableHandState);
+      if(all||tables.includes(activeTable)||ntables===1)spotStartRef.current=Date.now();
+      setExpandedT(null);                                    // referme la table agrandie (mobile)
       vibrate(VIB.next);
     }catch(err){
       setNextError("Génération impossible. Réessayez.");
-      if(typeof console!=="undefined")console.error("PF Trainer next-table failed",err);
+      if(typeof console!=="undefined")console.error("PF Trainer — main suivante impossible",err);
     }finally{
-      setTimeout(()=>{nextTableLockRef.current[t]=false;},260);
+      clearTimeout(nextLoadingTimers.current[key]);
+      nextLoadingTimers.current[key]=setTimeout(()=>{
+        nextLockRef.current[key]=false;
+        setNextLoading(l=>{const n={...l};delete n[key];return n;});
+      },260);
     }
-  }
+  },[ntables,activeTable,smode,results.length,allocNextSpotIndex,clearTableHandState]);
+
+  /* L'UI n'appelle QUE ces deux alias — même implémentation, portées
+     différentes. Aucune logique d'avance ne vit ailleurs. */
+  const handleNext=useCallback(()=>nextHand({all:true}),[nextHand]);
+  const handleNextTable=useCallback(t=>nextHand({table:t}),[nextHand]);
+  /* Une avance est-elle en cours pour cette table ? (portée globale incluse) */
+  const isNextLoading=useCallback(t=>!!(nextLoading.all||nextLoading[`t${t}`]),[nextLoading]);
   function handleSave(sess){
     const h=[{...sess,id:Date.now()},...history];
     setHistory(h);saveHistory(h);
@@ -7187,7 +7242,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 table est répondue, sans attendre les autres tables. */}
             {(()=>{
               const activeAns=!!tableAns[activeTable];
-              const busy=!!nextTableLockRef.current[activeTable];
+              /* Verrou LU DANS L'ÉTAT, pas dans une ref : muter une ref ne
+                 redéclenche aucun rendu, et le bouton restait bloqué sur son
+                 dernier `disabled` calculé — « visible mais inopérant ». */
+              const busy=isNextLoading(activeTable);
               // Full Hand / Session : la réponse préflop ne termine PAS la main.
               // Tant que le coup complet de CETTE table n'est pas arrivé au bout
               // (fhLive[t].done), passer à la main suivante l'abandonnerait en
@@ -7198,7 +7256,8 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               // suivante » redondant) ; en multi-table, « Table N suivante ».
               const perTableLabel=busy?"Chargement...":isLastBatch?"Resultats":(ntables===1?"Main suivante":`Table ${activeTable+1} suivante`);
               return(
-                <button className="pf-p2-next" disabled={!activeAns||busy||fhBusy} onClick={()=>handleNextTable(activeTable)}>
+                <button className="pf-p2-next" data-state={busy?"LOADING":(!activeAns||fhBusy)?"DISABLED":"READY"}
+                  disabled={!activeAns||busy||fhBusy} onClick={()=>handleNextTable(activeTable)}>
                   {fhBusy?`Coup en cours — ${fhT.street}`:activeAns?`${perTableLabel} ▶`:"Decision en cours..."}
                 </button>
               );
@@ -7859,7 +7918,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={ntables===1?handleNext:()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={ntables===1?nextTransitioning:!!nextTableLockRef.current[t]} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -7867,7 +7926,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                         <div style={{position:"sticky",bottom:0,display:"flex",gap:8,padding:"10px 6px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,rgba(3,7,18,0),#030712 35%)",zIndex:5,marginTop:8}}>
                           <button className="btn btns" style={{fontSize:11}} onClick={()=>setExpandedT(null)}>⛶ Réduire</button>
                           {allSettled
-                            ?<button className="btn btng" style={{flex:1,fontSize:12}} disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
+                            ?<button className="btn btng" style={{flex:1,fontSize:12}} disabled={!!nextLoading.all} onClick={handleNext}>{nextLoading.all?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
                             :<span style={{flex:1,alignSelf:"center",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.text3}}>{Object.keys(tableAns).length}/{ntables} répondues</span>}
                         </div>
                       );
@@ -7951,7 +8010,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         })()}
         {started&&!done&&ntables>1&&allSettled&&(()=>{const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);return(
           <div style={{textAlign:"center",padding:"8px 0"}}>
-            <button className="btn btng" disabled={nextTransitioning} onClick={handleNext}>{nextTransitioning?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
+            <button className="btn btng" disabled={!!nextLoading.all} onClick={handleNext}>{nextLoading.all?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
           </div>
         );})()}
       </div>
