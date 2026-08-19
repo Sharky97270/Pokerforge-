@@ -3235,7 +3235,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onCfrUpgrade}){
+export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
@@ -4216,6 +4216,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   // « en attente ».
   const seatChipAmount=(p)=>collectingSeats.has(p)?0:seatStreetChip(p);
   const mainPotBb=roundBb(playingFull?fhPot:(currentPotBb||spot.pot||postedBlinds.SB+postedBlinds.BB));
+  /* Le panneau de droite decrit UNE table : il doit lire l etat VIVANT de
+     celle-ci, pas le spot d origine. `onFhState` n etait emis qu en coup
+     complet ; pour un spot ordinaire le panneau retombait sur `spot.pot`, la
+     valeur d OUVERTURE, alors que la table affiche le pot courant. Mesure a
+     l ecran en 4T : panneau « Pot 13bb » quand les quatre tables affichaient
+     36 / 6.7 / 17.3 / 1.5 — un pot qui n existait nulle part, et dont
+     decoulaient les cotes du pot et le SPR lus par le joueur. */
   /* mainPotBb reste la VERITE (SPR, cotes, solveur le lisent). `potAffiche` est
      la projection visuelle : elle attend les jetons (§12/§26). */
   const [potAffiche,potCollecting]=useDisplayedPot(mainPotBb,numTables);
@@ -4256,6 +4263,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     if(!pos)return null;
     return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
   },[trainingLayout,hasVisibleBoard,numTables,ringGeom,spot?.hpos]);
+  useEffect(()=>{
+    if(!onTableLive)return;
+    onTableLive({pot:mainPotBb,street:visualStreet,heroStack:parseFloat(spot?.stack)||null});
+  },[onTableLive,mainPotBb,visualStreet,spot?.stack]);
   const heroSize=numTables>=3?"md":numTables===2?"lg":"3xl";
   const chipSize=numTables>=3?30:numTables===2?38:68;
   const seatFontPos=7;
@@ -6766,6 +6777,19 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
      panneau droit partagé lit la table active, et « Table N suivante » sait si
      un coup complet est encore en cours sur cette table précise. */
   const[fhLive,setFhLive]=useState({});
+  /* Etat VIVANT par table (pot, street, tapis), pour que le panneau de droite
+     ne decrive jamais autre chose que la table qu il pretend decrire (§22).
+     Distinct de `fhLive`, qui porte une SEMANTIQUE de coup complet (il decide
+     aussi si l on peut passer a la main suivante) : les melanger ferait croire
+     a un coup complet en cours sur un spot ordinaire. */
+  const[tableLive,setTableLive]=useState({});
+  const setTableLiveFor=useCallback((t,st)=>{
+    setTableLive(m=>{
+      const p=m[t];
+      if(p&&st&&p.pot===st.pot&&p.street===st.street&&p.heroStack===st.heroStack)return m;
+      return {...m,[t]:st};
+    });
+  },[]);
   const setFhLiveFor=useCallback((t,st)=>{
     setFhLive(m=>{
       if(!st&&!m[t])return m;                 // rien à faire (évite un re-render inutile)
@@ -6793,6 +6817,19 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   },[mobileTrainingSingleTableOnly,ntables]);
   // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
   useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
+  /* Le panneau decrit la table focalisee ; le focus ne changeait QUE sur un clic.
+     Sur une mosaique ou les tables avancent de facon asynchrone, on se retrouvait
+     donc a decider sur une table pendant que le panneau en decrivait une autre.
+     Regle : on ne DEPLACE jamais le focus tant que la table focalisee a encore
+     quelque chose a demander — sinon on arracherait la lecture sous les yeux du
+     joueur. On ne bouge que lorsqu elle n attend plus rien. */
+  useEffect(()=>{
+    if(ntables<2)return;
+    const attend=t=>!tableAns[t]&&!tableSettled[t];
+    if(attend(activeTable))return;
+    const suivante=Array.from({length:ntables},(_,i)=>i).find(i=>i!==activeTable&&attend(i));
+    if(suivante!=null)setActiveTable(suivante);
+  },[ntables,activeTable,tableAns,tableSettled]);
   /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
      table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
      pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
@@ -6876,6 +6913,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     spotCursorRef.current=base+ntables;
     nextLockRef.current={};setNextLoading({});  // aucun verrou d'avance ne survit à un changement de session
     setFhLive({});   // aucun coup complet ne survit à un changement de session / de nb de tables
+    setTableLive({});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sessionEpoch,ntables]);
   // `idx` (curseur de session, utilisé par tous les affichages) = plancher des
@@ -7358,6 +7396,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTableAns(a=>{const n={...a};delete n[t];return n;});
     setTableSettled(s=>{const n={...s};delete n[t];return n;});
     setFhLive(f=>{const n={...f};delete n[t];return n;});
+    setTableLive(m=>{const n={...m};delete n[t];return n;});
   },[]);
 
   /**
@@ -7436,7 +7475,13 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     // §P0-C : en Full Hand, le panneau lit l'état LIVE du coup (pas le spot préflop).
     const fhCur=fhLive[activeTable]||null;
     const inFh=!!(fhCur&&fhCur.active);
-    const potN=inFh?fhCur.pot:(parseFloat(s.pot)||0), stackN=inFh?fhCur.heroStack:(parseFloat(s.stack)||100);
+    /* Ordre des sources, du plus vivant au plus fige : coup complet, puis etat
+       courant de la table, puis le spot d origine. Ne jamais commencer par le
+       spot : c est la valeur d ouverture, et elle est fausse des la premiere
+       action. */
+    const live=tableLive[activeTable]||null;
+    const potN=inFh?fhCur.pot:(live&&live.pot!=null?live.pot:(parseFloat(s.pot)||0));
+    const stackN=inFh?fhCur.heroStack:(live&&live.heroStack!=null?live.heroStack:(parseFloat(s.stack)||100));
     const spr=potN>0?(stackN/potN).toFixed(1):"—";
     const toCall=inFh?0:(Number(s.toCall)||0);
     const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
@@ -7569,7 +7614,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         <section className="pf-p2-sec">
           <div className="pf-p2-h">INFORMATIONS</div>
           <div className="pf-p2-info">
-            {[["Street",inFh?fhCur.street:(s.street||"Preflop"),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
+            {[["Street",inFh?fhCur.street:(live&&live.street?live.street:(s.street||"Preflop")),"#F4F7FB"],["Stack Hero",`${roundBb(stackN)}bb`,"#F4F7FB"],["Pot",`${roundBb(potN)}bb`,"#F4C56A"],["Pot Odds",odds,"#FF8A3D"],["SPR",spr,"#B85CFF"],["Difficulté",diffLbl,diffCol]].map(([k,v,c])=>(
               <div key={k} className="pf-p2-irow"><span className="k">{k}</span><span className="v" style={{color:c}}>{v}</span></div>
             ))}
           </div>
@@ -8261,7 +8306,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
