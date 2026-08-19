@@ -112,12 +112,121 @@ que rien n'expliquait. Ce pot alimente les **cotes du pot et le SPR** affichés 
 le Trainer enseignait une décision à partir d'un prix faux. Corrigé par
 `preflopPot()` (`src/potAccounting.js`), couvert par des tests.
 
-## Ce qui reste, et pourquoi ce n'est pas le même problème
+## Ce qui restait, et qui ne reste plus
 
-Plusieurs générateurs préflop (squeeze, vs 4-bet, push/fold) posent un pot
-**tiré au hasard** — `pot = rndI(8,14)` — sans historique de contributions. Leur
-pot n'est pas reconstructible *par construction* : les contributions n'existent
-pas en tant que données, la table ne peut donc pas les peindre. Ce n'est pas une
-erreur d'arithmétique mais une limite de conception de la génération de spots.
-La corriger revient à donner une vraie séquence d'actions à chaque générateur —
-une refonte de la génération, pas de la table.
+Plusieurs générateurs préflop (squeeze, vs 4-bet) posaient un pot **tiré au
+hasard** — `pot = rndI(8,14)` — sans historique de contributions. Leur pot
+n'était pas reconstructible *par construction* : les contributions n'existaient
+pas en tant que données, la table ne pouvait donc pas les peindre. Ce n'était
+pas une erreur d'arithmétique mais une limite de la génération de spots, et la
+corriger demandait de donner une vraie séquence d'actions à chaque générateur.
+
+→ C'est l'objet de la section suivante : **le pot préflop est une séquence**.
+
+---
+
+# Le pot préflop est une SÉQUENCE (§3/§24/§37)
+
+La section précédente s'arrêtait sur une limite assumée : plusieurs générateurs
+préflop posaient un pot **tiré au sort** (`pot = rndI(8,14)`) ou **écrit en dur**
+(`pot: 36`, quelles que soient les positions), sans historique de contributions.
+Leur pot n'était pas reconstructible *par construction* — il n'y avait rien à
+peindre. Cette limite est levée.
+
+## Ce qui a changé
+
+`src/preflopLine.js` déroule un vrai tour d'enchères préflop : engagement total
+par siège (blinde comprise), pot = somme de ces engagements, montant que Hero
+doit payer, et l'historique exact que la table peint. **Les trois fabriques de
+spots** y passent désormais :
+
+| fabrique | ce qu'elle faisait | maintenant |
+|---|---|---|
+| catalogue statique (`src/data/content.js`) | pot écrit à la main — **6 des 17 spots préflop faux** | pot = somme de la ligne |
+| générateur dynamique (`TrainerTab`) | `rndI(8,14)` pour le squeeze, `rndI(30,50)` vs 4-bet | ligne authored, sizings de référence |
+| moteur de spots IA (`spotAiEngine`) | `pot: 13.5`, `pot: 36` quelles que soient les positions | ligne authored |
+
+Corrections de données mesurées au passage :
+
+| spot | pot annoncé | pot réel |
+|---|---|---|
+| `b1` BTN vs 3-bet BB | 11.5 | **12** |
+| `p4` BB vs open CO | 5.5 | **4.5** |
+| `p5` CO vs 3-bet BB | 13.5 | **13** |
+| `n2` HJ vs open UTG | toCall 2 (open à 2bb) | **toCall 2.5** |
+| `n3` UTG vs 3-bet HJ | 11 | **12.5** |
+| `pko2` BB vs open CO | 5.5 | **6** |
+
+## Trois défauts que la mesure a fait apparaître ensuite
+
+**1. Le pot gonflait à chaque relance de blindeur.** `normalizeTrainerActionEvent`
+ajoutait au pot le montant ANNONCÉ. Or un call s'annonce par ce qu'il reste à
+payer et une relance par le total « to X » : un joueur qui avait déjà des jetons
+devant lui les remettait une seconde fois. Mesuré : open 3bb du BTN suivi par la
+SB → « POT 7.5bb » pour 7bb réels. Le pot n'encaisse plus que
+`potContribution` — ce qui a quitté le tapis.
+
+**2. Un engagement posé disparaissait dès qu'un autre joueur parlait.** Les
+jetons « pré-décision » étaient conditionnés à `answered === null && !vact`.
+Mesuré en 4T : **« POT 16bb » avec pour tout jeton la blinde de la SB**. Un
+engagement quitte le siège quand il est COLLECTÉ (§27), pas avant.
+
+**3. Le marqueur de blinde s'effaçait pour un siège qui ne peignait rien.**
+`seatShowsChips` répondait par des conditions, le rendu calculait un montant
+avec d'autres conditions, et les deux divergeaient — « POT 4.5bb » pour 1bb de
+jetons. Une seule fonction (`seatChipAmount`) répond désormais, et le marqueur
+de blinde n'est que sa conséquence.
+
+Deux corrections de lisibilité s'y ajoutent : le libellé du tas ne répète plus
+son montant (mesuré : « 3-bet 9bb » posé sur 88bb de jetons, parce que le
+libellé racontait la décision initiale et le tas l'engagement réel), et le
+format compact s'applique dès 2 tables — le 2T gardait le tas pleine taille sur
+un feutre deux fois plus petit (**24.8 % de la largeur du feutre** contre 14 à
+16.5 % partout ailleurs), ce qui poussait le tas du Hero sur le board.
+
+## La mesure
+
+    npm run audit:table -- --tables=4T --types="Open Raise,Défense BB,3bet,Défense vs 3bet,4bet,Squeeze" --n=22
+
+Deux options ont été ajoutées à l'audit parce que sans elles il ne mesurait pas
+ce qu'il prétendait : `--types=` (sans lui, la session reprenait la config
+persistée — vingt relevés de spots turn/river en 1T, donc **zéro table
+préflop**) et `--shotAt=` (la capture finale attrapait une table en cours de
+collecte). La table publie aussi sa signature dans `data-pf-spot` : sans elle,
+un écart de reconstruction est une mesure qu'on ne peut pas reproduire.
+
+| mode | pot reconstructible | mises mesurées | attribution min | mises ambiguës | tas sur le board | montant (px) |
+|---|---|---|---|---|---|---|
+| 1T | **22/22** | 29 | 1.30 | 0 | 0 | 10 |
+| 2T | **17/17** | 29 | 1.31 | 0 | 0 | 7.4 |
+| 3T | **33/33** | 76 | 1.30 | 0 | 0 | 7.4 |
+| 4T | **68/68** | 124 | 1.30 | 0 | 0 | 7.4 |
+| 4T à 1366×768 | **56/56** | 118 | 1.31 | 0 | 12 | 7.4 |
+
+**196 tables préflop sur 196** — contre 3 sur 22 avant. Couverture : RFI, défense
+de blinde, vs 3-bet, vs 4-bet, squeeze, push/fold, blind vs blind, AVANT et
+APRÈS la décision de Hero, coup complet compris.
+
+`montantPx` valait `null` dans tous les relevés précédents : le sélecteur de
+l'audit ne trouvait pas l'élément du montant. La lisibilité du §36 n'était donc
+pas mesurée du tout ; elle l'est maintenant.
+
+## Ce qui reste, mesuré
+
+À **1366×768 seulement**, 12 tas effleurent le board — tous ceux du HERO en coup
+complet, sur **5.2 à 5.4 % de la surface du tas**. C'est l'exception de l'AXE
+VERTICAL documentée plus haut (le rayon du Hero traverse le board, son tas va
+dans une poche latérale), au format le plus contraint. Le corriger revient à
+retoucher la poche latérale — un des arbitrages de géométrie déjà tranchés.
+
+## Preuve côté code
+
+`test-preflop-line.mjs` — **1111 assertions**. La matrice complète des positions
+(6-max et 9-max × cinq types de spot, plus de 400 combinaisons), les 17 spots
+statiques, plus de 300 spots IA sur toutes les paires de positions, et les
+séquences impossibles (« CO vs 3-bet HJ » : le HJ a déjà parlé quand le CO
+ouvre — la table le montrait à la fois couché ET 3-betteur).
+
+## Captures
+
+`ligne-1T.png` / `ligne-4T.png`, `zoom-ligne-1T.png`.

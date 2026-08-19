@@ -3,6 +3,7 @@ import {
   parseTrainerBb,
   validateSpotConsistency,
 } from "./trainerActionEvent.js";
+import { attachPreflopLine, resolvePreflopRoles } from "./preflopLine.js";
 
 const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
 const SUITS = ["\u2660", "\u2665", "\u2666", "\u2663"];
@@ -381,6 +382,14 @@ function makeDetails(spot, template, profile) {
 }
 
 function rfiSpot(template, request, random, hero = "BTN", villain = "BB") {
+  /* Les positions demandees par un filtre (« UTG vs HJ ») ne tiennent pas
+     toujours le role du spot. On deplace le VILAIN vers un siege qui peut le
+     tenir — jamais Hero, dont la position est le sujet de l'exercice. */
+  {
+    const roles = resolvePreflopRoles({ kind: "rfi", hero: request.heroPosition || hero, villain: request.villainPosition || villain, nplayers: request.nplayers });
+    hero = roles.hero; villain = roles.ok ? roles.villain : (roles.hero === "BB" ? "SB" : "BB");
+    request = { ...request, heroPosition: hero, villainPosition: villain };
+  }
   const base = baseSpot(template, request, random);
   const s = handStrength(base.hand);
   const stack = Number(base.stack);
@@ -422,6 +431,21 @@ function rfiSpot(template, request, random, hero = "BTN", villain = "BB") {
 function vsOpenSpot(template, request, random, hero = "BB", villain = "BTN", squeeze = false) {
   const base = baseSpot(template, request, random);
   const s = handStrength(base.hand);
+  /* Un squeeze suppose un SUIVEUR entre l'ouvreur et Hero. Avec un open du BTN
+     et Hero en BB il n'y a plus personne entre eux (SB mis a part, qui ne
+     cold-call pas) : le caller declare — CO — parlait AVANT l'ouvreur, donc la
+     ligne etait impossible et ses 2.5bb peints n'existaient dans aucun pot. On
+     recule l'ouverture au CO pour que le BTN puisse suivre. */
+  if (squeeze && villain === "BTN") villain = "CO";
+  {
+    const kind = squeeze ? "squeeze" : "vsOpen";
+    const roles = resolvePreflopRoles({ kind, hero: request.heroPosition || hero, villain: request.villainPosition || villain, nplayers: request.nplayers });
+    // Hero UTG ne peut affronter aucune ouverture : il parle le premier. Le spot
+    // qui existe a cette position, c'est l'ouverture elle-meme.
+    if (!roles.ok) return rfiSpot(template, request, random, roles.hero, villain);
+    hero = roles.hero; villain = roles.villain;
+    request = { ...request, heroPosition: hero, villainPosition: villain };
+  }
   const toCall = hero === "BB" ? 1.5 : 2.5;
   const threeBet = squeeze ? 12 : hero === "BB" ? 9 : 8.5;
   const ok = s >= 5 ? 2 : s >= 2 ? 1 : 0;
@@ -437,9 +461,10 @@ function vsOpenSpot(template, request, random, hero = "BB", villain = "BTN", squ
     stack: `${base.stack}bb`,
     hand: base.hand,
     board: [],
+    // `pot` et `multiway` sont recalcules par attachPreflopLine (cf. generateFromTemplate).
     pot: squeeze ? 6.5 : 4,
     toCall,
-    multiway: squeeze ? [{ pos: "CO", type: "Reg", amount: 2.5, action: "CALL", label: "Call" }] : undefined,
+    multiway: squeeze ? [{ pos: "BTN", type: "Reg", amount: 2.5, action: "CALL", label: "Call" }] : undefined,
     desc: `${hero} vs ${villain} open - ${squeeze ? "squeeze" : "defense"} decision`,
     acts: [{ id: "FOLD", l: "Fold", s: "0bb" }, { id: "CALL", l: "Call", s: fmtBb(toCall) }, { id: "RAISE", l: `${squeeze ? "Squeeze" : "3-bet"} ${threeBet}bb`, s: fmtBb(threeBet) }],
     ok,
@@ -456,6 +481,14 @@ function vsOpenSpot(template, request, random, hero = "BB", villain = "BTN", squ
 }
 
 function vsThreeBetSpot(template, request, random, hero = "BTN", villain = "BB") {
+  {
+    // Un 3-betteur parle APRES l'ouvreur. « CO vs 3-bet HJ » est une main qui
+    // n'existe pas : on replace le vilain derriere Hero.
+    const roles = resolvePreflopRoles({ kind: "vs3bet", hero: request.heroPosition || hero, villain: request.villainPosition || villain, nplayers: request.nplayers });
+    if (!roles.ok) return vsOpenSpot(template, request, random, roles.hero, villain, false);
+    hero = roles.hero; villain = roles.villain;
+    request = { ...request, heroPosition: hero, villainPosition: villain };
+  }
   const base = baseSpot(template, request, random);
   const s = handStrength(base.hand);
   const ok = s >= 5 ? 2 : s >= 3 ? 1 : 0;
@@ -489,6 +522,14 @@ function vsThreeBetSpot(template, request, random, hero = "BTN", villain = "BB")
 }
 
 function vsFourBetSpot(template, request, random) {
+  let hero = request.heroPosition || "BB", villain = request.villainPosition || "BTN";
+  {
+    // Le 4-betteur est l'OUVREUR : il parle avant Hero, qui a 3-bet.
+    const roles = resolvePreflopRoles({ kind: "vs4bet", hero, villain, nplayers: request.nplayers });
+    if (!roles.ok) return rfiSpot(template, request, random, hero, villain);
+    hero = roles.hero; villain = roles.villain;
+    request = { ...request, heroPosition: hero, villainPosition: villain };
+  }
   const base = baseSpot(template, request, random);
   const s = handStrength(base.hand);
   const ok = s >= 5 ? 2 : s >= 4 ? 1 : 0;
@@ -499,15 +540,15 @@ function vsFourBetSpot(template, request, random) {
     cat: "Vs 4-bet",
     street: "Preflop",
     fmt: base.fmt,
-    hpos: request.heroPosition || "BB",
-    vpos: request.villainPosition || "BTN",
+    hpos: hero,
+    vpos: villain,
     vtype: base.profile,
     stack: `${stack}bb`,
     hand: base.hand,
     board: [],
     pot: 36,
     toCall: 18,
-    desc: "BB 3-bet puis BTN 4-bet - jam/call/fold",
+    desc: `${hero} 3-bet puis ${villain} 4-bet - jam/call/fold`,
     acts: [{ id: "FOLD", l: "Fold", s: "0bb" }, { id: "CALL", l: "Call 18bb", s: "18bb" }, { id: "ALLIN", l: `5-bet Jam ${stack}bb`, s: "All-in" }],
     ok,
     best: ok === 0 ? "Fold" : ok === 1 ? "Call 18bb" : `5-bet Jam ${stack}bb`,
@@ -753,7 +794,12 @@ function generateFromTemplate(template, request = {}, random = Math.random) {
   generated.generationMode = request.mode || "gto";
   generated.villainTrend = prof.tendency;
   generated.villainExploit = prof.exploit;
-  return applyPopulationToSpot(generated, population);
+  /* Le pot d'un spot preflop n'est pas une constante du template : il depend des
+     positions reellement tirees — la blinde morte vaut 0.5bb si le vilain est
+     BB, 1bb s'il est SB, 1.5bb si les deux se couchent. Les fabriques ci-dessus
+     l'ecrivaient en dur (pot: 13.5, pot: 36) quelles que soient les positions,
+     donc la table ne pouvait pas le reconstruire. Il nait desormais de la ligne. */
+  return attachPreflopLine(applyPopulationToSpot(generated, population));
 }
 
 function selectTemplates(filters = {}, opts = {}) {
@@ -839,7 +885,11 @@ export function createTrainingSpotFromHand(hand = {}, opts = {}) {
   const acts = toCall > 0
     ? [{ id: "FOLD", l: "Fold", s: "0bb" }, { id: "CALL", l: "Call", s: fmtBb(toCall) }, { id: "RAISE", l: `Raise ${Math.max(toCall * 3, pot).toFixed(1)}bb`, s: fmtBb(Math.max(toCall * 3, pot)) }]
     : [{ id: /^pre/i.test(street) ? "FOLD" : "CHECK", l: /^pre/i.test(street) ? "Fold" : "Check", s: "0bb" }, { id: /^pre/i.test(street) ? "RAISE" : "BET33", l: /^pre/i.test(street) ? "Open 2.5bb" : "Bet 33%", s: /^pre/i.test(street) ? "2.5bb" : fmtBb(pot * 0.33) }];
-  return {
+  /* Une main importee devient un EXERCICE, et un exercice se joue sur une table
+     lisible : le pot doit y etre reconstructible depuis les jetons peints. Le
+     `pot` calcule plus haut (toCall*2 + 1.5) est une formule, pas une somme —
+     attachPreflopLine lui substitue la somme de la ligne. */
+  return attachPreflopLine({
     id: `replayer_training_${hand.id || Date.now()}`,
     templateId: "replayer-hand-transform",
     cat: /^pre/i.test(street) ? (toCall > 0 ? "Vs Open" : "RFI") : street,
@@ -871,7 +921,7 @@ export function createTrainingSpotFromHand(hand = {}, opts = {}) {
       adaptation: "Travaille le meme noeud sans resultat-oriented thinking.",
       coachPrompts: ["Pourquoi cette main devient un exercice ?", "Creer 10 spots similaires", "Ajouter a mes leaks"],
     },
-  };
+  });
 }
 
 export const TrainerIntegrationLayer = {

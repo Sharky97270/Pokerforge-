@@ -27,6 +27,7 @@ import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTraining
 import { createAnimationQueue } from "../immersionEngine.js";
 import { CINE, cineDuration, collectTotalMs, collectContributions, projectDisplayedPot, streetRankFromBoard } from "../trainerBetCinematics.js";
 import { preflopPot } from "../potAccounting.js";
+import { attachPreflopLine, buildPreflopLine, paintedPreflopAmounts, paintedPreflopTotal, blindOf as preflopBlindOf } from "../preflopLine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
@@ -2031,19 +2032,19 @@ function generateDynamicSpots(count=50,f={}){
       const d=shuf(mkDeck()),hand=[d.pop(),d.pop()];
       const vpos=rnd(["BTN","CO","HJ","UTG"]);
       const hpos="BB",toCall=vpos==="BTN"?1.5:2;
-      /* Le pot est la SOMME des engagements (§24). L'ouvreur a mis `toCall + 1`
-         — la BB doit completer sa propre blinde de 1, d'ou toCall = open − 1.
-         Sa blinde a LUI, s'il en avait une, serait deja dans son open ; ici il
-         ouvre depuis une position sans blinde, seule la SB est de l'argent mort.
-         L'ancienne formule (toCall + 3.5) rendait 5 au lieu de 4 : une blinde
-         comptee deux fois, et donc des cotes du pot fausses a l'ecran. */
-      const openSize=toCall+1;
-      const pot=preflopPot({commitments:{[vpos]:openSize,BB:1},deadBlinds:{SB:.5}});
+      /* Le pot est la SOMME des engagements (§24), et cette somme, c'est la
+         LIGNE qui la produit : l'ouvreur a mis `toCall + 1` — la BB doit
+         completer sa propre blinde de 1, d'ou toCall = open − 1. L'ancienne
+         formule (toCall + 3.5) rendait 5 au lieu de 4, puis un `Math.round`
+         transformait 4.5 en 5 : deux fois un demi-blind de trop dans les cotes
+         du pot affichees. */
+      const line=buildPreflopLine({street:"Preflop",cat:"Vs Open",hpos,vpos,toCall});
+      const openSize=line.facing.amount,pot=line.pot;
       const stack=rndI(50,150)+"bb",fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(VT);
       const v=hStr(hand),ok=v>=4?2:v>=1?1:0;
       const xrSz=Math.round(pot*.8)+2;
       return{id:`dyn_${_id++}`,cat:"Vs Open",street:"Preflop",fmt,hpos,vpos,vtype,stack,
-        hand,board:[],pot:Math.round(pot),toCall,
+        hand,board:[],pot,toCall,line,
         desc:`BB vs ${vpos} open - ${hand[0].r}${hand[0].s}${hand[1].r}${hand[1].s}`,
         acts:[{id:"FOLD",l:"Fold",s:"0bb"},{id:"CALL",l:"Call",s:`${toCall}bb`},{id:"RAISE",l:`3-bet ${xrSz}bb`,s:"Agressif"}],
         ok,best:ok===0?"Fold":ok===1?"Call":`3-bet ${xrSz}bb`,
@@ -2060,13 +2061,15 @@ function generateDynamicSpots(count=50,f={}){
       const open=2.5,bet3=open*3,toCall=Math.round(bet3-open);
       /* La blinde du 3-betteur est DEJA comprise dans son 3-bet : seule celle de
          l'autre blindeur est de l'argent mort. L'ancienne formule ajoutait les
-         deux (bet3 + open + 1.5) et rendait 11.5 au lieu de 10.5. */
-      const pot=preflopPot({commitments:{[hpos]:open,[vpos]:bet3},deadBlinds:vpos==="BB"?{SB:.5}:{BB:1}});
+         deux (bet3 + open + 1.5) et rendait 11.5 au lieu de 10.5. La ligne
+         tient cette comptabilite d'elle-meme. */
+      const line=buildPreflopLine({street:"Preflop",cat:"Vs 3-bet",hpos,vpos,toCall,heroOpenSize:open});
+      const pot=line.pot;
       const stack=rndI(80,150)+"bb";
       const fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(["TAG","Reg","Aggro Reg"]);
       const v=hStr(hand),ok=v>=5?2:v>=3?1:0;
       return{id:`dyn_${_id++}`,cat:"Vs 3-bet",street:"Preflop",fmt,hpos,vpos,vtype,stack,
-        hand,board:[],pot,toCall,
+        hand,board:[],pot,toCall,line,
         desc:`${hpos} vs 3-bet ${vpos} - ${hand[0].r}${hand[0].s}${hand[1].r}${hand[1].s}`,
         acts:[{id:"FOLD",l:"Fold",s:ok===0?"GTO":"Tight"},{id:"CALL",l:"Call",s:`${toCall}bb`},{id:"RAISE",l:"4-bet 22bb",s:"Optimal"},{id:"ALLIN",l:"4-bet Shove",s:"100bb"}],
         ok:Math.min(ok,2),best:ok===0?"Fold":ok===1?"Call":"4-bet 22bb",
@@ -2189,15 +2192,30 @@ function generateDynamicSpots(count=50,f={}){
     /* 9 — Squeeze (3-bet vs open + caller) */
     ()=>{
       const d=shuf(mkDeck()),hand=[d.pop(),d.pop()];
-      const hpos=rnd(["BB","SB","BTN"]),vpos=rnd(["CO","HJ","UTG"]);
-      const pot=rndI(8,14),toCall=Math.round(pot*.4);
+      /* ── UN SQUEEZE EST UNE SEQUENCE, PAS UN POT TIRE AU SORT ──────────────
+         Ce generateur posait `pot = rndI(8,14)` puis en deduisait toCall : le
+         pot n'etait donc rattachable a AUCUNE contribution, et la table ne
+         pouvait pas le peindre (critere §3/§37). Il ne manquait pas une
+         correction d'arithmetique mais l'histoire elle-meme. On part donc de ce
+         qui s'est passe — un open, un suiveur — et le pot en decoule.
+
+         Le squeeze suppose un siege NON-BLINDE entre l'ouvreur et Hero : sans
+         lui, il n'y a personne a squeezer. L'ancien code retombait sur « BTN »
+         meme quand Hero ETAIT au bouton, ce qui posait des jetons sur le siege
+         de Hero. On choisit donc l'ouvreur en fonction de Hero. */
+      const hpos=rnd(["BB","SB","BTN"]);
+      const vpos=rnd(hpos==="BTN"?["UTG","HJ"]:["UTG","HJ","CO"]);
+      const openSize=vpos==="SB"?3:2.5;
+      const toCall=roundBb(openSize-preflopBlindOf(hpos));
       const stack=rndI(80,150)+"bb",fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(["TAG","Reg","Fish"]);
-      const callerPos=TRAINER_POS_ORDER.find((p,i)=>i>TRAINER_POS_ORDER.indexOf(vpos)&&i<TRAINER_POS_ORDER.indexOf(hpos)&&p!=="SB"&&p!=="BB"&&p!==hpos&&p!==vpos)||"BTN";
-      const openSize=roundBb(toCall+blindOf(hpos))||2.5;
-      const v=hStr(hand),sqSz=Math.round(pot*.8+4),ok=v>=4?2:v>=2?1:0;
+      const line=buildPreflopLine({street:"Preflop",cat:"Vs Open",desc:"squeeze",hpos,vpos,toCall,multiway:[{}]});
+      const pot=line.pot,callerPos=line.callers[0]?.pos;
+      // Squeeze standard : le pot deja construit + deux ouvertures de pression.
+      const v=hStr(hand),sqSz=roundBb(pot+openSize*2),ok=v>=4?2:v>=2?1:0;
       return{id:`dyn_${_id++}`,cat:"Vs Open",street:"Preflop",fmt,hpos,vpos,vtype,stack,
-        hand,board:[],pot,toCall,
-        desc:`${hpos} — Squeeze vs ${vpos} open + caller`,
+        hand,board:[],pot,toCall,line,
+        multiway:callerPos?[{pos:callerPos,type:rnd(["Reg","Fish","TAG"]),amount:openSize,action:"CALL",label:"Call"}]:undefined,
+        desc:`${hpos} — Squeeze vs ${vpos} open + call ${callerPos||""}`.trim(),
         acts:[{id:"FOLD",l:"Fold",s:ok===0?"GTO":"Tight"},{id:"CALL",l:"Call",s:`${toCall}bb`},{id:"RAISE",l:`Squeeze ${sqSz}bb`,s:"Agressif"}],
         ok:Math.min(ok,2),best:ok===0?"Fold":ok===1?"Call":`Squeeze ${sqSz}bb`,
         freq:ok===0?{FOLD:80,CALL:15,RAISE:5}:ok===1?{FOLD:25,CALL:55,RAISE:20}:{FOLD:5,CALL:15,RAISE:80},
@@ -2244,11 +2262,18 @@ function generateDynamicSpots(count=50,f={}){
     ()=>{
       const d=shuf(mkDeck()),hand=[d.pop(),d.pop()];
       const hpos=rnd(["BB","SB"]),vpos=rnd(["BTN","CO","HJ"]);
-      const pot=rndI(30,50),toCall=Math.round(pot*.45);
+      /* Meme defaut que le squeeze : `pot = rndI(30,50)` decrivait un pot 4-bet
+         que personne n'avait construit. Un pot de 4-bet, ca se raconte —
+         ouverture, 3-bet, 4-bet — et les trois sizings suffisent a le poser.
+         3-bet OOP ~4x l'open, 4-bet ~2.3x le 3-bet : sizings de reference. */
+      const openV=2.5,heroThree=roundBb(openV*(hpos==="BB"?4.4:4.2)),fourBet=roundBb(heroThree*2.3);
+      const toCall=roundBb(fourBet-heroThree);
+      const line=buildPreflopLine({street:"Preflop",cat:"Vs 4-bet",hpos,vpos,toCall,villainOpenSize:openV,heroThreeBetSize:heroThree});
+      const pot=line.pot;
       const stack=rndI(80,150)+"bb",fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(["TAG","Reg","LAG"]);
       const v=hStr(hand),ok=v>=5?1:v>=3?Math.random()>.6?1:0:0;
       return{id:`dyn_${_id++}`,cat:"Vs 4-bet",street:"Preflop",fmt,hpos,vpos,vtype,stack,
-        hand,board:[],pot,toCall,
+        hand,board:[],pot,toCall,line,
         desc:`${hpos} vs 4-bet ${vpos} - ${hand[0].r}${hand[0].s}${hand[1].r}${hand[1].s}`,
         acts:[{id:"FOLD",l:"Fold",s:ok===0?"GTO":"Tight"},{id:"CALL",l:"Call",s:`${toCall}bb`},{id:"ALLIN",l:"5-bet Shove",s:"All-in"}],
         ok:Math.min(ok,1),best:ok===0?"Fold":ok===1?"Call":"5-bet Shove",
@@ -2293,6 +2318,11 @@ function generateDynamicSpots(count=50,f={}){
     try{
       const spot=GEN[gi]();
       if(!spot)continue;
+      /* Filet unique : tout spot preflop repart de sa ligne, y compris ceux dont
+         le generateur n'en construit pas explicitement (RFI, push/fold). Le pot
+         cesse d'etre une valeur ecrite quelque part — il est la somme des
+         engagements, donc reconstructible depuis la table par construction. */
+      attachPreflopLine(spot);
       if(stF&&spot.street!==stF)continue;
       if(catF&&spot.cat!==catF)continue;
       if(typeCats&&!typeCats.has(spot.cat))continue;
@@ -2350,7 +2380,9 @@ function buildQ(f,mode,opts={}){
     return c;
   };
   // Garde-fou : on écarte tout spot statique impossible et on attache le contexte calculé
-  const guard=s=>{const v=validateTrainerSpot(s);if(!v.valid){if(typeof console!=="undefined")console.warn("PF Trainer — spot statique invalide ignoré:",v.errors.join(" · "),s.id);return null;}s.ctx=v.ctx;return s;};
+  // Les spots statiques passent par la meme ligne que les spots generes : leurs
+  // pots etaient ecrits a la main et plusieurs comptaient une blinde en trop.
+  const guard=s=>{attachPreflopLine(s);const v=validateTrainerSpot(s);if(!v.valid){if(typeof console!=="undefined")console.warn("PF Trainer — spot statique invalide ignoré:",v.errors.join(" · "),s.id);return null;}s.ctx=v.ctx;return s;};
   // Filtre street selon le type de session : full/session → préflop (le coup se joue ensuite),
   // street → la street choisie. spot/mix → pas de contrainte (streets variées).
   const streetOK=s=>{
@@ -2381,11 +2413,11 @@ function buildQ(f,mode,opts={}){
   const dynPool=generateDynamicSpots(dynCount,f).filter(streetOK);
   let pool=[...staticPool,...dynPool];
   // Fallback graduel : d'abord relâcher positions (hpos/vpos), cat/fmt restent (mais on garde la street du mode)
-  if(!pool.length)pool=[...SPOTS.filter(s=>spotMatchFilter(s,{...f,hp:"Tous",vp:"Tous"})&&streetOK(s)).map(guard).filter(Boolean),...generateDynamicSpots(30,{...f,hp:"Tous",vp:"Tous"}).filter(streetOK)];
+  if(!pool.length)pool=[...SPOTS.filter(s=>spotMatchFilter(s,{...f,hp:"Tous",vp:"Tous"})&&streetOK(s)).map(prep).map(guard).filter(Boolean),...generateDynamicSpots(30,{...f,hp:"Tous",vp:"Tous"}).filter(streetOK)];
   // Dernier recours : tous spots valides respectant la street du mode
-  if(!pool.length)pool=[...SPOTS.filter(s=>s.hpos!==s.vpos&&streetOK(s)).map(guard).filter(Boolean),...generateDynamicSpots(30,{}).filter(streetOK)];
+  if(!pool.length)pool=[...SPOTS.filter(s=>s.hpos!==s.vpos&&streetOK(s)).map(prep).map(guard).filter(Boolean),...generateDynamicSpots(30,{}).filter(streetOK)];
   // Ultime recours : ignorer le filtre street (évite une queue vide)
-  if(!pool.length)pool=[...SPOTS.filter(s=>s.hpos!==s.vpos).map(guard).filter(Boolean),...generateDynamicSpots(30,{})];
+  if(!pool.length)pool=[...SPOTS.filter(s=>s.hpos!==s.vpos).map(prep).map(guard).filter(Boolean),...generateDynamicSpots(30,{})];
   const lim=mode===999?Math.max(pool.length*3,180):mode;
   let adaptiveHistory=[];
   try{adaptiveHistory=loadPlayedSpots?.()||[];}catch{}
@@ -2626,6 +2658,17 @@ function trainerActionVerb(actionType){
     OPEN:"open","3BET":"3-bet","4BET":"4-bet","5BET":"5-bet",ALLIN:"shove",WIN:"wins"
   }[actionType]||actionType.toLowerCase();
 }
+/* ── LE TAS PORTE LE MONTANT, LE LIBELLÉ PORTE LE VERBE (§36) ──────────────
+   Les libellés d'action du Trainer embarquent souvent leur sizing (« 3-bet 9bb »,
+   « Squeeze 12bb »). Collés au-dessus d'un tas de jetons, ils écrivent le montant
+   une seconde fois — et dès que l'engagement grossit, les deux se contredisent :
+   mesuré à l'écran, « 3-bet 9bb » posé sur 88bb de jetons, parce que le libellé
+   racontait la décision initiale et le tas l'engagement réel. Un seul des deux
+   dit le montant, et c'est le tas. */
+function trainerChipVerb(label){
+  const v=String(label||"").replace(/\s*\d+(?:[.,]\d+)?\s*bb\b/gi,"").replace(/\s{2,}/g," ").trim();
+  return v||null;
+}
 function trainerDisplayAction(position,actionType,amount,sizingLabel,rawLabel=""){
   if(actionType==="WIN")return`${position} wins`;
   const amountLabel=amount>0?`${roundBb(amount)}bb`:"";
@@ -2735,6 +2778,14 @@ function trainerPostflopFirstActor(hpos,vpos){
 function buildSpotContext(spot){
   const empty={preActions:[],facing:null,heroCommitted:0};
   if(!spot||!spot.hpos||!spot.vpos)return empty;
+  /* ── LA LIGNE FAIT FOI (§3/§24/§37) ────────────────────────────────────────
+     Quand le spot porte sa sequence preflop, on ne redevine rien : c'est elle
+     qui a produit le pot, c'est donc elle que la table doit peindre. Le chemin
+     heuristique ci-dessous ne sert plus qu'aux spots sans ligne (postflop, ou
+     un spot venu d'ailleurs). */
+  if(spot.line&&Array.isArray(spot.line.actions)){
+    return{preActions:spot.line.actions,facing:spot.line.facing,heroCommitted:spot.line.heroCommitted};
+  }
   const hpos=spot.hpos,vpos=spot.vpos;
   const cat=(spot.cat||"").toLowerCase();
   const desc=(spot.desc||"").toLowerCase();
@@ -3001,6 +3052,28 @@ function validateVillainBetVisible(spot,ctx){
   if(ctx&&ctx.facing&&!(ctx.facing.amount>0))e.push("mise adverse sans montant");
   return{valid:e.length===0,errors:e};
 }
+/* ── LE POT DOIT ÊTRE RECONSTRUCTIBLE DEPUIS LA TABLE (§3/§37) ──────────────
+   Le critère d'acceptation de la mission, transformé en garde-fou : au préflop,
+   tout ce qui est dans le pot y a été mis sur cette street, donc
+
+       pot == Σ des montants que la table peint (mises + blindes)
+
+   Un spot qui ne satisfait pas cette égalité est un spot qu'on ne peut PAS
+   apprendre à lire : le joueur voit un prix qu'aucun jeton n'explique. Il est
+   donc écarté à la génération plutôt que servi. Postflop l'égalité ne tient
+   plus (les streets précédentes sont déjà collectées au centre) — on ne teste
+   que le préflop. */
+function validatePotReconstructible(spot,ctx){
+  const e=[];
+  if(!spot||!/^pre/i.test(spot.street||""))return{valid:true,errors:e};
+  const line=(spot.line&&spot.line.committed)?spot.line:buildPreflopLine(spot);
+  if(!line)return{valid:true,errors:e};
+  if(line.errors&&line.errors.length)e.push(`séquence préflop impossible : ${line.errors[0]}`);
+  const somme=paintedPreflopTotal(line);
+  if(Math.abs(somme-(+spot.pot||0))>0.011)
+    e.push(`pot non reconstructible : ${spot.pot}bb affiché, ${somme}bb de jetons sur la table (${paintedPreflopAmounts(line).map(c=>`${c.pos}=${c.amount}`).join(" + ")})`);
+  return{valid:e.length===0,errors:e};
+}
 function validateHeroAvailableActions(spot,ctx){return validateAvailableActions(spot,ctx);}
 function validateStreetState(spot){
   const e=[];
@@ -3022,6 +3095,7 @@ function validateTrainerSpot(spot){
     validateHeroAvailableActions(spot,ctx),
     validatePotAndCallAmount(spot,ctx),
     validatePotSize(spot,ctx),
+    validatePotReconstructible(spot,ctx),
     validateVillainBetVisible(spot,ctx),
   ];
   const errors=[...new Set(checks.flatMap(c=>c.errors))];
@@ -3288,6 +3362,42 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const spotCtx=spotValidation.ctx||{preActions:[],facing:null,heroCommitted:0};
   const strictSpotValidation=useMemo(()=>validateSpotConsistency(spot,spotCtx,{requireVillain:true}),[spot,spotCtx]);
   const seatStates=trainerSeatStates(spot,spotCtx,handLog,vact,answered);
+  /* ── L'ENGAGEMENT DE CHAQUE SIÈGE SUR LA STREET COURANTE ──────────────────
+     Une seule source pour trois usages qui divergeaient : le tas peint devant
+     le siège, le marqueur de blinde (qui s'efface quand un tas le remplace) et
+     le calcul du pot après chaque action. Tant que chacun se débrouillait, on
+     obtenait des tables où le marqueur de blinde disparaissait sans qu'aucun
+     jeton ne le remplace — « POT 4.5bb » pour 1bb de jetons peints.
+
+     Au préflop la base est la LIGNE du spot (blindes comprises) ; les coups
+     joués ensuite ne font que la relever. Postflop la street repart de zéro. */
+  const streetContributions=useMemo(()=>{
+    const base={};
+    const street=spot?.street||"Preflop";
+    const memeStreet=s=>String(s||street).toLowerCase()===String(street).toLowerCase();
+    if(/^pre/i.test(street)){
+      if(spot?.line?.committed)Object.assign(base,spot.line.committed);
+      else{base.SB=TRAINER_BLINDS.SB;base.BB=TRAINER_BLINDS.BB;}
+    }
+    /* Les actions déjà jouées AVANT la décision de Hero comptent aussi : postflop,
+       le c-bet qu'il affronte n'est nulle part ailleurs. On ne retient que celles
+       de la street affichée — la préface préflop d'un spot de flop est déjà
+       collectée au centre (§27/§28). */
+    (spotCtx?.preActions||[]).forEach(a=>{
+      if(!a?.position||!memeStreet(a.street))return;
+      const amt=roundBb(a.amountBb||0);
+      if(amt>(base[a.position]||0))base[a.position]=amt;
+    });
+    (handLog||[]).forEach(a=>{
+      if(!a?.position)return;
+      if(a.street&&String(a.street).toLowerCase()!==String(street).toLowerCase())return;
+      const t=roundBb(a.totalStreetContributionAfterAction??a.displayAmount??a.amountBb??0);
+      if(t>(base[a.position]||0))base[a.position]=t;
+    });
+    return base;
+  },[spot,spotCtx,handLog]);
+  const streetContribRef=useRef({});
+  useEffect(()=>{streetContribRef.current={...streetContributions};},[streetContributions]);
   const spotErrors=useMemo(()=>[...(spotValidation.errors||[]),...(strictSpotValidation.errors||[])],[spotValidation.errors,strictSpotValidation.errors]);
   const spotImpossible=!spotValidation.valid||!strictSpotValidation.ok;
   const skipRef=useRef(false);
@@ -3506,6 +3616,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
   function commitTableAction({playerId,position,action,callAmount,defaultAmount}){
     const potBefore=currentPotRef.current;
+    /* Ce que le joueur a DÉJÀ devant lui. Sans cette information, une relance
+       « to X » était ajoutée entière au pot alors qu'une partie y était déjà —
+       le pot gonflait de la blinde du relanceur à chaque 3-bet de blindeur. On
+       passe par une ref parce que deux actions s'enchaînent parfois dans le
+       même tour de rendu (Hero puis le vilain) : l'état React serait en retard. */
+    const contribAvant={...streetContribRef.current};
     const event=normalizeTrainerActionEvent({
       rawAction:action,
       actorSeat:position,
@@ -3516,7 +3632,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       amountToCallBeforeAction:callAmount??spot?.toCall??0,
       stack:spot?.stack,
       defaultAmount,
+      streetContributions:contribAvant,
     });
+    streetContribRef.current={...contribAvant,[position]:roundBb(event.totalStreetContributionAfterAction)};
     const actionType=event.actionType;
     const amountBb=event.displayAmount;
     const contributes=event.contributes;
@@ -3563,9 +3681,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       id:Date.now()+Math.random(),
     });
     if(contributes){
-      setPotWithDelta(potAfter,amountBb);
+      /* Le pot n'encaisse que ce qui a QUITTÉ le tapis, et le jeton qui vole
+         porte le même nombre : « +6.5bb » quand Hero paie un 3-bet, pas « +9bb »
+         qui est le tas total posé devant lui. */
+      const versLePot=roundBb(actionEvent.potContribution??amountBb);
+      setPotWithDelta(potAfter,versLePot);
       const from=seatCoordFor(position);
-      const move={id:Date.now()+Math.random(),playerId,actionType,fromX:from.x,fromY:from.y,label:actionType==="ALLIN"?"ALL-IN":trainerActionVerb(actionType),amountLabel:`+${roundBb(amountBb)}bb`};
+      const move={id:Date.now()+Math.random(),playerId,actionType,fromX:from.x,fromY:from.y,label:actionType==="ALLIN"?"ALL-IN":trainerActionVerb(actionType),amountLabel:`+${versLePot}bb`};
       setChipMove(move);
       setTimeout(()=>setChipMove(x=>x?.id===move.id?null:x),720);
     }
@@ -4064,14 +4186,35 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
      doublait le montant à l'œil et — depuis que l'anneau place les deux tas au même
      point — les superposait. On masque donc la blinde dès que le siège affiche son
      engagement. */
-  const seatShowsChips=(p)=>{
-    if(!p)return false;
-    const st=seatStates[p]||{};
-    if(spotCtx?.facing?.position===p)return true;
-    if(p===spot?.hpos&&(answered!==null||(spotCtx?.heroCommitted||0)>(TRAINER_BLINDS[p]||0)))return true;
-    if(p===spot?.vpos&&vact)return true;
-    return (st.invested||0)>(TRAINER_BLINDS[p]||0);
+  /* ── UNE SEULE RÉPONSE À « QUE MONTRE CE SIÈGE ? » (§3/§25/§37) ───────────
+     `seatShowsChips` répondait par des CONDITIONS (« est-ce le siège qu'on
+     affronte ? », « Hero a-t-il répondu ? ») pendant que le rendu, lui,
+     calculait un MONTANT avec d'autres conditions. Les deux divergeaient : le
+     marqueur de blinde s'effaçait pour un siège qui, finalement, ne peignait
+     aucun jeton. Mesuré en 4T : « POT 4.5bb » avec 1bb de jetons sur la table,
+     et « POT 16bb » avec 0.5bb.
+
+     Désormais le montant est la seule réponse, et le marqueur de blinde n'est
+     que sa conséquence : au-dessus de sa blinde le siège montre son engagement,
+     sinon il montre sa blinde. Un seul tas par joueur, jamais deux, jamais
+     zéro. */
+  /* La part d'engagement DÉJÀ peinte par le marqueur de blinde. Elle n'existe
+     qu'au préflop et seulement là où le marqueur est dessiné : postflop, une
+     mise de 0.5bb de la SB est un vrai tas, pas une blinde. */
+  const seatBlindPainted=(p)=>showStaticBlindMarkers?(TRAINER_BLINDS[p]||0):0;
+  const seatStreetChip=(p)=>{
+    if(!p||spotChipsPerimes)return 0;
+    const raw=playingFull
+      ?roundBb(((fhStateRef.current?.contrib||{})[p===spot?.hpos?"hero":p===spot?.vpos?"villain":"_"])||0)
+      :roundBb(streetContributions[p]||0);
+    // Un seul tas par joueur : ce que le marqueur de blinde dit déjà ne se répète pas.
+    return raw>seatBlindPainted(p)+0.001?raw:0;
   };
+  const seatShowsChips=(p)=>seatStreetChip(p)>0;
+  // Pendant la collecte (§27) le tas quitte son ancre — mais le marqueur de
+  // blinde ne revient pas pour autant : le siège a bien engagé, il n'est plus
+  // « en attente ».
+  const seatChipAmount=(p)=>collectingSeats.has(p)?0:seatStreetChip(p);
   const mainPotBb=roundBb(playingFull?fhPot:(currentPotBb||spot.pot||postedBlinds.SB+postedBlinds.BB));
   /* mainPotBb reste la VERITE (SPR, cotes, solveur le lisent). `potAffiche` est
      la projection visuelle : elle attend les jetons (§12/§26). */
@@ -4095,6 +4238,20 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const spotStreetRank=streetRankFromBoard((spot.board||[]).length);
   const spotChipsPerimes=!playingFull&&visibleStreetRank!==spotStreetRank;
   const collectingSeats=useMemo(()=>new Set(collectChips.map(c=>c.pos)),[collectChips]);
+  /* ── SIGNATURE DU SPOT, LISIBLE DEPUIS LE DOM (§37) ───────────────────────
+     L'audit navigateur mesure « pot peint == somme des montants peints ». Quand
+     l'égalité tombe, il faut savoir de QUEL spot il s'agit : sans ça on mesure
+     un écart sans pouvoir le reproduire. Une seule chaîne JSON sur la zone de
+     table suffit, et elle ne coûte rien au rendu. */
+  const spotProbe=useMemo(()=>JSON.stringify({
+    cat:spot?.cat,street:spot?.street,hpos:spot?.hpos,vpos:spot?.vpos,
+    toCall:spot?.toCall,potSpot:spot?.pot,potMoteur:mainPotBb,
+    kindLigne:spot?.line?.kind||null,potLigne:spot?.line?.pot??null,
+    engagements:spot?.line?.committed||null,
+    heroCommitted:spotCtx?.heroCommitted??null,facing:spotCtx?.facing?.amount??null,
+    answered,vact:vact?.action||null,plein:!!playingFull,perimes:!!spotChipsPerimes,
+    contribs:streetContributions,phase,coups:(handLog||[]).map(a=>a.position+":"+a.actionType+":"+(a.totalStreetContributionAfterAction??a.displayAmount)),
+  }),[spot,mainPotBb,spotCtx,answered,vact,playingFull,spotChipsPerimes,streetContributions,phase,handLog]);
   const anchorForSeat=useCallback(pos=>{
     if(!pos)return null;
     return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
@@ -5162,7 +5319,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
            const ar=trainerZoneAspect(1,trainingLayout.tableGeometry).toFixed(4);
            return{"--pf-zone-ar-min":ar,"--pf-zone-ar-max":ar};
          })()}>
-         <div className="t1-table-area" ref={ringScaleRef} style={{
+         <div className="t1-table-area" ref={ringScaleRef} data-pf-spot={spotProbe} style={{
            position:"relative",minHeight:0,overflow:"hidden",
            "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport}),
          }}>
@@ -5311,16 +5468,25 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             // ── Jetons « pré-décision » : ce que chacun a engagé AVANT que Hero agisse ──
             // (open/3-bet/c-bet du vilain + open déjà investi par Hero) — indispensable
             // pour comprendre pourquoi Hero doit call/3-bet/defend.
-            const activeStreetBetsVisible=!isDone&&!vact&&!playingFull&&!spotChipsPerimes;
-            const preDecision=activeStreetBetsVisible;
+            /* ── UN ENGAGEMENT POSÉ NE S'EFFACE PAS PARCE QU'UN AUTRE A PARLÉ ──
+               Ces jetons n'étaient peints que TANT QUE personne n'avait agi
+               (`!isDone && !vact`). Dès que Hero répondait, l'open du vilain —
+               ou sa propre relance — disparaissait de la table alors qu'il était
+               toujours dans le pot : mesuré en 4T, « POT 16bb » avec pour tout
+               jeton la blinde de la SB. Un engagement quitte le siège quand il
+               est COLLECTÉ vers le pot (§27), pas avant. */
+            const preDecision=!playingFull&&!spotChipsPerimes;
             let preChipAmt=0,preChipLabel=null;
             if(preDecision){
               if(isV&&spotCtx.facing&&spotCtx.facing.position===pos){preChipAmt=spotCtx.facing.amount;preChipLabel=spotCtx.facing.label;}
               else if(isH&&spotCtx.heroCommitted>(TRAINER_BLINDS[pos]||0)){preChipAmt=spotCtx.heroCommitted;}
               else if(!isH&&!isV&&seatState.invested>0){preChipAmt=seatState.invested;preChipLabel=seatState.lastLabel||"Call";}
             }
-            const betAmt=hasBet?heroBetAmt:hasVilBet?vilBetAmt:preChipAmt;
-            const chipLabel=(hasBet||hasVilBet)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):preChipLabel;
+            // Le montant vient de l'engagement de street (source unique, cf. seatChipAmount).
+            const betAmt=seatChipAmount(pos);
+            const chipLabel=trainerChipVerb((hasBet||hasVilBet)
+              ?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct))
+              :(preChipLabel||seatState.lastLabel||null));
             const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom,heroPos:spot?.hpos});
             const cpx=actionPt.x;
             const cpy=actionPt.y;
@@ -5440,10 +5606,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     if(isH){ fhSeatBet=roundBb(c.hero||0); const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet); fhSeatLabel=ha?trainerActionDisplayVerb(ha.action):null; }
                     else if(isV){ fhSeatBet=roundBb(c.villain||0); fhSeatLabel=fhVilAct?(fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action)):null; }
                   }
-                  const zoneAmountRaw=!playingFull?betAmt:fhSeatBet;
-                  // Idem en 1T : pendant la collecte, l ancre est vide.
-                  const zoneAmount=collectingSeats.has(pos)?0:zoneAmountRaw;
-                  const zoneLabel=(!playingFull?chipLabel:fhSeatLabel)||trainerActionVerb(trainerActionType(lastAct?.id||"BET"));
+                  // Source unique du montant, coup complet compris (seatChipAmount).
+                  const zoneAmount=seatChipAmount(pos);
+                  const zoneLabel=trainerChipVerb(!playingFull?chipLabel:fhSeatLabel)||trainerActionVerb(trainerActionType(lastAct?.id||"BET"));
                   return(
                 <SeatActionZone
                   pos={pos}
@@ -5625,7 +5790,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         const ar=trainerZoneAspect(numTables,trainingLayout.tableGeometry).toFixed(4);
         return{"--pf-zone-ar-min":ar,"--pf-zone-ar-max":ar};
       })()}>
-      <div className="training-table-zone" ref={ringScaleRef} style={{
+      <div className="training-table-zone" ref={ringScaleRef} data-pf-spot={spotProbe} style={{
         /* Le board suit la hauteur REELLE du feutre (§21/§34). La densite seule
            ne suffit pas : a 1366x768 la mosaique 4T tombe a 133px de feutre et
            un board de 37px y repassait sur les cartes du Hero (mesure -18.6px).
@@ -5784,8 +5949,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             :isV&&vact?{id:seatActionSource?.actionType||vact.action,l:seatActionSource?.displayLabel||vact.label}:null;
           const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
           // Pré-décision : jetons engagés par le vilain (open/3-bet/c-bet) AVANT que Hero agisse
-          const mtPreFacing=answered===null&&!vact&&!playingFull&&!spotChipsPerimes&&isV&&spotCtx.facing&&spotCtx.facing.position===pos;
-          const mtPreExtra=answered===null&&!vact&&!playingFull&&!spotChipsPerimes&&!isH&&!isV&&seatState.invested>0;
+          /* Ces trois drapeaux etaient conditionnes a « personne n a encore
+             parle » (answered===null && !vact). Des que Hero repondait, l open
+             du vilain et sa propre relance disparaissaient de la table alors
+             qu ils etaient toujours dans le pot — mesure en 4T : « POT 16bb »
+             avec pour tout jeton la blinde de la SB. Un engagement quitte le
+             siege quand il est COLLECTE vers le pot (§27), pas avant. */
+          const mtChipsVivants=!playingFull&&!spotChipsPerimes;
+          const mtPreFacing=mtChipsVivants&&isV&&spotCtx.facing&&spotCtx.facing.position===pos;
+          const mtPreExtra=mtChipsVivants&&!isH&&!isV&&seatState.invested>0;
           /* ── L'ENGAGEMENT DÉJÀ POSÉ PAR HERO (§3/§25) ──
              Il manquait en mosaïque, alors que le 1T le dessinait (preChipAmt).
              Résultat mesuré en 4T : « POT 12bb » avec 0.5bb à la SB et un 3-Bet
@@ -5795,13 +5967,16 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
              seatShowsChips : au-dessus de sa blinde, le siège montre son
              engagement et le marqueur de blinde s'efface — un seul tas par
              joueur, jamais deux. */
-          const mtPreHero=answered===null&&!vact&&!playingFull&&!spotChipsPerimes&&isH&&(spotCtx.heroCommitted||0)>(TRAINER_BLINDS[pos]||0);
+          const mtPreHero=mtChipsVivants&&isH&&(spotCtx.heroCommitted||0)>(TRAINER_BLINDS[pos]||0);
           // Ce que Hero a posé se lit dans ce à quoi il fait face : un 3-bet en
           // face signifie qu'il a ouvert, un 4-bet qu'il a 3-bet.
           const mtPreHeroLabel=spotCtx.facing?.kind==="4bet"?"3-Bet":spotCtx.facing?.kind==="3bet"?"Open":"Mise";
           const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
-          const vilBetAmt=hasVilBet?eventAmount:(mtPreFacing?spotCtx.facing.amount:(mtPreExtra?seatState.invested:0));
-          const vilChipLabel=hasVilBet?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):(mtPreFacing?spotCtx.facing.label:(mtPreExtra?seatState.lastLabel||"Call":null));
+          // Le dernier coup RENCHERIT sur l engagement deja pose, il ne le remplace pas.
+          const vilPreAmt=roundBb(mtPreFacing?spotCtx.facing.amount:(mtPreExtra?seatState.invested:0));
+          const vilBetAmt=roundBb(Math.max(hasVilBet?eventAmount:0,vilPreAmt));
+          const vilPreLabel=mtPreFacing?spotCtx.facing.label:(mtPreExtra?seatState.lastLabel||"Call":null);
+          const vilChipLabel=(hasVilBet&&vilBetAmt>vilPreAmt-0.011)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):(vilPreLabel||(hasVilBet?trainerActionDisplayVerb(seatActionSource?.actionType,lastAct):null));
           const heroAnsweredAction=isH&&answered!==null?spot.acts[answered]:null;
           // ── Action Hero la plus récente (audit libellé) ──
           // Si Hero a répondu à une mise (call/fold/raise via hero_reply), `tableAction`
@@ -5817,10 +5992,18 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 ?(heroLiveAction.actionLabel||trainerActionDisplayVerb(heroLiveType,heroAnsweredAction))
                 :heroAnsweredAction?.l)
             :null;
-          const seatActionAmountRaw=hasHeroBet?heroBetAmt:(mtPreHero?roundBb(spotCtx.heroCommitted):vilBetAmt);
+          const heroPreAmt=roundBb(mtPreHero?spotCtx.heroCommitted:0);
+          // Le montant vient de l'engagement de street (source unique, cf. seatChipAmount).
+          const seatActionAmountRaw=seatChipAmount(pos);
           // Le tas part vers le pot : il quitte son ancre, il n y reste pas.
           const seatActionAmount=collectingSeats.has(pos)?0:seatActionAmountRaw;
-          const seatActionLabel=hasHeroBet?heroChipLabel:(mtPreHero?mtPreHeroLabel:vilChipLabel);
+          /* Le libellé suit le DERNIER coup connu du siège ; à défaut, il dit ce
+             que l'engagement déjà posé raconte (« Open » quand on affronte un
+             3-bet). Un tas sans libellé reste un tas : c'est le montant qui
+             porte l'information (§36). */
+          const seatActionLabel=trainerChipVerb(isH
+            ?(heroChipLabel||(mtPreHero?mtPreHeroLabel:seatState.lastLabel||null))
+            :(vilChipLabel||seatState.lastLabel||null));
           const seatActionType=hasHeroBet
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
             :trainerVisualActionType(vilChipLabel||vact?.action||seatState.lastAction||"BET");
@@ -5906,10 +6089,17 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               pos={pos}
               x={cpx}
               y={cpy}
-              amount={!playingFull?seatActionAmount:0}
+              amount={seatActionAmount}
               label={seatActionLabel||trainerActionVerb(seatActionType)}
               type={seatActionType}
-              compact={isMobile||numTables>=3}
+              /* ── LE TAS SE MESURE EN PART DE FEUTRE, PAS EN PIXELS (§21/§34) ──
+                 Le format compact ne s'appliquait qu'à partir de 3 tables. Le 2T
+                 gardait donc le tas PLEINE TAILLE sur un feutre deux fois plus
+                 petit : mesuré à 1600×950, 88.6px de tas pour 357px de feutre —
+                 24.8 % de la largeur, contre 14 à 16.5 % partout ailleurs. C'est
+                 ce surdimensionnement qui poussait le tas du Hero sur le board
+                 (30 chevauchements relevés en coup complet). */
+              compact={isMobile||numTables>=2}
               kind={isH?"hero":seatMultiway?"multiway":"villain"}
               themeKey={effChipTheme}
               colorKey={chipColor}

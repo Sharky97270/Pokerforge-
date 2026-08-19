@@ -176,11 +176,25 @@ export function normalizeTrainerActionEvent({
   const actionType = normalizeType(source, committedAmount, { currentBetToCall: toCall, street });
   const contributes = !["FOLD", "CHECK", "WIN"].includes(actionType) && committedAmount > 0;
   const priorContribution = roundTrainerBb(streetContributions?.[actorSeat] || 0);
-  const totalStreetContributionAfterAction = contributes
-    ? roundTrainerBb(Math.max(committedAmount, priorContribution + committedAmount))
-    : priorContribution;
-  const remainingStackAfterAction = stackBb > 0 ? Math.max(0, roundTrainerBb(stackBb - committedAmount)) : null;
-  const resultingPot = roundTrainerBb((Number(potBefore) || 0) + (contributes ? committedAmount : 0));
+  /* ── CE QUI PART DU TAPIS N'EST PAS CE QUI EST DEVANT LE SIÈGE (§24) ──────
+     Un CALL s'annonce par ce qu'il RESTE à payer ; une relance s'annonce « to
+     X », c'est-à-dire par le TOTAL. Les deux arrivaient ici dans le même champ
+     et étaient ajoutés tels quels au pot — donc un joueur qui avait déjà des
+     jetons devant lui les remettait une seconde fois. Mesuré à l'écran : un
+     open à 3bb du BTN suivi par la SB donnait « POT 7.5bb » pour 7bb réels, et
+     un squeeze de la BB gonflait le pot d'une blinde entière.
+
+     On sépare donc les deux grandeurs : `totalStreetContributionAfterAction`
+     est le TAS devant le siège, `potContribution` est ce qui a quitté le
+     tapis — et c'est la seule des deux qui entre dans le pot. */
+  const totalStreetContributionAfterAction = !contributes
+    ? priorContribution
+    : actionType === "CALL"
+      ? roundTrainerBb(priorContribution + committedAmount)
+      : roundTrainerBb(Math.max(committedAmount, priorContribution));
+  const potContribution = roundTrainerBb(Math.max(0, totalStreetContributionAfterAction - priorContribution));
+  const remainingStackAfterAction = stackBb > 0 ? Math.max(0, roundTrainerBb(stackBb - potContribution - priorContribution)) : null;
+  const resultingPot = roundTrainerBb((Number(potBefore) || 0) + potContribution);
   const verb = trainerActionDisplayVerb(actionType, source);
   const displayAmount = roundTrainerBb(committedAmount);
   const displayLabel = displayAmount > 0 ? `${verb} ${displayAmount}bb` : verb;
@@ -194,6 +208,8 @@ export function normalizeTrainerActionEvent({
     rawActionType: rawBase,
     committedAmount: displayAmount,
     amountToCallBeforeAction: toCall,
+    priorContribution,
+    potContribution,
     totalStreetContributionAfterAction,
     remainingStackAfterAction,
     resultingPot,
