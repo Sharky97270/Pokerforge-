@@ -45,3 +45,40 @@ du Hero. Cette poche est bornée par le critère d'attribution, pas par un angle
 1600×950. `final-4T-1366.png` : le format CONTRAINT, celui qui révèle les
 défauts (à 1600 tout paraît propre — cf. mémoire « trainer-audit-jetons »).
 `zoom-final-*.png` : agrandissements produits par `scripts/png-crop.mjs`.
+
+---
+
+# Cinématique des mises (§12/§13/§27/§28)
+
+Produit par `npm run audit:cine:trainer` (`scripts/trainer-cine-audit.mjs`), qui
+injecte un échantillonneur dans la page et relève, à chaque frame, l'état complet
+de la table. Un relevé unique ne dirait rien : c'est la CHRONOLOGIE qui porte le
+défaut.
+
+    npm run audit:cine:trainer -- --tables=1T --n=14
+
+`cine-avant-1T.json` / `cine-apres-1T.json`.
+
+| grandeur | ce qu'elle dit | §  |
+|---|---|---|
+| `potChangeSansJetonEnMouvement` | le pot prend-il sa valeur AVANT qu'un jeton bouge | 12 |
+| `collecteVisible` | les tas partent-ils vers le pot en fin de tour | 27 |
+| `ghostChipsAprèsStreet` | un tas de la street précédente survit-il | 28 |
+| `pointsDeDépartDeVolDistincts` | les vols partent-ils de sièges différents | 9 |
+
+## Le défaut mesuré avant correction
+
+    ghostChipsAprèsStreet : ["UTG:call10bb", "HJ:3-bet10bb"]
+
+Des engagements du préflop encore peints alors que le board avait déjà changé.
+Et aucune collecte : les tas disparaissaient sur place pendant que le pot
+sautait, parce que `setPotWithDelta` écrivait la valeur finale de façon
+synchrone puis animait un « +X » par-dessus.
+
+## Après
+
+`collecte.png` / `zoom-collecte.png` — capture prise EN COURS de collecte
+(animations figées à l'instant du relevé, sinon on attrape une frame où le jeton
+a déjà disparu). On y lit la règle du §12 : **POT 1.5bb** avec **+3bb** en
+attente au-dessus, pendant que le jeton `3bb` parcourt l'axe joueur → pot. Le
+pot ne prendra sa valeur qu'à l'arrivée.

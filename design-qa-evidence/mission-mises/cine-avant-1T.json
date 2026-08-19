@@ -1,0 +1,137 @@
+{
+ "summary": {
+  "mode": "1T",
+  "viewport": "1600x950",
+  "décisions": 7,
+  "potChangeSansJetonEnMouvement": "1/2",
+  "changementsDeStreetObservés": 2,
+  "collecteVisible": "1/2",
+  "ghostChipsAprèsStreet": [],
+  "pointsDeDépartDeVolDistincts": 10,
+  "erreursPage": []
+ },
+ "decisions": [
+  {
+   "action": "Squeeze 12bb19.5bbRelanc",
+   "relevés": 11,
+   "potChanges": [
+    {
+     "at": 1034,
+     "de": "POT18.5bb",
+     "vers": "POT30.5bb"
+    }
+   ],
+   "firstFly": 0,
+   "firstBetAppear": 1034,
+   "streetChangeAt": null,
+   "boardChangeAt": 2538,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": 2538,
+   "pointsDeDepartDistincts": 10,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½15bb",
+   "relevés": 6,
+   "potChanges": [
+    {
+     "at": 22,
+     "de": "POT30.5bb",
+     "vers": "POT46bb"
+    },
+    {
+     "at": 769,
+     "de": "POT46bb",
+     "vers": "POT66bb"
+    }
+   ],
+   "firstFly": 22,
+   "firstBetAppear": 22,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": true,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 3,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Raise2.5×",
+   "relevés": 4,
+   "potChanges": [],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 2,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½35bb",
+   "relevés": 4,
+   "potChanges": [],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 2,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½35bb",
+   "relevés": 5,
+   "potChanges": [],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 3,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½35bb",
+   "relevés": 5,
+   "potChanges": [],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 3,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½35bb",
+   "relevés": 4,
+   "potChanges": [],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": 676,
+   "potAvantJetons": false,
+   "collecteVisible": true,
+   "ghostChips": [],
+   "transitionAt": 676,
+   "pointsDeDepartDistincts": 1,
+   "maxTasSimultanes": 2
+  }
+ ]
+}
