@@ -82,3 +82,42 @@ synchrone puis animait un « +X » par-dessus.
 a déjà disparu). On y lit la règle du §12 : **POT 1.5bb** avec **+3bb** en
 attente au-dessus, pendant que le jeton `3bb` parcourt l'axe joueur → pot. Le
 pot ne prendra sa valeur qu'à l'arrivée.
+
+---
+
+# Le pot est-il reconstructible depuis la table ? (§3/§24/§37)
+
+`npm run audit:table` mesure désormais, sur chaque table PRÉFLOP :
+
+    pot peint  ==  somme des montants peints (mises + blindes)
+
+Préflop cette égalité est vérifiable sans rien savoir de l'historique : tout ce
+qui est dans le pot y a été mis sur cette street. Postflop elle ne tient plus —
+les streets précédentes sont déjà au centre et n'appartiennent plus à personne —
+donc on ne la teste pas.
+
+## Ce que la mesure a trouvé
+
+Deux générateurs de spots calculaient le pot par une FORMULE qui ajoutait la
+blinde d'un joueur une seconde fois, alors qu'elle est déjà comprise dans sa
+relance :
+
+| générateur | formule | rendait | correct |
+|---|---|---|---|
+| défense de blinde | `toCall + 3.5` | 5 | **4** |
+| face à un 3-bet | `3bet + open + 1.5` | 11.5 | **10.5** |
+
+Vu à l'écran : « POT 7.5bb » avec 3bb devant la SB et 3bb devant la BB — 1.5bb
+que rien n'expliquait. Ce pot alimente les **cotes du pot et le SPR** affichés :
+le Trainer enseignait une décision à partir d'un prix faux. Corrigé par
+`preflopPot()` (`src/potAccounting.js`), couvert par des tests.
+
+## Ce qui reste, et pourquoi ce n'est pas le même problème
+
+Plusieurs générateurs préflop (squeeze, vs 4-bet, push/fold) posent un pot
+**tiré au hasard** — `pot = rndI(8,14)` — sans historique de contributions. Leur
+pot n'est pas reconstructible *par construction* : les contributions n'existent
+pas en tant que données, la table ne peut donc pas les peindre. Ce n'est pas une
+erreur d'arithmétique mais une limite de conception de la génération de spots.
+La corriger revient à donner une vraie séquence d'actions à chaque générateur —
+une refonte de la génération, pas de la table.

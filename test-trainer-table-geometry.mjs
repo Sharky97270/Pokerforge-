@@ -18,7 +18,7 @@ import {
 import { trainerTableGeometry } from "./src/trainerVisualConfig.js";
 import { trainerSeatBlockPx, trainerBoardCardHeight } from "./src/trainerDensity.js";
 import {
-  calculatePotFromContributions, assertPotConsistency, stackToPotRatio,
+  calculatePotFromContributions, assertPotConsistency, stackToPotRatio, preflopPot,
   effectiveStack, sumDisplayedChips,
 } from "./src/potAccounting.js";
 
@@ -302,6 +302,37 @@ for (const sc of SCENARIOS) {
   }
 }
 
+/* ══ 11 — LE POT PRÉFLOP EST UNE SOMME, PAS UNE FORMULE (§24) ══════════════
+   Mesuré à l'écran AVANT correction : « POT 7.5bb » avec 3bb devant la SB et
+   3bb devant la BB — 1.5bb que rien sur la table n'explique. Les deux
+   générateurs préflop ajoutaient la blinde d'un joueur une SECONDE fois, alors
+   qu'elle est déjà comprise dans sa relance. Ce pot alimente les cotes du pot
+   et le SPR : le Trainer enseignait une décision à partir d'un prix faux. */
+{
+  // Défense de blinde : BTN ouvre à 2.5, Hero est BB (1 posté), SB couchée.
+  const potBTN = preflopPot({ commitments: { BTN: 2.5, BB: 1 }, deadBlinds: { SB: 0.5 } });
+  near(potBTN, 4, 0.011, "défense de blinde vs BTN : pot = 4bb (l'ancienne formule rendait 5)");
+  ok(Math.abs(potBTN - (1.5 + 3.5)) > 0.011, "…et ce n'est pas l'ancien « toCall + 3.5 »");
+  // Ouverture à 3bb : toCall = 2.
+  near(preflopPot({ commitments: { CO: 3, BB: 1 }, deadBlinds: { SB: 0.5 } }), 4.5, 0.011,
+    "défense de blinde vs open 3bb : pot = 4.5bb");
+  // Face à un 3-bet : Hero ouvre 2.5, la BB 3-bet à 7.5, la SB est morte.
+  near(preflopPot({ commitments: { BTN: 2.5, BB: 7.5 }, deadBlinds: { SB: 0.5 } }), 10.5, 0.011,
+    "face à un 3-bet de la BB : pot = 10.5bb (l'ancienne formule rendait 11.5)");
+  // Si c'est la SB qui 3-bet, c'est la BB qui est morte.
+  near(preflopPot({ commitments: { BTN: 2.5, SB: 7.5 }, deadBlinds: { BB: 1 } }), 11, 0.011,
+    "face à un 3-bet de la SB : pot = 11bb");
+  // Blind vs blind : personne d'autre n'a payé, donc AUCUN argent mort.
+  near(preflopPot({ commitments: { SB: 3, BB: 3 } }), 6, 0.011,
+    "blind vs blind : pot = 6bb — le cas exact vu à l'écran à 7.5bb");
+  // La cohérence doit tenir bout à bout avec le reste de la comptabilité.
+  const p = preflopPot({ commitments: { SB: 3, BB: 3 } });
+  ok(assertPotConsistency({
+    enginePot: p, displayedPot: p, streetCommitted: { SB: 3, BB: 3 }, previousStreetPot: 0,
+    seatChips: [{ pos: "SB", amount: 3 }, { pos: "BB", amount: 3 }],
+  }).length === 0, "blind vs blind : le pot est intégralement reconstructible depuis la table");
+}
+
 if (fails.length) {
   console.error(`\n❌ ${fails.length} échec(s) sur ${n} assertions :`);
   fails.slice(0, 25).forEach(f => console.error("  · " + f));
@@ -310,3 +341,4 @@ if (fails.length) {
 }
 console.log(`✅ trainer-table-geometry (mission mises) — ${n} assertions OK`);
 assert.ok(true);
+

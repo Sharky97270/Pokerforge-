@@ -35,6 +35,30 @@ export function calculatePotFromContributions(streetCommitted = {}, previousStre
   return roundPot(num(previousStreetPot) + sum);
 }
 
+/* ── LE POT PRÉFLOP EST UNE SOMME, PAS UNE FORMULE (§24) ───────────────────
+   La blinde d'un joueur qui a ensuite relancé est DÉJÀ comprise dans sa
+   relance : une SB qui poste 0.5 puis ouvre à 3 a engagé 3, pas 3.5. Les deux
+   générateurs de spots préflop du Trainer l'ajoutaient une seconde fois —
+
+     défense de blinde   pot = toCall + 3.5        → 5 au lieu de 4
+     face à un 3-bet     pot = 3bet + open + 1.5   → 11.5 au lieu de 10.5
+
+   soit exactement une blinde de trop à chaque fois. Ce n'est pas cosmétique :
+   ce pot alimente les COTES DU POT et le SPR affichés, donc le Trainer
+   enseignait une décision à partir d'un prix faux. Mesuré à l'écran : « POT
+   7.5bb » avec 3bb devant la SB et 3bb devant la BB — 1.5bb que rien
+   n'explique.
+
+   `commitments` : l'engagement TOTAL de chaque joueur encore debout (blinde
+   comprise). `deadBlinds` : les blindes des joueurs couchés, qui sont dans le
+   pot mais n'appartiennent plus à personne — c'est la seule part du pot qu'on
+   ne peut légitimement pas rattacher à un siège. */
+export function preflopPot({ commitments = {}, deadBlinds = {} } = {}) {
+  const vivant = Object.values(commitments).reduce((a, v) => a + num(v), 0);
+  const mort = Object.values(deadBlinds).reduce((a, v) => a + num(v), 0);
+  return roundPot(vivant + mort);
+}
+
 /**
  * Somme des tas RÉELLEMENT dessinés sur la table.
  * @param seatChips  [{ pos, amount }] — un tas par joueur, jamais deux (la
