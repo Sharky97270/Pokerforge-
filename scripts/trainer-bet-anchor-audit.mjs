@@ -192,6 +192,39 @@ const PROBE = (minArea) => {
       seatsPct: Object.fromEntries(Object.entries(seats).map(([p, s]) => [p, { x: +((s.box.cx - zb.x) / zb.w * 100).toFixed(1), y: +((s.box.cy - zb.y) / zb.h * 100).toFixed(1) }])),
       potTexte: potEl ? (potEl.textContent || '').trim().replace(/\s+/g, ' ') : null,
       potDecentre: { dx: +(pot.cx - fb.cx).toFixed(1), dy: +(pot.cy - fb.cy).toFixed(1) },
+      /* ── §3/§37 — LE POT EST-IL RECONSTRUCTIBLE DEPUIS LA TABLE ? ────────
+         C'est le critère d'acceptation que la mission se donne : « on doit
+         pouvoir reconstruire 0.5 + 1 + 2.5 = 4bb simplement en regardant la
+         table ». Au PRÉFLOP il est vérifiable sans rien savoir de l'historique :
+         tout ce qui est dans le pot y a été mis sur cette street, donc
+
+             pot peint == somme des montants peints (mises + blindes)
+
+         Postflop la somme des streets précédentes est déjà au centre et n'est
+         plus attribuable à personne : l'égalité ne tient plus, on ne la teste
+         pas. Le défaut de la vidéo était justement préflop (« POT 12bb » sans
+         l'open de Hero dessiné nulle part). */
+      reconstruction: (() => {
+        const lire = t => {
+          const m = String(t || '').match(/(\d+(?:[.,]\d+)?)\s*bb/i);
+          return m ? parseFloat(m[1].replace(',', '.')) : null;
+        };
+        if (boardBox) return { applicable: false, raison: 'postflop' };
+        const potVal = potEl && painted(potEl) ? lire(potEl.textContent) : null;
+        if (potVal == null) return { applicable: false, raison: 'pot illisible' };
+        const parts = [];
+        zone.querySelectorAll('.pf-seat-action-zone').forEach(e => { if (painted(e)) parts.push({ q: 'mise', pos: e.getAttribute('data-seat'), v: lire(e.textContent) }); });
+        zone.querySelectorAll('.pf-blind-anchor').forEach(e => { if (painted(e)) parts.push({ q: 'blinde', pos: null, v: lire(e.textContent) }); });
+        const connus = parts.filter(p => p.v != null);
+        const somme = Math.round(connus.reduce((a, p) => a + p.v, 0) * 100) / 100;
+        return {
+          applicable: true,
+          pot: potVal, somme,
+          ecart: Math.round((potVal - somme) * 100) / 100,
+          parts: connus.map(p => `${p.q}${p.pos ? ':' + p.pos : ''}=${p.v}`),
+          illisibles: parts.length - connus.length,
+        };
+      })(),
       /* Écarts VERTICAUX du couloir central. C'est là que se joue la lisibilité
          d'une table de poker : pot, board et main du Hero se disputent la même
          colonne, et un écart négatif veut dire « une carte en cache une autre ». */
@@ -290,6 +323,18 @@ try {
     attribution: stat(allBets.map(b => b.ratioAttribution)),
     misesAmbigues: allBets.filter(b => b.ratioAttribution < 1).map(b => ({ pos: b.pos, vers: b.plusProcheAutre, ratio: b.ratioAttribution })),
     misesSurBoard: allBets.filter(b => b.surBoard).length,
+    reconstruction: (() => {
+      const rs = draws.flatMap(d => d.tables.map(t => t.reconstruction)).filter(r => r && r.applicable);
+      const faux = rs.filter(r => Math.abs(r.ecart) > 0.011);
+      return {
+        tablesPreflopTestees: rs.length,
+        potReconstructible: `${rs.length - faux.length}/${rs.length}`,
+        // Un écart POSITIF = il manque des jetons sur la table pour expliquer le
+        // pot ; c'est le défaut de la vidéo. Un écart négatif = on peint plus que
+        // le pot ne contient, ce qui est pire encore.
+        ecarts: faux.slice(0, 8).map(r => ({ pot: r.pot, somme: r.somme, ecart: r.ecart, parts: r.parts })),
+      };
+    })(),
     montantPx: stat(allBets.map(b => b.montantPx)),
     boutonDattribution: stat(draws.flatMap(d => d.tables.map(t => t.dealer && t.dealer.ratioAttribution)).filter(v => v != null)),
     boutonDambigu: draws.flatMap(d => d.tables.map(t => t.dealer)).filter(x => x && x.ratioAttribution != null && x.ratioAttribution < 1.2).length,

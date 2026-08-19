@@ -26,6 +26,7 @@ import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
 import { createAnimationQueue } from "../immersionEngine.js";
 import { CINE, cineDuration, collectTotalMs, collectContributions, projectDisplayedPot, streetRankFromBoard } from "../trainerBetCinematics.js";
+import { preflopPot } from "../potAccounting.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
@@ -2030,7 +2031,15 @@ function generateDynamicSpots(count=50,f={}){
       const d=shuf(mkDeck()),hand=[d.pop(),d.pop()];
       const vpos=rnd(["BTN","CO","HJ","UTG"]);
       const hpos="BB",toCall=vpos==="BTN"?1.5:2;
-      const pot=toCall+3.5,stack=rndI(50,150)+"bb",fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(VT);
+      /* Le pot est la SOMME des engagements (§24). L'ouvreur a mis `toCall + 1`
+         — la BB doit completer sa propre blinde de 1, d'ou toCall = open − 1.
+         Sa blinde a LUI, s'il en avait une, serait deja dans son open ; ici il
+         ouvre depuis une position sans blinde, seule la SB est de l'argent mort.
+         L'ancienne formule (toCall + 3.5) rendait 5 au lieu de 4 : une blinde
+         comptee deux fois, et donc des cotes du pot fausses a l'ecran. */
+      const openSize=toCall+1;
+      const pot=preflopPot({commitments:{[vpos]:openSize,BB:1},deadBlinds:{SB:.5}});
+      const stack=rndI(50,150)+"bb",fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(VT);
       const v=hStr(hand),ok=v>=4?2:v>=1?1:0;
       const xrSz=Math.round(pot*.8)+2;
       return{id:`dyn_${_id++}`,cat:"Vs Open",street:"Preflop",fmt,hpos,vpos,vtype,stack,
@@ -2049,7 +2058,11 @@ function generateDynamicSpots(count=50,f={}){
       const d=shuf(mkDeck()),hand=[d.pop(),d.pop()];
       const hpos=rnd(["BTN","CO","HJ"]),vpos=rnd(["BB","SB"]);
       const open=2.5,bet3=open*3,toCall=Math.round(bet3-open);
-      const pot=Math.round(bet3+open+1.5),stack=rndI(80,150)+"bb";
+      /* La blinde du 3-betteur est DEJA comprise dans son 3-bet : seule celle de
+         l'autre blindeur est de l'argent mort. L'ancienne formule ajoutait les
+         deux (bet3 + open + 1.5) et rendait 11.5 au lieu de 10.5. */
+      const pot=preflopPot({commitments:{[hpos]:open,[vpos]:bet3},deadBlinds:vpos==="BB"?{SB:.5}:{BB:1}});
+      const stack=rndI(80,150)+"bb";
       const fmt=rnd(["Cash 6-max","Cash 9-max"]),vtype=rnd(["TAG","Reg","Aggro Reg"]);
       const v=hStr(hand),ok=v>=5?2:v>=3?1:0;
       return{id:`dyn_${_id++}`,cat:"Vs 3-bet",street:"Preflop",fmt,hpos,vpos,vtype,stack,
