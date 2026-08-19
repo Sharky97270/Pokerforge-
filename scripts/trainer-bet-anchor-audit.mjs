@@ -48,6 +48,15 @@ const H = +arg('h', 950);
 const N = +arg('n', 6);
 const OUT = arg('out', '');
 const SHOT = arg('shot', '');
+/* Tirage auquel prendre la capture. Par defaut la derniere, ce qui attrape
+   souvent une table EN COURS de collecte : pour montrer un etat lisible il faut
+   pouvoir viser le tirage 0, avant toute action. */
+const SHOT_AT = arg('shotAt', '');
+/* Types de spot a selectionner avant de lancer la session (« Open Raise »,
+   « Defense BB », « 3bet »...). Sans ca, la session reprend la configuration
+   persistee — mesuree en 1T : vingt releves de spots turn/river, donc zero
+   table PREFLOP, la seule street ou le pot est reconstructible. */
+const TYPES = arg('types', '').split(',').map(t => t.trim()).filter(Boolean);
 
 const CHROMES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -124,7 +133,10 @@ const PROBE = (minArea) => {
         const d = Math.hypot(b.cx - s.box.cx, b.cy - s.box.cy);
         if (d < dOther) { dOther = d; nearest = p; }
       });
-      const amountEl = e.querySelector('[class*="amount"],[class*="value"]');
+      /* Le montant vit dans le <em> du tas (BetChipDisplay). L'ancien sélecteur
+         ne matchait rien : la mesure de lisibilité du §36 rendait `null` depuis
+         le début — on ne mesurait pas ce qu'on prétendait mesurer. */
+      const amountEl = e.querySelector('.pf-action-chip-copy em') || e.querySelector('[class*="amount"],[class*="value"]');
       const fsz = amountEl ? +getComputedStyle(amountEl).fontSize.replace('px', '') : null;
       bets.push({
         pos, hero: seat.hero,
@@ -137,6 +149,8 @@ const PROBE = (minArea) => {
         plusProcheAutre: nearest,
         ratioAttribution: +(dOther / (dOwn || 1)).toFixed(2),
         surBoard: boardBox ? inter(b, boardBox) > minArea : false,
+        // Un booléen ne dit pas si le tas EFFLEURE le board ou s'y installe.
+        surBoardPct: boardBox && b.w * b.h ? +(inter(b, boardBox) / (b.w * b.h) * 100).toFixed(1) : 0,
         montantPx: fsz,
       });
     });
@@ -191,6 +205,11 @@ const PROBE = (minArea) => {
       betsPct: [...zone.querySelectorAll('.pf-seat-action-zone')].filter(painted).map(e => ({ pos: e.getAttribute('data-seat'), ...pct(R(e)) })),
       seatsPct: Object.fromEntries(Object.entries(seats).map(([p, s]) => [p, { x: +((s.box.cx - zb.x) / zb.w * 100).toFixed(1), y: +((s.box.cy - zb.y) / zb.h * 100).toFixed(1) }])),
       potTexte: potEl ? (potEl.textContent || '').trim().replace(/\s+/g, ' ') : null,
+      /* Signature du spot, publiée par la table (data-pf-spot). Sans elle, un
+         écart de reconstruction est une mesure qu'on ne peut pas reproduire :
+         on lit « pot 20bb pour 12bb de jetons » sans savoir de quelle main il
+         s'agit. */
+      spot: (() => { try { return JSON.parse(zone.getAttribute('data-pf-spot') || 'null'); } catch (e) { return null; } })(),
       potDecentre: { dx: +(pot.cx - fb.cx).toFixed(1), dy: +(pot.cy - fb.cy).toFixed(1) },
       /* ── §3/§37 — LE POT EST-IL RECONSTRUCTIBLE DEPUIS LA TABLE ? ────────
          C'est le critère d'acceptation que la mission se donne : « on doit
@@ -213,7 +232,14 @@ const PROBE = (minArea) => {
         const potVal = potEl && painted(potEl) ? lire(potEl.textContent) : null;
         if (potVal == null) return { applicable: false, raison: 'pot illisible' };
         const parts = [];
-        zone.querySelectorAll('.pf-seat-action-zone').forEach(e => { if (painted(e)) parts.push({ q: 'mise', pos: e.getAttribute('data-seat'), v: lire(e.textContent) }); });
+        /* On lit le MONTANT, pas le texte du tas : le libellé peut porter son
+           propre nombre (« 3-bet 9bb ») et on mesurerait alors la décision au
+           lieu de l'engagement. Le montant vit dans le <em> du tas. */
+        zone.querySelectorAll('.pf-seat-action-zone').forEach(e => {
+          if (!painted(e)) return;
+          const em = e.querySelector('.pf-action-chip-copy em');
+          parts.push({ q: 'mise', pos: e.getAttribute('data-seat'), v: lire((em || e).textContent) });
+        });
         zone.querySelectorAll('.pf-blind-anchor').forEach(e => { if (painted(e)) parts.push({ q: 'blinde', pos: null, v: lire(e.textContent) }); });
         const connus = parts.filter(p => p.v != null);
         const somme = Math.round(connus.reduce((a, p) => a + p.v, 0) * 100) / 100;
@@ -270,6 +296,8 @@ try {
   await click('Entraineur GTO'); await sleep(900);
   await click(TABLES); await sleep(200);
   await click(STRUCT); await sleep(300);
+  for (const t of TYPES) { await click(t); await sleep(120); }
+  if (TYPES.length) await sleep(300);
   if (flag('fh')) {
     await page.evaluate(() => {
       const el = [...document.querySelectorAll('div,span')].find(e => e.children.length === 0 && /^..?\s*Full Hand$/i.test(e.textContent.trim()));
@@ -286,22 +314,40 @@ try {
   await sleep(1200);
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
 
-  const advance = () => page.evaluate(() => {
+  /* On alterne « jouer une action » et « spot suivant ». En ne cliquant que des
+     actions, la session restait bloquée sur le MÊME spot une fois répondu — en
+     1T, vingt relevés du même coup au turn, donc zéro table préflop mesurée. Or
+     les deux états sont à mesurer : celui d'AVANT la décision (les jetons déjà
+     posés) et celui d'APRÈS (l'engagement de Hero s'ajoute sans effacer le
+     reste) — c'est entre les deux que se cachaient les tas manquants. */
+  const advance = (preferNext) => page.evaluate((next) => {
     const vis = s => [...document.querySelectorAll(s)].filter(x => x.getBoundingClientRect().width > 0);
     const b = vis('button.gto-btn,button[class*="gto-btn-"],button.ab,button[class*="ab-"]').filter(x => !/Fold/i.test(x.textContent));
-    const nx = vis('.gto-next-btn,button.btng');
-    const t = b.length ? b[Math.floor(Math.random() * b.length)] : nx[0];
+    /* Le bouton « suivant » n'a pas la même classe partout (1T, mosaïque, panneau
+       de solution). On le reconnaît aussi à son libellé, sinon la session reste
+       bloquée sur le spot déjà répondu — vingt relevés du même coup. */
+    const nx = [...new Set([
+      ...vis('.gto-next-btn,button.btng,.pf-p2-next'),
+      ...vis('button').filter(x => /suivant|suivante|résultat|resultat|tables suivantes/i.test(x.textContent || '') && !x.disabled),
+    ])];
+    const t = next ? (nx[0] || b[Math.floor(Math.random() * b.length)])
+                   : (b.length ? b[Math.floor(Math.random() * b.length)] : nx[0]);
     if (t) { t.click(); return true; } return false;
-  });
+  }, !!preferNext);
 
   const draws = [];
   for (let d = 0; d < N; d++) {
     const snap = await page.evaluate(PROBE, 16);
     if (snap.tables.length) draws.push(snap);
-    await advance(); await sleep(1600);
+    if (SHOT && SHOT_AT !== '' && +SHOT_AT === d) {
+      const sp = path.resolve(SHOT);
+      fs.mkdirSync(path.dirname(sp), { recursive: true });
+      await page.screenshot({ path: sp });
+    }
+    await advance(d % 2 === 1); await sleep(1600);
   }
 
-  if (SHOT) {
+  if (SHOT && SHOT_AT === '') {
     const p = path.resolve(SHOT);
     fs.mkdirSync(path.dirname(p), { recursive: true });
     await page.screenshot({ path: p });
@@ -324,7 +370,7 @@ try {
     misesAmbigues: allBets.filter(b => b.ratioAttribution < 1).map(b => ({ pos: b.pos, vers: b.plusProcheAutre, ratio: b.ratioAttribution })),
     misesSurBoard: allBets.filter(b => b.surBoard).length,
     reconstruction: (() => {
-      const rs = draws.flatMap(d => d.tables.map(t => t.reconstruction)).filter(r => r && r.applicable);
+      const rs = draws.flatMap(d => d.tables.map(t => t.reconstruction && Object.assign({}, t.reconstruction, { spot: t.spot }))).filter(r => r && r.applicable);
       const faux = rs.filter(r => Math.abs(r.ecart) > 0.011);
       return {
         tablesPreflopTestees: rs.length,
@@ -332,7 +378,7 @@ try {
         // Un écart POSITIF = il manque des jetons sur la table pour expliquer le
         // pot ; c'est le défaut de la vidéo. Un écart négatif = on peint plus que
         // le pot ne contient, ce qui est pire encore.
-        ecarts: faux.slice(0, 8).map(r => ({ pot: r.pot, somme: r.somme, ecart: r.ecart, parts: r.parts })),
+        ecarts: faux.slice(0, 8).map(r => ({ pot: r.pot, somme: r.somme, ecart: r.ecart, parts: r.parts, spot: r.spot })),
       };
     })(),
     montantPx: stat(allBets.map(b => b.montantPx)),
