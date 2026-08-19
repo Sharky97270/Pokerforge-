@@ -1,0 +1,123 @@
+{
+ "summary": {
+  "mode": "1T",
+  "viewport": "1600x950",
+  "décisions": 3,
+  "potChangeSansJetonEnMouvement": "0/3",
+  "changementsDeStreetObservés": 2,
+  "collecteVisible": "1/2",
+  "ghostChipsAprèsStreet": [],
+  "pointsDeDépartDeVolDistincts": 16,
+  "erreursPage": []
+ },
+ "decisions": [
+  {
+   "action": "Squeeze 12bb19.5bbRelanc",
+   "relevés": 15,
+   "potChanges": [
+    {
+     "at": 25,
+     "de": "POT18.5bb",
+     "vers": "POT6.5bb"
+    },
+    {
+     "at": 459,
+     "de": "POT6.5bb",
+     "vers": "POT18.5bb"
+    },
+    {
+     "at": 1036,
+     "de": "POT18.5bb",
+     "vers": "POT30.5bb"
+    },
+    {
+     "at": 1062,
+     "de": "POT30.5bb",
+     "vers": "POT18.5bb"
+    },
+    {
+     "at": 1540,
+     "de": "POT18.5bb",
+     "vers": "POT30.5bb"
+    }
+   ],
+   "firstFly": 0,
+   "firstBetAppear": 1036,
+   "streetChangeAt": null,
+   "boardChangeAt": 2552,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": 2552,
+   "pointsDeDepartDistincts": 16,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½15bb",
+   "relevés": 9,
+   "potChanges": [
+    {
+     "at": 12,
+     "de": "POT46bb",
+     "vers": "POT30.5bb"
+    },
+    {
+     "at": 493,
+     "de": "POT30.5bb",
+     "vers": "POT46bb"
+    },
+    {
+     "at": 788,
+     "de": "POT46bb",
+     "vers": "POT61.5bb"
+    },
+    {
+     "at": 798,
+     "de": "POT61.5bb",
+     "vers": "POT46bb"
+    },
+    {
+     "at": 1280,
+     "de": "POT46bb",
+     "vers": "POT61.5bb"
+    }
+   ],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": 788,
+   "potAvantJetons": false,
+   "collecteVisible": true,
+   "ghostChips": [],
+   "transitionAt": 788,
+   "pointsDeDepartDistincts": 6,
+   "maxTasSimultanes": 1
+  },
+  {
+   "action": "Bet ½30bb",
+   "relevés": 5,
+   "potChanges": [
+    {
+     "at": 17,
+     "de": "POT92.5bb",
+     "vers": "POT61.5bb"
+    },
+    {
+     "at": 494,
+     "de": "POT61.5bb",
+     "vers": "POT92.5bb"
+    }
+   ],
+   "firstFly": 0,
+   "firstBetAppear": null,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 3,
+   "maxTasSimultanes": 1
+  }
+ ]
+}

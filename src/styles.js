@@ -2438,6 +2438,38 @@ body::before{
 }
 .chip-from-villain span{background:linear-gradient(135deg,#C090FF,#7D3DCC);color:#fff;box-shadow:0 3px 14px rgba(155,92,255,.48);}
 .chip-allin span{background:linear-gradient(135deg,#FF4560,#9F142A);color:#fff;animation:urgentPulse .5s ease-in-out infinite;}
+/* ── COLLECTE DES MISES VERS LE POT (§27) ─────────────────────────────────
+   Un jeton par contributeur, partant de SON ancre de mise. Le trajet est donne
+   en pourcentages du conteneur (--pf-collect-dx/dy), donc dans le MEME repere
+   que les ancres : le jeton part exactement d ou le tas etait pose, et arrive
+   exactement sur le pot. Une trajectoire ecrite en pixels se serait desalignee
+   des que la table change de taille.
+   La duree vient de trainerBetCinematics (§13), jamais d une valeur en dur. */
+.pf-chip-collect{
+  position:absolute;transform:translate(-50%,-50%);z-index:19;pointer-events:none;
+  animation:pfChipCollect var(--pf-collect-ms,480ms) cubic-bezier(.34,.62,.28,1) forwards;
+  will-change:transform,opacity;
+}
+.pf-chip-collect span{
+  display:inline-block;white-space:nowrap;
+  font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:900;color:#F7FAFF;
+  background:linear-gradient(180deg,rgba(3,11,29,.9),rgba(1,6,17,.82));
+  border:1px solid rgba(31,139,255,.42);border-radius:9px;padding:2px 6px;
+  box-shadow:0 6px 16px rgba(0,0,0,.6),0 0 12px rgba(0,191,255,.18);
+}
+:is(.grid3,.grid4) .pf-chip-collect span{font-size:8px;padding:1px 4px;border-radius:7px;}
+@keyframes pfChipCollect{
+  0%{transform:translate(-50%,-50%) scale(1);opacity:1;}
+  78%{opacity:1;}
+  100%{transform:translate(calc(-50% + var(--pf-collect-dx,0%)),calc(-50% + var(--pf-collect-dy,0%))) scale(.55);opacity:0;}
+}
+/* Le mouvement est une INFORMATION, pas une decoration : quand l utilisateur
+   demande moins d animation, on garde le jeton en place et on le fait fondre —
+   la lecture reste possible, l agitation disparait. */
+@media(prefers-reduced-motion:reduce){
+  .pf-chip-collect{animation:pfChipCollectFade var(--pf-collect-ms,480ms) linear forwards;}
+  @keyframes pfChipCollectFade{0%{opacity:1;}100%{opacity:0;}}
+}
 @keyframes chipFlyToPot{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.82);}
   12%{opacity:1;transform:translate(-50%,-50%) scale(1);}

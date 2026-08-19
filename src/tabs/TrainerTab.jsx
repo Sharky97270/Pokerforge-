@@ -25,6 +25,7 @@ import { finalizeTrainingSpots } from "../spotSchema.js";
 import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
 import { createAnimationQueue } from "../immersionEngine.js";
+import { CINE, cineDuration, collectTotalMs, collectContributions, projectDisplayedPot, streetRankFromBoard } from "../trainerBetCinematics.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
@@ -3022,6 +3023,66 @@ function saveTrainerHandAction(entry){
     localStorage.setItem("pf_trainer_hand_history",JSON.stringify([...prev,entry].slice(-400)));
   }catch{}
 }
+/* ── LE POT AFFICHE SUIT LES JETONS, IL NE LES PRECEDE PAS (§12/§26) ───────
+   Le moteur encaisse tout de suite — c'est lui la verite, et le SPR comme les
+   cotes du pot doivent continuer a le lire. Ce qui change, c'est le NOMBRE
+   PEINT : il reste sur la valeur d'avant tant que les jetons n'ont pas
+   rejoint le centre. Sans ca l'animation ne raconte rien, elle commente un
+   resultat deja annonce (defaut mesure : `setPotWithDelta` ecrivait la valeur
+   finale de facon synchrone, puis lancait un « +X » decoratif).
+
+   Une BAISSE du pot n'est jamais une collecte : c'est un changement de spot ou
+   de main. On resynchronise alors sans animer, sinon l'affichage resterait sur
+   le pot de la main precedente. */
+function useDisplayedPot(enginePot,numTables=1){
+  const [display,setDisplay]=useState(enginePot);
+  const [collect,setCollect]=useState(null);
+  const prev=useRef(enginePot);
+  const timer=useRef(null);
+  useEffect(()=>{
+    const before=prev.current;
+    prev.current=enginePot;
+    if(enginePot===before)return;
+    if(!(enginePot>before)){
+      if(timer.current)clearTimeout(timer.current);
+      setCollect(null);setDisplay(enginePot);
+      return;
+    }
+    const duree=collectTotalMs(numTables);
+    const now=(typeof performance!=="undefined"?performance.now():Date.now());
+    setCollect({startedAt:now,landsAt:now+duree,potBefore:before});
+    if(timer.current)clearTimeout(timer.current);
+    timer.current=setTimeout(()=>{setDisplay(enginePot);setCollect(null);},duree);
+  },[enginePot,numTables]);
+  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
+  // La projection reste la reference : si le minuteur saute (demontage, onglet
+  // masque), l'affichage retombe sur le moteur au lieu de se figer.
+  return [projectDisplayedPot(enginePot,collect,collect?collect.landsAt-1:0),!!collect,collect];
+}
+
+/* Jetons en vol vers le pot, UN PAR CONTRIBUTEUR, partant de SON ancre de mise.
+   L'ancien vol partait d'un point fixe (`.chip-hero-fly` cale a bottom:22%/
+   left:48%) : il ne disait donc pas qui avait paye, ce que le §9 demande. */
+function CollectChips({chips=[],pot,anchorOf,numTables=1}){
+  if(!chips.length||!pot)return null;
+  return chips.map((c,i)=>{
+    const a=anchorOf(c.pos);
+    if(!a)return null;
+    return(
+      <div key={`collect-${c.pos}-${i}`} className="pf-chip-collect" data-seat={c.pos}
+        style={{
+          left:`${a.x}%`,top:`${a.y}%`,
+          "--pf-collect-dx":`${pot.x-a.x}%`,
+          "--pf-collect-dy":`${pot.y-a.y}%`,
+          "--pf-collect-ms":`${cineDuration("chipTravel",numTables)+cineDuration("potCollect",numTables)}ms`,
+          animationDelay:`${i*28}ms`,
+        }}>
+        <span>{c.amount}bb</span>
+      </div>
+    );
+  });
+}
+
 function ChipAnimation({event,compact=false}){
   if(!event)return null;
   const cls=`chip-animation ${event.playerId==="hero"?"chip-from-hero":"chip-from-villain"} ${event.actionType==="ALLIN"?"chip-allin":""}`;
@@ -3999,6 +4060,32 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     return (st.invested||0)>(TRAINER_BLINDS[p]||0);
   };
   const mainPotBb=roundBb(playingFull?fhPot:(currentPotBb||spot.pot||postedBlinds.SB+postedBlinds.BB));
+  /* mainPotBb reste la VERITE (SPR, cotes, solveur le lisent). `potAffiche` est
+     la projection visuelle : elle attend les jetons (§12/§26). */
+  const [potAffiche,potCollecting]=useDisplayedPot(mainPotBb,numTables);
+  /* Ce qui part vers le pot pendant la collecte. En coup complet, le moteur
+     tient l'engagement de la street courante pour les deux joueurs : c'est la
+     source, pas une relecture du DOM. */
+  const collectChips=useMemo(()=>{
+    if(!potCollecting)return [];
+    if(playingFull&&fhStateRef.current){
+      const c=fhStateRef.current.contrib||{};
+      return collectContributions({[spot?.hpos||"BTN"]:c.hero||0,[spot?.vpos||"BB"]:c.villain||0});
+    }
+    return collectContributions(Object.fromEntries(seatOrder.map(p=>[p,(seatStates[p]||{}).invested||0])));
+  },[potCollecting,playingFull,spot?.hpos,spot?.vpos,seatOrder,seatStates]);
+  /* Rang de street REELLEMENT peint. Il sert de garde anti-ghost-chips (§28) :
+     un engagement releve au preflop n'a rien a faire sur une table qui montre
+     deja un flop. Mesure avant correction : « UTG:call10bb » et « HJ:3-bet10bb »
+     encore affiches apres que le board avait change. */
+  const visibleStreetRank=streetRankFromBoard(boardCount);
+  const spotStreetRank=streetRankFromBoard((spot.board||[]).length);
+  const spotChipsPerimes=!playingFull&&visibleStreetRank!==spotStreetRank;
+  const collectingSeats=useMemo(()=>new Set(collectChips.map(c=>c.pos)),[collectChips]);
+  const anchorForSeat=useCallback(pos=>{
+    if(!pos)return null;
+    return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
+  },[trainingLayout,hasVisibleBoard,numTables,ringGeom,spot?.hpos]);
   const heroSize=numTables>=3?"md":numTables===2?"lg":"3xl";
   const chipSize=numTables>=3?30:numTables===2?38:68;
   const seatFontPos=7;
@@ -5120,7 +5207,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             {/* POT */}
             {(()=>{
               const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
-              const potVal=mainPotBb;
+              const potVal=potAffiche;
               /* Ancre UNIQUE (trainerTableGeometry) : le rendu et la cible des
                  mises lisent le meme %, sinon la mise ne vise pas le pot reel. */
               const potPt=centreAnchors.pot;
@@ -5156,9 +5243,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             )}
             {/* Phase flash overlay */}
             {phaseFlash&&<div className="phase-flash"/>}
-            {potDelta&&<div className="pot-delta" style={{top:((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))?"22%":"42%"}}>+{fmt(potDelta.amount)}</div>}
+            {potDelta&&<div className="pot-delta" style={{top:`${centreAnchors.pot.y-7}%`,left:`${centreAnchors.pot.x}%`}}>+{fmt(potDelta.amount)}</div>}
             <ChipAnimation event={chipMove} compact={false}/>
             {/* CHIP HERO → POT */}
+            <CollectChips chips={collectChips} pot={centreAnchors.pot} anchorOf={anchorForSeat} numTables={numTables}/>
             {heroChip&&<div className="chip-hero-fly"><span>{heroChip}</span></div>}
             {/* CHIP VILLAIN → POT */}
             {vilChip&&<div className="chip-vil-fly"><span>{vilChip}</span></div>}
@@ -5210,7 +5298,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             // ── Jetons « pré-décision » : ce que chacun a engagé AVANT que Hero agisse ──
             // (open/3-bet/c-bet du vilain + open déjà investi par Hero) — indispensable
             // pour comprendre pourquoi Hero doit call/3-bet/defend.
-            const activeStreetBetsVisible=!isDone&&!vact&&!playingFull;
+            const activeStreetBetsVisible=!isDone&&!vact&&!playingFull&&!spotChipsPerimes;
             const preDecision=activeStreetBetsVisible;
             let preChipAmt=0,preChipLabel=null;
             if(preDecision){
@@ -5339,7 +5427,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     if(isH){ fhSeatBet=roundBb(c.hero||0); const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet); fhSeatLabel=ha?trainerActionDisplayVerb(ha.action):null; }
                     else if(isV){ fhSeatBet=roundBb(c.villain||0); fhSeatLabel=fhVilAct?(fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action)):null; }
                   }
-                  const zoneAmount=!playingFull?betAmt:fhSeatBet;
+                  const zoneAmountRaw=!playingFull?betAmt:fhSeatBet;
+                  // Idem en 1T : pendant la collecte, l ancre est vide.
+                  const zoneAmount=collectingSeats.has(pos)?0:zoneAmountRaw;
                   const zoneLabel=(!playingFull?chipLabel:fhSeatLabel)||trainerActionVerb(trainerActionType(lastAct?.id||"BET"));
                   return(
                 <SeatActionZone
@@ -5584,15 +5674,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
                   <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+                    <TrainingPotStack value={potAffiche} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
-                    <span className="pf-pot-value">{fmt(mainPotBb)}</span>
+                    <span className="pf-pot-value">{fmt(potAffiche)}</span>
                   </div>
                 ):(
                   <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
-                    <TrainingPotStack value={mainPotBb} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
+                    <TrainingPotStack value={potAffiche} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
-                    <span className="pf-pot-value">{fmt(mainPotBb)}</span>
+                    <span className="pf-pot-value">{fmt(potAffiche)}</span>
                   </div>
                 )}
                 {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
@@ -5616,9 +5706,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
           {/* Phase flash overlay */}
           {phaseFlash&&<div className="phase-flash"/>}
-          {potDelta&&<div className="pot-delta" style={{top:((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))?"22%":"42%",fontSize:numTables>=3?7:9,padding:numTables>=3?"1px 5px":"2px 7px"}}>+{fmt(potDelta.amount)}</div>}
+          {potDelta&&<div className="pot-delta" style={{top:`${centreAnchors.pot.y-9}%`,left:`${centreAnchors.pot.x}%`,fontSize:numTables>=3?7:9,padding:numTables>=3?"1px 5px":"2px 7px"}}>+{fmt(potDelta.amount)}</div>}
           <ChipAnimation event={chipMove} compact={numTables>=3}/>
           {/* Chips animations directionnels */}
+          {/* COLLECTE — un jeton par contributeur, partant de SON ancre de mise
+              vers le pot (§9/§27). Rendu ici, dans le feutre, pour partager le
+              repere des ancres avec les tas au repos. */}
+          <CollectChips chips={collectChips} pot={centreAnchors.pot} anchorOf={anchorForSeat} numTables={numTables}/>
           {heroChip&&<div className="chip-hero-fly"><span>{heroChip}</span></div>}
           {vilChip&&<div className="chip-vil-fly"><span>{vilChip}</span></div>}
           {/* CHIP ANIM legacy */}
@@ -5677,8 +5771,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             :isV&&vact?{id:seatActionSource?.actionType||vact.action,l:seatActionSource?.displayLabel||vact.label}:null;
           const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
           // Pré-décision : jetons engagés par le vilain (open/3-bet/c-bet) AVANT que Hero agisse
-          const mtPreFacing=answered===null&&!vact&&!playingFull&&isV&&spotCtx.facing&&spotCtx.facing.position===pos;
-          const mtPreExtra=answered===null&&!vact&&!playingFull&&!isH&&!isV&&seatState.invested>0;
+          const mtPreFacing=answered===null&&!vact&&!playingFull&&!spotChipsPerimes&&isV&&spotCtx.facing&&spotCtx.facing.position===pos;
+          const mtPreExtra=answered===null&&!vact&&!playingFull&&!spotChipsPerimes&&!isH&&!isV&&seatState.invested>0;
           /* ── L'ENGAGEMENT DÉJÀ POSÉ PAR HERO (§3/§25) ──
              Il manquait en mosaïque, alors que le 1T le dessinait (preChipAmt).
              Résultat mesuré en 4T : « POT 12bb » avec 0.5bb à la SB et un 3-Bet
@@ -5688,7 +5782,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
              seatShowsChips : au-dessus de sa blinde, le siège montre son
              engagement et le marqueur de blinde s'efface — un seul tas par
              joueur, jamais deux. */
-          const mtPreHero=answered===null&&!vact&&!playingFull&&isH&&(spotCtx.heroCommitted||0)>(TRAINER_BLINDS[pos]||0);
+          const mtPreHero=answered===null&&!vact&&!playingFull&&!spotChipsPerimes&&isH&&(spotCtx.heroCommitted||0)>(TRAINER_BLINDS[pos]||0);
           // Ce que Hero a posé se lit dans ce à quoi il fait face : un 3-bet en
           // face signifie qu'il a ouvert, un 4-bet qu'il a 3-bet.
           const mtPreHeroLabel=spotCtx.facing?.kind==="4bet"?"3-Bet":spotCtx.facing?.kind==="3bet"?"Open":"Mise";
@@ -5710,7 +5804,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 ?(heroLiveAction.actionLabel||trainerActionDisplayVerb(heroLiveType,heroAnsweredAction))
                 :heroAnsweredAction?.l)
             :null;
-          const seatActionAmount=hasHeroBet?heroBetAmt:(mtPreHero?roundBb(spotCtx.heroCommitted):vilBetAmt);
+          const seatActionAmountRaw=hasHeroBet?heroBetAmt:(mtPreHero?roundBb(spotCtx.heroCommitted):vilBetAmt);
+          // Le tas part vers le pot : il quitte son ancre, il n y reste pas.
+          const seatActionAmount=collectingSeats.has(pos)?0:seatActionAmountRaw;
           const seatActionLabel=hasHeroBet?heroChipLabel:(mtPreHero?mtPreHeroLabel:vilChipLabel);
           const seatActionType=hasHeroBet
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
