@@ -12,6 +12,7 @@ export default function BetChipDisplay({
   colorKey = "blue",
   sizeMode = "auto",
   tableMode = 1,
+  allIn = false,
   style,
 }) {
   const tableModeKey = typeof tableMode === "string" ? tableMode : getChipTableMode(tableMode);
@@ -47,7 +48,10 @@ export default function BetChipDisplay({
         </span>
       )}
       <span className="pf-action-chip-copy">
-        {label && <strong>{label}</strong>}
+        {/* Le mot ALL-IN prime sur le libelle de l action : c est lui qui change
+            la decision. Il se pose DANS le badge, donc il ne peut recouvrir ni
+            les cartes, ni le board, ni la plaque (§14). */}
+        {allIn ? <strong className="pf-allin-tag">ALL-IN</strong> : (label && <strong>{label}</strong>)}
         {amount > 0 && <em>{amount}bb</em>}
       </span>
     </span>

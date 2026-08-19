@@ -1,0 +1,9574 @@
+{
+ "summary": {
+  "mode": "4T",
+  "struct": "6J",
+  "viewport": "1600x950",
+  "tirages": 14,
+  "misesMesurees": 53,
+  "ratioFeutre": {
+   "moy": 1.7,
+   "min": 1.7,
+   "max": 1.7,
+   "et": 0
+  },
+  "ecartAngleDeg": {
+   "moy": 21.87,
+   "min": 0,
+   "max": 67.2,
+   "et": 20.342
+  },
+  "misesHorsAxe35": 19,
+  "progressionT": {
+   "moy": 0.435,
+   "min": 0.37,
+   "max": 0.661,
+   "et": 0.065
+  },
+  "misesHorsSegment": 0,
+  "attribution": {
+   "moy": 1.394,
+   "min": 1.33,
+   "max": 1.66,
+   "et": 0.083
+  },
+  "misesAmbigues": [],
+  "misesSurBoard": 0,
+  "reconstruction": {
+   "tablesPreflopTestees": 16,
+   "potReconstructible": "16/16",
+   "ecarts": []
+  },
+  "montantPx": {
+   "moy": 7.4,
+   "min": 7.4,
+   "max": 7.4,
+   "et": 0
+  },
+  "boutonDattribution": {
+   "moy": 1.867,
+   "min": 1.62,
+   "max": 2.68,
+   "et": 0.36
+  },
+  "boutonDambigu": 0,
+  "tailles": {
+   "carteHero": {
+    "w": 25.7,
+    "h": 33.5
+   },
+   "carteBoard": {
+    "w": 26.9,
+    "h": 37.1
+   },
+   "carteVilain": {
+    "w": 19.2,
+    "h": 23.4
+   },
+   "avatar": {
+    "w": 23.5,
+    "h": 23.5
+   },
+   "boutonD": {
+    "w": 11.5,
+    "h": 11.5
+   },
+   "potBloc": {
+    "w": 77.6,
+    "h": 17
+   }
+  },
+  "couloir": {
+   "potBoard": {
+    "moy": 5.6,
+    "min": 5.6,
+    "max": 5.6,
+    "et": 0
+   },
+   "boardCartesHero": {
+    "moy": 18.643,
+    "min": 18.5,
+    "max": 24.2,
+    "et": 0.89
+   },
+   "feutreBasBlocHero": {
+    "moy": -4.15,
+    "min": -4.2,
+    "max": -3.5,
+    "et": 0.18
+   }
+  },
+  "feutre": [
+   {
+    "w": 315,
+    "h": 185.3,
+    "ar": 1.7
+   },
+   {
+    "w": 315,
+    "h": 185.3,
+    "ar": 1.7
+   },
+   {
+    "w": 315,
+    "h": 185.3,
+    "ar": 1.7
+   },
+   {
+    "w": 315,
+    "h": 185.3,
+    "ar": 1.7
+   }
+  ],
+  "boutonD": [
+   {
+    "box": {
+     "w": 11.5,
+     "h": 11.5
+    },
+    "proprietaire": "BTN",
+    "siegeLePlusProche": "BTN",
+    "distanceProprietaire": 61.8,
+    "ratioAttribution": 1.93,
+    "rho": 0.324,
+    "surBoard": false
+   },
+   {
+    "box": {
+     "w": 11.5,
+     "h": 11.5
+    },
+    "proprietaire": "BTN",
+    "siegeLePlusProche": "BTN",
+    "distanceProprietaire": 51,
+    "ratioAttribution": 1.91,
+    "rho": 0.675,
+    "surBoard": false
+   },
+   {
+    "box": {
+     "w": 11.5,
+     "h": 11.5
+    },
+    "proprietaire": "BTN",
+    "siegeLePlusProche": "BTN",
+    "distanceProprietaire": 54,
+    "ratioAttribution": 1.7,
+    "rho": 0.716,
+    "surBoard": false
+   },
+   {
+    "box": {
+     "w": 11.5,
+     "h": 11.5
+    },
+    "proprietaire": "BTN",
+    "siegeLePlusProche": "BTN",
+    "distanceProprietaire": 54,
+    "ratioAttribution": 1.7,
+    "rho": 0.716,
+    "surBoard": false
+   }
+  ],
+  "erreursPage": []
+ },
+ "draws": [
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 336.4,
+      "h": 197.9,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 396.6,
+      "h": 260
+     },
+     "boardPct": {
+      "xMin": 31.9,
+      "xMax": 53.4,
+      "yMin": 42,
+      "yMax": 56.3
+     },
+     "potPct": {
+      "xMin": 42.3,
+      "xMax": 57.7,
+      "yMin": 33.3,
+      "yMax": 39.9
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT5bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 5,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {},
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.4
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 24.2,
+      "feutreBasBlocHero": -3.5
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 61.8,
+      "ratioAttribution": 1.93,
+      "rho": 0.324,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 336.4,
+      "h": 197.9,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 396.6,
+      "h": 260
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.3,
+      "xMax": 58.7,
+      "yMin": 41.5,
+      "yMax": 48.1
+     },
+     "betsPct": [
+      {
+       "pos": "CO",
+       "xMin": 44.5,
+       "xMax": 55.5,
+       "yMin": 52.8,
+       "yMax": 63.1
+      },
+      {
+       "pos": "BB",
+       "xMin": 30.6,
+       "xMax": 44.4,
+       "yMin": 22.9,
+       "yMax": 32.3
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 13,
+      "somme": 13,
+      "ecart": 0,
+      "parts": [
+       "mise:CO=2.5",
+       "mise:BB=10",
+       "blinde=0.5"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -3.5
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "CO",
+       "hero": true,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.661,
+       "dOwn": 66.8,
+       "dAutre": 111.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.66,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 54.8,
+        "h": 24.3
+       },
+       "text": "3-Bet10bb",
+       "ecartAngleDeg": 56.8,
+       "t": 0.419,
+       "dOwn": 59,
+       "dAutre": 88.4,
+       "plusProcheAutre": "SB",
+       "ratioAttribution": 1.5,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.91,
+      "rho": 0.675,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 336.4,
+      "h": 197.9,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 396.6,
+      "h": 260
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 42.3,
+      "xMax": 57.7,
+      "yMin": 41.5,
+      "yMax": 48.1
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.5,
+       "xMax": 75.6,
+       "yMin": 52.2,
+       "yMax": 62.6
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -3.5
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 62.2,
+       "dAutre": 86.9,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.4,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 54,
+      "ratioAttribution": 1.7,
+      "rho": 0.716,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 336.4,
+      "h": 197.9,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 396.6,
+      "h": 260
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 40.2,
+      "xMax": 59.8,
+      "yMin": 41.5,
+      "yMax": 48.1
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 64.5,
+       "xMax": 75.6,
+       "yMin": 52.2,
+       "yMax": 62.6
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT3.5bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 3.5,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 3.5,
+      "somme": 3.5,
+      "ecart": 0,
+      "parts": [
+       "mise:SB=2.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -3.5
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 62.2,
+       "dAutre": 86.9,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.4,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 54,
+      "ratioAttribution": 1.7,
+      "rho": 0.716,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "CO",
+       "xMin": 44.1,
+       "xMax": 55.9,
+       "yMin": 52.3,
+       "yMax": 63.3
+      },
+      {
+       "pos": "BB",
+       "xMin": 29.3,
+       "xMax": 44,
+       "yMin": 22.5,
+       "yMax": 32.5
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 13,
+      "somme": 13,
+      "ecart": 0,
+      "parts": [
+       "mise:CO=2.5",
+       "mise:BB=10",
+       "blinde=0.5"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "CO",
+       "hero": true,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.661,
+       "dOwn": 63.1,
+       "dAutre": 103.7,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.64,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 54.8,
+        "h": 24.3
+       },
+       "text": "3-Bet10bb",
+       "ecartAngleDeg": 58.9,
+       "t": 0.419,
+       "dOwn": 57.8,
+       "dAutre": 79.6,
+       "plusProcheAutre": "SB",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 53.5,
+      "ratioAttribution": 1.62,
+      "rho": 0.638,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT3.5bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 3.5,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 3.5,
+      "somme": 3.5,
+      "ecart": 0,
+      "parts": [
+       "mise:SB=2.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.9,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "CO",
+       "xMin": 44.1,
+       "xMax": 55.9,
+       "yMin": 52.3,
+       "yMax": 63.3
+      },
+      {
+       "pos": "BB",
+       "xMin": 29.3,
+       "xMax": 44,
+       "yMin": 22.5,
+       "yMax": 32.5
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 13,
+      "somme": 13,
+      "ecart": 0,
+      "parts": [
+       "mise:CO=2.5",
+       "mise:BB=10",
+       "blinde=0.5"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "CO",
+       "hero": true,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.661,
+       "dOwn": 63.1,
+       "dAutre": 103.7,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.64,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 54.8,
+        "h": 24.3
+       },
+       "text": "3-Bet10bb",
+       "ecartAngleDeg": 58.9,
+       "t": 0.419,
+       "dOwn": 57.8,
+       "dAutre": 79.6,
+       "plusProcheAutre": "SB",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 53.5,
+      "ratioAttribution": 1.62,
+      "rho": 0.638,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT3.5bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 3.5,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 3.5,
+      "somme": 3.5,
+      "ecart": 0,
+      "parts": [
+       "mise:SB=2.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.9,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT3.5bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 3.5,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 3.5,
+      "somme": 3.5,
+      "ecart": 0,
+      "parts": [
+       "mise:SB=2.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.9,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT3.5bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 3.5,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 3.5,
+      "somme": 3.5,
+      "ecart": 0,
+      "parts": [
+       "mise:SB=2.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.9,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT5bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 5,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 64.1,
+       "xMax": 75.9,
+       "yMin": 51.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT4bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 4,
+      "somme": 4,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=2.5",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 44,
+        "h": 26.8
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 66.5,
+       "xMax": 77,
+       "yMin": 49.6,
+       "yMax": 60.6
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT8bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 8,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 38.9,
+        "h": 26.8
+       },
+       "text": "raise3bb",
+       "ecartAngleDeg": 0.1,
+       "t": 0.37,
+       "dOwn": 55,
+       "dAutre": 73,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": null,
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 41,
+      "yMax": 48
+     },
+     "betsPct": [
+      {
+       "pos": "UTG",
+       "xMin": 61.7,
+       "xMax": 78.3,
+       "yMin": 51.8,
+       "yMax": 62.8
+      },
+      {
+       "pos": "HJ",
+       "xMin": 42.7,
+       "xMax": 57.3,
+       "yMin": 52.8,
+       "yMax": 62.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 50,
+       "y": 83.7
+      },
+      "CO": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BB": {
+       "x": 84.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT22bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "HJ",
+      "vpos": "UTG",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 22,
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 2.5,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 2,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 11.5,
+       "HJ": 9,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "HJ:3BET:9",
+       "UTG:CALL:11.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -12.1
+     },
+     "reconstruction": {
+      "applicable": true,
+      "pot": 22,
+      "somme": 22,
+      "ecart": 0,
+      "parts": [
+       "mise:UTG=11.5",
+       "mise:HJ=9",
+       "blinde=0.5",
+       "blinde=1"
+      ],
+      "illisibles": 0
+     },
+     "couloir": {
+      "potBoard": null,
+      "boardCartesHero": null,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 17.4,
+       "h": 22.9
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "UTG",
+       "hero": false,
+       "box": {
+        "w": 61.5,
+        "h": 26.8
+       },
+       "text": "Call11.5bb",
+       "ecartAngleDeg": 0,
+       "t": 0.42,
+       "dOwn": 58.4,
+       "dAutre": 81.2,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.39,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "HJ",
+       "hero": true,
+       "box": {
+        "w": 54.6,
+        "h": 24.3
+       },
+       "text": "3-bet9bb",
+       "ecartAngleDeg": 0,
+       "t": 0.661,
+       "dOwn": 63.1,
+       "dAutre": 103.7,
+       "plusProcheAutre": "SB",
+       "ratioAttribution": 1.64,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 29.1,
+        "h": 25.1
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 29.1,
+        "h": 27.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51,
+      "ratioAttribution": 1.67,
+      "rho": 0.726,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 66.5,
+       "xMax": 77,
+       "yMin": 49.6,
+       "yMax": 60.6
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT8bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 8,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 38.9,
+        "h": 26.8
+       },
+       "text": "raise3bb",
+       "ecartAngleDeg": 0.1,
+       "t": 0.37,
+       "dOwn": 55,
+       "dAutre": 73,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {},
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 41.8,
+      "xMax": 58.2,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "SB",
+       "xMin": 66.5,
+       "xMax": 77,
+       "yMin": 49.6,
+       "yMax": 60.6
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT8bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 8,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 60.8,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 38.9,
+        "h": 26.8
+       },
+       "text": "raise3bb",
+       "ecartAngleDeg": 0.1,
+       "t": 0.37,
+       "dOwn": 55,
+       "dAutre": 73,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {},
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT11bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 11,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT20.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 20.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {},
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT11bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 11,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT61.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 98.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {},
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT11bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 11,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BB",
+       "xMin": 29.3,
+       "xMax": 44,
+       "yMin": 18.8,
+       "yMax": 28.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT98.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 98.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 54.6,
+        "h": 24.3
+       },
+       "text": "3-bet37bb",
+       "ecartAngleDeg": 67.2,
+       "t": 0.417,
+       "dOwn": 53.7,
+       "dAutre": 81.4,
+       "plusProcheAutre": "SB",
+       "ratioAttribution": 1.52,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT13bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 13,
+      "potMoteur": 13,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {},
+      "phase": "hero",
+      "coups": []
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT11bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 11,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 39.6,
+      "xMax": 60.4,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 53.5,
+       "xMax": 68.3,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 22.6,
+       "xMax": 38,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT8.4bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 5,
+      "potMoteur": 8.4,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 1,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 1.7,
+       "BB": 1.7
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:1.7",
+       "BB:CALL:1.7"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 77.6,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 54.7,
+        "h": 24.3
+       },
+       "text": "Cbet 33%1.7bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 57.1,
+        "h": 26.8
+       },
+       "text": "Call1.7bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 1,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 38.4,
+      "xMax": 61.6,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BB",
+       "xMin": 29.3,
+       "xMax": 44,
+       "yMin": 18.8,
+       "yMax": 28.8
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "CO": {
+       "x": 50,
+       "y": 83.7
+      },
+      "BTN": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "BB": {
+       "x": 50,
+       "y": 15.2
+      }
+     },
+     "potTexte": "POT98.5bb",
+     "spot": {
+      "cat": "Vs 3-bet",
+      "street": "Preflop",
+      "hpos": "CO",
+      "vpos": "BB",
+      "toCall": 7.5,
+      "potSpot": 13,
+      "potMoteur": 98.5,
+      "kindLigne": "vs3bet",
+      "potLigne": 13,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "heroCommitted": 2.5,
+      "facing": 10,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 10,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "CO:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 86,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 54.6,
+        "h": 24.3
+       },
+       "text": "3-bet37bb",
+       "ecartAngleDeg": 67.2,
+       "t": 0.417,
+       "dOwn": 53.7,
+       "dAutre": 81.4,
+       "plusProcheAutre": "SB",
+       "ratioAttribution": 1.52,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 51.2,
+      "ratioAttribution": 1.77,
+      "rho": 0.613,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 2,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 53.6,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [
+      {
+       "pos": "BTN",
+       "xMin": 51.8,
+       "xMax": 70,
+       "yMin": 58.5,
+       "yMax": 68.5
+      },
+      {
+       "pos": "BB",
+       "xMin": 23.2,
+       "xMax": 37.4,
+       "yMin": 19.7,
+       "yMax": 30.7
+      }
+     ],
+     "seatsPct": {
+      "UTG": {
+       "x": 50,
+       "y": 15.2
+      },
+      "HJ": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BTN": {
+       "x": 50,
+       "y": 83.7
+      },
+      "SB": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 15.5,
+       "y": 32.3
+      }
+     },
+     "potTexte": "POT33bb",
+     "spot": {
+      "cat": "Flop",
+      "street": "Flop",
+      "hpos": "BTN",
+      "vpos": "BB",
+      "toCall": 0,
+      "potSpot": 13,
+      "potMoteur": 33,
+      "kindLigne": null,
+      "potLigne": null,
+      "engagements": null,
+      "heroCommitted": 0,
+      "facing": null,
+      "answered": 2,
+      "vact": "CALL",
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "BTN": 10,
+       "BB": 10
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:BET:10",
+       "BB:CALL:10"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 67.4,
+        "h": 24.3
+       },
+       "text": "Cbet 75%10bb",
+       "ecartAngleDeg": 39.4,
+       "t": 0.421,
+       "dOwn": 63.7,
+       "dAutre": 88.1,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 1.38,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "box": {
+        "w": 52.7,
+        "h": 26.8
+       },
+       "text": "Call10bb",
+       "ecartAngleDeg": 21.3,
+       "t": 0.42,
+       "dOwn": 57.9,
+       "dAutre": 77,
+       "plusProcheAutre": "UTG",
+       "ratioAttribution": 1.33,
+       "surBoard": false,
+       "surBoardPct": 0,
+       "montantPx": 7.4
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 63.7,
+      "ratioAttribution": 1.69,
+      "rho": 0.27,
+      "surBoard": false
+     }
+    },
+    {
+     "i": 3,
+     "felt": {
+      "w": 315,
+      "h": 185.3,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 371.5,
+      "h": 243.5
+     },
+     "boardPct": {
+      "xMin": 30.7,
+      "xMax": 61.5,
+      "yMin": 41.5,
+      "yMax": 56.8
+     },
+     "potPct": {
+      "xMin": 40.7,
+      "xMax": 59.3,
+      "yMin": 32.3,
+      "yMax": 39.2
+     },
+     "betsPct": [],
+     "seatsPct": {
+      "UTG": {
+       "x": 15.5,
+       "y": 66.6
+      },
+      "HJ": {
+       "x": 15.5,
+       "y": 32.3
+      },
+      "CO": {
+       "x": 50,
+       "y": 15.2
+      },
+      "BTN": {
+       "x": 84.5,
+       "y": 32.3
+      },
+      "SB": {
+       "x": 84.5,
+       "y": 66.6
+      },
+      "BB": {
+       "x": 50,
+       "y": 83.7
+      }
+     },
+     "potTexte": "POT11bb",
+     "spot": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "SB",
+      "toCall": 1.5,
+      "potSpot": 3.5,
+      "potMoteur": 11,
+      "kindLigne": "vsOpen",
+      "potLigne": 3.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 2.5,
+       "BB": 2.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:2.5"
+      ]
+     },
+     "potDecentre": {
+      "dx": 0,
+      "dy": -33.3
+     },
+     "reconstruction": {
+      "applicable": false,
+      "raison": "postflop"
+     },
+     "couloir": {
+      "potBoard": 5.6,
+      "boardCartesHero": 18.5,
+      "feutreBasBlocHero": -4.2
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 25.7,
+       "h": 33.5
+      },
+      "carteBoard": {
+       "w": 26.9,
+       "h": 37.1
+      },
+      "carteVilain": {
+       "w": 19.2,
+       "h": 23.4
+      },
+      "avatar": {
+       "w": 23.5,
+       "h": 23.5
+      },
+      "boutonD": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "potBloc": {
+       "w": 69.2,
+       "h": 17
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 11.5,
+       "h": 11.5
+      },
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 38,
+      "ratioAttribution": 2.68,
+      "rho": 0.975,
+      "surBoard": false
+     }
+    }
+   ]
+  }
+ ]
+}

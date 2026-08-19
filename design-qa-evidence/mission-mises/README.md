@@ -230,3 +230,46 @@ ouvre — la table le montrait à la fois couché ET 3-betteur).
 ## Captures
 
 `ligne-1T.png` / `ligne-4T.png`, `zoom-ligne-1T.png`.
+
+---
+
+# États de table (§14/§30/§31/§32)
+
+## §30 — le résultat ne couvre rien : DÉJÀ satisfait, et mesuré
+
+Sonde dédiée : on répond, on échantillonne la fenêtre d'apparition du macaron
+(il ne dure que ~1.7 s et n'apparaît qu'une fois la phase passée à « done » —
+parier sur un délai fixe ne relève rien), et on mesure ses recouvrements avec le
+board, le pot, les mises, les blindes et le bloc du Hero.
+
+    1T   6 macarons observés, 93×90 px, 0 recouvrement
+    4T   aucun macaron — le verdict vit déjà dans le bandeau SOUS la table
+
+C'est exactement ce que le §30 demande en multitabling. Aucune correction.
+
+## §14 — un tapis se dit, il ne se devine pas
+
+Le drapeau `isAllIn` était déjà calculé par le moteur — il se lève même quand un
+simple CALL épuise le tapis, cas qu'aucun libellé ne dit — mais il n'atteignait
+pas le badge. Mesuré : un « Call 6bb » qui était un tapis recevait bien le style
+rouge (donc le TYPE le savait) pendant que le drapeau, lui, se perdait. Lire une
+seule des deux sources laisse passer des tapis.
+
+`trainerIsAllInAction(type, drapeau)` lit les deux. Le mot ALL-IN **remplace** le
+libellé au lieu de s'y ajouter : c'est lui qui change la décision, et le badge ne
+doit pas s'élargir au point de mordre les cartes. Il vit dans le badge, donc il
+ne peut recouvrir ni board, ni stack, ni pot.
+
+Vérifié en 4T sur un vrai 5-bet shove — `allin.png` : tas rendus
+`ALL-IN 28.3bb` et `ALL-IN 9bb`.
+
+## §31 / §32 — active, secondaire, terminée
+
+`zoom-actif-4T.png` : Table 1 active (cadre bleu + pastille), Table 2 secondaire.
+Le retrait est volontairement minuscule (saturation .9, luminosité .97) — on
+retire de la PRÉSENCE, jamais de la lisibilité : sur la table secondaire le pot,
+le board, les cartes du Hero et « C-Bet 4bb » se lisent intégralement.
+
+`zoom-etats-4T.png` : « TABLE n ✓ TERMINÉE » écrit en toutes lettres, et le
+bandeau de décision désaturé pour qu'il cesse de réclamer une action — le FEUTRE
+n'est pas touché, comme le §32 l'exige.

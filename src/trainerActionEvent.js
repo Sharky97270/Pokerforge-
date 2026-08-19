@@ -124,6 +124,32 @@ export function trainerActionDisplayVerb(actionType, rawAction = null) {
 
 /* Classe CSS du badge d'action — source unique pour garantir que la couleur
    correspond toujours au type réel (call=call, raise=raise, all-in=allin…). */
+/* Famille VISUELLE d'une action — celle qui choisit le badge de mise. Elle
+   vivait dans Chips.jsx, donc dans un module que Node ne sait pas importer :
+   la règle du §14 (« un tapis se dit ») n'était pas testable sans navigateur.
+   C'est du vocabulaire d'action pur, sa place est ici. */
+export function trainerActionVisualFamily(type = "BET") {
+  const t = String(type || "BET").toUpperCase();
+  if (t === "FOLD") return "fold";
+  if (t === "CALL") return "call";
+  if (t === "CHECK" || t === "CHECK_BACK") return "check";
+  if (t === "3BET" || t === "4BET" || t === "5BET" || t === "RAISE") return "raise";
+  if (t === "ALLIN" || t === "SHOVE" || t === "PUSH" || t === "RESHOVE" || t === "JAM") return "allin";
+  if (t === "OPEN") return "open";
+  return "bet";
+}
+
+/**
+ * Un tapis est-il en jeu ? DEUX sources l'annoncent et il faut les deux :
+ * le TYPE (Shove/Jam/Push…) et le DRAPEAU du moteur, qui se lève aussi quand un
+ * simple CALL épuise le tapis — cas qu'aucun libellé ne dit. Mesuré à l'écran :
+ * un « Call 6bb » qui était un tapis recevait le style rouge (le type le savait)
+ * pendant que le drapeau n'atteignait pas ce chemin de rendu.
+ */
+export function trainerIsAllInAction(type = "BET", engineFlag = false) {
+  return !!engineFlag || trainerActionVisualFamily(type) === "allin";
+}
+
 export function trainerActionCssClass(actionType) {
   const t = String(actionType || "").toUpperCase();
   if (t === "FOLD") return "action-fold";
