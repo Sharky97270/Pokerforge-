@@ -283,6 +283,12 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    ~490px de large à la mosaïque sur ces écrans. */
 /* Déclaré APRÈS le bloc max-width:1280px : sur un écran court, la rangée unique
    prime sur l'empilement en colonne (qui donnerait des cellules encore plus basses). */
+/* ÉCRAN COURT — la rangée unique reste la bonne réponse, MÊME avec un feutre de
+   ratio fixe. Vérifié après la refonte, et le raisonnement inverse est faux :
+   passer le 4T en grille 2x2 à 1366x768 donne un feutre de 163x96 contre 226x133
+   en rangée unique. La cellule 2x2 est bien plus large, mais sa hauteur doit
+   encore loger la barre de décision (~110px) : il ne reste que ~200px de zone,
+   et c est la HAUTEUR qui borne un ovale de proportion fixe. Ne pas retenter. */
 @media(min-width:1000px) and (max-height:830px){
   .grid3{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(0,1fr);gap:8px;padding:6px 8px;}
   .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
@@ -431,10 +437,36 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   flex:1 1 auto;min-width:0;min-height:0;container-type:size;
   display:flex;align-items:center;justify-content:center;padding-top:2px;
 }
+/* 2T — POURQUOI IL RESTE DU TAPIS VIDE, ET POURQUOI ON LE GARDE (§19).
+   La mosaique 2T n a qu UNE rangee : sa cellule est deux fois plus haute que
+   celles du 4T. Tant que l ovale pouvait s arrondir, il remplissait ce vide —
+   c est exactement ce qui le rendait circulaire. Maintenant que sa forme est
+   fixe, la zone est centree dans sa cellule et il reste de la marge autour.
+
+   ESSAYE ET REJETE : donner a .mt-zone-fit un aspect-ratio et laisser la tuile
+   prendre sa hauteur naturelle (align-self:center). Mesure a l image, ca DEPLACE
+   le vide sous la tuile au lieu de le supprimer (~400px), et ca retrecit le
+   feutre au point que le board revient sur les cartes du Hero. La zone reste
+   donc centree : le vide est reparti, et la table garde sa taille. */
 .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{
   flex:0 0 auto;
   width:min(100cqw,calc(100cqh * var(--pf-zone-ar-max,1.6)));
   height:min(100cqh,calc(100cqw / var(--pf-zone-ar-min,1.15)));
+}
+/* 1T — MÊME CONTENEUR DE PROPORTION (§6). Le 1T n'en avait pas : sa zone prenait
+   toute la hauteur restante, donc le feutre changeait de forme quand le bandeau
+   de décision changeait de taille (mesuré : ar 1.34 → 1.54 d'une street à
+   l'autre). Les sièges, posés sur l'ellipse en pourcentages, se déplaçaient à
+   chaque fois. Les deux bornes sont pincées sur la même valeur par le Trainer :
+   la place disponible décide de la TAILLE, jamais de la FORME. */
+.t1-left .t1-zone-fit{
+  flex:1 1 auto;min-width:0;min-height:0;container-type:size;
+  display:flex;align-items:center;justify-content:center;
+}
+.t1-left .t1-zone-fit>.t1-table-area{
+  flex:0 0 auto;
+  width:min(100cqw,calc(100cqh * var(--pf-zone-ar-max,1.42)));
+  height:min(100cqh,calc(100cqw / var(--pf-zone-ar-min,1.42)));
 }
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
@@ -484,8 +516,12 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3 .pf-pot-label,.grid4 .pf-pot-label{font-size:8px!important;}
 /* Blindes + mises un peu plus grandes aussi. */
 .grid3 .pf-blind-stack strong,.grid4 .pf-blind-stack strong{font-size:9px!important;}
-.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:9px!important;}
-.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:8px!important;}
+/* §36 — LE MONTANT PRIME SUR LE LIBELLE. En mosaique, le libelle ("3-Bet")
+   etait rendu PLUS GROS que le montant (9px contre 8px) : on lisait l action
+   avant de lire combien, alors que c est le montant qui porte la decision. On
+   inverse, et on donne au montant un plancher de lisibilite. */
+.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:8px!important;opacity:.86!important;}
+.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:10.5px!important;}
 /* POT COMPACT MULTI (comme le 1T) : sinon la pile de jetons rend le pot très
    HAUT (~54px = 26% du feutre court) et il chevauche le siège du haut ET le board.
    Ligne unique [jetons] POT xx bb, hauteur fixe. */
@@ -4794,8 +4830,9 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 .pf-action-chip-badge.compact{gap:3px!important;padding:2px 5px!important;border-radius:7px!important;min-height:24px!important;max-width:96px!important;}
 .pf-action-chip-badge.compact .pf-action-chip-piles{transform:scale(.86);transform-origin:center right;margin-right:-6px!important;}
 .pf-action-chip-badge.compact .pf-action-chip-piles>.pf-chip-stack{margin-left:-11px!important;}
-.pf-action-chip-badge.compact .pf-action-chip-copy strong{font-size:6.5px!important;}
-.pf-action-chip-badge.compact .pf-action-chip-copy em{font-size:7px!important;}
+/* Meme regle en compact : le montant reste au-dessus du plancher de lecture. */
+.pf-action-chip-badge.compact .pf-action-chip-copy strong{font-size:7px!important;opacity:.86!important;}
+.pf-action-chip-badge.compact .pf-action-chip-copy em{font-size:9.5px!important;}
 .pf-action-call{border-color:rgba(16,216,122,.38)!important;background:rgba(2,24,14,.72)!important;}
 .pf-action-call .pf-action-chip-copy strong,.pf-action-call .pf-action-chip-copy em{color:#10D87A!important;text-shadow:0 0 9px rgba(16,216,122,.5)!important;}
 .pf-action-bet,.pf-action-open{border-color:rgba(255,194,71,.38)!important;background:rgba(32,18,2,.72)!important;}

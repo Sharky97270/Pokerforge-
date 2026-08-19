@@ -13,7 +13,8 @@ import { useRangeTheme } from "../components/range/useRangeTheme.js";
 import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorSettings.jsx";
 import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
-import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset } from "../trainerDensity.js";
+import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
+import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT } from "../trainerTableGeometry.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
@@ -417,14 +418,14 @@ const WEB_SEAT_RINGS = {
    l'anneau, jamais « dans le tapis ». Les tables denses (8/9) gardent un feutre un
    peu plus large pour loger tous les sièges sans chevauchement. */
 const WEB_GEOMETRY_BY_COUNT = {
-  2: { top: 8, left: 16, right: 16, bottom: 13, railInset: 7, innerInset: 16 },
-  3: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
-  4: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
-  5: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
-  6: { top: 8, left: 15, right: 15, bottom: 13, railInset: 7, innerInset: 16 },
-  7: { top: 7, left: 12, right: 12, bottom: 12, railInset: 7, innerInset: 16 },
-  8: { top: 7, left: 10, right: 10, bottom: 12, railInset: 7, innerInset: 16 },
-  9: { top: 7, left: 8, right: 8, bottom: 12, railInset: 7, innerInset: 16 },
+  2: { top: 8, left: 10, right: 10, bottom: 13, railInset: 7, innerInset: 16 },
+  3: { top: 8, left: 9, right: 9, bottom: 13, railInset: 7, innerInset: 16 },
+  4: { top: 8, left: 9, right: 9, bottom: 13, railInset: 7, innerInset: 16 },
+  5: { top: 8, left: 9, right: 9, bottom: 13, railInset: 7, innerInset: 16 },
+  6: { top: 8, left: 9, right: 9, bottom: 13, railInset: 7, innerInset: 16 },
+  7: { top: 7, left: 8, right: 8, bottom: 12, railInset: 7, innerInset: 16 },
+  8: { top: 7, left: 7, right: 7, bottom: 12, railInset: 7, innerInset: 16 },
+  9: { top: 7, left: 6, right: 6, bottom: 12, railInset: 7, innerInset: 16 },
 };
 /* ── SIÈGES CALCULÉS SUR L'ANNEAU (§6) ──
    Pour ces structures, on n'utilise PLUS de coordonnées saisies à la main : les
@@ -875,23 +876,25 @@ function resolveTrainerBlindPoint(layout,pos,numTables=1,ringGeom=null){
    ci-dessus restent le détail d'implémentation ; c'est par ici qu'on passe.
    Tout ce qui affiche la table du Trainer — 1T comme multi, GTO comme Exploit,
    Spot / Street / Full Hand / Session / Mix — hérite donc du même placement. */
-function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null}={}){
+function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null,heroPos=null}={}){
   if(!layout)return {x:50,y:50};
+  const seats=layout.seats||{};
+  const common={
+    seats,numTables,hasBoard,ringGeom,heroPos,
+    geometry:layout.tableGeometry,
+    isMobile:/mobile/i.test(layout.name||""),
+    potYByCount:WEB_POT_Y_BY_COUNT,
+    potYPreflopByCount:WEB_POT_Y_PREFLOP_BY_COUNT,
+    boardYByCount:WEB_BOARD_Y_BY_COUNT,
+  };
   if(markerType==="DEALER"){
-    /* Le bouton D était le SEUL marqueur à ne pas passer par la protection du
-       board : il vit sur le même anneau que les mises, au même rayon, mais
-       sortait par cette branche avant le clamp. Sans conséquence tant qu'il
-       restait loin du centre ; depuis qu'il se rapproche de son joueur (§4), il
-       traverse la bande du board sur les sièges de flanc — mesuré 10 cas sur 48
-       relevés en 2T, board↔boutonD. Même clamp que les tas, donc. */
-    const d=dealerAnchorPoint(layout,numTables,ringGeom);
-    const zone=trainerBoardCollisionZone(hasBoard,numTables);
-    if(!pointInsideZone(d,zone))return d;
-    const btn=layout.seats?.BTN||layout.seats?.SB||{x:50,y:50};
-    const c=clampPointOutsideBoard(d,btn,zone,3);
-    return {x:clampTrainingPoint(c.x),y:clampTrainingPoint(c.y)};
+    // Le bouton est sur le BTN ; en heads-up il n'y a pas de BTN, il est sur la SB.
+    const owner=seats.BTN?"BTN":"SB";
+    const d=trainerDealerPoint({...common,pos:owner});
+    return d?{x:d.x,y:d.y}:{x:50,y:50};
   }
-  return resolveTrainerActionPoint(layout,pos,{hasBoard,numTables,ringGeom,markerType});
+  const p=trainerMarkerPoint({...common,pos,markerType});
+  return p?{x:p.x,y:p.y}:{x:50,y:50};
 }
 
 
@@ -3869,10 +3872,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   // board: 1T=2xl(76px) / 2T=xl(60px,+25%) / 3T=lg(48px,+41%) / 4T=md(34px,+42%)
   // heroCard: 1T=3xl / 2T=md(+42% vs sm) / 3T=sm(+26% vs xs) / 4T=smp(28px,+47% vs xs)
   const TRAINING_LAYOUT={
-    1:{pb:"unused",    board:"2xl", boardGap:8, seat:68, fpos:13,  fstk:12,  actFnt:15, actPad:"15px 12px 13px", heroCard:"3xl", vilCard:"lg",  cardSize:"xs", dbtnSz:22, compact:false, potFntB:14, potFnt:18},
-    2:{pb:MT_TABLE_PB, board:"xl",  boardGap:5, seat:48, fpos:10.5, fstk:9.5, actFnt:13, actPad:"12px 10px 10px", heroCard:"lg",  vilCard:"sm",  cardSize:"sm", dbtnSz:17, compact:false, potFntB:13, potFnt:15},
-    3:{pb:MT_TABLE_PB, board:"lg",  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:"smp", vilCard:"xs",  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
-    4:{pb:MT_TABLE_PB, board:"md",  boardGap:3, seat:30, fpos:7,    fstk:6,   actFnt:10, actPad:"8px 6px 7px",   heroCard:"sm",  vilCard:"xs",  cardSize:"xs", dbtnSz:10, compact:true,  potFntB:12, potFnt:13},
+    1:{pb:"unused",    board:BOARD_CARD_SIZE_BY_TABLES[1], boardGap:8, seat:68, fpos:13,  fstk:12,  actFnt:15, actPad:"15px 12px 13px", heroCard:HERO_CARD_SIZE_BY_TABLES[1], vilCard:VILLAIN_CARD_SIZE_BY_TABLES[1],  cardSize:"xs", dbtnSz:22, compact:false, potFntB:14, potFnt:18},
+    2:{pb:MT_TABLE_PB, board:BOARD_CARD_SIZE_BY_TABLES[2],  boardGap:5, seat:48, fpos:10.5, fstk:9.5, actFnt:13, actPad:"12px 10px 10px", heroCard:HERO_CARD_SIZE_BY_TABLES[2], vilCard:VILLAIN_CARD_SIZE_BY_TABLES[2],  cardSize:"sm", dbtnSz:17, compact:false, potFntB:13, potFnt:15},
+    3:{pb:MT_TABLE_PB, board:BOARD_CARD_SIZE_BY_TABLES[3],  boardGap:3, seat:38, fpos:8,    fstk:7,   actFnt:11, actPad:"9px 7px 8px",   heroCard:HERO_CARD_SIZE_BY_TABLES[3], vilCard:VILLAIN_CARD_SIZE_BY_TABLES[3],  cardSize:"xs", dbtnSz:13, compact:true,  potFntB:12, potFnt:13},
+    4:{pb:MT_TABLE_PB, board:BOARD_CARD_SIZE_BY_TABLES[4],  boardGap:3, seat:30, fpos:7,    fstk:6,   actFnt:10, actPad:"8px 6px 7px",   heroCard:HERO_CARD_SIZE_BY_TABLES[4], vilCard:VILLAIN_CARD_SIZE_BY_TABLES[4],  cardSize:"xs", dbtnSz:10, compact:true,  potFntB:12, potFnt:13},
   };
   const baseCfg=TRAINING_LAYOUT[numTables]||TRAINING_LAYOUT[2];
   const cfg=isMobile&&numTables>1
@@ -3962,6 +3965,16 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
+  /* Ancres du CENTRE — resolues une seule fois : le pot et le board sont peints
+     ici, et la geometrie des mises vise exactement le meme point. Le couloir est
+     calcule a partir du bloc du siege haut et de celui du Hero (cf.
+     trainerCentreLayout) ; les tables historiques ne servent plus que de repli
+     au tout premier rendu, avant la premiere mesure. */
+  const centreAnchors=trainerCentreAnchorsFelt({
+    seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,hasBoard:hasVisibleBoard,
+    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,
+    potYByCount:WEB_POT_Y_BY_COUNT,potYPreflopByCount:WEB_POT_Y_PREFLOP_BY_COUNT,boardYByCount:WEB_BOARD_Y_BY_COUNT,
+  });
   const oneTableBoardSize=TRAINER_VISUAL_CONFIG.boardSize?.oneTable||"1t-hero";
   const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):oneTableBoardSize):cfg.board;
   const boardGap=numTables===1?(isMobile?(boardCount>=5?3:4):(boardCount>=5?5:6)):cfg.boardGap;
@@ -5039,7 +5052,20 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
            que le multi). */}
         <div className="t1-left" data-nplayers={seatOrder.length} style={{flex:"1 1 auto",minWidth:0,display:"flex",flexDirection:"column",background:"radial-gradient(ellipse at 50% 40%,#050F28 0%,#020810 100%)",overflow:"hidden"}}>
 
-         <div className="t1-table-area" ref={ringScaleRef} style={{flex:1,position:"relative",minHeight:0,overflow:"hidden"}}>
+         {/* Le 1T RESPIRAIT : la zone de table prend la hauteur que lui laisse le
+             bandeau de décision, si bien que le feutre passait de 606x454 (ar 1.34)
+             à 606x393 (ar 1.54) selon la street — mesuré. Les sièges, posés sur
+             l'ellipse en %, se déplaçaient donc à chaque changement d'état. Même
+             conteneur de proportion que la mosaïque : la forme est constante, seule
+             la taille suit la place disponible. */}
+         <div className="t1-zone-fit" style={isMobile?undefined:(()=>{
+           const ar=trainerZoneAspect(1,trainingLayout.tableGeometry).toFixed(4);
+           return{"--pf-zone-ar-min":ar,"--pf-zone-ar-max":ar};
+         })()}>
+         <div className="t1-table-area" ref={ringScaleRef} style={{
+           position:"relative",minHeight:0,overflow:"hidden",
+           "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport}),
+         }}>
 
           {/* Focus Mode button */}
           {onFocusToggle&&<div className={`focus-mode-btn${focusMode?" on":""}`} title={focusMode?"Quitter le focus":"Mode focus"} onClick={onFocusToggle}>{focusMode?"⊡":"⊠"}</div>}
@@ -5095,10 +5121,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             {(()=>{
               const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
               const potVal=mainPotBb;
-              const potPt=potPointFor(1,hasBoard);
+              /* Ancre UNIQUE (trainerTableGeometry) : le rendu et la cible des
+                 mises lisent le meme %, sinon la mise ne vise pas le pot reel. */
+              const potPt=centreAnchors.pot;
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?31:(WEB_POT_Y_BY_COUNT[seatOrder.length]??potPt.y)}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -5107,7 +5135,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
                    (le pot non-compact est plus haut → à 32% il chevauchait la plaque
                    du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${isMobile?37:(WEB_POT_Y_PREFLOP_BY_COUNT[seatOrder.length]??potPt.y)}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -5117,7 +5145,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${isMobile?46:(WEB_BOARD_Y_BY_COUNT[seatOrder.length]??boardPointFor(1).y)}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${(centreAnchors.board||{y:49}).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -5192,7 +5220,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             }
             const betAmt=hasBet?heroBetAmt:hasVilBet?vilBetAmt:preChipAmt;
             const chipLabel=(hasBet||hasVilBet)?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):preChipLabel;
-            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom});
+            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom,heroPos:spot?.hpos});
             const cpx=actionPt.x;
             const cpy=actionPt.y;
             const isTopSeat1T=coord.y<=24;
@@ -5337,7 +5365,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
           {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
           {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
-            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom});
+            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom,heroPos:spot?.hpos});
             return(
               <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
                 <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
@@ -5346,7 +5374,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           })}
 
           {(()=>{
-            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom});
+            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos});
             return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
@@ -5360,6 +5388,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           )}
 
          </div>{/* ── fin ZONE TABLE ── */}
+         </div>{/* ── fin t1-zone-fit ── */}
 
           {/* ══ ACTIONS HÉRO — centrées sous la table (maquette v2 : actions puis sizings) ══ */}
           <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
@@ -5477,30 +5506,31 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         )}
       </div>
 
-      {/* ── ZONE TABLE — multi-table : la zone REMPLIT la cellule de mosaïque, dans une
-           FOURCHETTE de proportions d'ovale (§ mosaïque).
+      {/* ── ZONE TABLE — multi-table : le feutre garde EXACTEMENT la proportion de
+           PokerForge, quel que soit le nombre de tables (§6/§19).
 
-           Un aspect-ratio FIGÉ piloté par la largeur produisait deux défauts opposés :
-           • 2T (cellule très haute) → ovale calculé sur la largeur, ~370px de vide
-             sous le bandeau d'actions ;
-           • 3T/4T (cellules basses) → ovale écrasé (h ≈ 163px) alors que les grappes
-             de sièges font ~117px : sièges voisins et board se chevauchaient.
-           On borne donc le ratio au lieu de le figer : la zone prend toute la place
-           disponible tant que l'ovale reste entre `arMin` (le plus haut admis) et
-           `arMax` (le plus plat admis) — cf. .mt-zone-fit / .training-table-zone.
-           Mobile : aspect-ratio en padding (inchangé). ── */}
+           Ce qui existait avant : une FOURCHETTE de proportions par mode. Elle
+           laissait le 2T atteindre sa borne la plus haute et l'ovale y devenait un
+           CERCLE — mesuré, largeur/hauteur du feutre : 1T 1.34…1.54 · 2T 1.16 ·
+           3T 1.71…1.95 · 4T 1.79. Une table qui change de forme change les angles
+           des sièges et les distances au pot : plus aucune ancre ne peut tenir sur
+           les quatre modes à la fois, et c'est exactement ce que montrait la vidéo.
+
+           On PINCE donc les deux bornes sur la même valeur : la cellule décide
+           encore de la TAILLE, jamais de la FORME. ── */}
       <div className="mt-zone-fit" style={isMobile?undefined:(()=>{
-        const g=trainingLayout.tableGeometry;
-        // Ovale cible (script V1) 2T 400×310 · 3T 398×205 · 4T 398×210, assorti d'une
-        // tolérance : c'est la cellule qui décide, l'ovale reste dans sa famille.
-        const [ovalMin,ovalMax]=numTables===2?[400/345,400/258]
-          :numTables===3?[398/300,398/204]
-          :[398/310,398/222];
-        // Marges de géométrie : ratio d'OVALE → ratio de ZONE.
-        const k=(1-(g.top+g.bottom)/100)/(1-(g.left+g.right)/100);
-        return{"--pf-zone-ar-min":(ovalMin*k).toFixed(4),"--pf-zone-ar-max":(ovalMax*k).toFixed(4)};
+        const ar=trainerZoneAspect(numTables,trainingLayout.tableGeometry).toFixed(4);
+        return{"--pf-zone-ar-min":ar,"--pf-zone-ar-max":ar};
       })()}>
-      <div className="training-table-zone" ref={ringScaleRef} style={isMobile?{paddingBottom:cfg.pb}:undefined}>
+      <div className="training-table-zone" ref={ringScaleRef} style={{
+        /* Le board suit la hauteur REELLE du feutre (§21/§34). La densite seule
+           ne suffit pas : a 1366x768 la mosaique 4T tombe a 133px de feutre et
+           un board de 37px y repassait sur les cartes du Hero (mesure -18.6px).
+           La variable est posee ICI parce que c'est le seul noeud qui connait la
+           mesure ; elle est heritee, donc elle prime sur celle de la tuile. */
+        "--pf-d-board-zoom":trainerBoardZoom(numTables,{feltH:feltHeightPx(ringGeom,numTables,trainingLayout.tableGeometry),tight:tightViewport}),
+        ...(isMobile?{paddingBottom:cfg.pb}:null),
+      }}>
 
         {/* FEUTRE OVALE PREMIUM — multi-table (bleu-nuit, cohérent avec le 1T figé) */}
         <div className="felt-oval" style={{
@@ -5525,8 +5555,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           {(()=>{
             const hasBoard=(!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0);
             const boardCards=!playingFull?spot.board:fhVisBoard;
-            const potPt=potPointFor(numTables,hasBoard);
-            const boardPt=boardPointFor(numTables);
+            const potPt=centreAnchors.pot;
+            const boardPt=centreAnchors.board||boardPointFor(numTables);
             // STANDARD 1T propagé au multi : pot sous le siège du haut, board dessous,
             // pot préflop dégagé — mêmes ancres % que le 1T (calées sur l'ellipse).
             const n=seatOrder.length;
@@ -5544,10 +5574,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                posaient tous les deux 20px trop bas : le board passait sous les
                cartes du Hero et le pot mordait le board (mesuré 306px² de
                recouvrement board↔pot, 280px² board↔cartes). */
-            const tight=numTables>=3;
-            const potYboard=(WEB_POT_Y_BY_COUNT[n]??potPt.y)+(tight?0:5);
-            const potYpre=(WEB_POT_Y_PREFLOP_BY_COUNT[n]??potPt.y)+(tight?4:10);
-            const boardY=(WEB_BOARD_Y_BY_COUNT[n]??boardPt.y)+(tight?3:7);
+            /* Les decalages par mode vivent desormais DANS trainerPotAnchorPoint /
+               trainerBoardAnchorPoint : le rendu et le placement des mises ne peuvent
+               plus diverger (defaut d'origine : la mise visait y=50 quand le pot
+               etait dessine a y=44). */
+            const potYboard=potPt.y,potYpre=potPt.y,boardY=boardPt.y;
             return(
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
@@ -5596,7 +5627,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
         {/* DEALER BUTTON — taille cfg.dbtnSz (aligné sur le siège BTN multi-table) */}
         {(()=>{
-          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom});
+          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos});
           /* Taille pilotée par la DENSITÉ (§3). `cfg.dbtnSz` était du code mort :
              `.dealer-btn{width:22px!important}` gagnait sur l'inline, si bien que
              le bouton D mesurait 22px sur les quatre modes — 13 % de la hauteur du
@@ -5611,7 +5642,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
         {showStaticBlindMarkers&&["SB","BB"].filter(pos=>!seatShowsChips(pos)).map(pos=>{
           const {x,y}=trainingLayout.seats[pos]||{x:50,y:50};
-          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom});
+          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom,heroPos:spot?.hpos});
           const bp=y>=76?0.62:0.34; // marqueurs blinds au-dessus des cartes (sièges bas)
           const bx=x+(50-x)*bp;
           const by=y+(50-y)*bp;
@@ -5648,6 +5679,19 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           // Pré-décision : jetons engagés par le vilain (open/3-bet/c-bet) AVANT que Hero agisse
           const mtPreFacing=answered===null&&!vact&&!playingFull&&isV&&spotCtx.facing&&spotCtx.facing.position===pos;
           const mtPreExtra=answered===null&&!vact&&!playingFull&&!isH&&!isV&&seatState.invested>0;
+          /* ── L'ENGAGEMENT DÉJÀ POSÉ PAR HERO (§3/§25) ──
+             Il manquait en mosaïque, alors que le 1T le dessinait (preChipAmt).
+             Résultat mesuré en 4T : « POT 12bb » avec 0.5bb à la SB et un 3-Bet
+             7.5bb à la BB — l'open de Hero, qui complète la somme, n'était nulle
+             part. Le pot n'était donc pas reconstructible depuis la table, ce que
+             la mission interdit explicitement. Le seuil est le MÊME que celui de
+             seatShowsChips : au-dessus de sa blinde, le siège montre son
+             engagement et le marqueur de blinde s'efface — un seul tas par
+             joueur, jamais deux. */
+          const mtPreHero=answered===null&&!vact&&!playingFull&&isH&&(spotCtx.heroCommitted||0)>(TRAINER_BLINDS[pos]||0);
+          // Ce que Hero a posé se lit dans ce à quoi il fait face : un 3-bet en
+          // face signifie qu'il a ouvert, un 4-bet qu'il a 3-bet.
+          const mtPreHeroLabel=spotCtx.facing?.kind==="4bet"?"3-Bet":spotCtx.facing?.kind==="3bet"?"Open":"Mise";
           const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
           const vilBetAmt=hasVilBet?eventAmount:(mtPreFacing?spotCtx.facing.amount:(mtPreExtra?seatState.invested:0));
           const vilChipLabel=hasVilBet?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct)):(mtPreFacing?spotCtx.facing.label:(mtPreExtra?seatState.lastLabel||"Call":null));
@@ -5666,13 +5710,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 ?(heroLiveAction.actionLabel||trainerActionDisplayVerb(heroLiveType,heroAnsweredAction))
                 :heroAnsweredAction?.l)
             :null;
-          const seatActionAmount=hasHeroBet?heroBetAmt:vilBetAmt;
-          const seatActionLabel=hasHeroBet?heroChipLabel:vilChipLabel;
+          const seatActionAmount=hasHeroBet?heroBetAmt:(mtPreHero?roundBb(spotCtx.heroCommitted):vilBetAmt);
+          const seatActionLabel=hasHeroBet?heroChipLabel:(mtPreHero?mtPreHeroLabel:vilChipLabel);
           const seatActionType=hasHeroBet
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
             :trainerVisualActionType(vilChipLabel||vact?.action||seatState.lastAction||"BET");
           // Jetons poussés vers le centre (au-dessus des cartes) — sièges bas plus loin (anti-chevauchement)
-          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom});
+          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;

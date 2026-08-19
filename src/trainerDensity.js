@@ -80,7 +80,7 @@ export const TRAINER_DENSITY_TOKENS = {
     dealerSize: 17,
     blindScale: 0.84,
     betScale: 0.88,
-    boardZoom: 0.72,
+    boardZoom: 0.45,
     boardGap: 5,
     potH: 24,
     actionPad: "4px 7px 3px",
@@ -107,7 +107,7 @@ export const TRAINER_DENSITY_TOKENS = {
     dealerSize: 13,
     blindScale: 0.6,
     betScale: 0.72,
-    boardZoom: 0.45,
+    boardZoom: 0.56,
     boardGap: 3,
     potH: 18,
     actionPad: "3px 5px 3px",
@@ -134,7 +134,7 @@ export const TRAINER_DENSITY_TOKENS = {
     dealerSize: 11.5,
     blindScale: 0.54,
     betScale: 0.66,
-    boardZoom: 0.58,
+    boardZoom: 0.79,
     boardGap: 2,
     potH: 17,
     actionPad: "2px 5px 2px",
@@ -160,9 +160,9 @@ export const TRAINER_DENSITY_TOKENS = {
    seules — les polices de décision ne bougent pas (lisibilité, §5). */
 export const TRAINER_DENSITY_TIGHT = {
   normal: {},
-  medium: { avatarSize: 42, seatZoom: 0.88, boardZoom: 0.62 },
-  compact: { avatarSize: 27, seatZoom: 0.8, boardZoom: 0.41, blindScale: 0.54, betScale: 0.66 },
-  dense: { avatarSize: 25, seatZoom: 0.78, boardZoom: 0.53, blindScale: 0.5, betScale: 0.62 },
+  medium: { avatarSize: 42, seatZoom: 0.88, boardZoom: 0.40 },
+  compact: { avatarSize: 27, seatZoom: 0.8, boardZoom: 0.50, blindScale: 0.54, betScale: 0.66 },
+  dense: { avatarSize: 25, seatZoom: 0.78, boardZoom: 0.71, blindScale: 0.5, betScale: 0.62 },
 };
 
 /* ── RAPPROCHEMENT DES MARQUEURS : UN BUDGET PAR TYPE ───────────────────────
@@ -221,7 +221,15 @@ export const MARKER_APPROACH_MAX_TIGHT = { compact: 1.18, dense: 1.18 };
    bouton — 22px sur les quatre modes avant, 13px en 3T et 11.5px en 4T
    maintenant — et celle des grappes voisines. L'arbitrage se rouvre donc, mais
    UNIQUEMENT en mosaïque : le 1T garde 0.34, sa mesure d'origine tenant toujours. */
-export const DEALER_ANGLE_OFFSET = { normal: 0.34, medium: 0.42, compact: 0.46, dense: 0.46 };
+/* REVU avec la géométrie radiale (trainerTableGeometry) : le bouton D et le tas
+   de mise ne partagent PLUS le même rayon — le bouton se pose à 20 % du segment
+   siège→pot, la mise à 42 %. Ils sont donc déjà séparés de ~22 % de ce segment
+   (49 px mesurés en 4T) sans aucun décalage angulaire. L'angle n'a plus qu'un
+   travail : éviter la PLAQUE du joueur, juste sous son avatar. Les valeurs
+   ci-dessus, calibrées quand les deux marqueurs se disputaient le même anneau,
+   éloignaient désormais le bouton de son propre BTN — mesuré 50 à 60 px sur un
+   feutre 4T de 198 px de haut, soit le tiers de la table. */
+export const DEALER_ANGLE_OFFSET = { normal: 0.20, medium: 0.22, compact: 0.24, dense: 0.24 };
 
 export function trainerDealerAngleOffset(numTables = 1) {
   return DEALER_ANGLE_OFFSET[trainerDensityName(numTables)] ?? 0.34;
@@ -246,8 +254,52 @@ export function trainerMarkerApproachMax(numTables = 1, markerType = "BET", opts
    à l'autre — un zoom plus grand sur une base plus petite peut rendre une carte
    plus petite. La grandeur qui compte, et la seule qu'on peut contrôler, est la
    hauteur RENDUE. */
-export const CARD_BASE_HEIGHT = { sm: 33, smp: 39, md: 47, lg: 66, xl: 83, "2xl": 104 };
+export const CARD_BASE_HEIGHT = { xs: 26, sm: 33, smp: 39, md: 47, lg: 66, xl: 83, "2xl": 104, "3xl": 130, "1t-hero-bottom": 66, "1t-hero-top": 61 };
+export const CARD_BASE_WIDTH = { xs: 19, sm: 24, smp: 28, md: 34, lg: 48, xl: 60, "2xl": 76, "3xl": 95, "1t-hero-bottom": 48, "1t-hero-top": 44 };
 export const BOARD_CARD_SIZE_BY_TABLES = { 1: "2xl", 2: "xl", 3: "lg", 4: "md" };
+/* Cartes posées SUR UN SIÈGE. Elles décident de l'encombrement du bloc de
+   joueur, donc de la place qui reste pour son tas de mise — le Hero, seul à
+   avoir ses cartes ouvertes au grand format, occupe bien plus que ses voisins
+   (1T : 95×130 par carte contre 48×66 pour un dos). Ces deux tables sont la
+   source unique : `TRAINING_LAYOUT` (rendu) et `trainerSeatBlockPx` (placement)
+   les lisent toutes les deux, sans quoi la zone de sécurité du joueur décrirait
+   un bloc qui n'est pas celui qu'on peint. */
+/* Echelle des cartes du Hero. Elle doit etre MONOTONE et proportionnee au
+   feutre : mesure, la main du Hero occupait 17 % de la hauteur du feutre en 1T,
+   31 % en 2T, 18 % en 3T et 16 % en 4T. Le 2T etait calibre quand son ovale
+   etait presque rond, donc bien plus haut — depuis que sa forme est fixe, cette
+   main mangeait le couloir central et le board revenait dessus (mesure : 1.7 px
+   d ecart, soit un contact a l image). */
+export const HERO_CARD_SIZE_BY_TABLES = { 1: "3xl", 2: "smp", 3: "smp", 4: "smp" };
+export const VILLAIN_CARD_SIZE_BY_TABLES = { 1: "lg", 2: "sm", 3: "xs", 4: "xs" };
+/* Le siège Hero du BAS en 1T n'utilise PAS cfg.heroCard : le rendu lui donne une
+   taille dediee (.card-1t-hero-bottom, 48x66). C'est elle qui decide de
+   l'encombrement reel de sa main, donc de la place qui reste pour son tas et
+   pour le board. Prendre "3xl" (95x130) faisait croire a un bloc 2.6 fois plus
+   profond qu'il ne l'est — mesure : couloir annonce a -28px quand le navigateur
+   en montre +19. */
+export const HERO_SEAT_CARD_SIZE_BY_TABLES = { 1: "1t-hero-bottom", 2: "smp", 3: "smp", 4: "smp" };
+
+/**
+ * Encombrement du BLOC d'un siège, en px, mesuré depuis le centre de l'avatar :
+ *  - `halfW`      : demi-largeur (paire de cartes, la plus large des deux formes) ;
+ *  - `towardPot`  : ce qui dépasse DU CÔTÉ DU POT (rayon d'avatar + écart + carte).
+ * C'est la « PLAYER_SAFE_ZONE » du §17, exprimée là où elle sert : dans le calcul
+ * du placement des marqueurs.
+ */
+export function trainerSeatBlockPx(numTables = 1, { hero = false, opts = {} } = {}) {
+  const d = trainerDensity(numTables, opts);
+  const key = (hero ? HERO_SEAT_CARD_SIZE_BY_TABLES : VILLAIN_CARD_SIZE_BY_TABLES)[numTables] || "sm";
+  const cw = CARD_BASE_WIDTH[key] || 24;
+  const ch = CARD_BASE_HEIGHT[key] || 33;
+  const gap = d.seatGap || 2;
+  const zoom = d.seatZoom || 1;
+  const avatarR = (d.avatarSize || 40) / 2;
+  return {
+    halfW: +(Math.max(cw + gap / 2, avatarR * 1.15) * zoom).toFixed(1),
+    towardPot: +((avatarR + gap + ch) * zoom).toFixed(1),
+  };
+}
 
 /** Hauteur rendue d'une carte du board, en px, pour un mode donné. */
 export function trainerBoardCardHeight(numTables = 1, opts = {}) {

@@ -1,0 +1,775 @@
+{
+ "summary": {
+  "mode": "1T",
+  "struct": "6J",
+  "viewport": "1600x950",
+  "tirages": 8,
+  "misesMesurees": 7,
+  "ratioFeutre": {
+   "moy": 1.422,
+   "min": 1.335,
+   "max": 1.541,
+   "et": 0.052
+  },
+  "ecartAngleDeg": {
+   "moy": 47.386,
+   "min": 2.1,
+   "max": 75.9,
+   "et": 25.649
+  },
+  "misesHorsAxe35": 5,
+  "progressionT": {
+   "moy": 0.282,
+   "min": 0.17,
+   "max": 0.46,
+   "et": 0.1
+  },
+  "misesHorsSegment": 0,
+  "attribution": {
+   "moy": 1.18,
+   "min": 0.87,
+   "max": 1.54,
+   "et": 0.269
+  },
+  "misesAmbigues": [
+   {
+    "pos": "SB",
+    "vers": "BTN",
+    "ratio": 0.87
+   },
+   {
+    "pos": "SB",
+    "vers": "BTN",
+    "ratio": 0.9
+   },
+   {
+    "pos": "BTN",
+    "vers": "CO",
+    "ratio": 0.88
+   }
+  ],
+  "misesSurBoard": 1,
+  "montantPx": null,
+  "tailles": {
+   "carteHero": {
+    "w": 52.5,
+    "h": 69.2
+   },
+   "carteBoard": null,
+   "carteVilain": {
+    "w": 52.5,
+    "h": 69.2
+   },
+   "avatar": {
+    "w": 78,
+    "h": 78
+   },
+   "boutonD": {
+    "w": 22,
+    "h": 22
+   },
+   "potBloc": {
+    "w": 83.7,
+    "h": 30
+   }
+  },
+  "boutonD": [
+   {
+    "box": {
+     "w": 22,
+     "h": 22
+    },
+    "siegeLePlusProche": "BTN",
+    "distance": 135.6,
+    "rho": 0.478,
+    "surBoard": false
+   },
+   {
+    "box": {
+     "w": 22,
+     "h": 22
+    },
+    "siegeLePlusProche": "BTN",
+    "distance": 50.1,
+    "rho": 0.724,
+    "surBoard": false
+   },
+   {
+    "box": {
+     "w": 22,
+     "h": 22
+    },
+    "siegeLePlusProche": "BTN",
+    "distance": 50.1,
+    "rho": 0.724,
+    "surBoard": false
+   },
+   {
+    "box": {
+     "w": 22,
+     "h": 22
+    },
+    "siegeLePlusProche": "BTN",
+    "distance": 50.1,
+    "rho": 0.724,
+    "surBoard": false
+   }
+  ],
+  "erreursPage": []
+ },
+ "draws": [
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 454.3,
+      "ar": 1.335
+     },
+     "zone": {
+      "w": 866,
+      "h": 575
+     },
+     "potTexte": "POT32bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -45
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 52.5,
+       "h": 69.2
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 32.8,
+       "h": 43
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 73.5,
+       "h": 30
+      }
+     },
+     "bets": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "box": {
+        "w": 104,
+        "h": 44.4
+       },
+       "text": "4-Bet23bb",
+       "ecartAngleDeg": 21.9,
+       "t": 0.46,
+       "dOwn": 128.5,
+       "dAutre": 162.2,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.26,
+       "surBoard": false,
+       "montantPx": null
+      },
+      {
+       "pos": "SB",
+       "hero": true,
+       "box": {
+        "w": 104,
+        "h": 44.4
+       },
+       "text": "bet9bb",
+       "ecartAngleDeg": 70.3,
+       "t": 0.224,
+       "dOwn": 138,
+       "dAutre": 120.7,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 0.87,
+       "surBoard": false,
+       "montantPx": null
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 61,
+        "h": 67.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 135.6,
+      "rho": 0.478,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 428.2,
+      "ar": 1.416
+     },
+     "zone": {
+      "w": 866,
+      "h": 542
+     },
+     "potTexte": "POT46bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -63.6
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 47.8,
+       "h": 63
+      },
+      "carteBoard": {
+       "w": 57,
+       "h": 79
+      },
+      "carteVilain": {
+       "w": 32.8,
+       "h": 43
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 73.5,
+       "h": 30
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 50.1,
+      "rho": 0.724,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 428.2,
+      "ar": 1.416
+     },
+     "zone": {
+      "w": 866,
+      "h": 542
+     },
+     "potTexte": "POT73.5bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -63.6
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 40.4,
+       "h": 53.3
+      },
+      "carteBoard": {
+       "w": 57,
+       "h": 79
+      },
+      "carteVilain": {
+       "w": 32.8,
+       "h": 43
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 93.9,
+       "h": 30
+      }
+     },
+     "bets": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "box": {
+        "w": 104,
+        "h": 44.4
+       },
+       "text": "BET27.5bb",
+       "ecartAngleDeg": 45.1,
+       "t": 0.238,
+       "dOwn": 84.5,
+       "dAutre": 129.9,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.54,
+       "surBoard": false,
+       "montantPx": null
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 50.1,
+      "rho": 0.724,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 428.2,
+      "ar": 1.416
+     },
+     "zone": {
+      "w": 866,
+      "h": 542
+     },
+     "potTexte": "POT101bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -63.6
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 47.8,
+       "h": 63
+      },
+      "carteBoard": {
+       "w": 57,
+       "h": 79
+      },
+      "carteVilain": {
+       "w": 32.8,
+       "h": 43
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 83.7,
+       "h": 30
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 50.1,
+      "rho": 0.724,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 428.2,
+      "ar": 1.416
+     },
+     "zone": {
+      "w": 866,
+      "h": 542
+     },
+     "potTexte": "POT202bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -63.6
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 47.8,
+       "h": 63
+      },
+      "carteBoard": {
+       "w": 57,
+       "h": 79
+      },
+      "carteVilain": {
+       "w": 32.8,
+       "h": 43
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 83.7,
+       "h": 30
+      }
+     },
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 50.1,
+      "rho": 0.724,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 393.4,
+      "ar": 1.541
+     },
+     "zone": {
+      "w": 866,
+      "h": 498
+     },
+     "potTexte": "POT346bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -58.4
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 32.5,
+       "h": 42.9
+      },
+      "carteBoard": {
+       "w": 57,
+       "h": 79
+      },
+      "carteVilain": {
+       "w": 32.8,
+       "h": 43
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 20.2,
+       "h": 20.2
+      },
+      "potBloc": {
+       "w": 83.7,
+       "h": 30
+      }
+     },
+     "bets": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "box": {
+        "w": 95.6,
+        "h": 44.3
+       },
+       "text": "bet72bb",
+       "ecartAngleDeg": 45.4,
+       "t": 0.248,
+       "dOwn": 89.1,
+       "dAutre": 120.2,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 1.35,
+       "surBoard": true,
+       "montantPx": null
+      },
+      {
+       "pos": "SB",
+       "hero": true,
+       "box": {
+        "w": 95.6,
+        "h": 44.3
+       },
+       "text": "Bet72bb",
+       "ecartAngleDeg": 75.9,
+       "t": 0.17,
+       "dOwn": 133.9,
+       "dAutre": 120,
+       "plusProcheAutre": "BTN",
+       "ratioAttribution": 0.9,
+       "surBoard": false,
+       "montantPx": null
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "box": {
+       "w": 20.2,
+       "h": 20.2
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 49.4,
+      "rho": 0.725,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 428.2,
+      "ar": 1.416
+     },
+     "zone": {
+      "w": 866,
+      "h": 542
+     },
+     "potTexte": "POT1.5bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -42.4
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 52.5,
+       "h": 69.2
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 52.5,
+       "h": 69.2
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 83.7,
+       "h": 30
+      }
+     },
+     "bets": [],
+     "blinds": [
+      {
+       "box": {
+        "w": 61,
+        "h": 63.8
+       },
+       "surBoard": false,
+       "text": "0.5bbSB"
+      },
+      {
+       "box": {
+        "w": 61,
+        "h": 67.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 107.9,
+      "rho": 0.665,
+      "surBoard": false
+     }
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1600,
+    "h": 950
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 606.2,
+      "h": 428.2,
+      "ar": 1.416
+     },
+     "zone": {
+      "w": 866,
+      "h": 542
+     },
+     "potTexte": "POT6.5bb",
+     "potDecentre": {
+      "dx": 0,
+      "dy": -42.4
+     },
+     "tailles": {
+      "carteHero": {
+       "w": 52.5,
+       "h": 69.2
+      },
+      "carteBoard": null,
+      "carteVilain": {
+       "w": 52.5,
+       "h": 69.2
+      },
+      "avatar": {
+       "w": 78,
+       "h": 78
+      },
+      "boutonD": {
+       "w": 22,
+       "h": 22
+      },
+      "potBloc": {
+       "w": 83.7,
+       "h": 30
+      }
+     },
+     "bets": [
+      {
+       "pos": "BTN",
+       "hero": true,
+       "box": {
+        "w": 96,
+        "h": 44.4
+       },
+       "text": "Open2.5bb",
+       "ecartAngleDeg": 71,
+       "t": 0.227,
+       "dOwn": 137.3,
+       "dAutre": 120.4,
+       "plusProcheAutre": "CO",
+       "ratioAttribution": 0.88,
+       "surBoard": false,
+       "montantPx": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "box": {
+        "w": 104,
+        "h": 48.2
+       },
+       "text": "Call2.5bb",
+       "ecartAngleDeg": 2.1,
+       "t": 0.409,
+       "dOwn": 117.2,
+       "dAutre": 170.7,
+       "plusProcheAutre": "BB",
+       "ratioAttribution": 1.46,
+       "surBoard": false,
+       "montantPx": null
+      }
+     ],
+     "blinds": [
+      {
+       "box": {
+        "w": 61,
+        "h": 67.6
+       },
+       "surBoard": false,
+       "text": "1bbBB"
+      }
+     ],
+     "dealer": {
+      "box": {
+       "w": 22,
+       "h": 22
+      },
+      "siegeLePlusProche": "BTN",
+      "distance": 107.9,
+      "rho": 0.665,
+      "surBoard": false
+     }
+    }
+   ]
+  }
+ ]
+}
