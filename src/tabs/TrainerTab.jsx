@@ -7447,9 +7447,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     }
   },[ntables,activeTable,smode,results.length,allocNextSpotIndex,clearTableHandState]);
 
-  /* L'UI n'appelle QUE ces deux alias — même implémentation, portées
-     différentes. Aucune logique d'avance ne vit ailleurs. */
-  const handleNext=useCallback(()=>nextHand({all:true}),[nextHand]);
+  /* SEUL point d'entrée de l'UI. La portée `{all:true}` existe toujours dans le
+     contrôleur (fin de session, usage futur) mais n'est plus exposée à
+     l'écran : deux CTA d'avance simultanées, c'était le doublon. */
   const handleNextTable=useCallback(t=>nextHand({table:t}),[nextHand]);
   /* Une avance est-elle en cours pour cette table ? (portée globale incluse) */
   const isNextLoading=useCallback(t=>!!(nextLoading.all||nextLoading[`t${t}`]),[nextLoading]);
@@ -8318,8 +8318,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                       return(
                         <div style={{position:"sticky",bottom:0,display:"flex",gap:8,padding:"10px 6px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,rgba(3,7,18,0),#030712 35%)",zIndex:5,marginTop:8}}>
                           <button className="btn btns" style={{fontSize:11}} onClick={()=>setExpandedT(null)}>⛶ Réduire</button>
-                          {allSettled
-                            ?<button className="btn btng" style={{flex:1,fontSize:12}} disabled={!!nextLoading.all} onClick={handleNext}>{nextLoading.all?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
+                          {/* §1 — MÊME action que partout ailleurs : cette CTA avance
+                              LA table agrandie, pas le lot entier. Elle attendait
+                              auparavant que TOUTES les tables soient réglées pour
+                              les emporter d'un bloc — deux sémantiques d'avance
+                              dans la même application. */}
+                          {tableAns[t]
+                            ?<button className="btn btng" style={{flex:1,fontSize:12}} data-state={isNextLoading(t)?"LOADING":"READY"}
+                               disabled={isNextLoading(t)} onClick={()=>handleNextTable(t)}>
+                               {isNextLoading(t)?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Main suivante"}</button>
                             :<span style={{flex:1,alignSelf:"center",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.text3}}>{Object.keys(tableAns).length}/{ntables} répondues</span>}
                         </div>
                       );
@@ -8401,11 +8408,17 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           );
         })()}
-        {started&&!done&&ntables>1&&allSettled&&(()=>{const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);return(
-          <div style={{textAlign:"center",padding:"8px 0"}}>
-            <button className="btn btng" disabled={!!nextLoading.all} onClick={handleNext}>{nextLoading.all?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
-          </div>
-        );})()}
+        {/* §1/§6 — « Tables suivantes » SUPPRIMÉ.
+            Ce bouton avançait les N tables d'un bloc et cohabitait, actif en même
+            temps, avec « Table N suivante » du panneau droit : mesuré en 2T, 3T
+            et 4T. Deux CTA d'avance à l'écran, c'est le doublon signalé — et
+            l'avance en bloc est précisément le « reset incohérent de toutes les
+            tables » à éviter, puisqu'elle emporte des tables qui attendent
+            encore une décision. Chaque table avance désormais par sa propre CTA
+            (§44) ; le passage à l'écran de résultats est porté par le même
+            contrôleur (`nextHand` bascule sur `done` à la limite de session).
+            Le chemin `nextHand({all:true})` reste disponible côté contrôleur,
+            sans point d'entrée UI. */}
       </div>
       </div>{/* end flex:1 row wrapper */}
 
