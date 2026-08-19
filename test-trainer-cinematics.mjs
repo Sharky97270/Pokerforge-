@@ -13,6 +13,7 @@ import {
   buildCollectSequence, projectDisplayedPot, visibleStreetBets,
   streetRankFromBoard, streetRankOf,
 } from "./src/trainerBetCinematics.js";
+import { trainerActionVisualFamily as actionVisualType, trainerIsAllInAction } from "./src/trainerActionEvent.js";
 
 let n = 0;
 const fails = [];
@@ -99,9 +100,32 @@ eq(streetRankOf("River"), 3, "libellé river");
     "pendant la collecte, les tas au repos s'effacent — sinon on les voit en double");
 }
 
+/* ══ 6 — UN TAPIS SE DIT, IL NE SE DEVINE PAS (§14) ═══════════════════════
+   Deux sources annoncent un all-in, et il faut les DEUX :
+     · le TYPE d'action (Shove / Jam / Push / Reshove / All-in) ;
+     · le DRAPEAU du moteur, que `normalizeTrainerActionEvent` lève aussi
+       quand un simple CALL épuise le tapis — cas qu'aucun libellé ne dit.
+   Mesuré à l'écran avant correction : un « Call 6bb » qui était un tapis
+   recevait bien le style rouge (donc le type le savait) pendant que le
+   drapeau n'atteignait pas ce chemin de rendu. N'en lire qu'une des deux
+   laisse passer des tapis, et le §14 demande que le mot soit là. */
+const visuelAllIn = trainerIsAllInAction;
+for (const t of ["ALLIN", "JAM", "SHOVE", "PUSH", "RESHOVE"]) {
+  ok(visuelAllIn(t), `${t} : reconnu comme tapis par le TYPE`);
+  ok(actionVisualType(t) === "allin", `${t} : le badge rendu est celui du tapis`);
+}
+ok(visuelAllIn("CALL", true), "un CALL qui épuise le tapis est un tapis — c'est le drapeau du moteur qui le dit");
+ok(!visuelAllIn("CALL", false), "un CALL ordinaire n'est pas un tapis");
+ok(!visuelAllIn("RAISE", false), "une relance ordinaire n'est pas un tapis");
+ok(visuelAllIn("RAISE", true), "une relance qui épuise le tapis en est un");
+for (const t of ["FOLD", "CHECK", "BET", "OPEN", "3BET", "4BET", "5BET"]) {
+  ok(!visuelAllIn(t), `${t} : pas de faux positif`);
+}
+
 if (fails.length) {
   console.error(`\n❌ ${fails.length} échec(s) sur ${n} assertions :`);
   fails.forEach(f => console.error("  · " + f));
   process.exit(1);
 }
 console.log(`✅ trainer-cinematics (§12/§13/§27/§28) — ${n} assertions OK`);
+

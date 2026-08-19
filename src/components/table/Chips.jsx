@@ -2,6 +2,7 @@
 // La logique poker reste dans le trainer ; ce fichier ne fait que rendre le visuel.
 import React from "react";
 import { roundBb } from "../../utils/format.js";
+import { trainerActionVisualFamily, trainerIsAllInAction } from "../../trainerActionEvent.js";
 import {
   BetChipDisplay,
   BlindChipDisplay,
@@ -83,16 +84,9 @@ export function ChipStackLarge(props) { return <ChipStack {...props} size="large
 export function ChipStackMedium(props) { return <ChipStack {...props} size="medium" />; }
 export function ChipStackSmall(props) { return <ChipStack {...props} size="small" />; }
 
-export function actionVisualType(type = "BET") {
-  const t = String(type || "BET").toUpperCase();
-  if (t === "FOLD") return "fold";
-  if (t === "CALL") return "call";
-  if (t === "CHECK" || t === "CHECK_BACK") return "check";
-  if (t === "3BET" || t === "4BET" || t === "5BET" || t === "RAISE") return "raise";
-  if (t === "ALLIN" || t === "SHOVE" || t === "PUSH" || t === "RESHOVE" || t === "JAM") return "allin";
-  if (t === "OPEN") return "open";
-  return "bet";
-}
+/* La table de correspondance vit dans trainerActionEvent : elle y est
+   testable sans navigateur, et le §14 en depend. */
+export const actionVisualType = trainerActionVisualFamily;
 
 export function ActionBetBadge({
   label,
@@ -104,11 +98,13 @@ export function ActionBetBadge({
   colorKey = "blue",
   sizeMode = "auto",
   tableMode = 1,
+  allIn = false,
   style,
 }) {
   const visual = actionVisualType(type);
   return (
     <BetChipDisplay
+      allIn={allIn}
       label={label}
       amount={amount}
       type={visual}
@@ -169,10 +165,19 @@ export function SeatActionZone({
   className = "",
   style,
   pos,
+  allIn = false,
 }) {
   if (!(amount > 0)) return null;
-  const props = { label, amount: roundBb(amount), type, compact, kind, themeKey, colorKey, sizeMode, tableMode };
-  const visual = actionVisualType(type);
+  /* ── §14 — UN TAPIS SE DIT, IL NE SE DEVINE PAS ──────────────────────────
+     Deux sources l'annoncent, et il faut les DEUX : le drapeau du moteur
+     (`normalizeTrainerActionEvent` le lève même quand un simple call épuise le
+     tapis) et le type d'action (Shove / Jam / Push). Mesuré à l'écran : un
+     « Call 6bb » qui était un tapis recevait bien le style rouge — donc le
+     TYPE le savait — pendant que le drapeau, lui, n'atteignait pas ce chemin
+     de rendu. N'en lire qu'une des deux laisse donc passer des tapis. */
+  const isAllIn = trainerIsAllInAction(type, allIn);
+  const props = { label, amount: roundBb(amount), type, compact, kind, themeKey, colorKey, sizeMode, tableMode, allIn: isAllIn };
+  const visual = isAllIn ? "allin" : actionVisualType(type);
   // data-seat : les jetons de mise sont positionnés en absolu, hors du bloc de
   // siège — rien ne reliait donc un tas de jetons à son joueur. L'attribut rend
   // ce lien vérifiable (audit visuel : « ce tas appartient-il bien à ce siège ? »).

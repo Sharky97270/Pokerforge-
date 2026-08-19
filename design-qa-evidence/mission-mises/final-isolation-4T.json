@@ -1,0 +1,848 @@
+{
+ "summary": {
+  "mode": "4T",
+  "viewport": "1600x950",
+  "releves": 16,
+  "relevesConcluants": 4,
+  "focusDesaligne": "0/4",
+  "panneauContamine": "0/4",
+  "exemples": [],
+  "erreursPage": []
+ },
+ "analyse": [
+  {
+   "tableEnAttente": 3,
+   "tableAuFocus": 3,
+   "potPanneau": 46,
+   "potsTables": [
+    67.5,
+    84.5,
+    17,
+    46
+   ],
+   "panneauCorrespondA": [
+    3
+   ],
+   "contamine": false,
+   "focusDesaligne": false
+  },
+  {
+   "tableEnAttente": 3,
+   "tableAuFocus": 3,
+   "potPanneau": 25,
+   "potsTables": [
+    8,
+    44,
+    20.5,
+    25
+   ],
+   "panneauCorrespondA": [
+    3
+   ],
+   "contamine": false,
+   "focusDesaligne": false
+  },
+  {
+   "tableEnAttente": 3,
+   "tableAuFocus": 3,
+   "potPanneau": 5,
+   "potsTables": [
+    9,
+    92,
+    41,
+    5
+   ],
+   "panneauCorrespondA": [
+    3
+   ],
+   "contamine": false,
+   "focusDesaligne": false
+  },
+  {
+   "tableEnAttente": 3,
+   "tableAuFocus": 3,
+   "potPanneau": 53,
+   "potsTables": [
+    15.5,
+    10,
+    22.5,
+    53
+   ],
+   "panneauCorrespondA": [
+    3
+   ],
+   "contamine": false,
+   "focusDesaligne": false
+  }
+ ],
+ "releves": [
+  {
+   "panel": {
+    "Street": "Preflop",
+    "Stack Hero": "40bb",
+    "Pot": "36.5bb",
+    "Pot Odds": "33%",
+    "SPR": "1.1",
+    "Difficulté": "Expert"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": true,
+     "pot": 36.5,
+     "heroPlaque": "HEROBB40bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 4,
+     "heroPlaque": "HEROBB87bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 11,
+     "heroPlaque": "HEROBTN65bb",
+     "board": 4,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 3,
+     "focus": false,
+     "pot": 46,
+     "heroPlaque": "HEROBTN80bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Turn",
+    "Stack Hero": "65bb",
+    "Pot": "11bb",
+    "Pot Odds": "—",
+    "SPR": "5.9",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 67.5,
+     "heroPlaque": "HEROBB40bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 4,
+     "heroPlaque": "HEROBB87bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": true,
+     "pot": 11,
+     "heroPlaque": "HEROBTN65bb",
+     "board": 4,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 3,
+     "focus": false,
+     "pot": 46,
+     "heroPlaque": "HEROBTN80bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "River",
+    "Stack Hero": "80bb",
+    "Pot": "46bb",
+    "Pot Odds": "—",
+    "SPR": "1.7",
+    "Difficulté": "Expert"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 67.5,
+     "heroPlaque": "HEROBB40bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 29.5,
+     "heroPlaque": "HEROBB87bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 17,
+     "heroPlaque": "HEROBTN65bb",
+     "board": 4,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 46,
+     "heroPlaque": "HEROBTN80bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "River",
+    "Stack Hero": "80bb",
+    "Pot": "46bb",
+    "Pot Odds": "—",
+    "SPR": "1.7",
+    "Difficulté": "Expert"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 67.5,
+     "heroPlaque": "HEROBB40bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 84.5,
+     "heroPlaque": "HEROBB87bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 17,
+     "heroPlaque": "HEROBTN65bb",
+     "board": 4,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 46,
+     "heroPlaque": "HEROBTN80bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "River",
+    "Stack Hero": "80bb",
+    "Pot": "92bb",
+    "Pot Odds": "—",
+    "SPR": "0.9",
+    "Difficulté": "Expert"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 67.5,
+     "heroPlaque": "HEROBB40bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 84.5,
+     "heroPlaque": "HEROBB87bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 17,
+     "heroPlaque": "HEROBTN65bb",
+     "board": 4,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 92,
+     "heroPlaque": "HEROBTN80bb",
+     "board": 5,
+     "enAttente": false,
+     "nbBoutons": 0
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Turn",
+    "Stack Hero": "40bb",
+    "Pot": "25bb",
+    "Pot Odds": "—",
+    "SPR": "1.6",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 6,
+     "heroPlaque": "HEROHJ101bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 4
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 8,
+     "heroPlaque": "HEROBTN85bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 3.5,
+     "heroPlaque": "HEROBB15bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 25,
+     "heroPlaque": "HEROBB40bb",
+     "board": 4,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Turn",
+    "Stack Hero": "40bb",
+    "Pot": "25bb",
+    "Pot Odds": "—",
+    "SPR": "1.6",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 8,
+     "heroPlaque": "HEROHJ101bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 16.7,
+     "heroPlaque": "HEROBTN85bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 20.5,
+     "heroPlaque": "HEROBB15bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 25,
+     "heroPlaque": "HEROBB40bb",
+     "board": 4,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Turn",
+    "Stack Hero": "40bb",
+    "Pot": "25bb",
+    "Pot Odds": "—",
+    "SPR": "1.6",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 8,
+     "heroPlaque": "HEROHJ101bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 44,
+     "heroPlaque": "HEROBTN85bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 20.5,
+     "heroPlaque": "HEROBB15bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 25,
+     "heroPlaque": "HEROBB40bb",
+     "board": 4,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Turn",
+    "Stack Hero": "40bb",
+    "Pot": "33.3bb",
+    "Pot Odds": "—",
+    "SPR": "1.2",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 8,
+     "heroPlaque": "HEROHJ101bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 44,
+     "heroPlaque": "HEROBTN85bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 20.5,
+     "heroPlaque": "HEROBB15bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 33.3,
+     "heroPlaque": "HEROBB40bb",
+     "board": 4,
+     "enAttente": false,
+     "nbBoutons": 0
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Flop",
+    "Stack Hero": "20bb",
+    "Pot": "5bb",
+    "Pot Odds": "—",
+    "SPR": "4.0",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 5,
+     "heroPlaque": "HEROBTN67bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 4
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 46,
+     "heroPlaque": "HEROBTN100bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 6,
+     "heroPlaque": "HEROBB18bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 5,
+     "heroPlaque": "HEROBTN20bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Flop",
+    "Stack Hero": "20bb",
+    "Pot": "5bb",
+    "Pot Odds": "—",
+    "SPR": "4.0",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 9,
+     "heroPlaque": "HEROBTN67bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 92,
+     "heroPlaque": "HEROBTN100bb",
+     "board": 5,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 41,
+     "heroPlaque": "HEROBB18bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 5,
+     "heroPlaque": "HEROBTN20bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Flop",
+    "Stack Hero": "20bb",
+    "Pot": "8.4bb",
+    "Pot Odds": "—",
+    "SPR": "2.4",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 9,
+     "heroPlaque": "HEROBTN67bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 92,
+     "heroPlaque": "HEROBTN100bb",
+     "board": 5,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 41,
+     "heroPlaque": "HEROBB18bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 8.4,
+     "heroPlaque": "HEROBTN20bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "River",
+    "Stack Hero": "43bb",
+    "Pot": "53bb",
+    "Pot Odds": "28%",
+    "SPR": "0.8",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 4.5,
+     "heroPlaque": "HEROBB139bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 6,
+     "heroPlaque": "HEROBTN68bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 4
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 1.5,
+     "heroPlaque": "HEROHJ21bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 2
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 53,
+     "heroPlaque": "HEROSB43bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "River",
+    "Stack Hero": "43bb",
+    "Pot": "53bb",
+    "Pot Odds": "28%",
+    "SPR": "0.8",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 15.5,
+     "heroPlaque": "HEROBB139bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 10,
+     "heroPlaque": "HEROBTN68bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 22.5,
+     "heroPlaque": "HEROHJ21bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 53,
+     "heroPlaque": "HEROSB43bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "River",
+    "Stack Hero": "43bb",
+    "Pot": "53bb",
+    "Pot Odds": "28%",
+    "SPR": "0.8",
+    "Difficulté": "Avancé"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 15.5,
+     "heroPlaque": "HEROBB139bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 10,
+     "heroPlaque": "HEROBTN68bb",
+     "board": 3,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 22.5,
+     "heroPlaque": "HEROHJ21bb",
+     "board": 0,
+     "enAttente": false,
+     "nbBoutons": 0
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 53,
+     "heroPlaque": "HEROSB43bb",
+     "board": 5,
+     "enAttente": false,
+     "nbBoutons": 0
+    }
+   ]
+  },
+  {
+   "panel": {
+    "Street": "Preflop",
+    "Stack Hero": "20bb",
+    "Pot": "4bb",
+    "Pot Odds": "38%",
+    "SPR": "5.0",
+    "Difficulté": "Intermédiaire"
+   },
+   "tables": [
+    {
+     "i": 0,
+     "focus": false,
+     "pot": 25,
+     "heroPlaque": "HEROBB40bb",
+     "board": 4,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 1,
+     "focus": false,
+     "pot": 39,
+     "heroPlaque": "HEROBTN80bb",
+     "board": 5,
+     "enAttente": true,
+     "nbBoutons": 3
+    },
+    {
+     "i": 2,
+     "focus": false,
+     "pot": 5,
+     "heroPlaque": "HEROBTN95bb",
+     "board": 3,
+     "enAttente": true,
+     "nbBoutons": 4
+    },
+    {
+     "i": 3,
+     "focus": true,
+     "pot": 4,
+     "heroPlaque": "HEROHJ20bb",
+     "board": 0,
+     "enAttente": true,
+     "nbBoutons": 3
+    }
+   ]
+  }
+ ]
+}

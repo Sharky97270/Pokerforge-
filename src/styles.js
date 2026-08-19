@@ -314,6 +314,30 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid2>.mt-slot.table-slot-answered,.grid3>.mt-slot.table-slot-answered,.grid4>.mt-slot.table-slot-answered{
   border-color:rgba(0,232,137,.45);
 }
+/* ── §31 — UNE SEULE TABLE EST ACTIVE, LES AUTRES RESTENT LISIBLES ─────────
+   La table active portait deja une bordure bleue, mais rien ne rendait les
+   autres SECONDAIRES : quatre tuiles au meme niveau de presence, et l oeil ne
+   sait pas ou se poser. Le retrait est volontairement minuscule — le cahier
+   des charges dit « renforcer tres legerement » et « ne pas transformer l ecran
+   en arcade ». On retire de la PRESENCE (un soupcon de contraste et de
+   saturation), jamais de la lisibilite : aucun chiffre, aucune carte, aucune
+   position ne change de taille ni de couleur. */
+:is(.grid2,.grid3,.grid4)>.mt-slot:not(.mt-slot-focus){
+  filter:saturate(.9) brightness(.97);
+  transition:filter .18s;
+}
+:is(.grid2,.grid3,.grid4)>.mt-slot.mt-slot-focus{filter:none;}
+/* ── §32 — TABLE TERMINEE : le statut se lit, les commandes s effacent ─────
+   « Ne pas conserver des elements actifs ambigus. » La barre de decision d une
+   table repondue reste a l ecran (elle porte le verdict et le bouton suivant) :
+   on la desature pour qu elle cesse de reclamer une action, sans jamais toucher
+   au FEUTRE — le pot, le board, les mises et les positions restent pleinement
+   lisibles, c est ce que le §32 exige explicitement. */
+:is(.grid2,.grid3,.grid4)>.mt-slot.table-slot-answered .mtr-actions{
+  filter:saturate(.5);opacity:.72;transition:opacity .2s,filter .2s;
+}
+:is(.grid2,.grid3,.grid4)>.mt-slot.table-slot-answered .mtr-actions:hover{opacity:1;filter:none;}
+.mt-table-title.answered i{letter-spacing:.06em;font-size:8.5px;font-weight:900;}
 /* Titre TABLE n (maquette) */
 .mt-table-title{
   display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
@@ -4871,6 +4895,20 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 .pf-action-bet .pf-action-chip-copy strong,.pf-action-open .pf-action-chip-copy strong{color:#FFC247!important;}
 .pf-action-raise{border-color:rgba(31,139,255,.42)!important;background:rgba(3,16,44,.78)!important;}
 .pf-action-raise .pf-action-chip-copy strong,.pf-action-raise .pf-action-chip-copy em{color:#60B0FF!important;}
+/* ── §14 — LE MOT ALL-IN, A COTE DE LA CONTRIBUTION ────────────────────────
+   Le drapeau isAllIn etait deja calcule par le moteur (il se leve meme quand
+   un simple CALL epuise le tapis) mais n atteignait pas le badge : un tapis
+   pouvait donc s afficher « Call 22bb », sans rien qui le distingue. Le mot
+   remplace le libelle plutot que de s y ajouter — c est lui qui change la
+   decision, et le badge ne doit pas s elargir au point de mordre les cartes.
+   Il vit DANS le badge : il ne peut donc recouvrir ni le board, ni le stack,
+   ni le pot, comme le §14 l exige. */
+.pf-allin-tag{
+  font-family:'Space Grotesk',sans-serif!important;font-weight:900!important;
+  letter-spacing:.08em!important;color:#FF7090!important;
+  text-shadow:0 0 10px rgba(255,69,96,.55)!important;
+  max-width:none!important;overflow:visible!important;
+}
 .pf-action-allin{border-color:rgba(255,69,96,.55)!important;background:rgba(44,4,12,.78)!important;animation:badgePop .24s cubic-bezier(.34,1.56,.64,1),urgentPulse .75s infinite!important;}
 .pf-action-allin .pf-action-chip-copy strong,.pf-action-allin .pf-action-chip-copy em{color:#FF7090!important;}
 .pf-action-check,.pf-action-fold{display:none!important;}

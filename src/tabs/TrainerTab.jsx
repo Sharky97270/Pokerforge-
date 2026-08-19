@@ -5634,6 +5634,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   colorKey={chipColor}
                   sizeMode={chipSizeMode}
                   tableMode={1}
+                  allIn={!!seatActionSource?.isAllIn}
                 />
                   );
                 })()}
@@ -6116,6 +6117,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               colorKey={chipColor}
               sizeMode={chipSizeMode}
               tableMode={numTables}
+              allIn={!!seatActionSource?.isAllIn}
             />
             </React.Fragment>
           );
@@ -8296,7 +8298,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {ntables>1&&(
                       <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
                         <span>TABLE {t+1}</span>
-                        {isAns&&<i title="Répondue">✓</i>}
+                        {/* §32 — le statut se LIT, il ne se devine pas à la couleur
+                            d'une bordure. Un coche seul laissait « répondue » et
+                            « en attente » à distinguer au vert du cadre. */}
+                        {isAns&&<i title="Cette table est terminée">✓ TERMINÉE</i>}
                         {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
                       </div>
                     )}
