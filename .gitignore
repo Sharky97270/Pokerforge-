@@ -12,3 +12,20 @@ Holdem Manager 3/
 
 # Réglages locaux & mémoire personnelle de l'assistant
 .claude/
+
+# Fichiers de débogage jetables (sondes, reproductions de bug, dumps).
+# Ils n'ont de sens que le temps d'une investigation : les ignorer évite
+# qu'un `git add -A` les emporte dans un commit qui n'a rien à voir.
+# Motifs ANCRÉS à la racine (« / » initial) : sans ancrage, .gitignore
+# s'applique à TOUS les niveaux et un futur design-qa-evidence/trainer-x.png
+# serait silencieusement ignoré.
+/scratch-*
+/_probe*
+/*.probe.mjs
+
+# Captures produites par les scripts de vérification visuelle
+# (scripts/*-shot.mjs, qui écrivent à la racine par défaut) — régénérables
+# à la demande. Les preuves versionnées de design-qa-evidence/ ne sont PAS
+# concernées grâce à l'ancrage.
+/replayer-*.png
+/trainer-*.png

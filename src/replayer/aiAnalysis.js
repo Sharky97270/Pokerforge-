@@ -20,9 +20,12 @@ import { validatePokerState, validateAiResponse } from "./pokerStateValidator.js
 /* Version du prompt serveur attendue (doit rester alignée avec l'edge function).
    v3 : le modèle reçoit un POKER STATE normalisé (action sémantique, action
    affrontée, options légales, provenance) et ne reconstruit plus le coup
-   depuis du texte libre. Changer cette version invalide le cache (§20). */
-export const PROMPT_VERSION = "pokerforge-hand-analysis-v3";
-export const CLIENT_VERSION = "replayer-ai-2.0.0";
+   depuis du texte libre.
+   v4 : les streets où Hero a réellement agi sont énoncées et contrôlées — une
+   main jetée préflop ne peut plus se voir commenter un flop qu'il n'a pas joué.
+   Changer cette version invalide le cache (§20). */
+export const PROMPT_VERSION = "pokerforge-hand-analysis-v4";
+export const CLIENT_VERSION = "replayer-ai-2.1.0";
 export const ANALYSIS_MODES = ["decision", "full_hand"];
 
 const CACHE_KEY = "pf_rep_ai_cache";
@@ -238,7 +241,7 @@ export async function requestAnalysis({ handState, solverData, analysisMode = "d
        régénéré ; ce second passage protège contre une version de fonction plus
        ancienne encore déployée, et rend la garde testable côté client. */
     const fact = validateAiResponse(payload.analysis, {
-      pokerState: solverData?.target?.pokerState || null, solverData,
+      pokerState: solverData?.target?.pokerState || null, solverData, handState,
     });
     if (!fact.valid) {
       try { console.warn("[PokerForge] Réponse IA rejetée :", fact.errors); } catch { /* noop */ }

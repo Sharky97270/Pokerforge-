@@ -31,6 +31,22 @@ const STATUS_META = {
 };
 const SEV_COL = { low: "#6F81A8", medium: "#FFC247", high: "#FF4560" };
 
+/* ── §D — VERDICT DU MOTEUR, distinct de l'appréciation de l'IA ──
+   PokerForge classe la décision (A+ → D) sans le moindre appel réseau. Ne pas
+   l'afficher laissait l'utilisateur sans jugement dès que l'IA échouait, alors
+   que la réponse était déjà calculée. Et colorer un chiffre du MOTEUR avec le
+   `rating` choisi par le MODÈLE mélangeait deux autorités : la couleur de
+   l'écart suit désormais la classification du moteur. */
+const CLASS_META = {
+  EXCELLENTE:     { col: "#10D87A", ico: "★", lbl: "Excellente" },
+  BONNE:          { col: "#3ED598", ico: "✓", lbl: "Bonne" },
+  IMPRECISION:    { col: "#FFC247", ico: "≈", lbl: "Imprécision" },
+  ERREUR:         { col: "#FF8A3D", ico: "✗", lbl: "Erreur" },
+  ERREUR_CRITIQUE:{ col: "#FF4560", ico: "‼", lbl: "Erreur critique" },
+  NON_EVALUEE:    { col: "#6F81A8", ico: "—", lbl: "Non évaluée" },
+};
+export const engineClassMeta = c => CLASS_META[c] || CLASS_META.NON_EVALUEE;
+
 /* Badge de provenance (§16). Une donnée calculée et une interprétation IA
    n'ont JAMAIS le même style : plein vs pointillé. */
 export function ProvBadge({ prov, title }) {
@@ -111,7 +127,7 @@ function ActionLine({ label, value, sub, col, big }) {
   );
 }
 
-function VerdictBlock({ target, mode, ratingCol }) {
+function VerdictBlock({ target, mode }) {
   if (mode === "full_hand" || !target) return null;
   const heroFr = target.heroSemanticFr || target.playedLabel || "—";
   const recoFr = target.recommendedSemanticFr || null;
@@ -119,6 +135,7 @@ function VerdictBlock({ target, mode, ratingCol }) {
   const recoFreq = recoFr && strat ? strat[target.recommendedSemantic] : null;
   const origin = target.origin || ORIGIN.UNAVAILABLE;
   const om = ORIGIN_META[origin] || ORIGIN_META.UNAVAILABLE;
+  const cm = engineClassMeta(target.classification);
   const solverExact = origin === ORIGIN.SOLVER_EXACT || origin === ORIGIN.SOLVER_LOOKUP;
   const freqMetric = target.metric === "frequency";
   const gap = freqMetric ? target.freqGapPts : target.evLossBB;
@@ -172,8 +189,32 @@ function VerdictBlock({ target, mode, ratingCol }) {
           <ActionLine
             label={freqMetric ? "Écart équilibre" : "EV perdue est."}
             value={freqMetric ? `${Math.round(gap)} pts` : `-${Number(gap).toFixed(2)}bb`}
-            col={ratingCol} big />
+            col={cm.col} big />
         </>
+      )}
+
+      {/* §D — le jugement de PokerForge, disponible SANS l'IA et affiché comme
+          tel. C'est lui qui répond « ton fold est-il bon ? » même quand
+          l'analyse IA échoue. */}
+      {target.classification && (
+        <div style={{ marginTop: 7, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.07)",
+          display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+            background: `${cm.col}18`, border: `1.5px solid ${cm.col}`, color: cm.col,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12, fontWeight: 900 }}>{cm.ico}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 7.5, color: T.text4, fontFamily: T.stats,
+              letterSpacing: ".1em", textTransform: "uppercase", fontWeight: 700 }}>Verdict PokerForge</div>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: cm.col, fontFamily: T.stats }}>
+              {target.verdict || cm.lbl}
+            </div>
+          </div>
+          <span style={{ fontFamily: T.brand, fontSize: 17, fontWeight: 900, color: cm.col }}>
+            {target.grade || "—"}
+          </span>
+          <ProvBadge prov={target.source || PROV.UNAVAILABLE} title="Note calculée par PokerForge, sans l'IA." />
+        </div>
       )}
 
       {/* §6/§8 : la provenance est une information de premier plan, pas une note
@@ -298,8 +339,7 @@ export default function AiAnalysisPanel({
 
       {/* ── §8 : verdict factuel PokerForge — visible SANS l'IA. C'est le
              moteur qui décrit le spot ; l'IA ne fait que l'expliquer plus bas. ── */}
-      <VerdictBlock target={target} mode={mode}
-        ratingCol={(RATING_META[analysis?.verdict?.rating] || RATING_META.neutral).col} />
+      <VerdictBlock target={target} mode={mode} />
 
       {/* ── Chiffres solveur : toujours visibles, même sans IA (§18/§19) ── */}
       {numbersBlock}
@@ -398,11 +438,31 @@ export default function AiAnalysisPanel({
                       </div>
                     )}
                   </div>
+                  {/* §A — deux mesures, jamais confondues, et JAMAIS un zéro
+                      par défaut. Une main dont aucune décision n'est chiffrée
+                      en bb n'a pas « perdu 0bb » : elle affiche son plus grand
+                      écart à l'équilibre, ou rien du tout. */}
                   {mode === "full_hand" && typeof solverPkg?.totalEvLossBB === "number" && (
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}>EV perdue totale</div>
-                      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900, color: rm.col }}>
+                      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900,
+                        color: solverPkg.totalEvLossBB > 1.5 ? "#FF4560"
+                          : solverPkg.totalEvLossBB > 0.4 ? "#FFC247" : "#3ED598" }}>
                         -{solverPkg.totalEvLossBB}bb
+                      </div>
+                    </div>
+                  )}
+                  {mode === "full_hand" && solverPkg?.totalEvLossBB == null
+                    && typeof solverPkg?.worstFreqGapPts === "number" && (
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 8, color: T.text4, fontFamily: T.stats }}
+                        title="Plus grand écart à la fréquence d'équilibre parmi les décisions de Hero. Ce n'est pas une perte en bb.">
+                        Écart max équilibre
+                      </div>
+                      <div style={{ fontFamily: T.brand, fontSize: 15, fontWeight: 900,
+                        color: solverPkg.worstFreqGapPts > 35 ? "#FF4560"
+                          : solverPkg.worstFreqGapPts > 15 ? "#FFC247" : "#3ED598" }}>
+                        {Math.round(solverPkg.worstFreqGapPts)} pts
                       </div>
                     </div>
                   )}
@@ -444,6 +504,11 @@ export default function AiAnalysisPanel({
               {["preflop", "flop", "turn", "river"].map(s => {
                 const st = analysis.streets[s];
                 if (!st || st.status === "not_played") return null;
+                /* §B — dernier rempart d'affichage : une street où Hero n'a
+                   pris aucune décision n'est PAS la sienne. Quand il jette
+                   préflop, le coup continue sans lui jusqu'à la river ; le
+                   commenter serait décrire un joueur absent. */
+                if (solverPkg?.heroStreets && !solverPkg.heroStreets.includes(s)) return null;
                 const sm = STATUS_META[st.status] || STATUS_META.neutral;
                 return (
                   <div key={s} style={{ marginBottom: 7 }}>

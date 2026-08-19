@@ -33,8 +33,14 @@ const CORS = {
 //      légales, provenance. Il n'a plus à reconstruire le coup depuis du texte,
 //      et une garde rejette toute valeur numérique absente des données.
 //      Changer cette version invalide le cache (§20).
-const PROMPT_VERSION = "pokerforge-hand-analysis-v3";
-const FUNCTION_VERSION = "analyze-hand-2.1.0";
+// v4 : les streets où Hero a réellement agi sont ÉNONCÉES et contrôlées. Quand
+//      Hero jette préflop, le coup continue sans lui jusqu'à la river : le
+//      HandState transporte alors un board complet et les actions des vilains,
+//      et rien n'empêchait le modèle de commenter « son » flop. Toute street
+//      hors de `heroStreets` doit désormais être `not_played`, côté prompt ET
+//      côté garde. Changer cette version invalide le cache (§20).
+const PROMPT_VERSION = "pokerforge-hand-analysis-v4";
+const FUNCTION_VERSION = "analyze-hand-2.2.0";
 const DEFAULT_MODEL = "gpt-4.1-mini";
 
 // Tarifs USD / million de tokens — sert UNIQUEMENT à estimer un coût interne (§25).
@@ -325,6 +331,19 @@ Signale-le explicitement (champs warnings et dataGaps) plutôt que de compléter
 par une supposition. Une incertitude annoncée est un bon coaching ; une
 affirmation inventée détruit la confiance.
 
+═══ 6. STREETS DE HERO ═══
+Le bloc « STREETS JOUÉES PAR HERO » énumère les seules streets où Hero a pris
+une décision. Toute street ABSENTE de cette liste a obligatoirement le statut
+"not_played" et une analyse VIDE — même si le board la montre et même si les
+adversaires y ont joué.
+
+Quand Hero se couche, le coup CONTINUE SANS LUI : le board peut aller jusqu'à
+la river et les vilains continuer à miser. Ces cartes et ces mises ne sont pas
+les siennes. Tu ne dis jamais ce que Hero « aurait touché », ce qu'il « aurait
+gagné », ni comment il « aurait joué » le flop : la main s'arrête pour lui à sa
+dernière décision. Une réponse qui commente une street hors de la liste est
+rejetée automatiquement.
+
 Réponds en français, ton direct et pédagogique, sans flatterie.
 Une street non jouée a le statut "not_played" et une analyse vide.`;
 
@@ -411,15 +430,38 @@ function decisionsBriefing(sd: any): string[] {
   return out;
 }
 
+// Streets où Hero a RÉELLEMENT pris une décision — jamais les streets de la
+// main. `heroStreets` est calculé par le package solveur ; le repli sur
+// `decisions` couvre un client plus ancien.
+function heroStreetsOf(sd: any): string[] {
+  if (Array.isArray(sd?.heroStreets)) return sd.heroStreets;
+  if (Array.isArray(sd?.decisions) && sd.decisions.length)
+    return [...new Set(sd.decisions.map((d: any) => d.street).filter(Boolean))] as string[];
+  return [];
+}
+
 function userPrompt(body: any) {
   const mode = body.analysisMode === "full_hand" ? "TOUTE LA MAIN" : "LA DÉCISION HERO CIBLÉE";
   const sd = body.solverData || {};
   const ps = sd.target?.pokerState || null;
+  const hStreets = heroStreetsOf(sd);
+  const ALL = ["preflop", "flop", "turn", "river"];
   const lines = [
     `MODE D'ANALYSE : ${mode}.`,
     body.analysisMode === "decision"
       ? ""
-      : "Analyse chaque street effectivement jouée, puis conclus.",
+      : "Analyse chaque street où HERO a joué, puis conclus.",
+    "",
+    "── STREETS JOUÉES PAR HERO ──",
+    hStreets.length
+      ? `Hero a pris une décision sur : ${hStreets.join(", ")}.`
+      : "Hero n'a pris aucune décision évaluable dans cette main.",
+    `Streets à marquer OBLIGATOIREMENT "not_played" avec une analyse vide : `
+      + (ALL.filter(s => !hStreets.includes(s)).join(", ") || "aucune") + ".",
+    hStreets.length && hStreets[hStreets.length - 1] !== "river"
+      ? "Hero n'est plus dans le coup après sa dernière décision : le board et les mises "
+        + "qui suivent appartiennent aux adversaires. N'en tire aucune conclusion sur sa main."
+      : "",
     "",
     ...(body.analysisMode === "decision" ? spotBriefing(ps, sd.target) : decisionsBriefing(sd)),
     "",
@@ -583,6 +625,9 @@ const TOKEN_NOISE: RegExp[] = [
 // La lookbehind évite de démarrer au milieu d'un mot (« A2x » → pas « 2x »).
 const UNIT_NUMBER = /(?<![\w.,])(\d+(?:[.,]\d+)?)\s*(%|bb\b|blindes?\b|x\b|pots?\b)/gi;
 
+// Cette liste doit rester IDENTIQUE à `analysisTexts` de pokerStateValidator.js :
+// un champ scanné d'un seul côté crée une barrière qui laisse passer ce que
+// l'autre rejette.
 function analysisTexts(a: any): string[] {
   const out: string[] = [];
   const push = (v: unknown) => { if (typeof v === "string" && v.trim()) out.push(v); };
@@ -628,8 +673,23 @@ function guardAnalysis(a: any, body: any): string[] {
     }
   }
 
-  // §5 — aucun nombre inventé.
-  const allowed = allowedNumbers({ hs: body.handState, sd });
+  // §B — aucune street que Hero n'a pas jouée. Le prompt l'énonce ; ici on le
+  // vérifie. Sans ce contrôle, une main jetée préflop se voyait commenter un
+  // flop, un turn et une river que Hero n'a jamais joués — le board complet et
+  // les actions des vilains étant bel et bien dans le payload.
+  const hStreets = heroStreetsOf(sd);
+  if (hStreets.length && a?.streets) {
+    for (const s of ["preflop", "flop", "turn", "river"]) {
+      const st = a.streets[s];
+      if (!st || st.status === "not_played") continue;
+      if (!hStreets.includes(s))
+        errs.push(`street ${s} analysée alors que Hero n'y a pris aucune décision`);
+    }
+  }
+
+  // §5 — aucun nombre inventé. Mêmes sources que la garde client
+  // (pokerStateValidator.validateAiResponse) : HandState + package solveur.
+  const allowed = allowedNumbers({ hs: body.handState, ps, sd });
   for (const t of analysisTexts(a)) {
     let s = t;
     for (const re of TOKEN_NOISE) s = s.replace(re, " ");

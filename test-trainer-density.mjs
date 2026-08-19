@@ -86,10 +86,16 @@ for (const name of TRAINER_DENSITY_ORDER) {
    base change avec le mode (2xl → xl → lg → md), si bien qu'un zoom plus grand
    peut produire une carte plus petite. C'est précisément le piège qui avait
    laissé le board 4T à 15.6×21.6px (illisible) pendant que le 3T tenait 24×33. */
+/* Depuis que le feutre a un ratio CONSTANT (trainerTableGeometry), le board est
+   dimensionné en fraction de la hauteur du feutre et non plus mode par mode. Or
+   les tuiles 3T et 4T sont quasi identiques : leurs boards le sont donc aussi, à
+   0.1px près. Exiger une décroissance STRICTE reviendrait à exiger un défaut.
+   L'invariant utile est qu'aucun mode plus dense ne porte un board plus GRAND
+   que le précédent de façon visible (tolérance 2 %). */
 for (let i = 1; i < TRAINER_DENSITY_ORDER.length; i++) {
   const prev = trainerBoardCardHeight(i);
   const cur = trainerBoardCardHeight(i + 1);
-  ok(cur <= prev, `carte de board : ${i + 1}T (${cur}px) ≤ ${i}T (${prev}px)`);
+  ok(cur <= prev * 1.02, `carte de board : ${i + 1}T (${cur}px) ≤ ${i}T (${prev}px) à 2 % près`);
 }
 /* Les pas 1T→2T et 2T→3T sont volontairement grands : la tuile l'est aussi
    (725px de haut en 2T, 344px en 3T). Le pas 3T→4T, lui, doit rester DOUX —
@@ -196,16 +202,25 @@ for (const n of [1, 2, 3, 4]) {
   ok(trainerMarkerApproachMax(3, "BET", { tight: true }) <= trainerMarkerApproachMax(3, "BET"),
     "écran étroit : le plafond se resserre");
 }
-/* Le décalage angulaire du bouton D : élargi en mosaïque SEULEMENT. En 1T la
-   mesure d'origine (0.34) tient toujours — le bouton y fait 22px et les grappes
-   voisines sont grandes. */
-eq(trainerDealerAngleOffset(1), 0.34, "1T : décalage angulaire du bouton D inchangé");
-ok(trainerDealerAngleOffset(3) > trainerDealerAngleOffset(1), "3T : décalage élargi");
-ok(trainerDealerAngleOffset(4) > trainerDealerAngleOffset(1), "4T : décalage élargi");
+/* ── LE DÉCALAGE DU BOUTON D A CHANGÉ DE NATURE ──────────────────────────
+   Ce n'est plus une fraction d'ÉCART ANGULAIRE entre deux sièges, mais
+   l'intensité d'un décalage LATÉRAL EN PIXELS (cf. trainerTableGeometry,
+   DEALER_SIDE_PX). La raison est mesurée : une rotation autour du pot déplace le
+   bouton d'un ARC dont la longueur croît avec le rayon du siège, si bien qu'en 4T
+   il finissait à 49px de son BTN pour 47px de la SB — sur des sièges espacés de
+   89px, donc impossible à attribuer. Le bouton et le tas de mise sont désormais
+   séparés RADIALEMENT (20 % du segment siège→pot contre 42 %), et l'écart latéral
+   n'a plus qu'à éviter la plaque du joueur.
+
+   Ce qui doit rester vrai : l'intensité est positive (sinon bouton et tas se
+   superposent) et bornée (sinon le bouton part chez le voisin — c'est exactement
+   le défaut qu'on vient de corriger). */
 for (const n of [1, 2, 3, 4]) {
   const o = trainerDealerAngleOffset(n);
-  ok(o > 0 && o < 0.5, `${n}T : décalage < un demi-écart de siège (sinon le bouton passe chez le voisin) — ${o}`);
+  ok(o > 0 && o <= 0.3, `${n}T : intensité du décalage latéral du bouton D dans les bornes utiles — ${o}`);
 }
+ok(trainerDealerAngleOffset(4) >= trainerDealerAngleOffset(1),
+  "mosaïque : décalage au moins aussi franc qu'en 1T (les objets y sont plus serrés)");
 
 /* ══ 7 — la région sous la table est bornée en multi ══
    C'est elle qui garantit l'égalité géométrique des tuiles (§7 de la mission) :

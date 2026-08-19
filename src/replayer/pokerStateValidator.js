@@ -213,32 +213,52 @@ export function scanForeignNumbers(text, allowed) {
   return { clean: foreign.length === 0, foreign };
 }
 
-/* Champs textuels d'une réponse, à plat. */
+/* Champs textuels d'une réponse, à plat.
+
+   Cette liste doit rester IDENTIQUE à celle de l'edge function : un champ
+   scanné d'un seul côté crée une barrière qui laisse passer ce que l'autre
+   rejette. Le schéma produit `keyConcepts` — scanner `concepts` (nom d'une
+   version abandonnée du schéma) revenait à ne jamais contrôler ce tableau. */
 export function analysisTexts(a) {
   if (!a || typeof a !== "object") return [];
   const out = [];
   const push = v => { if (typeof v === "string" && v.trim()) out.push(v); };
-  push(a.explanation); push(a.strategicReason); push(a.mistake);
-  push(a.observation); push(a.coachAdvice); push(a.summary);
-  push(a.verdict?.rationale);
-  (a.concepts || []).forEach(push);
+  push(a.summary); push(a.strategicReason); push(a.observation);
+  push(a.coachAdvice); push(a.verdict?.rationale);
+  (a.keyConcepts || []).forEach(push);
   (a.warnings || []).forEach(push);
+  (a.dataGaps || []).forEach(push);
   for (const s of ["preflop", "flop", "turn", "river"]) push(a.streets?.[s]?.analysis);
   (a.detectedLeaks || []).forEach(l => push(l?.description));
   return out;
+}
+
+/* Streets où Hero a réellement agi. Toute autre street doit être `not_played` :
+   quand Hero jette préflop, le coup continue sans lui et le board va jusqu'à
+   la river — commenter « son » flop serait une pure invention. */
+export function heroStreetsOf(solverData) {
+  if (!solverData) return null;
+  if (Array.isArray(solverData.heroStreets)) return solverData.heroStreets;
+  if (Array.isArray(solverData.decisions) && solverData.decisions.length)
+    return [...new Set(solverData.decisions.map(d => d.street).filter(Boolean))];
+  return null;
 }
 
 /**
  * §7 — Validation complète d'une réponse IA contre les faits PokerForge.
  *
  * @param analysis  réponse structurée du modèle
- * @param facts     { pokerState, solverData }
+ * @param facts     { pokerState, solverData, handState }
  * @returns {{valid:boolean, errors:string[], foreign:Array}}
  */
 export function validateAiResponse(analysis, facts = {}) {
   const errors = [];
   const ps = facts.pokerState || null;
-  const allowed = allowedNumbers({ ps: facts.pokerState, sd: facts.solverData });
+  /* L'inventaire doit couvrir EXACTEMENT les mêmes sources que la garde
+     serveur — HandState compris. Sans lui, un tapis ou une blinde cité depuis
+     le HandState passait le serveur (payant) puis se faisait rejeter ici :
+     l'utilisateur perdait une analyse pourtant exacte. */
+  const allowed = allowedNumbers({ hs: facts.handState, ps: facts.pokerState, sd: facts.solverData });
 
   if (!analysis || typeof analysis !== "object") return { valid: false, errors: ["réponse vide"], foreign: [] };
 
@@ -250,6 +270,17 @@ export function validateAiResponse(analysis, facts = {}) {
     errors.push(`recommendedAction « ${analysis.recommendedAction} » hors des actions légales`);
   if (ps && analysis.heroAction && analysis.heroAction !== ps.heroAction)
     errors.push(`heroAction « ${analysis.heroAction} » ≠ action réellement jouée « ${ps.heroAction} »`);
+
+  /* ── §B : aucune street que Hero n'a pas jouée ── */
+  const hStreets = heroStreetsOf(facts.solverData);
+  if (hStreets && analysis.streets) {
+    for (const s of ["preflop", "flop", "turn", "river"]) {
+      const st = analysis.streets[s];
+      if (!st || st.status === "not_played") continue;
+      if (!hStreets.includes(s))
+        errors.push(`street ${s} analysée alors que Hero n'y a pris aucune décision`);
+    }
+  }
 
   /* ── §5 : aucun nombre inventé ── */
   const foreign = [];

@@ -366,14 +366,30 @@ export function analyzeHand(hand, snapshots, ctx={}){
     });
   }
   const rated = decisions.filter(d=>typeof d.evLoss==="number");
-  const totalEvLoss = rb(rated.reduce((a,d)=>a+d.evLoss,0));
+  /* Une somme d'EV n'existe QUE si au moins une décision a été mesurée en bb.
+     Renvoyer 0 quand aucune ne l'a été affichait « EV perdue totale −0bb » à
+     côté d'un fold noté D : un désastre présenté comme un coût nul. Aucune
+     décision chiffrée en EV → la somme n'existe pas, et on le dit (null). */
+  const totalEvLoss = rated.length ? rb(rated.reduce((a,d)=>a+d.evLoss,0)) : null;
+  /* Pendant fréquentiel : les décisions mesurées en points d'écart à
+     l'équilibre. Les deux mesures ne s'additionnent JAMAIS entre elles — on
+     expose le PIRE écart, pas un cumul qui ne voudrait rien dire. */
+  const ratedFreq = decisions.filter(d=>typeof d.freqGap==="number");
+  const worstFreqGapPts = ratedFreq.length
+    ? Math.max(...ratedFreq.map(d=>d.freqGap)) : null;
   const counts = decisions.reduce((acc,d)=>{ acc[d.cls]=(acc[d.cls]||0)+1; return acc; },{});
   const errors = decisions.filter(d=>d.cls===CLASS.ERREUR||d.cls===CLASS.CRITIQUE);
-  const worst = rated.slice().sort((a,b)=>b.evLoss-a.evLoss)[0] || null;
+  /* La pire décision doit exister même quand rien n'est chiffré en bb : sinon
+     une main dont la seule faute est un fold catastrophique (mesuré en points)
+     n'a « pas de pire décision ». On classe par EV quand on en a, sinon par
+     écart de fréquence. */
+  const worst = rated.length
+    ? rated.slice().sort((a,b)=>b.evLoss-a.evLoss)[0]
+    : (ratedFreq.slice().sort((a,b)=>b.freqGap-a.freqGap)[0] || null);
   const sources = new Set(decisions.map(d=>d.source));
   return {
-    decisions, counts, totalEvLoss, errors, worst,
-    rated: rated.length,
+    decisions, counts, totalEvLoss, worstFreqGapPts, errors, worst,
+    rated: rated.length, ratedFreq: ratedFreq.length,
     source: sources.has("solver") ? (sources.size>1?"mixed":"solver") : (sources.has("heuristic")?"heuristic":"none"),
   };
 }
