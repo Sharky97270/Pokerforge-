@@ -26,6 +26,13 @@
  * Usage :
  *   node scripts/trainer-layout-shift-audit.mjs
  *   node scripts/trainer-layout-shift-audit.mjs --modes=4 --hands=10 --tol=1
+ *   node scripts/trainer-layout-shift-audit.mjs --type=full   (MAIN GAGNÉE/PERDUE)
+ *
+ * `--type` choisit le type de session : "spot" (défaut) ne produit que des
+ * verdicts de décision ; "full" et "session" jouent le coup jusqu'au bout et
+ * font apparaître le récapitulatif MAIN GAGNÉE / MAIN PERDUE — c'est le bloc
+ * le plus volumineux de l'application, et donc le plus susceptible de pousser
+ * sur la géométrie du cadre.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,7 +44,8 @@ const W = +arg('w', 1600), H = +arg('h', 950);
 const MODES = String(arg('modes', '2,3,4')).split(',').map(Number).filter(Boolean);
 const HANDS = +arg('hands', 7);
 const TOL   = +arg('tol', 1);              // px — tolérance de rendu navigateur
-const OUT   = arg('out', 'design-qa-evidence/trainer-layout-shift.json');
+const TYPE  = arg('type', 'spot');         // spot | street | full | session | mix
+const OUT   = arg('out', `design-qa-evidence/trainer-layout-shift${TYPE === 'spot' ? '' : '-' + TYPE}.json`);
 
 const CHROMES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -58,7 +66,17 @@ const rapport = [];
 
 try {
   const page = await browser.newPage();
-  await page.evaluateOnNewDocument(() => localStorage.setItem('pf_active_tab', 'trainer'));
+  await page.evaluateOnNewDocument(type => {
+    localStorage.setItem('pf_active_tab', 'trainer');
+    /* Le type de session est persisté sous deux clés (snapshot canonique +
+       legacy) : on écrit les deux, sinon l'une réécrase l'autre au montage. */
+    localStorage.setItem('pf_train_mode', type);
+    try {
+      const c = JSON.parse(localStorage.getItem('pf_training_config') || '{}');
+      c.sessionType = type;
+      localStorage.setItem('pf_training_config', JSON.stringify(c));
+    } catch { /* pas de config encore écrite : la clé legacy suffit */ }
+  }, TYPE);
   await page.goto(URL, { waitUntil: 'networkidle2' });
   await new Promise(r => setTimeout(r, 900));
 
@@ -93,7 +111,11 @@ try {
         return out;
       };
 
-      const o = { mode: mode + 'T', releves: 0, ecarts: [] };
+      /* `couverture` compte les états RÉELLEMENT atteints. Sans elle, un audit
+         qui n'entre jamais dans un état passe au vert sans rien avoir prouvé —
+         c'est aussi trompeur qu'un audit incapable d'échouer. */
+      const o = { mode: mode + 'T', releves: 0, ecarts: [], couverture: {} };
+      const vu = k => { o.couverture[k] = (o.couverture[k] || 0) + 1; };
       B(/Arrêter/)?.click();            await w(1000);
       B(/Nouvelle session/)?.click();   await w(1200);
       setT(mode);                       await w(600);
@@ -116,18 +138,25 @@ try {
           if (cta && !cta.disabled) break;
           const act = [...document.querySelectorAll('.gto-btn')].filter(vis);
           const ab  = [...document.querySelectorAll('.ab')].filter(vis);
-          if (act.length) { act[i % act.length].click(); await w(800); releve(`main${i}_action`); continue; }
-          if (ab.length)  { ab[i % ab.length].click();   await w(800); releve(`main${i}_coupComplet`); continue; }
+          if (act.length) { vu("action"); act[i % act.length].click(); await w(800); releve(`main${i}_action`); continue; }
+          if (ab.length)  { vu("coupComplet"); ab[i % ab.length].click();   await w(800); releve(`main${i}_coupComplet`); continue; }
           await w(500);
         }
-        releve(`main${i}_resultat`);
+        releve(`main${i}_resultat`); vu('resultat');
+        /* Le récapitulatif de coup complet est le bloc le plus volumineux :
+           on note explicitement qu'on l'a bien traversé. */
+        const txt = document.body.innerText;
+        if (/MAIN GAGN/i.test(txt)) vu('mainGagnee');
+        if (/MAIN PERDUE/i.test(txt)) vu('mainPerdue');
+        if (/Bonne décision|Sous-optimal|Erreur/i.test(txt)) vu('verdictDecision');
         const sol = B(/Afficher la solution/);
         if (sol && i % 3 === 0) {
-          sol.click(); await w(900); releve(`main${i}_solutionOuverte`);
+          sol.click(); await w(900); releve(`main${i}_solutionOuverte`); vu('solutionOuverte');
           B(/Masquer la solution/)?.click(); await w(700); releve(`main${i}_solutionFermee`);
         }
-        if ([...document.querySelectorAll('button')].some(b => /Avancer les/.test(b.textContent)))
-          releve(`main${i}_raccourciLotVisible`);
+        if ([...document.querySelectorAll('button')].some(b => /Avancer les/.test(b.textContent))) {
+          releve(`main${i}_raccourciLotVisible`); vu('raccourciLot');
+        }
         const cta = document.querySelector('.pf-p2-next');
         if (cta && !cta.disabled) { cta.click(); await w(1000); releve(`main${i}_apresAvance`); }
       }
@@ -136,9 +165,12 @@ try {
     }, mode, HANDS, TOL);
 
     rapport.push(res);
+    res.type = TYPE;
     const ok = res.stable;
     if (!ok) failed++;
-    console.log(`${ok ? '✅' : '❌'} ${res.mode} — ${res.releves} relevés, ${res.ecarts.length} écart(s) > ${TOL}px`);
+    console.log(`${ok?"✅":"❌"} ${res.mode} · ${TYPE} — ${res.releves} relevés, ${res.ecarts.length} écart(s) > ${TOL}px`);
+    const couv = Object.entries(res.couverture || {}).map(([k, v]) => k + ' ×' + v).join(', ');
+    console.log('   états traversés : ' + (couv || '⚠ AUCUN — la mesure ne prouve rien'));
     for (const e of res.ecarts.slice(0, 6)) {
       console.log(`   · ${e.etat || e.err}: ` + (e.d || []).map(x => `table ${x.table} ${x.prop} ${x.ref}→${x.mesure} (${x.delta}px)`).join(' | '));
     }
