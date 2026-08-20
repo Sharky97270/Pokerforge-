@@ -29,3 +29,6 @@ Holdem Manager 3/
 # concernées grâce à l'ancrage.
 /replayer-*.png
 /trainer-*.png
+
+# Sortie regenerable de scripts/trainer-overlap-audit.mjs (ecrit a la racine).
+/audit-result.json

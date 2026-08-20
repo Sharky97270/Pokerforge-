@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { T } from "../theme.js";
 import { useIsMobile, useMaxWidth, vibrate, VIB } from "../utils/ui.js";
-import { roundBb, shuffle } from "../utils/format.js";
+import { roundBb, shuffle, fmtNum, fmtSpr } from "../utils/format.js";
 import { loadStats, saveStats, saveStatsSafe, loadHistory } from "../stats.js";
 import { SPOTS, POKER_EVENTS, POSITIONS_BY_SIZE } from "../data/content.js";
 import { Card, CardBack, HeroHoleCards, VillainBackCards } from "../components/table/Cards.jsx";
@@ -3213,7 +3213,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
       const q=rep.quality;
       col=(q==="best"||q==="ok")?T.green:q==="imprecise"?T.gold:T.red;
       verdict=q==="best"?"✓ Optimal":q==="ok"?"✓ Correct":q==="imprecise"?"≈ Imprécis":"✗ Erreur";
-      evTxt=`${rep.evDelta>=0?"+":""}${(rep.evDelta||0).toFixed(2)}bb`;
+      evTxt=`${rep.evDelta>=0?"+":""}${fmtNum((rep.evDelta||0),2)}bb`;
       best=rep.best;
       heroGrades.push({label,action:verb(rep.action),correct:rep.correct,evDelta:rep.evDelta||0});
     }else{
@@ -3728,7 +3728,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         {provBadge}
         {showSol?(
           <>
-            <span>EV {heroFeedback.evDiff>=0?"+":""}{heroFeedback.evDiff.toFixed(2)}bb</span>
+            <span>EV {heroFeedback.evDiff>=0?"+":""}{fmtNum(heroFeedback.evDiff,2)}bb</span>
             <span>Meilleure action: <strong>{heroFeedback.bestAction}</strong></span>
             <span>GTO {heroFeedback.gtoFrequency}%</span>
             <span>Exploit {heroFeedback.exploitFrequency}%</span>
@@ -4276,7 +4276,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   /* ── HUD values — partagées 1T + multi-table ── */
   const stackBBn=parseFloat(spot.stack)||100;
   const potBBn=mainPotBb;
-  const spr=(stackBBn/potBBn).toFixed(1);
+  const spr=fmtSpr(stackBBn,potBBn);
   const potOddsRaw=spot.toCall>0?spot.toCall/(spot.toCall+potBBn)*100:0;
   const potOddsStr=potOddsRaw>0?potOddsRaw.toFixed(0)+"%":null;
   const diffLabel=spot.diff===1?"Débutant":spot.diff===2?"Intermédiaire":spot.diff===3?"Avancé":spot.diff===4?"Expert":"Intermédiaire";
@@ -4366,10 +4366,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     {bestAct?.s&&/^\d|bb$|\$/.test(bestAct.s)&&<span style={{fontSize:13,color:"#9FB0CC",fontWeight:600}}> · {bestAct.s}</span>}
                   </div>
                   <div className="pf-sol-opt-row">
-                    <div className="pf-sol-kv"><span className="k">EV</span><span className="v" style={{color:T.green}}>{bestEv>=0?"+":""}{bestEv.toFixed(2)} bb</span></div>
+                    <div className="pf-sol-kv"><span className="k">EV</span><span className="v" style={{color:T.green}}>{bestEv>=0?"+":""}{fmtNum(bestEv,2)} bb</span></div>
                     <div className="pf-sol-kv"><span className="k">FRÉQ. GTO</span><span className="v" style={{color:"#34D8FF"}}>{bestFreq}%</span></div>
                     <div className="pf-sol-kv"><span className="k">TON CHOIX</span><span className="v" style={{color:isBest?T.green:T.red}}>{spot.acts[answered]?.l}</span></div>
-                    {!isBest&&<div className="pf-sol-kv"><span className="k">EV PERDUE</span><span className="v" style={{color:T.red}}>{evDiff.toFixed(2)} bb</span></div>}
+                    {!isBest&&<div className="pf-sol-kv"><span className="k">EV PERDUE</span><span className="v" style={{color:T.red}}>{fmtNum(evDiff,2)} bb</span></div>}
                   </div>
                 </div>
 
@@ -4542,7 +4542,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               {!isBest&&(
                 <span style={{display:"flex",alignItems:"center",gap:5,fontFamily:T.mono,fontSize:11}}>
                   <span style={{color:T.text4}}>EV loss</span>
-                  <span style={{color:T.red,fontWeight:700}}>{evDiff.toFixed(2)}bb</span>
+                  <span style={{color:T.red,fontWeight:700}}>{fmtNum(evDiff,2)}bb</span>
                 </span>
               )}
               {isBest&&(
@@ -4954,7 +4954,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",justifyContent:"center"}}>
               {recap.best&&<span style={{fontFamily:T.stats,fontSize:9,color:T.green,background:"rgba(16,216,122,.1)",border:"1px solid rgba(16,216,122,.3)",borderRadius:6,padding:"3px 8px"}}>✦ Meilleure : {recap.best}</span>}
               {recap.worst&&<span style={{fontFamily:T.stats,fontSize:9,color:T.red,background:"rgba(255,69,96,.1)",border:"1px solid rgba(255,69,96,.3)",borderRadius:6,padding:"3px 8px"}}>⚠ À revoir : {recap.worst}</span>}
-              {recap.decisions>0&&<span style={{fontFamily:T.stats,fontSize:9,color:recap.totalEvLost<0?T.red:T.green,background:recap.totalEvLost<0?"rgba(255,69,96,.1)":"rgba(16,216,122,.1)",border:`1px solid ${recap.totalEvLost<0?"rgba(255,69,96,.3)":"rgba(16,216,122,.3)"}`,borderRadius:6,padding:"3px 8px"}}>EV totale {recap.totalEvLost>=0?"+":""}{recap.totalEvLost.toFixed(2)}bb</span>}
+              {recap.decisions>0&&<span style={{fontFamily:T.stats,fontSize:9,color:recap.totalEvLost<0?T.red:T.green,background:recap.totalEvLost<0?"rgba(255,69,96,.1)":"rgba(16,216,122,.1)",border:`1px solid ${recap.totalEvLost<0?"rgba(255,69,96,.3)":"rgba(16,216,122,.3)"}`,borderRadius:6,padding:"3px 8px"}}>EV totale {recap.totalEvLost>=0?"+":""}{fmtNum(recap.totalEvLost,2)}bb</span>}
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             {/* §1 — UN SEUL CTA « Main suivante » à l'écran. Quand le panneau
@@ -5099,7 +5099,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5}}>
                     <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>EV optimal :</span>
-                    <span style={{fontSize:9,fontFamily:T.mono,fontWeight:700,color:bestEv>=0?T.green:T.amber}}>{bestEv>0?"+":""}{bestEv.toFixed(2)}bb</span>
+                    <span style={{fontSize:9,fontFamily:T.mono,fontWeight:700,color:bestEv>=0?T.green:T.amber}}>{bestEv>0?"+":""}{fmtNum(bestEv,2)}bb</span>
                   </div>
                   {solBlurred&&(
                     <div className="sol-lock">
@@ -5356,7 +5356,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw},0 0 40px ${glw.replace(".4",".2")}`}}>
                   <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
                 </div>
-                {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{evDiff.toFixed(2)} bb EV</span>}
+                {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{fmtNum(evDiff,2)} bb EV</span>}
               </div>
             );
           })()}
@@ -5374,7 +5374,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw}`}}>
                   <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
                 </div>
-                {fhFeedback.evDelta!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{fhFeedback.evDelta>=0?"+":""}{fhFeedback.evDelta.toFixed(2)} bb EV</span>}
+                {fhFeedback.evDelta!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{fhFeedback.evDelta>=0?"+":""}{fmtNum(fhFeedback.evDelta,2)} bb EV</span>}
               </div>
             );
           })()}
@@ -5715,7 +5715,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   <div style={{fontFamily:T.stats,fontSize:13,fontWeight:800,color:isBest?T.green:T.red,flex:1,minWidth:0}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
                   {!isBest&&evDiff<0&&<div style={{textAlign:"right",flexShrink:0}}>
                     <div style={{fontFamily:T.stats,fontSize:7.5,color:T.text4,letterSpacing:".04em"}}>EV PERDUE</div>
-                    <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{evDiff.toFixed(2)}bb</div>
+                    <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{fmtNum(evDiff,2)}bb</div>
                   </div>}
                 </div>
                 <div style={{display:"flex",gap:12,marginBottom:5,fontFamily:T.stats,fontSize:9.5,flexWrap:"wrap"}}>
@@ -6257,7 +6257,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           {/* Header verdict */}
           <div style={{padding:"5px 8px",display:"flex",alignItems:"center",gap:8,background:"linear-gradient(90deg,#071B44,#040B1F)",borderTop:"1px solid #152D6E",flexShrink:0,flexWrap:"wrap"}}>
             <span className={`gto-quality ${qualityCls}`} style={{fontSize:10,padding:"3px 9px"}}>{qualityLabel}</span>
-            {!isBest&&<span style={{fontSize:9,color:T.text3,fontFamily:T.stats}}>EV loss : <span style={{color:T.red,fontWeight:700}}>{evDiff.toFixed(2)}bb</span></span>}
+            {!isBest&&<span style={{fontSize:9,color:T.text3,fontFamily:T.stats}}>EV loss : <span style={{color:T.red,fontWeight:700}}>{fmtNum(evDiff,2)}bb</span></span>}
             {isBest&&<span style={{fontSize:9,color:T.green,fontFamily:T.stats}}>Fréquence GTO : <span style={{color:T.green,fontWeight:700}}>{spot.freq[spot.acts[answered]?.id]||0}%</span></span>}
           </div>
           {/* Grille EV */}
@@ -6454,7 +6454,7 @@ function SessionEnd({results,mode,stoppedEarly=false,onRestart,onResume,onSave})
         <span style={{fontSize:18}}>{evDelta>=0?"💰":"📉"}</span>
         <div>
           <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:8.5,color:T.text4,letterSpacing:".08em",marginBottom:1}}>EV VS OPTIMAL</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{evDelta.toFixed(2)} bb</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{fmtNum(evDelta,2)} bb</div>
         </div>
         <div style={{marginLeft:"auto",textAlign:"right"}}>
           <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:8.5,color:T.text4,letterSpacing:".08em",marginBottom:1}}>PRÉCISION</div>
@@ -7484,7 +7484,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const live=tableLive[activeTable]||null;
     const potN=inFh?fhCur.pot:(live&&live.pot!=null?live.pot:(parseFloat(s.pot)||0));
     const stackN=inFh?fhCur.heroStack:(live&&live.heroStack!=null?live.heroStack:(parseFloat(s.stack)||100));
-    const spr=potN>0?(stackN/potN).toFixed(1):"—";
+    const spr=fmtSpr(stackN,potN);
     const toCall=inFh?0:(Number(s.toCall)||0);
     const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
     const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
@@ -7553,7 +7553,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               {ans&&best&&(
                 <div className={`pf-p2-verdict ${ans.correct?"ok":"ko"}`}>
                   <strong>{chosen?.l||"—"} {ans.correct?"✓ correct":"✕ à revoir"}</strong>
-                  <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
+                  <span>EV {chosenEv>=0?"+":""}{fmtNum(chosenEv,2)}bb · Meilleure : {best.l}</span>
                 </div>
               )}
               {/* Provenance de la solution (§2/§28) : solveur exact (push/fold) · CFR
@@ -7585,7 +7585,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   </div>
                 ))}
               </div>
-              {best&&<div className="pf-p2-optimal">EV optimale <b>+{bestEv.toFixed(2)}bb</b></div>}
+              {best&&<div className="pf-p2-optimal">EV optimale <b>+{fmtNum(bestEv,2)}bb</b></div>}
               {/* §18 — même remarque « Style Hero » que le panneau 1T. */}
               {(()=>{const n=heroStyleCoachNote(f.heroStyle||"GTO",s);if(!n)return null;return(
                 <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:`${n.col}12`,border:`1px solid ${n.col}3a`,fontFamily:"'Inter',sans-serif",fontSize:9.5,color:n.col,lineHeight:1.6}}>
@@ -8404,7 +8404,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         {isMobile&&ntables===1&&started&&!done&&activeSpot&&(()=>{
           const s=activeSpot;
           const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
-          const sprV=potN>0?(stackN/potN).toFixed(1):"—";
+          const sprV=fmtSpr(stackN,potN);
           const toCall=Number(s.toCall)||0;
           const oddsV=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":null;
           const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
@@ -8538,7 +8538,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px",borderRadius:11,marginBottom:14,background:evDelta>=0?"rgba(16,216,122,.07)":"rgba(255,69,96,.06)",border:`1px solid ${evDelta>=0?"rgba(16,216,122,.25)":"rgba(255,69,96,.22)"}`}}>
                       <span style={{fontSize:16}}>{evDelta>=0?"💰":"📉"}</span>
                       <span style={{fontFamily:T.stats,fontSize:9,color:T.text4,fontWeight:700,letterSpacing:".06em"}}>EV VS OPTIMAL</span>
-                      <span style={{marginLeft:"auto",fontFamily:T.mono,fontSize:14,fontWeight:800,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{evDelta.toFixed(2)} bb</span>
+                      <span style={{marginLeft:"auto",fontFamily:T.mono,fontSize:14,fontWeight:800,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{fmtNum(evDelta,2)} bb</span>
                     </div>
                     <div className="pf-sol-sec-title" style={{color:"#FF8A3D",margin:"0 0 8px"}}>🔥 HEATMAP — PRÉCISION PAR CATÉGORIE</div>
                     {cats.length===0

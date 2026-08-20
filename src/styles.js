@@ -540,12 +540,34 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3 .pf-pot-label,.grid4 .pf-pot-label{font-size:8px!important;}
 /* Blindes + mises un peu plus grandes aussi. */
 .grid3 .pf-blind-stack strong,.grid4 .pf-blind-stack strong{font-size:9px!important;}
+/* ══ PLANCHER DE LISIBILITÉ DES MICRO-LIBELLÉS (finitions §3) ══
+   Le « zoom » posé sur « .pf-mt-seat » réduit TOUT ce qu'il contient, y compris
+   des libellés déjà écrits en 7,5–8px. Mesuré au rendu en 4T : « Fold » à
+   5,5px, « HERO » à 5px, la lettre de blinde à 5,9px — sous le seuil où un
+   texte cesse d'être lu et devient une tache.
+
+   On ne peut pas corriger ça avec un « max() » sur la taille du texte : le zoom
+   s'applique APRÈS, et rabaisserait la valeur plancher elle-même. On
+   pré-compense donc la taille demandée par le facteur de zoom de la grille,
+   de sorte que le RENDU final retombe au-dessus du seuil. Les valeurs
+   ci-dessous sont issues de la mesure, pas d'un calcul théorique : les
+   facteurs de zoom se cumulent (grille + siège) et le résultat effectif ne se
+   déduit pas de la seule règle « .pf-mt-seat ».
+
+   Vérifiable : scripts/trainer-lisibilite-audit.mjs. */
+.grid2 .pf-fold-chip,.grid2 .pf-multiway-chip,
+.grid3 .pf-fold-chip,.grid3 .pf-multiway-chip,
+.grid4 .pf-fold-chip,.grid4 .pf-multiway-chip{font-size:10px!important;letter-spacing:.08em!important;}
+.grid2 .pf-seat-hero-chip,.grid3 .pf-seat-hero-chip,.grid4 .pf-seat-hero-chip{font-size:10px!important;}
+.grid2 .hero-seat-badge,.grid3 .hero-seat-badge,.grid4 .hero-seat-badge{font-size:10px!important;}
+.grid2 .pf-blind-stack em,.grid3 .pf-blind-stack em,.grid4 .pf-blind-stack em{font-size:11px!important;}
+.grid2 .pf-allin-tag,.grid3 .pf-allin-tag,.grid4 .pf-allin-tag{font-size:10.5px!important;}
 /* §36 — LE MONTANT PRIME SUR LE LIBELLE. En mosaique, le libelle ("3-Bet")
    etait rendu PLUS GROS que le montant (9px contre 8px) : on lisait l action
    avant de lire combien, alors que c est le montant qui porte la decision. On
    inverse, et on donne au montant un plancher de lisibilite. */
-.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:8px!important;opacity:.86!important;}
-.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:10.5px!important;}
+.grid2 .pf-action-chip-copy strong,.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:10px!important;opacity:.86!important;}
+.grid2 .pf-action-chip-copy em,.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:12.5px!important;}
 /* POT COMPACT MULTI (comme le 1T) : sinon la pile de jetons rend le pot très
    HAUT (~54px = 26% du feutre court) et il chevauche le siège du haut ET le board.
    Ligne unique [jetons] POT xx bb, hauteur fixe. */
