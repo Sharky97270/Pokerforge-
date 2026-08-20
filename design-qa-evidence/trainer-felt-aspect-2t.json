@@ -1,0 +1,149 @@
+{
+ "viewport": [
+  1600,
+  950
+ ],
+ "ratioActuel": 1.7,
+ "rapport": [
+  {
+   "ratio": 1.55,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 254,
+      "aire": 99976,
+      "ratio": 1.55
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 333
+      },
+      "hauteurPerdue": 232
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 2,
+     "surLeCoeur": 13,
+     "entreVoisins": 18,
+     "echantillons": 339
+    }
+   ]
+  },
+  {
+   "ratio": 1.7,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 231.6,
+      "aire": 91162,
+      "ratio": 1.7
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 304
+      },
+      "hauteurPerdue": 261
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 2,
+     "entreVoisins": 40,
+     "echantillons": 325
+    }
+   ]
+  },
+  {
+   "ratio": 1.85,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 212.8,
+      "aire": 83763,
+      "ratio": 1.85
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 279
+      },
+      "hauteurPerdue": 286
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 0,
+     "entreVoisins": 80,
+     "echantillons": 335
+    }
+   ]
+  },
+  {
+   "ratio": 2,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 196.8,
+      "aire": 77483,
+      "ratio": 2
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 258
+      },
+      "hauteurPerdue": 307
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 0,
+     "entreVoisins": 74,
+     "echantillons": 322
+    }
+   ]
+  }
+ ]
+}

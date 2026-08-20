@@ -30,6 +30,7 @@
     "audit:lisibilite": "node scripts/trainer-lisibilite-audit.mjs",
     "audit:finitions": "node scripts/trainer-finitions-audit.mjs",
     "audit:mobile": "node scripts/trainer-lisibilite-audit.mjs --w=390 --h=844 --modes=1 --out=design-qa-evidence/trainer-lisibilite-mobile.json",
+    "bench:ratio": "node scripts/trainer-felt-aspect-bench.mjs",
     "shot:semantic": "node scripts/replayer-semantic-shot.mjs",
     "audit:table": "node scripts/trainer-bet-anchor-audit.mjs",
     "audit:cine:trainer": "node scripts/trainer-cine-audit.mjs"
