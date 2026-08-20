@@ -83,15 +83,28 @@ export const TRAINER_DENSITY_TOKENS = {
     boardZoom: 0.45,
     boardGap: 5,
     potH: 24,
-    actionPad: "4px 7px 3px",
-    actionBtnMinH: 40,
-    actionBtnPadY: 5,
-    actionGap: 4,
-    actionLabelFs: 12,
-    actionSizingFs: 9,
-    sizingBtnH: 16,
-    sizingBtnFs: 8,
-    stepperH: 17,
+    /* ── ZONE DE DÉCISION DU 2T — ÉLARGIE, ET VOICI SUR QUOI (§6) ──────────
+       La tuile 2T n'a qu'UNE rangée : sa cellule fait 761px de haut à 1600×950
+       quand celle du 4T en fait 377. Mesuré : la zone de table y dispose de
+       592px et n'en consomme que 304, parce que le feutre est déjà à 94 % de la
+       LARGEUR de la cellule et que sa hauteur en découle (394/1.70 = 232). Ces
+       288px ne peuvent donc pas revenir au feutre sans changer sa forme — ce
+       que TRAINER_FELT_ASPECT interdit. Ils reviennent au seul autre contenu
+       fonctionnel de la tuile : le bandeau de décision, ramené de l'échelle
+       « compacte » du 3T à celle du 1T. Le feutre ne bouge ni en taille ni en
+       forme (vérifiable : npm run audit:finitions → 2T 394×232).
+       PLAFOND : l'échelle du 1T, jamais au-delà. La monotonie « rien ne grossit
+       quand la tuile rétrécit » est un invariant testé (test-trainer-density) ;
+       ces jetons sont donc posés ÉGAUX à ceux de `normal`, pas au-dessus. */
+    actionPad: "7px 9px 7px",
+    actionBtnMinH: 52,
+    actionBtnPadY: 8,
+    actionGap: 5,
+    actionLabelFs: 13,
+    actionSizingFs: 10,
+    sizingBtnH: 20,
+    sizingBtnFs: 9,
+    stepperH: 20,
     seatRingFactor: 1,
     betOffset: 1,
     markerClearance: 0.7,

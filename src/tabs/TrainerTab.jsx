@@ -4888,7 +4888,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     <span className="gto-btn-label" style={{fontSize:az.lbl}}>{a.l}</span>
                     {dynSizing&&<span className="gto-btn-sizing" style={{fontSize:az.siz}}>{dynSizing}</span>}
                   </div>
-                  <div className="gto-btn-hint" style={{fontSize:az.hint}}>{neutralHints[a.id]||""}</div>
+                  {/* Le hint n'existe que pour les actions cataloguées. Vide, il
+                      rendait quand même sa bordure haute et son padding — invisible
+                      tant que le multi le masquait, mais le 2T l'affiche (§6). */}
+                  {neutralHints[a.id]&&<div className="gto-btn-hint" style={{fontSize:az.hint}}>{neutralHints[a.id]}</div>}
                 </button>
               );
             })}
