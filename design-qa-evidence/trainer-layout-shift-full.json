@@ -1,0 +1,88 @@
+{
+ "viewport": [
+  1600,
+  950
+ ],
+ "tolerancePx": 1,
+ "hands": 4,
+ "rapport": [
+  {
+   "mode": "2T",
+   "releves": 24,
+   "ecarts": [],
+   "couverture": {
+    "action": 5,
+    "resultat": 4,
+    "verdictDecision": 4,
+    "solutionOuverte": 2,
+    "raccourciLot": 3,
+    "coupComplet": 3,
+    "mainGagnee": 1
+   },
+   "ref": [
+    {
+     "t": 0,
+     "x": 422,
+     "y": 114,
+     "w": 421,
+     "h": 761
+    },
+    {
+     "t": 1,
+     "x": 851,
+     "y": 114,
+     "w": 421,
+     "h": 761
+    }
+   ],
+   "stable": true,
+   "type": "full"
+  },
+  {
+   "mode": "4T",
+   "releves": 25,
+   "ecarts": [],
+   "couverture": {
+    "action": 7,
+    "resultat": 4,
+    "verdictDecision": 4,
+    "solutionOuverte": 2,
+    "raccourciLot": 3,
+    "coupComplet": 2,
+    "mainPerdue": 1
+   },
+   "ref": [
+    {
+     "t": 0,
+     "x": 422,
+     "y": 114,
+     "w": 421,
+     "h": 376.5
+    },
+    {
+     "t": 1,
+     "x": 851,
+     "y": 114,
+     "w": 421,
+     "h": 376.5
+    },
+    {
+     "t": 2,
+     "x": 422,
+     "y": 498.5,
+     "w": 421,
+     "h": 376.5
+    },
+    {
+     "t": 3,
+     "x": 851,
+     "y": 498.5,
+     "w": 421,
+     "h": 376.5
+    }
+   ],
+   "stable": true,
+   "type": "full"
+  }
+ ]
+}

@@ -383,6 +383,16 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* ══ Tokens TRAINER V2 (planche Assets Trainer V2 §09/§10/§11) ══
    Source de vérité : public/assets/pokerforge/trainer-v2/tokens/*.css
    (inlinés ici car le build standalone n'embarque pas les <link> runtime). */
+/* §13 — ECHELLE DE PROFONDEUR DE LA TABLE. Source unique : TABLE_Z dans
+   src/trainerTableGeometry.js, d ou ces valeurs sont recopiees et ou leur
+   ordre est explique. test-trainer-table-geometry.mjs echoue si les deux
+   divergent. Poser une couche de table = employer un de ces tokens, jamais
+   un nombre invente sur place — c est ainsi qu on finit avec « z-index:9999 »
+   et un conflit de plus. */
+:root{
+  --pf-z-felt:0;--pf-z-board:6;--pf-z-pot:7;--pf-z-bet:18;
+  --pf-z-seat:20;--pf-z-dealer:25;--pf-z-hover:200;--pf-z-modal:2500;
+}
 :root{
   --pf-bg-900:#0B1626;--pf-bg-800:#0F1F3A;--pf-blue-700:#132B4D;--pf-blue-600:#1E3A66;
   --pf-cyan:#20CFFF;--pf-gold:#FFB800;--pf-orange:#FF6B00;--pf-green:#17C964;
@@ -493,6 +503,14 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   height:min(100cqh,calc(100cqw / var(--pf-zone-ar-min,1.42)));
 }
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
+/* ══ ZONE DE RESPIRATION DU HERO (finitions §5) ══
+   Mesure : le bandeau de decision touchait le bloc Hero — 1px d air en 3T,
+   7px en 4T (contre 158px en 2T). Les cartes du heros, son medaillon et sa
+   plaque se retrouvaient colles aux boutons : c est la sensation de tassement.
+   La marge est prise sur la ZONE DE TABLE (flex:1), pas sur le cadre : le
+   feutre perd quelques pixels, la hauteur du cadre ne bouge pas — verifiable
+   par npm run audit:layout. Mesure : npm run audit:finitions. */
+.grid3 .mtr-actions,.grid4 .mtr-actions{margin-top:9px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
 .grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}
@@ -540,12 +558,34 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .grid3 .pf-pot-label,.grid4 .pf-pot-label{font-size:8px!important;}
 /* Blindes + mises un peu plus grandes aussi. */
 .grid3 .pf-blind-stack strong,.grid4 .pf-blind-stack strong{font-size:9px!important;}
+/* ══ PLANCHER DE LISIBILITÉ DES MICRO-LIBELLÉS (finitions §3) ══
+   Le « zoom » posé sur « .pf-mt-seat » réduit TOUT ce qu'il contient, y compris
+   des libellés déjà écrits en 7,5–8px. Mesuré au rendu en 4T : « Fold » à
+   5,5px, « HERO » à 5px, la lettre de blinde à 5,9px — sous le seuil où un
+   texte cesse d'être lu et devient une tache.
+
+   On ne peut pas corriger ça avec un « max() » sur la taille du texte : le zoom
+   s'applique APRÈS, et rabaisserait la valeur plancher elle-même. On
+   pré-compense donc la taille demandée par le facteur de zoom de la grille,
+   de sorte que le RENDU final retombe au-dessus du seuil. Les valeurs
+   ci-dessous sont issues de la mesure, pas d'un calcul théorique : les
+   facteurs de zoom se cumulent (grille + siège) et le résultat effectif ne se
+   déduit pas de la seule règle « .pf-mt-seat ».
+
+   Vérifiable : scripts/trainer-lisibilite-audit.mjs. */
+.grid2 .pf-fold-chip,.grid2 .pf-multiway-chip,
+.grid3 .pf-fold-chip,.grid3 .pf-multiway-chip,
+.grid4 .pf-fold-chip,.grid4 .pf-multiway-chip{font-size:10px!important;letter-spacing:.08em!important;}
+.grid2 .pf-seat-hero-chip,.grid3 .pf-seat-hero-chip,.grid4 .pf-seat-hero-chip{font-size:10px!important;}
+.grid2 .hero-seat-badge,.grid3 .hero-seat-badge,.grid4 .hero-seat-badge{font-size:10px!important;}
+.grid2 .pf-blind-stack em,.grid3 .pf-blind-stack em,.grid4 .pf-blind-stack em{font-size:11px!important;}
+.grid2 .pf-allin-tag,.grid3 .pf-allin-tag,.grid4 .pf-allin-tag{font-size:10.5px!important;}
 /* §36 — LE MONTANT PRIME SUR LE LIBELLE. En mosaique, le libelle ("3-Bet")
    etait rendu PLUS GROS que le montant (9px contre 8px) : on lisait l action
    avant de lire combien, alors que c est le montant qui porte la decision. On
    inverse, et on donne au montant un plancher de lisibilite. */
-.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:8px!important;opacity:.86!important;}
-.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:10.5px!important;}
+.grid2 .pf-action-chip-copy strong,.grid3 .pf-action-chip-copy strong,.grid4 .pf-action-chip-copy strong{font-size:10px!important;opacity:.86!important;}
+.grid2 .pf-action-chip-copy em,.grid3 .pf-action-chip-copy em,.grid4 .pf-action-chip-copy em{font-size:12.5px!important;}
 /* POT COMPACT MULTI (comme le 1T) : sinon la pile de jetons rend le pot très
    HAUT (~54px = 26% du feutre court) et il chevauche le siège du haut ET le board.
    Ligne unique [jetons] POT xx bb, hauteur fixe. */
@@ -3718,7 +3758,7 @@ input:focus,select:focus,textarea:focus{
 .seat-inactive{opacity:.5!important;filter:saturate(.4) brightness(.85)!important;}
 
 /* Dealer btn toujours sur le dessus */
-.dealer-btn{z-index:25!important;}
+.dealer-btn{z-index:var(--pf-z-dealer,25)!important;}
 
 /* Improve progress bars animation */
 .pb,.progf,.cs-progfill,.gto-freq-fill,.action-timer-bar{
@@ -4861,7 +4901,7 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 }
 .pf-blind-stack.compact{transform:scale(.78)!important;transform-origin:center!important;}
 .pf-seat-action-zone{
-  position:absolute!important;transform:translate(-50%,-50%)!important;z-index:18!important;pointer-events:none!important;
+  position:absolute!important;transform:translate(-50%,-50%)!important;z-index:var(--pf-z-bet,18)!important;pointer-events:none!important;
   display:flex!important;align-items:center!important;justify-content:center!important;
 }
 .pf-player-seat{position:absolute!important;display:flex!important;flex-direction:column!important;align-items:center!important;contain:layout style!important;}
@@ -4887,8 +4927,8 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 .pf-action-chip-badge.compact .pf-action-chip-piles{transform:scale(.86);transform-origin:center right;margin-right:-6px!important;}
 .pf-action-chip-badge.compact .pf-action-chip-piles>.pf-chip-stack{margin-left:-11px!important;}
 /* Meme regle en compact : le montant reste au-dessus du plancher de lecture. */
-.pf-action-chip-badge.compact .pf-action-chip-copy strong{font-size:7px!important;opacity:.86!important;}
-.pf-action-chip-badge.compact .pf-action-chip-copy em{font-size:9.5px!important;}
+.pf-action-chip-badge.compact .pf-action-chip-copy strong{font-size:10px!important;opacity:.86!important;}
+.pf-action-chip-badge.compact .pf-action-chip-copy em{font-size:12px!important;}
 .pf-action-call{border-color:rgba(16,216,122,.38)!important;background:rgba(2,24,14,.72)!important;}
 .pf-action-call .pf-action-chip-copy strong,.pf-action-call .pf-action-chip-copy em{color:#10D87A!important;text-shadow:0 0 9px rgba(16,216,122,.5)!important;}
 .pf-action-bet,.pf-action-open{border-color:rgba(255,194,71,.38)!important;background:rgba(32,18,2,.72)!important;}
@@ -5007,7 +5047,7 @@ body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin
 .pf-blind-art{display:block;width:31px;height:28px;overflow:hidden;border-radius:10px;}
 .pf-blind-art img{display:block;width:43px;height:auto;max-width:none;transform:translate(-6px,-1px);filter:saturate(1.12) contrast(1.06);}
 .pf-blind-stack strong{margin-top:-1px!important;font-size:12px!important;color:#fff!important;text-shadow:0 2px 2px rgba(0,0,0,.85)!important;}
-.pf-blind-stack em{min-width:23px!important;height:20px!important;border-radius:50%!important;font-size:7px!important;background:linear-gradient(145deg,#eff3f9,#7f8ea5)!important;box-shadow:0 4px 9px rgba(0,0,0,.55),inset 0 1px 0 #fff!important;}
+.pf-blind-stack em{min-width:23px!important;height:20px!important;border-radius:50%!important;font-size:10px!important;background:linear-gradient(145deg,#eff3f9,#7f8ea5)!important;box-shadow:0 4px 9px rgba(0,0,0,.55),inset 0 1px 0 #fff!important;}
 .pf-blind-stack.compact{transform:scale(.85)!important;}
 /* 1T — sieges au bord du rail : rentrer legerement les cartes pour rester dans le cadre */
 .pf-player-seat[data-mode="1T"][data-seat="UTG"] .pf-hole-cards{transform:translateX(11px)!important;}
@@ -5995,7 +6035,12 @@ export const CSS_TABLE=`
   grid-column:2;
   min-width:calc(14px * var(--pf-d-blind-scale,1) + 6px)!important;
   height:calc(10px * var(--pf-d-blind-scale,1) + 6px)!important;
-  font-size:calc(3px * var(--pf-d-blind-scale,1) + 4.4px)!important;
+  /* Plancher de lisibilité (finitions §3) : la formule seule descendait à
+     6.9px rendus en 2T — sous le seuil de lecture. Le « max() » garde la mise
+     à l'échelle par densité tant qu'elle reste lisible, et s'arrête là.
+     C'est CETTE règle qui fait autorité sur la lettre de blinde (le navigateur
+     la désigne comme gagnante face aux six qui la précèdent). */
+  font-size:max(8.5px,calc(3px * var(--pf-d-blind-scale,1) + 4.4px))!important;
 }
 /* 3T/4T — la pastille SB/BB passe à la ligne… et disparaît. Ce n'est pas de la
    place gagnée en hauteur (elle en coûte peu) mais en LARGEUR : le marqueur
@@ -6032,8 +6077,15 @@ export const CSS_TABLE=`
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-badge .pf-chip-stack.pf-chip-stack-v2{
   width:calc(var(--pf-chip-base-size) * var(--pf-chip-stack-scale,1) + 34px * var(--pf-d-bet-scale,1))!important;
 }
-:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy strong{font-size:7.5px!important;}
-:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy em{font-size:9px!important;}
+/* Plancher de lisibilite (finitions §3). Le « zoom » de la grappe ramenait ces
+   7.5px a 6.8px RENDUS — mesure, pas estimation. C est CETTE regle qui fait
+   autorite sur le libelle des chips d action (specificite la plus forte, et la
+   plus tardive du fichier) : la corriger ici evite d empiler un enieme
+   correctif concurrent qui perdrait de toute facon.
+   Le montant (em) reste plus gros que le libelle (strong) : c est le montant
+   qui porte la decision. Verifiable : npm run audit:lisibilite. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy strong{font-size:10px!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy em{font-size:12.5px!important;}
 
 /* ── 5. BOARD & POT ──────────────────────────────────────────────────────────
    Le board est l'élément le plus lu : son échelle est un arbitrage à part

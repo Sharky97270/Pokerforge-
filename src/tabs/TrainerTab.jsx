@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { T } from "../theme.js";
 import { useIsMobile, useMaxWidth, vibrate, VIB } from "../utils/ui.js";
-import { roundBb, shuffle } from "../utils/format.js";
+import { roundBb, shuffle, fmtNum, fmtSpr } from "../utils/format.js";
 import { loadStats, saveStats, saveStatsSafe, loadHistory } from "../stats.js";
 import { SPOTS, POKER_EVENTS, POSITIONS_BY_SIZE } from "../data/content.js";
 import { Card, CardBack, HeroHoleCards, VillainBackCards } from "../components/table/Cards.jsx";
@@ -14,10 +14,10 @@ import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorS
 import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
 import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
-import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT } from "../trainerTableGeometry.js";
+import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
-import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
+import { trainerRoundCloseDecision, spotVerdict } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
 import { buildTrainingConfig, trainingConfigToFilters, trainingConfigToEngineOpts, saveTrainingConfig } from "../trainingConfig.js";
 import { resolveTrainingConstraints } from "../constraintEngine.js";
@@ -3213,7 +3213,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
       const q=rep.quality;
       col=(q==="best"||q==="ok")?T.green:q==="imprecise"?T.gold:T.red;
       verdict=q==="best"?"✓ Optimal":q==="ok"?"✓ Correct":q==="imprecise"?"≈ Imprécis":"✗ Erreur";
-      evTxt=`${rep.evDelta>=0?"+":""}${(rep.evDelta||0).toFixed(2)}bb`;
+      evTxt=`${rep.evDelta>=0?"+":""}${fmtNum((rep.evDelta||0),2)}bb`;
       best=rep.best;
       heroGrades.push({label,action:verb(rep.action),correct:rep.correct,evDelta:rep.evDelta||0});
     }else{
@@ -3728,7 +3728,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         {provBadge}
         {showSol?(
           <>
-            <span>EV {heroFeedback.evDiff>=0?"+":""}{heroFeedback.evDiff.toFixed(2)}bb</span>
+            <span>EV {heroFeedback.evDiff>=0?"+":""}{fmtNum(heroFeedback.evDiff,2)}bb</span>
             <span>Meilleure action: <strong>{heroFeedback.bestAction}</strong></span>
             <span>GTO {heroFeedback.gtoFrequency}%</span>
             <span>Exploit {heroFeedback.exploitFrequency}%</span>
@@ -3757,9 +3757,18 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     onAnswer(isCorrect,i);
     if(!isCorrect){
       setErrorFlash(true);setErrorBtn(i);
-      setShowToast(showSol?`Sous-optimal - ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal - revele la solution pour le detail GTO");
+      /* §2/§15 — EN MOSAÏQUE, PAS DE BANDEAU PAR-DESSUS LE FEUTRE.
+         Le bandeau recouvrait le board et le pot de la table concernée, et il
+         disait exactement ce que la pastille de verdict dit déjà, à un endroit
+         fixe et pour les quatre tables. Résultat mesuré à l'écran : une table
+         sur quatre présentait son résultat autrement que les trois autres —
+         c'est ce qui casse la lecture périphérique. En 1T il n'y a rien à
+         comparer et la place ne manque pas : le bandeau y reste. */
+      if(numTables===1){
+        setShowToast(showSol?`Sous-optimal - ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal - revele la solution pour le detail GTO");
+        setTimeout(()=>{setShowToast(null);},3200);
+      }
       setTimeout(()=>{setErrorFlash(false);},600);
-      setTimeout(()=>{setShowToast(null);},3200);
     }
     // Chip animation depuis hero si hero mise
     if(a.id!=="FOLD"&&a.id!=="CHECK"&&a.id!=="CHECK_BACK"){
@@ -4276,7 +4285,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   /* ── HUD values — partagées 1T + multi-table ── */
   const stackBBn=parseFloat(spot.stack)||100;
   const potBBn=mainPotBb;
-  const spr=(stackBBn/potBBn).toFixed(1);
+  const spr=fmtSpr(stackBBn,potBBn);
   const potOddsRaw=spot.toCall>0?spot.toCall/(spot.toCall+potBBn)*100:0;
   const potOddsStr=potOddsRaw>0?potOddsRaw.toFixed(0)+"%":null;
   const diffLabel=spot.diff===1?"Débutant":spot.diff===2?"Intermédiaire":spot.diff===3?"Avancé":spot.diff===4?"Expert":"Intermédiaire";
@@ -4314,8 +4323,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     const evDiff=myEv-bestEv;
     const isBest=answered===spot.ok;
     const bestFreq=spot.freq[bestAct?.id]||0;
-    const qualityLabel=isBest?"Best Move ✦":evDiff>=-0.3?"Correct ✓":evDiff>=-1?"Imprécision ⚠":evDiff>=-3?"Erreur ✗":"Blunder 💥";
-    const qualityCls=isBest?"gto-best":evDiff>=-0.3?"gto-correct":evDiff>=-1?"gto-inaccuracy":evDiff>=-3?"gto-wrong":"gto-blunder";
+    /* §2 — libellé et classe viennent de spotVerdict : une seule définition des
+
+       seuils d EV pour les quatre rendus (1T, solution, mosaïque, mobile). */
+
+    const _v=spotVerdict(spot,answered)||{};
+
+    const qualityLabel=_v.label;
+    const qualityCls=_v.cls;
     const accentCols=["#FF4560","#10D87A","#1F8BFF","#FFC247","#9B5CFF"];
     return(
       <>
@@ -4366,10 +4381,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     {bestAct?.s&&/^\d|bb$|\$/.test(bestAct.s)&&<span style={{fontSize:13,color:"#9FB0CC",fontWeight:600}}> · {bestAct.s}</span>}
                   </div>
                   <div className="pf-sol-opt-row">
-                    <div className="pf-sol-kv"><span className="k">EV</span><span className="v" style={{color:T.green}}>{bestEv>=0?"+":""}{bestEv.toFixed(2)} bb</span></div>
+                    <div className="pf-sol-kv"><span className="k">EV</span><span className="v" style={{color:T.green}}>{bestEv>=0?"+":""}{fmtNum(bestEv,2)} bb</span></div>
                     <div className="pf-sol-kv"><span className="k">FRÉQ. GTO</span><span className="v" style={{color:"#34D8FF"}}>{bestFreq}%</span></div>
                     <div className="pf-sol-kv"><span className="k">TON CHOIX</span><span className="v" style={{color:isBest?T.green:T.red}}>{spot.acts[answered]?.l}</span></div>
-                    {!isBest&&<div className="pf-sol-kv"><span className="k">EV PERDUE</span><span className="v" style={{color:T.red}}>{evDiff.toFixed(2)} bb</span></div>}
+                    {!isBest&&<div className="pf-sol-kv"><span className="k">EV PERDUE</span><span className="v" style={{color:T.red}}>{fmtNum(evDiff,2)} bb</span></div>}
                   </div>
                 </div>
 
@@ -4481,8 +4496,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       const evDiff=myEv-bestEv;
       const isBest=answered===spot.ok;
       const bestFreq=spot.freq[spot.acts[spot.ok]?.id]||0;
-      const qualityLabel=isBest?"Best Move ✦":evDiff>=-0.3?"Correct ✓":evDiff>=-1?"Imprécision ⚠":evDiff>=-3?"Erreur ✗":"Blunder 💥";
-      const qualityCls=isBest?"gto-best":evDiff>=-0.3?"gto-correct":evDiff>=-1?"gto-inaccuracy":evDiff>=-3?"gto-wrong":"gto-blunder";
+      /* §2 — libellé et classe viennent de spotVerdict : une seule définition des
+
+         seuils d EV pour les quatre rendus (1T, solution, mosaïque, mobile). */
+
+      const _v=spotVerdict(spot,answered)||{};
+
+      const qualityLabel=_v.label;
+      const qualityCls=_v.cls;
       const accentCols=["#FF4560","#10D87A","#1F8BFF","#FFC247","#9B5CFF"];
 
       /* ══ MODE SOLUTION MASQUÉE ══
@@ -4542,7 +4563,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               {!isBest&&(
                 <span style={{display:"flex",alignItems:"center",gap:5,fontFamily:T.mono,fontSize:11}}>
                   <span style={{color:T.text4}}>EV loss</span>
-                  <span style={{color:T.red,fontWeight:700}}>{evDiff.toFixed(2)}bb</span>
+                  <span style={{color:T.red,fontWeight:700}}>{fmtNum(evDiff,2)}bb</span>
                 </span>
               )}
               {isBest&&(
@@ -4954,7 +4975,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap",justifyContent:"center"}}>
               {recap.best&&<span style={{fontFamily:T.stats,fontSize:9,color:T.green,background:"rgba(16,216,122,.1)",border:"1px solid rgba(16,216,122,.3)",borderRadius:6,padding:"3px 8px"}}>✦ Meilleure : {recap.best}</span>}
               {recap.worst&&<span style={{fontFamily:T.stats,fontSize:9,color:T.red,background:"rgba(255,69,96,.1)",border:"1px solid rgba(255,69,96,.3)",borderRadius:6,padding:"3px 8px"}}>⚠ À revoir : {recap.worst}</span>}
-              {recap.decisions>0&&<span style={{fontFamily:T.stats,fontSize:9,color:recap.totalEvLost<0?T.red:T.green,background:recap.totalEvLost<0?"rgba(255,69,96,.1)":"rgba(16,216,122,.1)",border:`1px solid ${recap.totalEvLost<0?"rgba(255,69,96,.3)":"rgba(16,216,122,.3)"}`,borderRadius:6,padding:"3px 8px"}}>EV totale {recap.totalEvLost>=0?"+":""}{recap.totalEvLost.toFixed(2)}bb</span>}
+              {recap.decisions>0&&<span style={{fontFamily:T.stats,fontSize:9,color:recap.totalEvLost<0?T.red:T.green,background:recap.totalEvLost<0?"rgba(255,69,96,.1)":"rgba(16,216,122,.1)",border:`1px solid ${recap.totalEvLost<0?"rgba(255,69,96,.3)":"rgba(16,216,122,.3)"}`,borderRadius:6,padding:"3px 8px"}}>EV totale {recap.totalEvLost>=0?"+":""}{fmtNum(recap.totalEvLost,2)}bb</span>}
               <span style={{fontFamily:T.stats,fontSize:9,color:T.gold,background:"rgba(255,194,71,.08)",border:"1px solid rgba(255,194,71,.25)",borderRadius:6,padding:"3px 8px"}}>Pot final {fmt(roundBb(fhPot))}</span>
             </div>
             {/* §1 — UN SEUL CTA « Main suivante » à l'écran. Quand le panneau
@@ -5099,7 +5120,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5}}>
                     <span style={{fontSize:7.5,color:T.text4,fontFamily:T.stats}}>EV optimal :</span>
-                    <span style={{fontSize:9,fontFamily:T.mono,fontWeight:700,color:bestEv>=0?T.green:T.amber}}>{bestEv>0?"+":""}{bestEv.toFixed(2)}bb</span>
+                    <span style={{fontSize:9,fontFamily:T.mono,fontWeight:700,color:bestEv>=0?T.green:T.amber}}>{bestEv>0?"+":""}{fmtNum(bestEv,2)}bb</span>
                   </div>
                   {solBlurred&&(
                     <div className="sol-lock">
@@ -5356,7 +5377,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw},0 0 40px ${glw.replace(".4",".2")}`}}>
                   <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
                 </div>
-                {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{evDiff.toFixed(2)} bb EV</span>}
+                {evDiff!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{evDiff>=0?"+":""}{fmtNum(evDiff,2)} bb EV</span>}
               </div>
             );
           })()}
@@ -5374,7 +5395,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 <div style={{width:54,height:54,borderRadius:"50%",background:`radial-gradient(circle,${col}25,${col}08)`,border:`2.5px solid ${col}`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 20px ${glw}`}}>
                   <span style={{fontSize:24,fontWeight:900,color:col,textShadow:`0 0 14px ${col}`}}>{ico}</span>
                 </div>
-                {fhFeedback.evDelta!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{fhFeedback.evDelta>=0?"+":""}{fhFeedback.evDelta.toFixed(2)} bb EV</span>}
+                {fhFeedback.evDelta!==0&&<span style={{fontSize:9.5,fontFamily:"'JetBrains Mono',monospace",fontWeight:700,color:col,background:`${col}15`,padding:"2px 7px",borderRadius:8,border:`1px solid ${col}30`}}>{fhFeedback.evDelta>=0?"+":""}{fmtNum(fhFeedback.evDelta,2)} bb EV</span>}
               </div>
             );
           })()}
@@ -5394,7 +5415,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               const potPt=centreAnchors.pot;
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -5403,7 +5424,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
                    (le pot non-compact est plus haut → à 32% il chevauchait la plaque
                    du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -5413,7 +5434,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${(centreAnchors.board||{y:49}).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${(centreAnchors.board||{y:49}).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:TABLE_Z.board,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -5522,7 +5543,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     bord INTERNE du bloc était la plaque, large de 88px ; ce sont
                     désormais les cartes, larges de 60px. Le tas posé sur l'anneau
                     dispose donc de ~28px de dégagement latéral en plus. */}
-                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
+                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:TABLE_Z.seat}}>
 
                   {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
                   {isV&&!seatFolded&&(
@@ -5715,7 +5736,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   <div style={{fontFamily:T.stats,fontSize:13,fontWeight:800,color:isBest?T.green:T.red,flex:1,minWidth:0}}>{isBest?"Bonne décision !":"Sous-optimal"}</div>
                   {!isBest&&evDiff<0&&<div style={{textAlign:"right",flexShrink:0}}>
                     <div style={{fontFamily:T.stats,fontSize:7.5,color:T.text4,letterSpacing:".04em"}}>EV PERDUE</div>
-                    <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{evDiff.toFixed(2)}bb</div>
+                    <div style={{fontFamily:T.mono,fontSize:12,fontWeight:800,color:T.red,lineHeight:1}}>{fmtNum(evDiff,2)}bb</div>
                   </div>}
                 </div>
                 <div style={{display:"flex",gap:12,marginBottom:5,fontFamily:T.stats,fontSize:9.5,flexWrap:"wrap"}}>
@@ -5863,13 +5884,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
-                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                     <TrainingPotStack value={potAffiche} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(potAffiche)}</span>
                   </div>
                 ):(
-                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                     <TrainingPotStack value={potAffiche} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(potAffiche)}</span>
@@ -5877,7 +5898,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 )}
                 {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
                 {hasBoard&&(
-                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardY}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
+                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardY}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:TABLE_Z.board,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
                     {boardCards.map((c,i)=>(
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>
@@ -6044,7 +6065,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:20}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
 
               {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
               <div className="pf-seat-above">
@@ -6224,8 +6245,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         const myEv=spot.ev[spot.acts[answered]?.id]||0;
         const evDiff=myEv-bestEv;
         const isBest=answered===spot.ok;
-        const qualityLabel=isBest?"Best Move ✦":evDiff>=-0.3?"Correct ✓":evDiff>=-1?"Imprécision ⚠":evDiff>=-3?"Erreur ✗":"Blunder 💥";
-        const qualityCls=isBest?"gto-best":evDiff>=-0.3?"gto-correct":evDiff>=-1?"gto-inaccuracy":evDiff>=-3?"gto-wrong":"gto-blunder";
+        /* §2 — libellé et classe viennent de spotVerdict : une seule définition des
+
+           seuils d EV pour les quatre rendus (1T, solution, mosaïque, mobile). */
+
+        const _v=spotVerdict(spot,answered)||{};
+
+        const qualityLabel=_v.label;
+        const qualityCls=_v.cls;
 
         /* ── Solution MASQUÉE ou MOBILE : feedback minimal — le détail vit dans l'overlay 💡 ── */
         if(!showSol||isMobile){
@@ -6257,7 +6284,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           {/* Header verdict */}
           <div style={{padding:"5px 8px",display:"flex",alignItems:"center",gap:8,background:"linear-gradient(90deg,#071B44,#040B1F)",borderTop:"1px solid #152D6E",flexShrink:0,flexWrap:"wrap"}}>
             <span className={`gto-quality ${qualityCls}`} style={{fontSize:10,padding:"3px 9px"}}>{qualityLabel}</span>
-            {!isBest&&<span style={{fontSize:9,color:T.text3,fontFamily:T.stats}}>EV loss : <span style={{color:T.red,fontWeight:700}}>{evDiff.toFixed(2)}bb</span></span>}
+            {!isBest&&<span style={{fontSize:9,color:T.text3,fontFamily:T.stats}}>EV loss : <span style={{color:T.red,fontWeight:700}}>{fmtNum(evDiff,2)}bb</span></span>}
             {isBest&&<span style={{fontSize:9,color:T.green,fontFamily:T.stats}}>Fréquence GTO : <span style={{color:T.green,fontWeight:700}}>{spot.freq[spot.acts[answered]?.id]||0}%</span></span>}
           </div>
           {/* Grille EV */}
@@ -6454,7 +6481,7 @@ function SessionEnd({results,mode,stoppedEarly=false,onRestart,onResume,onSave})
         <span style={{fontSize:18}}>{evDelta>=0?"💰":"📉"}</span>
         <div>
           <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:8.5,color:T.text4,letterSpacing:".08em",marginBottom:1}}>EV VS OPTIMAL</div>
-          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{evDelta.toFixed(2)} bb</div>
+          <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:14,fontWeight:700,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{fmtNum(evDelta,2)} bb</div>
         </div>
         <div style={{marginLeft:"auto",textAlign:"right"}}>
           <div style={{fontFamily:"'Space Grotesk',sans-serif",fontSize:8.5,color:T.text4,letterSpacing:".08em",marginBottom:1}}>PRÉCISION</div>
@@ -7447,9 +7474,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     }
   },[ntables,activeTable,smode,results.length,allocNextSpotIndex,clearTableHandState]);
 
-  /* L'UI n'appelle QUE ces deux alias — même implémentation, portées
-     différentes. Aucune logique d'avance ne vit ailleurs. */
-  const handleNext=useCallback(()=>nextHand({all:true}),[nextHand]);
+  /* SEUL point d'entrée de l'UI. La portée `{all:true}` existe toujours dans le
+     contrôleur (fin de session, usage futur) mais n'est plus exposée à
+     l'écran : deux CTA d'avance simultanées, c'était le doublon. */
   const handleNextTable=useCallback(t=>nextHand({table:t}),[nextHand]);
   /* Une avance est-elle en cours pour cette table ? (portée globale incluse) */
   const isNextLoading=useCallback(t=>!!(nextLoading.all||nextLoading[`t${t}`]),[nextLoading]);
@@ -7484,7 +7511,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const live=tableLive[activeTable]||null;
     const potN=inFh?fhCur.pot:(live&&live.pot!=null?live.pot:(parseFloat(s.pot)||0));
     const stackN=inFh?fhCur.heroStack:(live&&live.heroStack!=null?live.heroStack:(parseFloat(s.stack)||100));
-    const spr=potN>0?(stackN/potN).toFixed(1):"—";
+    const spr=fmtSpr(stackN,potN);
     const toCall=inFh?0:(Number(s.toCall)||0);
     const odds=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":"—";
     const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
@@ -7553,7 +7580,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               {ans&&best&&(
                 <div className={`pf-p2-verdict ${ans.correct?"ok":"ko"}`}>
                   <strong>{chosen?.l||"—"} {ans.correct?"✓ correct":"✕ à revoir"}</strong>
-                  <span>EV {chosenEv>=0?"+":""}{chosenEv.toFixed(2)}bb · Meilleure : {best.l}</span>
+                  <span>EV {chosenEv>=0?"+":""}{fmtNum(chosenEv,2)}bb · Meilleure : {best.l}</span>
                 </div>
               )}
               {/* Provenance de la solution (§2/§28) : solveur exact (push/fold) · CFR
@@ -7585,7 +7612,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   </div>
                 ))}
               </div>
-              {best&&<div className="pf-p2-optimal">EV optimale <b>+{bestEv.toFixed(2)}bb</b></div>}
+              {best&&<div className="pf-p2-optimal">EV optimale <b>+{fmtNum(bestEv,2)}bb</b></div>}
               {/* §18 — même remarque « Style Hero » que le panneau 1T. */}
               {(()=>{const n=heroStyleCoachNote(f.heroStyle||"GTO",s);if(!n)return null;return(
                 <div style={{marginTop:6,padding:"6px 9px",borderRadius:7,background:`${n.col}12`,border:`1px solid ${n.col}3a`,fontFamily:"'Inter',sans-serif",fontSize:9.5,color:n.col,lineHeight:1.6}}>
@@ -8318,8 +8345,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                       return(
                         <div style={{position:"sticky",bottom:0,display:"flex",gap:8,padding:"10px 6px calc(10px + env(safe-area-inset-bottom,0px))",background:"linear-gradient(180deg,rgba(3,7,18,0),#030712 35%)",zIndex:5,marginTop:8}}>
                           <button className="btn btns" style={{fontSize:11}} onClick={()=>setExpandedT(null)}>⛶ Réduire</button>
-                          {allSettled
-                            ?<button className="btn btng" style={{flex:1,fontSize:12}} disabled={!!nextLoading.all} onClick={handleNext}>{nextLoading.all?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
+                          {/* §1 — MÊME action que partout ailleurs : cette CTA avance
+                              LA table agrandie, pas le lot entier. Elle attendait
+                              auparavant que TOUTES les tables soient réglées pour
+                              les emporter d'un bloc — deux sémantiques d'avance
+                              dans la même application. */}
+                          {tableAns[t]
+                            ?<button className="btn btng" style={{flex:1,fontSize:12}} data-state={isNextLoading(t)?"LOADING":"READY"}
+                               disabled={isNextLoading(t)} onClick={()=>handleNextTable(t)}>
+                               {isNextLoading(t)?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Main suivante"}</button>
                             :<span style={{flex:1,alignSelf:"center",textAlign:"center",fontFamily:"'JetBrains Mono',monospace",fontSize:10,color:T.text3}}>{Object.keys(tableAns).length}/{ntables} répondues</span>}
                         </div>
                       );
@@ -8347,9 +8381,22 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         {isMobile&&zoomed&&ntables>1&&started&&!done&&(
           <button className="mt-zoom-reset" onClick={resetZoom}>↺ Zoom 100%</button>
         )}
-        {/* ── Barre historique dernières réponses ── */}
-        {started&&!done&&results.length>0&&(
-          <div style={{flexShrink:0,padding:"5px 14px",background:"linear-gradient(90deg,#030D2A,#040B1F)",borderTop:"1px solid #152D6E",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+        {/* ══ Barre historique dernières réponses — ESPACE RÉSERVÉ ══
+            Elle n'apparaissait qu'à la PREMIÈRE réponse et prenait alors 33 px
+            à la rangée de jeu : mesuré, les quatre cadres de table perdaient
+            33 px de hauteur d'un coup, en pleine session. Un cadre de table ne
+            doit jamais changer de taille parce qu'une main se termine.
+
+            La barre est donc TOUJOURS montée pendant la session, à hauteur
+            fixe ; seul son CONTENU est conditionnel. `nowrap` + scroll
+            horizontal : même à 8 pastilles sur une fenêtre étroite, elle ne
+            peut plus se replier sur deux lignes et regagner de la hauteur. */}
+        {started&&!done&&(
+          <div style={{flexShrink:0,height:33,boxSizing:"border-box",padding:"5px 14px",
+            background:"linear-gradient(90deg,#030D2A,#040B1F)",borderTop:"1px solid #152D6E",
+            display:"flex",alignItems:"center",gap:6,flexWrap:"nowrap",
+            overflowX:"auto",overflowY:"hidden",
+            visibility:results.length>0?"visible":"hidden"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,marginRight:2,flexShrink:0}}>Historique :</span>
             <div style={{display:"flex",gap:3,alignItems:"center"}}>
               {results.slice(-8).map((r,i)=>{
@@ -8384,7 +8431,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         {isMobile&&ntables===1&&started&&!done&&activeSpot&&(()=>{
           const s=activeSpot;
           const potN=parseFloat(s.pot)||0, stackN=parseFloat(s.stack)||100;
-          const sprV=potN>0?(stackN/potN).toFixed(1):"—";
+          const sprV=fmtSpr(stackN,potN);
           const toCall=Number(s.toCall)||0;
           const oddsV=toCall>0?Math.round(toCall/(toCall+potN)*100)+"%":null;
           const diffLbl=s.diff===1?"Débutant":s.diff===2?"Intermédiaire":s.diff===3?"Avancé":s.diff===4?"Expert":"Intermédiaire";
@@ -8401,11 +8448,38 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           );
         })()}
-        {started&&!done&&ntables>1&&allSettled&&(()=>{const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);return(
-          <div style={{textAlign:"center",padding:"8px 0"}}>
-            <button className="btn btng" disabled={!!nextLoading.all} onClick={handleNext}>{nextLoading.all?"Chargement...":nextError?"Reessayer":isLastBatch?"Resultats":"Tables suivantes"}</button>
+        {/* ══ RACCOURCI DE LOT — action SECONDAIRE, jamais une seconde CTA ══
+            L'ancien « Tables suivantes » était un bouton primaire actif EN MÊME
+            TEMPS que « Table N suivante » : deux CTA d'avance à l'écran, mesuré
+            en 2T/3T/4T. C'était le doublon signalé.
+
+            Il revient sous une forme qui ne peut pas se confondre avec la CTA
+            principale : libellé explicite sur le NOMBRE de tables (jamais le mot
+            « suivante »), style secondaire, taille réduite. Et il n'apparaît que
+            si TOUTES les tables sont réglées — il ne peut donc jamais emporter
+            une table qui attend encore une décision (§6).
+
+            La zone est réservée en permanence (hauteur fixe) : son apparition ne
+            décale pas la grille de tables. */}
+        {started&&!done&&ntables>1&&(
+          <div style={{height:34,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            {allSettled&&(()=>{
+              const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+              const busy=!!nextLoading.all;
+              return(
+                <button className="btn btns" data-state={busy?"LOADING":"READY"}
+                  disabled={busy} onClick={()=>nextHand({all:true})}
+                  title={`Charge une nouvelle main sur les ${ntables} tables d'un coup`}
+                  style={{fontSize:10,padding:"5px 12px",opacity:busy?.6:.9}}>
+                  {busy?"Chargement..."
+                    :nextError?"Reessayer"
+                    :isLastBatch?"⏭ Voir les resultats"
+                    :`⏭ Avancer les ${ntables} tables`}
+                </button>
+              );
+            })()}
           </div>
-        );})()}
+        )}
       </div>
       </div>{/* end flex:1 row wrapper */}
 
@@ -8491,7 +8565,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px",borderRadius:11,marginBottom:14,background:evDelta>=0?"rgba(16,216,122,.07)":"rgba(255,69,96,.06)",border:`1px solid ${evDelta>=0?"rgba(16,216,122,.25)":"rgba(255,69,96,.22)"}`}}>
                       <span style={{fontSize:16}}>{evDelta>=0?"💰":"📉"}</span>
                       <span style={{fontFamily:T.stats,fontSize:9,color:T.text4,fontWeight:700,letterSpacing:".06em"}}>EV VS OPTIMAL</span>
-                      <span style={{marginLeft:"auto",fontFamily:T.mono,fontSize:14,fontWeight:800,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{evDelta.toFixed(2)} bb</span>
+                      <span style={{marginLeft:"auto",fontFamily:T.mono,fontSize:14,fontWeight:800,color:evDelta>=0?T.green:T.red}}>{evDelta>=0?"+":""}{fmtNum(evDelta,2)} bb</span>
                     </div>
                     <div className="pf-sol-sec-title" style={{color:"#FF8A3D",margin:"0 0 8px"}}>🔥 HEATMAP — PRÉCISION PAR CATÉGORIE</div>
                     {cats.length===0

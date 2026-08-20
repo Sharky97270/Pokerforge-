@@ -288,3 +288,50 @@ export function resolveTrainerRoundState({
     decision,
   };
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   §2 — VERDICT D'UNE DÉCISION : UNE SEULE DÉFINITION
+
+   Le libellé et la classe du verdict (« Best Move ✦ », « Imprécision ⚠ »…)
+   étaient recalculés À L'IDENTIQUE dans quatre rendus différents : panneau
+   1T, solution plein écran, mosaïque, mobile. Quatre copies des mêmes
+   seuils d'EV — donc quatre occasions de les faire diverger, et un
+   utilisateur qui lit « Erreur » sur une table et « Imprécision » sur une
+   autre pour la même perte.
+
+   Les seuils vivent ici, une fois. Les rendus ne décident plus de rien :
+   ils affichent ce que cette fonction retourne.
+
+   Les bornes sont des PERTES d'EV en big blinds, négatives ou nulles :
+     0            action optimale         → Best Move
+     ≥ -0.3 bb    écart negligeable       → Correct
+     ≥ -1 bb      écart notable           → Imprécision
+     ≥ -3 bb      faute                   → Erreur
+     < -3 bb      faute lourde            → Blunder
+═══════════════════════════════════════════════════════════════ */
+export const VERDICT_SEUILS = [
+  { minEvDiff: -0.3, label: "Correct ✓",     cls: "gto-correct" },
+  { minEvDiff: -1,   label: "Imprécision ⚠", cls: "gto-inaccuracy" },
+  { minEvDiff: -3,   label: "Erreur ✗",      cls: "gto-wrong" },
+];
+export const VERDICT_BEST    = { label: "Best Move ✦", cls: "gto-best" };
+export const VERDICT_BLUNDER = { label: "Blunder 💥",  cls: "gto-blunder" };
+
+/**
+ * Verdict d'une décision jouée sur un spot.
+ * @param spot     spot du Trainer ({acts, ev, ok})
+ * @param answered index de l'action jouée (null = pas encore répondu)
+ * @returns {{isBest, evDiff, label, cls}|null}
+ */
+export function spotVerdict(spot, answered) {
+  if (!spot || answered == null) return null;
+  const acts = Array.isArray(spot.acts) ? spot.acts : [];
+  const ev = spot.ev || {};
+  const bestEv = Number(ev[acts[spot.ok]?.id] || 0);
+  const myEv = Number(ev[acts[answered]?.id] || 0);
+  const evDiff = myEv - bestEv;
+  const isBest = answered === spot.ok;
+  if (isBest) return { isBest, evDiff, ...VERDICT_BEST };
+  const palier = VERDICT_SEUILS.find(s => evDiff >= s.minEvDiff) || VERDICT_BLUNDER;
+  return { isBest, evDiff, label: palier.label, cls: palier.cls };
+}

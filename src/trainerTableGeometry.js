@@ -551,3 +551,43 @@ export function trainerDealerPoint({
     avoid: bet ? [{ x: bet.x, y: bet.y, minPx: 26 * k }] : null,
   });
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   §13 — ÉCHELLE DE PROFONDEUR DE LA TABLE
+
+   Une seule source pour l'ordre d'empilement, lue par le CSS (via les
+   variables `--pf-z-*` posées sur `:root`) ET par les styles en ligne du
+   Trainer. Le rôle de cette échelle n'est pas de renuméroter l'existant :
+   ce sont les valeurs RÉELLEMENT mesurées au rendu. Elle sert à ce que
+   personne n'ait plus à deviner « au-dessus de quoi » poser une couche —
+   et à ce qu'un correctif local du genre `z-index: 9999` ne soit plus la
+   seule façon de s'en sortir. Un `9999` posé ici gagnerait contre les
+   info-bulles ET les modales, et créerait le conflit suivant.
+
+   Ordre, du fond vers la surface :
+     feutre → board → pot → mise → siège → bouton dealer → survol → modale
+
+   Le bouton dealer passe DEVANT la mise : les deux vivent sur le même
+   segment siège→pot (cf. MARKER_TRAVEL) et, quand la place manque, c'est
+   le bouton qui doit rester lisible — il désigne une position, la mise se
+   relit dans le pot.
+
+   `test-trainer-table-geometry.mjs` vérifie que le CSS déclare exactement
+   ces valeurs : sans ce test, JS et CSS dériveraient en silence.
+═══════════════════════════════════════════════════════════════ */
+export const TABLE_Z = {
+  felt: 0,        // feutre + anneau doré : le fond
+  board: 6,       // cartes communes
+  pot: 7,         // lecture du pot, juste au-dessus du board
+  bet: 18,        // tas de jetons d'un siège (.pf-seat-action-zone)
+  seat: 20,       // grappe de siège (cartes ▸ avatar ▸ plaque)
+  dealer: 25,     // bouton D — devant la mise, cf. ci-dessus
+  hover: 200,     // info-bulle de survol (profil vilain…)
+  modal: 2500,    // plein écran : ranges, solution
+};
+
+/* Bloc CSS à injecter sur `:root`. Écrit ici pour que la valeur ne soit
+   jamais recopiée à la main dans la feuille de style. */
+export function tableZCssVars() {
+  return Object.entries(TABLE_Z).map(([k, v]) => `--pf-z-${k}:${v};`).join("");
+}
