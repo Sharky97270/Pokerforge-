@@ -457,7 +457,7 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   outline:none!important;backdrop-filter:none!important;
 }
 /* Boutons d'action mosaïque — minimums interactifs du script (§6) : 40px en 2T, 36px en 3T/4T */
-.grid2 .gto-btn{min-height:40px!important;padding:6px 8px!important;}
+.grid2 .gto-btn{min-height:52px!important;padding:6px 8px!important;}
 .grid3 .gto-btn,.grid4 .gto-btn{min-height:36px!important;padding:5px 6px!important;}
 /* ZONE DE TABLE MULTI — remplit la cellule, ratio BORNÉ (pas figé).
    Les bornes --pf-zone-ar-min/max sont posées par le Trainer sur .mt-zone-fit
@@ -621,6 +621,22 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .mtr-actions-multi .gto-btn-hint{display:none!important;}
 .mtr-actions-multi .gto-btn-inner{padding:4px 4px 3px!important;}
 .grid4 .mtr-actions-multi .gto-btn-inner{padding:3px 3px 2px!important;}
+/* ══ §6 — LE VIDE VERTICAL DU 2T REVIENT AU BANDEAU DE DÉCISION ══
+   « Pas la place » est vrai en 3T/4T, faux en 2T : mesuré à 1600×950, la zone
+   de table 2T dispose de 592px et n'en occupe que 304 (feutre 394×232, déjà à
+   94 % de la largeur de la cellule — sa hauteur découle du ratio 1.70, elle ne
+   peut pas grandir). 288px dormaient donc autour de la table.
+   Ces règles-ci les rendent au bandeau, à l'échelle du 1T : hints pédagogiques
+   restaurés, boutons et sizing lisibles. Le bandeau grandit, .mt-zone-fit
+   (flex:1) rétrécit d'autant — la hauteur du CADRE ne bouge pas (npm run
+   audit:layout) et le feutre garde taille ET forme (npm run audit:finitions).
+   Le reste du vide est structurel : seul un ratio de feutre différent en 2T le
+   récupérerait, arbitrage volontairement non rouvert (cf. TRAINER_FELT_ASPECT). */
+.grid2 .mtr-actions-multi .gto-btn-hint{display:block!important;padding:3px 9px!important;}
+.grid2 .mtr-actions-multi .gto-btn-inner{padding:8px 9px 7px!important;}
+.grid2 .mtr-actions-multi .sizing-btn{font-size:9px!important;padding:5px 2px!important;border-radius:7px!important;}
+.grid2 .mtr-actions-multi .sizing-custom{padding:4px 7px!important;gap:4px!important;border-radius:7px!important;}
+.grid2 .mtr-actions-multi .sizing-step-btn{width:20px!important;height:20px!important;font-size:14px!important;border-radius:5px!important;}
 /* Colonne droite partagée multi-table : panneau V2 lisible (renderMultiPanel) */
 .pf-mt-sharedcol{flex:0 0 320px;width:320px;min-width:0;align-self:stretch;display:flex;overflow:hidden;
   transition:flex-basis 260ms cubic-bezier(.4,0,.2,1),width 260ms cubic-bezier(.4,0,.2,1);}
