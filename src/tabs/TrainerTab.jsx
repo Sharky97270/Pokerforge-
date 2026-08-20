@@ -8408,17 +8408,38 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           );
         })()}
-        {/* §1/§6 — « Tables suivantes » SUPPRIMÉ.
-            Ce bouton avançait les N tables d'un bloc et cohabitait, actif en même
-            temps, avec « Table N suivante » du panneau droit : mesuré en 2T, 3T
-            et 4T. Deux CTA d'avance à l'écran, c'est le doublon signalé — et
-            l'avance en bloc est précisément le « reset incohérent de toutes les
-            tables » à éviter, puisqu'elle emporte des tables qui attendent
-            encore une décision. Chaque table avance désormais par sa propre CTA
-            (§44) ; le passage à l'écran de résultats est porté par le même
-            contrôleur (`nextHand` bascule sur `done` à la limite de session).
-            Le chemin `nextHand({all:true})` reste disponible côté contrôleur,
-            sans point d'entrée UI. */}
+        {/* ══ RACCOURCI DE LOT — action SECONDAIRE, jamais une seconde CTA ══
+            L'ancien « Tables suivantes » était un bouton primaire actif EN MÊME
+            TEMPS que « Table N suivante » : deux CTA d'avance à l'écran, mesuré
+            en 2T/3T/4T. C'était le doublon signalé.
+
+            Il revient sous une forme qui ne peut pas se confondre avec la CTA
+            principale : libellé explicite sur le NOMBRE de tables (jamais le mot
+            « suivante »), style secondaire, taille réduite. Et il n'apparaît que
+            si TOUTES les tables sont réglées — il ne peut donc jamais emporter
+            une table qui attend encore une décision (§6).
+
+            La zone est réservée en permanence (hauteur fixe) : son apparition ne
+            décale pas la grille de tables. */}
+        {started&&!done&&ntables>1&&(
+          <div style={{height:34,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            {allSettled&&(()=>{
+              const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+              const busy=!!nextLoading.all;
+              return(
+                <button className="btn btns" data-state={busy?"LOADING":"READY"}
+                  disabled={busy} onClick={()=>nextHand({all:true})}
+                  title={`Charge une nouvelle main sur les ${ntables} tables d'un coup`}
+                  style={{fontSize:10,padding:"5px 12px",opacity:busy?.6:.9}}>
+                  {busy?"Chargement..."
+                    :nextError?"Reessayer"
+                    :isLastBatch?"⏭ Voir les resultats"
+                    :`⏭ Avancer les ${ntables} tables`}
+                </button>
+              );
+            })()}
+          </div>
+        )}
       </div>
       </div>{/* end flex:1 row wrapper */}
 
