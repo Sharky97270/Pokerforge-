@@ -17,7 +17,7 @@ import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerCl
 import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
-import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
+import { trainerRoundCloseDecision, spotVerdict } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
 import { buildTrainingConfig, trainingConfigToFilters, trainingConfigToEngineOpts, saveTrainingConfig } from "../trainingConfig.js";
 import { resolveTrainingConstraints } from "../constraintEngine.js";
@@ -4314,8 +4314,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     const evDiff=myEv-bestEv;
     const isBest=answered===spot.ok;
     const bestFreq=spot.freq[bestAct?.id]||0;
-    const qualityLabel=isBest?"Best Move ✦":evDiff>=-0.3?"Correct ✓":evDiff>=-1?"Imprécision ⚠":evDiff>=-3?"Erreur ✗":"Blunder 💥";
-    const qualityCls=isBest?"gto-best":evDiff>=-0.3?"gto-correct":evDiff>=-1?"gto-inaccuracy":evDiff>=-3?"gto-wrong":"gto-blunder";
+    /* §2 — libellé et classe viennent de spotVerdict : une seule définition des
+
+       seuils d EV pour les quatre rendus (1T, solution, mosaïque, mobile). */
+
+    const _v=spotVerdict(spot,answered)||{};
+
+    const qualityLabel=_v.label;
+    const qualityCls=_v.cls;
     const accentCols=["#FF4560","#10D87A","#1F8BFF","#FFC247","#9B5CFF"];
     return(
       <>
@@ -4481,8 +4487,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       const evDiff=myEv-bestEv;
       const isBest=answered===spot.ok;
       const bestFreq=spot.freq[spot.acts[spot.ok]?.id]||0;
-      const qualityLabel=isBest?"Best Move ✦":evDiff>=-0.3?"Correct ✓":evDiff>=-1?"Imprécision ⚠":evDiff>=-3?"Erreur ✗":"Blunder 💥";
-      const qualityCls=isBest?"gto-best":evDiff>=-0.3?"gto-correct":evDiff>=-1?"gto-inaccuracy":evDiff>=-3?"gto-wrong":"gto-blunder";
+      /* §2 — libellé et classe viennent de spotVerdict : une seule définition des
+
+         seuils d EV pour les quatre rendus (1T, solution, mosaïque, mobile). */
+
+      const _v=spotVerdict(spot,answered)||{};
+
+      const qualityLabel=_v.label;
+      const qualityCls=_v.cls;
       const accentCols=["#FF4560","#10D87A","#1F8BFF","#FFC247","#9B5CFF"];
 
       /* ══ MODE SOLUTION MASQUÉE ══
@@ -6224,8 +6236,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         const myEv=spot.ev[spot.acts[answered]?.id]||0;
         const evDiff=myEv-bestEv;
         const isBest=answered===spot.ok;
-        const qualityLabel=isBest?"Best Move ✦":evDiff>=-0.3?"Correct ✓":evDiff>=-1?"Imprécision ⚠":evDiff>=-3?"Erreur ✗":"Blunder 💥";
-        const qualityCls=isBest?"gto-best":evDiff>=-0.3?"gto-correct":evDiff>=-1?"gto-inaccuracy":evDiff>=-3?"gto-wrong":"gto-blunder";
+        /* §2 — libellé et classe viennent de spotVerdict : une seule définition des
+
+           seuils d EV pour les quatre rendus (1T, solution, mosaïque, mobile). */
+
+        const _v=spotVerdict(spot,answered)||{};
+
+        const qualityLabel=_v.label;
+        const qualityCls=_v.cls;
 
         /* ── Solution MASQUÉE ou MOBILE : feedback minimal — le détail vit dans l'overlay 💡 ── */
         if(!showSol||isMobile){

@@ -493,3 +493,42 @@ function callTransition({ spot, ctx, state = {}, autoFull = false }) {
 }
 
 console.log("trainer round engine tests passed");
+
+/* ── §2 — LE VERDICT N'A QU'UNE SEULE DÉFINITION ──
+   Les seuils d'EV étaient recopiés dans quatre rendus. Un utilisateur pouvait
+   lire « Erreur » sur une table et « Imprécision » sur une autre pour la même
+   perte. Ces assertions figent les bornes ET vérifient que le composant
+   d'affichage ne les redéfinit plus. */
+{
+  const { spotVerdict, VERDICT_BEST, VERDICT_BLUNDER } = await import("./src/trainerRoundEngine.js");
+  const fs = await import("node:fs");
+  const spot = { acts: [{ id: "A" }, { id: "B" }], ok: 0, ev: {} };
+  const av = (perte) => { spot.ev = { A: 0, B: perte }; return spotVerdict(spot, 1); };
+
+  const cas = [
+    [0,     "Correct ✓"],       // perte nulle mais action non optimale
+    [-0.3,  "Correct ✓"],       // borne incluse
+    [-0.31, "Imprécision ⚠"],
+    [-1,    "Imprécision ⚠"],   // borne incluse
+    [-1.01, "Erreur ✗"],
+    [-3,    "Erreur ✗"],        // borne incluse
+    [-3.01, "Blunder 💥"],
+    [-50,   "Blunder 💥"],
+  ];
+  for (const [perte, attendu] of cas) {
+    const v = av(perte);
+    if (v.label !== attendu) { console.error(`  ✗ perte ${perte}bb → « ${v.label} », attendu « ${attendu} »`); process.exitCode = 1; }
+  }
+  if (spotVerdict(spot, 0).label !== VERDICT_BEST.label) { console.error("  ✗ l'action optimale n'est pas Best Move"); process.exitCode = 1; }
+  if (spotVerdict(spot, null) !== null) { console.error("  ✗ sans réponse, pas de verdict"); process.exitCode = 1; }
+  if (spotVerdict(null, 0) !== null) { console.error("  ✗ sans spot, pas de verdict"); process.exitCode = 1; }
+  if (av(-99).cls !== VERDICT_BLUNDER.cls) { console.error("  ✗ classe de blunder incorrecte"); process.exitCode = 1; }
+
+  // Le rendu ne doit plus recalculer les seuils lui-même.
+  const ui = fs.readFileSync("./src/tabs/TrainerTab.jsx", "utf8");
+  if (/qualityLabel=isBest\?/.test(ui) || /qualityCls=isBest\?/.test(ui)) {
+    console.error("  ✗ TrainerTab redéfinit encore les seuils du verdict");
+    process.exitCode = 1;
+  }
+  if (!process.exitCode) console.log("verdict : une seule définition, 8 bornes vérifiées");
+}
