@@ -4909,8 +4909,8 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 .pf-action-chip-badge.compact .pf-action-chip-piles{transform:scale(.86);transform-origin:center right;margin-right:-6px!important;}
 .pf-action-chip-badge.compact .pf-action-chip-piles>.pf-chip-stack{margin-left:-11px!important;}
 /* Meme regle en compact : le montant reste au-dessus du plancher de lecture. */
-.pf-action-chip-badge.compact .pf-action-chip-copy strong{font-size:7px!important;opacity:.86!important;}
-.pf-action-chip-badge.compact .pf-action-chip-copy em{font-size:9.5px!important;}
+.pf-action-chip-badge.compact .pf-action-chip-copy strong{font-size:10px!important;opacity:.86!important;}
+.pf-action-chip-badge.compact .pf-action-chip-copy em{font-size:12px!important;}
 .pf-action-call{border-color:rgba(16,216,122,.38)!important;background:rgba(2,24,14,.72)!important;}
 .pf-action-call .pf-action-chip-copy strong,.pf-action-call .pf-action-chip-copy em{color:#10D87A!important;text-shadow:0 0 9px rgba(16,216,122,.5)!important;}
 .pf-action-bet,.pf-action-open{border-color:rgba(255,194,71,.38)!important;background:rgba(32,18,2,.72)!important;}
@@ -5029,7 +5029,7 @@ body .pf-seat-action-zone .pf-action-chip-badge.pf-chip-badge-v2.pf-action-allin
 .pf-blind-art{display:block;width:31px;height:28px;overflow:hidden;border-radius:10px;}
 .pf-blind-art img{display:block;width:43px;height:auto;max-width:none;transform:translate(-6px,-1px);filter:saturate(1.12) contrast(1.06);}
 .pf-blind-stack strong{margin-top:-1px!important;font-size:12px!important;color:#fff!important;text-shadow:0 2px 2px rgba(0,0,0,.85)!important;}
-.pf-blind-stack em{min-width:23px!important;height:20px!important;border-radius:50%!important;font-size:7px!important;background:linear-gradient(145deg,#eff3f9,#7f8ea5)!important;box-shadow:0 4px 9px rgba(0,0,0,.55),inset 0 1px 0 #fff!important;}
+.pf-blind-stack em{min-width:23px!important;height:20px!important;border-radius:50%!important;font-size:10px!important;background:linear-gradient(145deg,#eff3f9,#7f8ea5)!important;box-shadow:0 4px 9px rgba(0,0,0,.55),inset 0 1px 0 #fff!important;}
 .pf-blind-stack.compact{transform:scale(.85)!important;}
 /* 1T — sieges au bord du rail : rentrer legerement les cartes pour rester dans le cadre */
 .pf-player-seat[data-mode="1T"][data-seat="UTG"] .pf-hole-cards{transform:translateX(11px)!important;}
@@ -6017,7 +6017,12 @@ export const CSS_TABLE=`
   grid-column:2;
   min-width:calc(14px * var(--pf-d-blind-scale,1) + 6px)!important;
   height:calc(10px * var(--pf-d-blind-scale,1) + 6px)!important;
-  font-size:calc(3px * var(--pf-d-blind-scale,1) + 4.4px)!important;
+  /* Plancher de lisibilité (finitions §3) : la formule seule descendait à
+     6.9px rendus en 2T — sous le seuil de lecture. Le « max() » garde la mise
+     à l'échelle par densité tant qu'elle reste lisible, et s'arrête là.
+     C'est CETTE règle qui fait autorité sur la lettre de blinde (le navigateur
+     la désigne comme gagnante face aux six qui la précèdent). */
+  font-size:max(8.5px,calc(3px * var(--pf-d-blind-scale,1) + 4.4px))!important;
 }
 /* 3T/4T — la pastille SB/BB passe à la ligne… et disparaît. Ce n'est pas de la
    place gagnée en hauteur (elle en coûte peu) mais en LARGEUR : le marqueur
@@ -6054,8 +6059,15 @@ export const CSS_TABLE=`
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-badge .pf-chip-stack.pf-chip-stack-v2{
   width:calc(var(--pf-chip-base-size) * var(--pf-chip-stack-scale,1) + 34px * var(--pf-d-bet-scale,1))!important;
 }
-:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy strong{font-size:7.5px!important;}
-:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy em{font-size:9px!important;}
+/* Plancher de lisibilite (finitions §3). Le « zoom » de la grappe ramenait ces
+   7.5px a 6.8px RENDUS — mesure, pas estimation. C est CETTE regle qui fait
+   autorite sur le libelle des chips d action (specificite la plus forte, et la
+   plus tardive du fichier) : la corriger ici evite d empiler un enieme
+   correctif concurrent qui perdrait de toute facon.
+   Le montant (em) reste plus gros que le libelle (strong) : c est le montant
+   qui porte la decision. Verifiable : npm run audit:lisibilite. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy strong{font-size:10px!important;}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-action-chip-copy em{font-size:12.5px!important;}
 
 /* ── 5. BOARD & POT ──────────────────────────────────────────────────────────
    Le board est l'élément le plus lu : son échelle est un arbitrage à part

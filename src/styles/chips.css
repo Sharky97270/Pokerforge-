@@ -142,8 +142,14 @@ body .pf-action-chip-badge.pf-chip-badge-v2.compact{
   border-radius:8px!important;
 }
 body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-piles>.pf-chip-stack-v2{margin-left:-20px!important;}
-body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-copy strong{font-size:6.8px!important;max-width:52px!important;}
-body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-copy em{font-size:7.4px!important;}
+/* Plancher de lisibilité (finitions §3). 6.8px et 7.4px étaient sous le seuil
+   où un texte est encore lu : en 3T/4T le libellé de l'action et son montant
+   devenaient deux taches. C'est CETTE règle qui fait autorité sur les chips
+   d'action (le navigateur la désigne comme gagnante) — la corriger ailleurs ne
+   servait à rien. Le montant reste plus gros que le libellé : c'est lui qui
+   porte la décision. Vérifiable : npm run audit:lisibilite. */
+body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-copy strong{font-size:8px!important;max-width:52px!important;}
+body .pf-action-chip-badge.pf-chip-badge-v2.compact .pf-action-chip-copy em{font-size:9.5px!important;}
 
 body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call{border-color:rgba(16,216,122,.4)!important;background:linear-gradient(180deg,rgba(2,24,14,.88),rgba(1,11,10,.78))!important;}
 body .pf-action-chip-badge.pf-chip-badge-v2.pf-action-call .pf-action-chip-copy strong,
