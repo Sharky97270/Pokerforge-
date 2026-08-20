@@ -493,6 +493,14 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   height:min(100cqh,calc(100cqw / var(--pf-zone-ar-min,1.42)));
 }
 .grid4 .mtr-actions{padding:5px 6px 6px!important;}
+/* ══ ZONE DE RESPIRATION DU HERO (finitions §5) ══
+   Mesure : le bandeau de decision touchait le bloc Hero — 1px d air en 3T,
+   7px en 4T (contre 158px en 2T). Les cartes du heros, son medaillon et sa
+   plaque se retrouvaient colles aux boutons : c est la sensation de tassement.
+   La marge est prise sur la ZONE DE TABLE (flex:1), pas sur le cadre : le
+   feutre perd quelques pixels, la hauteur du cadre ne bouge pas — verifiable
+   par npm run audit:layout. Mesure : npm run audit:finitions. */
+.grid3 .mtr-actions,.grid4 .mtr-actions{margin-top:9px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
 .grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}

@@ -1,0 +1,118 @@
+{
+ "viewport": [
+  1600,
+  950
+ ],
+ "rhoMax": 0.06,
+ "heroMin": 6,
+ "rapport": [
+  {
+   "mode": "2T",
+   "ellipse": {
+    "sieges": 6,
+    "rho": [
+     0.9,
+     0.93,
+     0.93,
+     0.9,
+     0.93,
+     0.93
+    ],
+    "min": 0.9,
+    "max": 0.93,
+    "moyenne": 0.92,
+    "ecartType": 0.014
+   },
+   "hero": {
+    "basBlocHero": 606,
+    "airSousHero": 158,
+    "premierElement": "mtr-actions"
+   },
+   "surface": {
+    "cellule": {
+     "w": 421,
+     "h": 761
+    },
+    "feutre": {
+     "w": 357,
+     "h": 210
+    },
+    "tauxLargeur": 85,
+    "tauxHauteur": 28,
+    "tauxSurface": 23
+   }
+  },
+  {
+   "mode": "3T",
+   "ellipse": {
+    "sieges": 6,
+    "rho": [
+     0.93,
+     0.93,
+     0.9,
+     0.93,
+     0.93,
+     0.9
+    ],
+    "min": 0.9,
+    "max": 0.93,
+    "moyenne": 0.92,
+    "ecartType": 0.014
+   },
+   "hero": {
+    "basBlocHero": 399,
+    "airSousHero": 10,
+    "premierElement": "mtr-actions"
+   },
+   "surface": {
+    "cellule": {
+     "w": 405,
+     "h": 378
+    },
+    "feutre": {
+     "w": 296,
+     "h": 174
+    },
+    "tauxLargeur": 73,
+    "tauxHauteur": 46,
+    "tauxSurface": 34
+   }
+  },
+  {
+   "mode": "4T",
+   "ellipse": {
+    "sieges": 6,
+    "rho": [
+     0.9,
+     0.93,
+     0.93,
+     0.9,
+     0.93,
+     0.93
+    ],
+    "min": 0.9,
+    "max": 0.93,
+    "moyenne": 0.92,
+    "ecartType": 0.014
+   },
+   "hero": {
+    "basBlocHero": 394,
+    "airSousHero": 16,
+    "premierElement": "mtr-actions"
+   },
+   "surface": {
+    "cellule": {
+     "w": 421,
+     "h": 377
+    },
+    "feutre": {
+     "w": 293,
+     "h": 172
+    },
+    "tauxLargeur": 70,
+    "tauxHauteur": 46,
+    "tauxSurface": 32
+   }
+  }
+ ]
+}

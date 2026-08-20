@@ -28,6 +28,7 @@
     "audit:cine": "node scripts/replayer-cine-audit.mjs",
     "audit:layout": "node scripts/trainer-layout-shift-audit.mjs",
     "audit:lisibilite": "node scripts/trainer-lisibilite-audit.mjs",
+    "audit:finitions": "node scripts/trainer-finitions-audit.mjs",
     "shot:semantic": "node scripts/replayer-semantic-shot.mjs",
     "audit:table": "node scripts/trainer-bet-anchor-audit.mjs",
     "audit:cine:trainer": "node scripts/trainer-cine-audit.mjs"
