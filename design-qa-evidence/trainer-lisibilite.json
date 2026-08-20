@@ -9,29 +9,47 @@
    "mode": "1T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 77,
+   "nbTextes": 85,
    "ok": true
   },
   {
    "mode": "2T",
-   "trop_petit": [],
+   "trop_petit": [
+    {
+     "texte": "Bet",
+     "px": 6.8,
+     "cls": "pf-action-chip-copy"
+    }
+   ],
    "arrondis": [],
-   "nbTextes": 64,
-   "ok": true
+   "nbTextes": 67,
+   "ok": false
   },
   {
    "mode": "3T",
-   "trop_petit": [],
+   "trop_petit": [
+    {
+     "texte": "Bet",
+     "px": 6.8,
+     "cls": "pf-action-chip-copy"
+    }
+   ],
    "arrondis": [],
-   "nbTextes": 61,
-   "ok": true
+   "nbTextes": 66,
+   "ok": false
   },
   {
    "mode": "4T",
-   "trop_petit": [],
+   "trop_petit": [
+    {
+     "texte": "Bet",
+     "px": 6.8,
+     "cls": "pf-action-chip-copy"
+    }
+   ],
    "arrondis": [],
-   "nbTextes": 58,
-   "ok": true
+   "nbTextes": 65,
+   "ok": false
   }
  ]
 }
