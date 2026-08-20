@@ -14,7 +14,7 @@ import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorS
 import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
 import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
-import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT } from "../trainerTableGeometry.js";
+import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision } from "../trainerRoundEngine.js";
@@ -5394,7 +5394,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               const potPt=centreAnchors.pot;
               return hasBoard?(
                 /* Pot compact au-dessus du board */
-                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                   <TrainingPotStack value={potVal} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -5403,7 +5403,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 /* Pot centré quand pas de board (preflop). Mobile : descendu à 37%
                    (le pot non-compact est plus haut → à 32% il chevauchait la plaque
                    du siège du haut, §8). Sans board, l'espace sous le pot est libre. */
-                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                <div className={`pf-pot-readout${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potPt.y}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                   <TrainingPotStack value={potVal} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
                   <span className="pf-pot-label">POT</span>
                   <span className="pf-pot-value">{fmt(potVal)}</span>
@@ -5413,7 +5413,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
             {/* BOARD — centré, taille contractuelle 1T pour éviter les collisions avec sièges/mises */}
             {((!playingFull&&spot.board.length>0)||(playingFull&&fhVisBoard.length>0))&&(
-              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${(centreAnchors.board||{y:49}).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:6,alignItems:"center",
+              <div className="pf-board-zone" key={`board-${boardKey}`} style={{position:"absolute",top:`${(centreAnchors.board||{y:49}).y}%`,left:`${boardPointFor(1).x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:boardGap,zIndex:TABLE_Z.board,alignItems:"center",
                 filter:"drop-shadow(0 4px 16px rgba(0,0,0,.7))"}}>
                 {(!playingFull?spot.board:fhVisBoard).map((c,i)=>(
                   <div key={i} className="board-card-in" style={{animationDelay:`${i*.09}s`}}>
@@ -5522,7 +5522,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     bord INTERNE du bloc était la plaque, large de 88px ; ce sont
                     désormais les cartes, larges de 60px. Le tas posé sur l'anneau
                     dispose donc de ~28px de dégagement latéral en plus. */}
-                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:20}}>
+                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:TABLE_Z.seat}}>
 
                   {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
                   {isV&&!seatFolded&&(
@@ -5863,13 +5863,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               <>
                 {/* Pot : compact inline si board, centré gros si pas board */}
                 {hasBoard?(
-                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout compact${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYboard}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                     <TrainingPotStack value={potAffiche} compact themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(potAffiche)}</span>
                   </div>
                 ):(
-                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:7}}>
+                  <div className={`pf-pot-readout${numTables>=2?" compact":""}${potAnim?" pot-val-pop":""}`} style={{position:"absolute",top:`${potYpre}%`,left:`${potPt.x}%`,transform:"translate(-50%,-50%)",zIndex:TABLE_Z.pot}}>
                     <TrainingPotStack value={potAffiche} compact={numTables>=2} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
                     <span className="pf-pot-label">POT</span>
                     <span className="pf-pot-value">{fmt(potAffiche)}</span>
@@ -5877,7 +5877,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 )}
                 {/* Board centré — taille cfg.board adaptée par numTables (zoom ×0.5 via .mt-board-zone) */}
                 {hasBoard&&(
-                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardY}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:6,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
+                  <div key={`board-mt-${boardKey}`} className="mt-board-zone" style={{position:"absolute",top:`${boardY}%`,left:`${boardPt.x}%`,transform:"translate(-50%,-50%)",display:"flex",gap:cfg.boardGap,zIndex:TABLE_Z.board,alignItems:"center",filter:"drop-shadow(0 4px 18px rgba(0,0,0,.8)) drop-shadow(0 0 12px rgba(0,0,0,.5))"}}>
                     {boardCards.map((c,i)=>(
                       <div key={i} className="board-card-in" style={{animationDelay:`${i*.07}s`}}>
                         <Card r={c.r} s={c.s} size={cfg.board} delay={0}/>
@@ -6044,7 +6044,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:20}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
 
               {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
               <div className="pf-seat-above">

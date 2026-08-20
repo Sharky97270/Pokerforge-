@@ -4,18 +4,18 @@
   950
  ],
  "tolerancePx": 1,
- "hands": 4,
+ "hands": 3,
  "rapport": [
   {
    "mode": "2T",
-   "releves": 20,
+   "releves": 14,
    "ecarts": [],
    "couverture": {
-    "action": 5,
-    "resultat": 4,
-    "verdictDecision": 4,
-    "solutionOuverte": 2,
-    "raccourciLot": 2
+    "action": 4,
+    "resultat": 3,
+    "verdictDecision": 3,
+    "solutionOuverte": 1,
+    "raccourciLot": 1
    },
    "ref": [
     {
@@ -38,13 +38,13 @@
   },
   {
    "mode": "3T",
-   "releves": 21,
+   "releves": 16,
    "ecarts": [],
    "couverture": {
-    "action": 6,
-    "resultat": 4,
-    "verdictDecision": 4,
-    "solutionOuverte": 2,
+    "action": 5,
+    "resultat": 3,
+    "verdictDecision": 3,
+    "solutionOuverte": 1,
     "raccourciLot": 2
    },
    "ref": [
@@ -75,14 +75,14 @@
   },
   {
    "mode": "4T",
-   "releves": 23,
+   "releves": 16,
    "ecarts": [],
    "couverture": {
-    "action": 7,
-    "resultat": 4,
-    "verdictDecision": 4,
-    "solutionOuverte": 2,
-    "raccourciLot": 3
+    "action": 6,
+    "resultat": 3,
+    "verdictDecision": 3,
+    "solutionOuverte": 1,
+    "raccourciLot": 1
    },
    "ref": [
     {

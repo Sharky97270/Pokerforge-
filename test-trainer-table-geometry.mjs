@@ -333,6 +333,45 @@ for (const sc of SCENARIOS) {
   }).length === 0, "blind vs blind : le pot est intégralement reconstructible depuis la table");
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   §13 — L'ÉCHELLE DE PROFONDEUR NE DOIT PAS DÉRIVER
+
+   `TABLE_Z` (JS) et les variables `--pf-z-*` (CSS) décrivent le MÊME ordre
+   d'empilement. Rien n'empêche de corriger l'un en oubliant l'autre — et le
+   symptôme serait une couche qui passe devant une autre, sans erreur ni test
+   rouge. On confronte donc les deux sources ici.
+═══════════════════════════════════════════════════════════════ */
+{
+  const { TABLE_Z, tableZCssVars } = await import("./src/trainerTableGeometry.js");
+  const css = (await import("node:fs")).readFileSync("./src/styles.js", "utf8");
+
+  ok(Object.keys(TABLE_Z).length >= 8, "l'échelle couvre au moins 8 couches de table");
+
+  // Ordre : du fond vers la surface, strictement croissant.
+  const attendu = ["felt", "board", "pot", "bet", "seat", "dealer", "hover", "modal"];
+  ok(attendu.every(k => k in TABLE_Z), "toutes les couches nommées existent dans TABLE_Z");
+  const vals = attendu.map(k => TABLE_Z[k]);
+  ok(vals.every((v, i) => i === 0 || v > vals[i - 1]),
+    `l'échelle est strictement croissante du fond vers la surface (${vals.join(" < ")})`);
+
+  // Le bouton dealer passe devant la mise : les deux partagent le segment
+  // siège→pot, et c'est le bouton qui doit rester lisible.
+  ok(TABLE_Z.dealer > TABLE_Z.bet, "le bouton dealer est devant la mise");
+  ok(TABLE_Z.pot > TABLE_Z.board, "le pot est devant le board");
+  ok(TABLE_Z.seat > TABLE_Z.pot, "le siège est devant le pot");
+  ok(TABLE_Z.modal > TABLE_Z.hover, "une modale couvre les info-bulles");
+
+  // Le CSS déclare EXACTEMENT les mêmes valeurs.
+  for (const [k, v] of Object.entries(TABLE_Z)) {
+    ok(css.includes(`--pf-z-${k}:${v};`),
+      `le CSS déclare --pf-z-${k}:${v} (sinon JS et CSS ont dérivé)`);
+  }
+  ok(tableZCssVars().includes("--pf-z-dealer:25;"), "le générateur de variables CSS reflète TABLE_Z");
+
+  // Aucune couche de table ne doit recourir à un z-index d'échappement.
+  ok(!/--pf-z-\w+:\s*9999/.test(css), "aucune couche de table ne monte à 9999");
+}
+
 if (fails.length) {
   console.error(`\n❌ ${fails.length} échec(s) sur ${n} assertions :`);
   fails.slice(0, 25).forEach(f => console.error("  · " + f));

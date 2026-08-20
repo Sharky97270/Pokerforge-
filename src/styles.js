@@ -383,6 +383,16 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 /* ══ Tokens TRAINER V2 (planche Assets Trainer V2 §09/§10/§11) ══
    Source de vérité : public/assets/pokerforge/trainer-v2/tokens/*.css
    (inlinés ici car le build standalone n'embarque pas les <link> runtime). */
+/* §13 — ECHELLE DE PROFONDEUR DE LA TABLE. Source unique : TABLE_Z dans
+   src/trainerTableGeometry.js, d ou ces valeurs sont recopiees et ou leur
+   ordre est explique. test-trainer-table-geometry.mjs echoue si les deux
+   divergent. Poser une couche de table = employer un de ces tokens, jamais
+   un nombre invente sur place — c est ainsi qu on finit avec « z-index:9999 »
+   et un conflit de plus. */
+:root{
+  --pf-z-felt:0;--pf-z-board:6;--pf-z-pot:7;--pf-z-bet:18;
+  --pf-z-seat:20;--pf-z-dealer:25;--pf-z-hover:200;--pf-z-modal:2500;
+}
 :root{
   --pf-bg-900:#0B1626;--pf-bg-800:#0F1F3A;--pf-blue-700:#132B4D;--pf-blue-600:#1E3A66;
   --pf-cyan:#20CFFF;--pf-gold:#FFB800;--pf-orange:#FF6B00;--pf-green:#17C964;
@@ -3748,7 +3758,7 @@ input:focus,select:focus,textarea:focus{
 .seat-inactive{opacity:.5!important;filter:saturate(.4) brightness(.85)!important;}
 
 /* Dealer btn toujours sur le dessus */
-.dealer-btn{z-index:25!important;}
+.dealer-btn{z-index:var(--pf-z-dealer,25)!important;}
 
 /* Improve progress bars animation */
 .pb,.progf,.cs-progfill,.gto-freq-fill,.action-timer-bar{
@@ -4891,7 +4901,7 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 }
 .pf-blind-stack.compact{transform:scale(.78)!important;transform-origin:center!important;}
 .pf-seat-action-zone{
-  position:absolute!important;transform:translate(-50%,-50%)!important;z-index:18!important;pointer-events:none!important;
+  position:absolute!important;transform:translate(-50%,-50%)!important;z-index:var(--pf-z-bet,18)!important;pointer-events:none!important;
   display:flex!important;align-items:center!important;justify-content:center!important;
 }
 .pf-player-seat{position:absolute!important;display:flex!important;flex-direction:column!important;align-items:center!important;contain:layout style!important;}
