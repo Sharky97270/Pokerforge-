@@ -3757,9 +3757,18 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     onAnswer(isCorrect,i);
     if(!isCorrect){
       setErrorFlash(true);setErrorBtn(i);
-      setShowToast(showSol?`Sous-optimal - ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal - revele la solution pour le detail GTO");
+      /* §2/§15 — EN MOSAÏQUE, PAS DE BANDEAU PAR-DESSUS LE FEUTRE.
+         Le bandeau recouvrait le board et le pot de la table concernée, et il
+         disait exactement ce que la pastille de verdict dit déjà, à un endroit
+         fixe et pour les quatre tables. Résultat mesuré à l'écran : une table
+         sur quatre présentait son résultat autrement que les trois autres —
+         c'est ce qui casse la lecture périphérique. En 1T il n'y a rien à
+         comparer et la place ne manque pas : le bandeau y reste. */
+      if(numTables===1){
+        setShowToast(showSol?`Sous-optimal - ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal - revele la solution pour le detail GTO");
+        setTimeout(()=>{setShowToast(null);},3200);
+      }
       setTimeout(()=>{setErrorFlash(false);},600);
-      setTimeout(()=>{setShowToast(null);},3200);
     }
     // Chip animation depuis hero si hero mise
     if(a.id!=="FOLD"&&a.id!=="CHECK"&&a.id!=="CHECK_BACK"){
