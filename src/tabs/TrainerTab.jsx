@@ -6045,6 +6045,16 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
+          /* §8 — LE SIÈGE DOIT SAVOIR DE QUEL CÔTÉ EST « DEHORS ».
+             Le code ne connaissait que haut/bas : les labels recevaient donc
+             EXACTEMENT le même décalage vertical partout (mesuré : plaque
+             +19.9px, pastille +26.3px, dx=0 sur les six sièges). Pour un siège
+             HAUT, « en dessous » pointe vers le board — et la pastille du siège
+             haut le CHEVAUCHAIT (distance mesurée : 0px).
+             La bande morte de ±8 % évite qu'un siège quasi centré bascule d'un
+             flanc à l'autre au moindre changement de structure. */
+          const isLeftSeatMt=x<42;
+          const isRightSeatMt=x>58;
           /* ── ANCRAGE PAR LE CENTRE DE L'AVATAR (§1) ──
              Ce qu'on pose sur l'anneau est un BLOC (cartes ▸ avatar ▸ plaque), pas
              un avatar. L'ancrer par une fraction arbitraire de sa propre hauteur
@@ -6065,7 +6075,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
 
               {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
               <div className="pf-seat-above">

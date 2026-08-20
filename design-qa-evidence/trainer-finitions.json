@@ -17,23 +17,30 @@
     "moyenne": 0,
     "ecartType": 0
    },
+   "heroNonApplicable": "aucun element rendu sous le bloc Hero",
    "hero": {
-    "basBlocHero": 673,
-    "airSousHero": 38,
-    "premierElement": "mtr-actions"
+    "basBlocHero": 682,
+    "airSousHero": null,
+    "premierElement": null
+   },
+   "labels": {
+    "coeurDetecte": 5,
+    "mesures": 40,
+    "chevauchements": 0,
+    "pastilles": 16
    },
    "surface": {
     "cellule": {
-     "w": 866,
-     "h": 811
+     "w": 0,
+     "h": 0
     },
     "feutre": {
      "w": 710,
      "h": 418
     },
-    "tauxLargeur": 82,
-    "tauxHauteur": 52,
-    "tauxSurface": 42
+    "tauxLargeur": null,
+    "tauxHauteur": null,
+    "tauxSurface": null
    }
   },
   {
@@ -54,9 +61,15 @@
     "ecartType": 0.014
    },
    "hero": {
-    "basBlocHero": 615,
-    "airSousHero": 149,
+    "basBlocHero": 639,
+    "airSousHero": 125,
     "premierElement": "mtr-actions"
+   },
+   "labels": {
+    "coeurDetecte": 12,
+    "mesures": 176,
+    "chevauchements": 0,
+    "pastilles": 80
    },
    "surface": {
     "cellule": {
@@ -77,12 +90,12 @@
    "ellipse": {
     "sieges": 6,
     "rho": [
+     0.9,
      0.93,
      0.93,
      0.9,
      0.93,
-     0.93,
-     0.9
+     0.93
     ],
     "min": 0.9,
     "max": 0.93,
@@ -91,8 +104,14 @@
    },
    "hero": {
     "basBlocHero": 399,
-    "airSousHero": 10,
+    "airSousHero": 21,
     "premierElement": "mtr-actions"
+   },
+   "labels": {
+    "coeurDetecte": 13,
+    "mesures": 264,
+    "chevauchements": 0,
+    "pastilles": 120
    },
    "surface": {
     "cellule": {
@@ -113,12 +132,12 @@
    "ellipse": {
     "sieges": 6,
     "rho": [
+     0.9,
      0.93,
      0.93,
      0.9,
      0.93,
-     0.93,
-     0.9
+     0.93
     ],
     "min": 0.9,
     "max": 0.93,
@@ -126,9 +145,15 @@
     "ecartType": 0.014
    },
    "hero": {
-    "basBlocHero": 394,
-    "airSousHero": 16,
+    "basBlocHero": 402,
+    "airSousHero": 18,
     "premierElement": "mtr-actions"
+   },
+   "labels": {
+    "coeurDetecte": 20,
+    "mesures": 352,
+    "chevauchements": 0,
+    "pastilles": 160
    },
    "surface": {
     "cellule": {

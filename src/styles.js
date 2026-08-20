@@ -510,7 +510,7 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    La marge est prise sur la ZONE DE TABLE (flex:1), pas sur le cadre : le
    feutre perd quelques pixels, la hauteur du cadre ne bouge pas — verifiable
    par npm run audit:layout. Mesure : npm run audit:finitions. */
-.grid3 .mtr-actions,.grid4 .mtr-actions{margin-top:9px!important;}
+.grid3 .mtr-actions,.grid4 .mtr-actions{margin-top:20px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
 .grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}
@@ -5982,6 +5982,37 @@ export const CSS_TABLE=`
   position:static!important;transform:none!important;bottom:auto!important;left:auto!important;margin-top:0!important;
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat .pf-seat-below>*{margin-top:0!important;}
+/* ══ §8 — LES LABELS SUIVENT LA POSITION DU SIÈGE ══
+   Mesuré avant : décalage IDENTIQUE sur les six sièges (plaque +19.9px,
+   pastille +26.3px, dx=0). Or « en dessous » ne veut pas dire la même chose
+   selon l'endroit de l'anneau : pour un siège HAUT, en dessous, c'est LE
+   BOARD. La pastille du siège haut le chevauchait — distance mesurée 0px.
+
+   Les cartes, elles, restent dehors : ce sont le plus gros élément du bloc,
+   et les envoyer vers le centre aggraverait l'emprise au lieu de la réduire.
+   Seule la pastille bascule, et elle part sur le FLANC — à hauteur d'avatar,
+   donc hors du couloir qui mène au board.
+
+   Le siège fautif est celui du HAUT-CENTRE (x=50 %) : il n'a pas de « dehors »
+   latéral, et c'est pourtant lui qui chevauchait. On l'envoie sur le flanc
+   gauche, où ses voisins sont loin (mesuré : x=15 % et x=84 %). D'où le
+   « :not(.pf-mt-seat-right) » plutôt qu'un « .pf-mt-seat-left » qui l'aurait
+   laissé de côté.
+
+   LE FLANC NE VAUT QUE POUR LES SIÈGES HAUTS. Tenté sur le siège du BAS
+   (Hero), dont « en dessous » désigne le bandeau de décision : le résultat
+   EMPIRE — 12 chevauchements en 3T, 10 en 4T. Pour un siège bas-centre, sa
+   gauche et sa droite sont encore DANS le feutre, donc sur le board. Sa
+   pastille reste sous lui, et c'est la marge de sécurité qui l'absorbe (§5).
+   Vérifiable : npm run audit:finitions. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-mt-seat-top:not(.pf-mt-seat-right)>.pf-seat-below{
+  top:50%!important;left:auto!important;right:100%!important;
+  transform:translateY(-50%)!important;margin:0 3px 0 0!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-mt-seat-top.pf-mt-seat-right>.pf-seat-below{
+  top:50%!important;left:100%!important;right:auto!important;
+  transform:translateY(-50%)!important;margin:0 0 0 3px!important;
+}
 /* Le macaron « TOI » / « IA… » vivait à top:-16px DANS le slot avatar : depuis
    que les cartes sont collées au-dessus de l'avatar, il tombait dessus. On le
    sort sur le FLANC intérieur du siège, où il ne croise ni cartes ni plaque. */

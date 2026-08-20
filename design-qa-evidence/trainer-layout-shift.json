@@ -38,7 +38,7 @@
   },
   {
    "mode": "3T",
-   "releves": 15,
+   "releves": 16,
    "ecarts": [],
    "couverture": {
     "action": 5,
@@ -82,7 +82,7 @@
     "resultat": 3,
     "verdictDecision": 3,
     "solutionOuverte": 1,
-    "raccourciLot": 2
+    "raccourciLot": 1
    },
    "ref": [
     {
