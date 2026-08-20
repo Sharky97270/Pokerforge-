@@ -6,7 +6,7 @@ export const TRAINER_VISUAL_CONFIG = {
   },
   tableGeometry: {
     1: { top: 10, left: 2.4, right: 2.4, bottom: 14, railInset: 7, innerInset: 16 },
-    2: { top: 10.8, left: 7.2, right: 7.2, bottom: 13, railInset: 5, innerInset: 12 },
+    2: { top: 10.8, left: 2.8, right: 2.8, bottom: 13, railInset: 5, innerInset: 12 },
     3: { top: 11, left: 7.4, right: 7.4, bottom: 12.5, railInset: 5, innerInset: 11 },
     4: { top: 11.4, left: 7.6, right: 7.6, bottom: 12.5, railInset: 4, innerInset: 10 },
   },

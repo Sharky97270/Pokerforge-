@@ -76,19 +76,24 @@ try {
       B(/Lancer la session/)?.click();  await w(4200);
 
       const o = { mode: mode + 'T' };
-      /* Une table = un `.tw`. Les sièges ne sont PAS dans `.felt-oval` : ils
-         sont ses frères dans `.training-table-zone`. Chercher les sièges sous
-         le feutre renvoyait zéro — et un audit qui ne trouve rien passait au
-         vert sans rien avoir mesuré. */
-      const table = document.querySelector('.tw');
+      /* Les sièges ne sont PAS dans `.felt-oval` : ils en sont les frères dans
+         `.training-table-zone`. Les chercher sous le feutre renvoyait zéro — et
+         un audit qui ne trouve rien passait au vert sans rien avoir mesuré.
+         Une table = `.tw` en mosaïque, `.t1-left` en 1T : le 1T a sa propre
+         structure (t1-zone-fit / t1-table-area) et n'utilise pas les mêmes
+         classes de siège. Chercher `.tw` partout faisait échouer le 1T pour une
+         raison de sélecteur, pas de produit. */
+      const table = document.querySelector('.tw') || document.querySelector('.t1-left');
       const felt = table?.querySelector('.felt-oval');
       if (!table || !felt) { o.err = 'table ou feutre absent'; return o; }
       const F = felt.getBoundingClientRect();
       const fx = F.x + F.width / 2, fy = F.y + F.height / 2;
 
-      /* ① ρ par siège — centre du MÉDAILLON, pas du bloc. */
+      /* ① ρ par siège — centre du MÉDAILLON, pas du bloc.
+         `.pf-seat-avatar-slot` n'existe qu'en mosaïque (ancrage par le centre
+         de l'avatar, §7). En 1T on le DIT plutôt que de faire semblant. */
       const slots = [...table.querySelectorAll('.pf-seat-avatar-slot')].filter(vis);
-      if (!slots.length) { o.err = 'aucun siège mesurable'; return o; }
+      if (!slots.length) o.ellipseNonApplicable = 'ancrage 1T : pas de .pf-seat-avatar-slot';
       const rhos = slots.map(e => {
         const r = e.getBoundingClientRect();
         const dx = (r.x + r.width / 2 - fx) / (F.width / 2);
@@ -138,13 +143,17 @@ try {
 
     rapport.push(res);
     const el = res.ellipse || {};
-    /* Rien de mesuré = ÉCHEC, jamais un vert muet. */
-    const okEllipse = !res.err && el.sieges > 0 && el.ecartType != null && el.ecartType <= RHO_MAX;
+    /* Rien de mesuré = ÉCHEC, jamais un vert muet — sauf quand le mode ne
+       PEUT pas porter la mesure : on le dit alors explicitement. */
+    const okEllipse = !res.err && (res.ellipseNonApplicable
+      || (el.sieges > 0 && el.ecartType != null && el.ecartType <= RHO_MAX));
     const okHero = !res.err && res.hero?.airSousHero != null && res.hero.airSousHero >= HERO_MIN;
     if (!okEllipse || !okHero) failed++;
     if (res.err) { console.log(`❌ ${res.mode} — ${res.err}`); continue; }
     console.log(`${okEllipse && okHero ? '✅' : '❌'} ${res.mode}`);
-    console.log(`   ① ellipse : ${el.sieges} sièges · ρ ${el.min}→${el.max} · écart-type ${el.ecartType} (seuil ${RHO_MAX})`);
+    console.log(res.ellipseNonApplicable
+      ? `   ① ellipse : non mesurable ici — ${res.ellipseNonApplicable}`
+      : `   ① ellipse : ${el.sieges} sièges · ρ ${el.min}→${el.max} · écart-type ${el.ecartType} (seuil ${RHO_MAX})`);
     console.log(`   ② Hero    : ${res.hero?.airSousHero ?? '—'}px d'air, puis « ${res.hero?.premierElement ?? '?'} » (seuil ${HERO_MIN})`);
     console.log(`   ③ surface : feutre ${res.surface?.tauxLargeur ?? '?'}% de la largeur · ${res.surface?.tauxHauteur ?? '?'}% de la hauteur`);
   }

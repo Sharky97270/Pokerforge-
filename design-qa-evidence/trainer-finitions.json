@@ -7,6 +7,72 @@
  "heroMin": 6,
  "rapport": [
   {
+   "mode": "1T",
+   "ellipseNonApplicable": "ancrage 1T : pas de .pf-seat-avatar-slot",
+   "ellipse": {
+    "sieges": 0,
+    "rho": [],
+    "min": null,
+    "max": null,
+    "moyenne": 0,
+    "ecartType": 0
+   },
+   "hero": {
+    "basBlocHero": 673,
+    "airSousHero": 38,
+    "premierElement": "mtr-actions"
+   },
+   "surface": {
+    "cellule": {
+     "w": 866,
+     "h": 811
+    },
+    "feutre": {
+     "w": 710,
+     "h": 418
+    },
+    "tauxLargeur": 82,
+    "tauxHauteur": 52,
+    "tauxSurface": 42
+   }
+  },
+  {
+   "mode": "2T",
+   "ellipse": {
+    "sieges": 6,
+    "rho": [
+     0.9,
+     0.93,
+     0.93,
+     0.9,
+     0.93,
+     0.93
+    ],
+    "min": 0.9,
+    "max": 0.93,
+    "moyenne": 0.92,
+    "ecartType": 0.014
+   },
+   "hero": {
+    "basBlocHero": 615,
+    "airSousHero": 149,
+    "premierElement": "mtr-actions"
+   },
+   "surface": {
+    "cellule": {
+     "w": 421,
+     "h": 761
+    },
+    "feutre": {
+     "w": 394,
+     "h": 232
+    },
+    "tauxLargeur": 94,
+    "tauxHauteur": 30,
+    "tauxSurface": 28
+   }
+  },
+  {
    "mode": "3T",
    "ellipse": {
     "sieges": 6,
@@ -47,12 +113,12 @@
    "ellipse": {
     "sieges": 6,
     "rho": [
-     0.9,
      0.93,
      0.93,
      0.9,
      0.93,
-     0.93
+     0.93,
+     0.9
     ],
     "min": 0.9,
     "max": 0.93,
