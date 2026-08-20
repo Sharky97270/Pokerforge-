@@ -8354,9 +8354,22 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
         {isMobile&&zoomed&&ntables>1&&started&&!done&&(
           <button className="mt-zoom-reset" onClick={resetZoom}>↺ Zoom 100%</button>
         )}
-        {/* ── Barre historique dernières réponses ── */}
-        {started&&!done&&results.length>0&&(
-          <div style={{flexShrink:0,padding:"5px 14px",background:"linear-gradient(90deg,#030D2A,#040B1F)",borderTop:"1px solid #152D6E",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+        {/* ══ Barre historique dernières réponses — ESPACE RÉSERVÉ ══
+            Elle n'apparaissait qu'à la PREMIÈRE réponse et prenait alors 33 px
+            à la rangée de jeu : mesuré, les quatre cadres de table perdaient
+            33 px de hauteur d'un coup, en pleine session. Un cadre de table ne
+            doit jamais changer de taille parce qu'une main se termine.
+
+            La barre est donc TOUJOURS montée pendant la session, à hauteur
+            fixe ; seul son CONTENU est conditionnel. `nowrap` + scroll
+            horizontal : même à 8 pastilles sur une fenêtre étroite, elle ne
+            peut plus se replier sur deux lignes et regagner de la hauteur. */}
+        {started&&!done&&(
+          <div style={{flexShrink:0,height:33,boxSizing:"border-box",padding:"5px 14px",
+            background:"linear-gradient(90deg,#030D2A,#040B1F)",borderTop:"1px solid #152D6E",
+            display:"flex",alignItems:"center",gap:6,flexWrap:"nowrap",
+            overflowX:"auto",overflowY:"hidden",
+            visibility:results.length>0?"visible":"hidden"}}>
             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,marginRight:2,flexShrink:0}}>Historique :</span>
             <div style={{display:"flex",gap:3,alignItems:"center"}}>
               {results.slice(-8).map((r,i)=>{
