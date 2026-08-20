@@ -7,6 +7,85 @@
  "heroMin": 6,
  "rapport": [
   {
+   "mode": "1T",
+   "ellipseNonApplicable": "ancrage 1T : pas de .pf-seat-avatar-slot",
+   "ellipse": {
+    "sieges": 0,
+    "rho": [],
+    "min": null,
+    "max": null,
+    "moyenne": 0,
+    "ecartType": 0
+   },
+   "heroNonApplicable": "aucun element rendu sous le bloc Hero",
+   "hero": {
+    "basBlocHero": 682,
+    "airSousHero": null,
+    "premierElement": null
+   },
+   "labels": {
+    "coeurDetecte": 7,
+    "mesures": 40,
+    "chevauchements": 0,
+    "pastilles": 16
+   },
+   "surface": {
+    "cellule": {
+     "w": 0,
+     "h": 0
+    },
+    "feutre": {
+     "w": 710,
+     "h": 418
+    },
+    "tauxLargeur": null,
+    "tauxHauteur": null,
+    "tauxSurface": null
+   }
+  },
+  {
+   "mode": "2T",
+   "ellipse": {
+    "sieges": 6,
+    "rho": [
+     0.9,
+     0.93,
+     0.93,
+     0.9,
+     0.93,
+     0.93
+    ],
+    "min": 0.9,
+    "max": 0.93,
+    "moyenne": 0.92,
+    "ecartType": 0.014
+   },
+   "hero": {
+    "basBlocHero": 639,
+    "airSousHero": 125,
+    "premierElement": "mtr-actions"
+   },
+   "labels": {
+    "coeurDetecte": 13,
+    "mesures": 176,
+    "chevauchements": 0,
+    "pastilles": 80
+   },
+   "surface": {
+    "cellule": {
+     "w": 421,
+     "h": 761
+    },
+    "feutre": {
+     "w": 394,
+     "h": 232
+    },
+    "tauxLargeur": 94,
+    "tauxHauteur": 30,
+    "tauxSurface": 28
+   }
+  },
+  {
    "mode": "3T",
    "ellipse": {
     "sieges": 6,
@@ -24,9 +103,15 @@
     "ecartType": 0.014
    },
    "hero": {
-    "basBlocHero": 399,
-    "airSousHero": 10,
+    "basBlocHero": 408,
+    "airSousHero": 11,
     "premierElement": "mtr-actions"
+   },
+   "labels": {
+    "coeurDetecte": 13,
+    "mesures": 264,
+    "chevauchements": 0,
+    "pastilles": 120
    },
    "surface": {
     "cellule": {
@@ -47,12 +132,12 @@
    "ellipse": {
     "sieges": 6,
     "rho": [
-     0.9,
      0.93,
      0.93,
      0.9,
      0.93,
-     0.93
+     0.93,
+     0.9
     ],
     "min": 0.9,
     "max": 0.93,
@@ -60,9 +145,15 @@
     "ecartType": 0.014
    },
    "hero": {
-    "basBlocHero": 394,
-    "airSousHero": 16,
+    "basBlocHero": 402,
+    "airSousHero": 18,
     "premierElement": "mtr-actions"
+   },
+   "labels": {
+    "coeurDetecte": 28,
+    "mesures": 352,
+    "chevauchements": 0,
+    "pastilles": 160
    },
    "surface": {
     "cellule": {

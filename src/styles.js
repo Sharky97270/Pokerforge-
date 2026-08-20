@@ -510,7 +510,7 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    La marge est prise sur la ZONE DE TABLE (flex:1), pas sur le cadre : le
    feutre perd quelques pixels, la hauteur du cadre ne bouge pas — verifiable
    par npm run audit:layout. Mesure : npm run audit:finitions. */
-.grid3 .mtr-actions,.grid4 .mtr-actions{margin-top:9px!important;}
+.grid3 .mtr-actions,.grid4 .mtr-actions{margin-top:20px!important;}
 .grid4 .gto-btn-inner{padding:7px 6px 6px!important;}
 .grid4 .gto-btn-label{font-size:11px!important;}
 .grid4 .gto-btn-sizing{font-size:8px!important;padding:2px 5px!important;}
@@ -3980,7 +3980,9 @@ input:focus,select:focus,textarea:focus{
   .mtr-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#1F8BFF,#34D8FF);transition:width .4s cubic-bezier(.4,0,.2,1);}
   .mtr-acc{flex-shrink:0;text-align:center;line-height:1.15;}
   .mtr-acc .v{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;display:block;}
-  .mtr-acc .l{font-family:'Inter',sans-serif;font-size:6.5px;color:#6F81A8;font-weight:700;letter-spacing:.06em;display:block;}
+  /* Plancher de lisibilité (finitions §3), au mobile aussi : 6.5px sur un
+     téléphone tenu à bout de bras n'est plus un mot, c'est une tache. */
+  .mtr-acc .l{font-family:'Inter',sans-serif;font-size:7.5px;color:#6F81A8;font-weight:700;letter-spacing:.06em;display:block;}
   .mtr-ico-btn{
     width:34px;height:34px;border-radius:9px;flex-shrink:0;
     display:inline-flex;align-items:center;justify-content:center;
@@ -5687,9 +5689,9 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .seat-card-pos{font-size:10px!important;margin-top:1px!important;}
   .pf-player-seat[data-mode="1T"] .seat-card-stack{font-size:8px!important;}
   .pf-player-seat[data-mode="1T"] .seat-card-stats{display:none!important;}
-  .pf-player-seat[data-mode="1T"] .pf-seat-hero-chip{font-size:5.5px!important;padding:1px 5px!important;margin-top:-5px!important;margin-bottom:1px!important;}
+  .pf-player-seat[data-mode="1T"] .pf-seat-hero-chip{font-size:7.5px!important;padding:1px 5px!important;margin-top:-5px!important;margin-bottom:1px!important;}
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
-  .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:6px!important;padding:1px 5px!important;margin-top:1px!important;}
+  .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:7.5px!important;padding:1px 5px!important;margin-top:1px!important;}
 
   /* Cartes HERO agrandies ~+50% (26×36 → 40×56) : lisibles, dominantes vs board/villains (§3). */
   .card-1t-hero-mobile{width:40px!important;height:56px!important;border-radius:6px!important;}
@@ -5723,8 +5725,8 @@ export const CSS_TABLE=`
   .pf-action-chip-badge{max-width:92px!important;min-height:23px!important;padding:2px 5px!important;border-radius:8px!important;gap:3px!important;}
   .pf-action-chip-piles{transform:scale(.78)!important;transform-origin:center right!important;margin-right:-8px!important;}
   .pf-action-chip-piles>.pf-chip-stack{margin-left:-12px!important;}
-  .pf-action-chip-copy strong{font-size:6.6px!important;max-width:42px!important;}
-  .pf-action-chip-copy em{font-size:7px!important;}
+  .pf-action-chip-copy strong{font-size:8px!important;max-width:42px!important;}
+  .pf-action-chip-copy em{font-size:9.5px!important;}
   /* Hero-centric mobile : le héros occupe le bas-centre → on masque les libellés
      de contexte qui y étaient (redondants avec l'en-tête du bandeau de décision). */
   .t1-left .table-action-line{display:none!important;}
@@ -5753,12 +5755,12 @@ export const CSS_TABLE=`
      → moins de chevauchement entre sièges voisins. */
   .player-card-1t[data-dense="1"]{min-width:0!important;gap:0!important;}
   .player-card-1t[data-dense="1"] .pf-seat-nameplate{transform:scale(.8);transform-origin:top center;}
-  .player-card-1t[data-dense="1"] .seat-card-stats{font-size:6px!important;}
+  .player-card-1t[data-dense="1"] .seat-card-stats{font-size:7.5px!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.74)!important;z-index:24!important;}
   .pf-blind-art{width:24px!important;height:21px!important;border-radius:8px!important;}
   .pf-blind-art img{width:34px!important;transform:translate(-5px,-1px)!important;}
   .pf-blind-stack strong{font-size:9px!important;}
-  .pf-blind-stack em{min-width:18px!important;height:16px!important;font-size:6px!important;}
+  .pf-blind-stack em{min-width:18px!important;height:16px!important;font-size:8px!important;}
   .dealer-btn{width:16px!important;height:16px!important;font-size:7px!important;z-index:26!important;}
   .table-action-line{bottom:3.5%!important;max-width:86%!important;font-size:8px!important;padding:2px 8px!important;}
   .t1-left>div[style*="bottom: 1%"],
@@ -5769,7 +5771,7 @@ export const CSS_TABLE=`
   .pf-mt-seat .pf-avatar-premium::before{inset:-4px!important;}
   .pf-mt-seat .pf-avatar-art{inset:3px!important;}
   .pf-mt-nameplate{padding:2px 5px!important;border-radius:7px!important;margin-top:0!important;min-width:40px!important;}
-  .pf-mt-nameplate .pf-seat-hero-chip{font-size:5px!important;padding:1px 4px!important;}
+  .pf-mt-nameplate .pf-seat-hero-chip{font-size:7.5px!important;padding:1px 4px!important;}
   /* Multi-table (maquette V1) : la zone de table remplit le viewport (plus d'aspect-ratio figé). */
   .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:0!important;flex:1 1 auto!important;min-height:0!important;}
 
@@ -5982,6 +5984,37 @@ export const CSS_TABLE=`
   position:static!important;transform:none!important;bottom:auto!important;left:auto!important;margin-top:0!important;
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat .pf-seat-below>*{margin-top:0!important;}
+/* ══ §8 — LES LABELS SUIVENT LA POSITION DU SIÈGE ══
+   Mesuré avant : décalage IDENTIQUE sur les six sièges (plaque +19.9px,
+   pastille +26.3px, dx=0). Or « en dessous » ne veut pas dire la même chose
+   selon l'endroit de l'anneau : pour un siège HAUT, en dessous, c'est LE
+   BOARD. La pastille du siège haut le chevauchait — distance mesurée 0px.
+
+   Les cartes, elles, restent dehors : ce sont le plus gros élément du bloc,
+   et les envoyer vers le centre aggraverait l'emprise au lieu de la réduire.
+   Seule la pastille bascule, et elle part sur le FLANC — à hauteur d'avatar,
+   donc hors du couloir qui mène au board.
+
+   Le siège fautif est celui du HAUT-CENTRE (x=50 %) : il n'a pas de « dehors »
+   latéral, et c'est pourtant lui qui chevauchait. On l'envoie sur le flanc
+   gauche, où ses voisins sont loin (mesuré : x=15 % et x=84 %). D'où le
+   « :not(.pf-mt-seat-right) » plutôt qu'un « .pf-mt-seat-left » qui l'aurait
+   laissé de côté.
+
+   LE FLANC NE VAUT QUE POUR LES SIÈGES HAUTS. Tenté sur le siège du BAS
+   (Hero), dont « en dessous » désigne le bandeau de décision : le résultat
+   EMPIRE — 12 chevauchements en 3T, 10 en 4T. Pour un siège bas-centre, sa
+   gauche et sa droite sont encore DANS le feutre, donc sur le board. Sa
+   pastille reste sous lui, et c'est la marge de sécurité qui l'absorbe (§5).
+   Vérifiable : npm run audit:finitions. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-mt-seat-top:not(.pf-mt-seat-right)>.pf-seat-below{
+  top:50%!important;left:auto!important;right:100%!important;
+  transform:translateY(-50%)!important;margin:0 3px 0 0!important;
+}
+:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-mt-seat-top.pf-mt-seat-right>.pf-seat-below{
+  top:50%!important;left:100%!important;right:auto!important;
+  transform:translateY(-50%)!important;margin:0 0 0 3px!important;
+}
 /* Le macaron « TOI » / « IA… » vivait à top:-16px DANS le slot avatar : depuis
    que les cartes sont collées au-dessus de l'avatar, il tombait dessus. On le
    sort sur le FLANC intérieur du siège, où il ne croise ni cartes ni plaque. */

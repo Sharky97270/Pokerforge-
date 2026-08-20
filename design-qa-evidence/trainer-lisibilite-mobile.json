@@ -1,0 +1,16 @@
+{
+ "viewport": [
+  390,
+  844
+ ],
+ "plancherPx": 7,
+ "rapport": [
+  {
+   "mode": "1T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 59,
+   "ok": true
+  }
+ ]
+}

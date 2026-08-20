@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * trainer-finitions-audit — TROIS MESURES DE FINITION.
+ * trainer-finitions-audit — QUATRE MESURES DE FINITION.
  *
  * ① ELLIPSE DES SIÈGES (§7). Tous les avatars doivent se poser sur UNE MÊME
  *    ellipse dérivée de l'anneau doré. On mesure le rayon normalisé ρ du
@@ -16,6 +16,11 @@
  * ③ SURFACE UTILISÉE (§6). Part de la cellule de grille réellement occupée
  *    par le feutre. Une valeur basse signale de l'espace perdu — surtout
  *    attendu en 3T.
+ *
+ * ④ LABELS DE SIEGE (§8). « En dessous de l avatar » ne veut pas dire la meme
+ *    chose selon l endroit de l anneau : pour un siege HAUT, en dessous, c est
+ *    le board. On verifie la CONSEQUENCE — un label qui touche le board ou le
+ *    pot — plutot que la valeur des decalages.
  *
  * Usage :
  *   node scripts/trainer-finitions-audit.mjs
@@ -74,21 +79,33 @@ try {
       B(/Nouvelle session/)?.click();   await w(1100);
       setT(mode);                       await w(500);
       B(/Lancer la session/)?.click();  await w(4200);
+      /* JOUER UNE ACTION AVANT DE MESURER. Au préflop il n'y a ni board, ni
+         pot conséquent, ni pastille « Fold » : la mesure ④ ne pouvait alors
+         RIEN chevaucher et passait au vert même sur le code non corrigé.
+         Un audit qui n'atteint pas l'état qu'il prétend contrôler ne prouve
+         pas plus qu'un audit incapable d'échouer. */
+      const actions = [...document.querySelectorAll('.gto-btn')].filter(vis);
+      if (actions.length) { actions[0].click(); await w(1500); }
 
       const o = { mode: mode + 'T' };
-      /* Une table = un `.tw`. Les sièges ne sont PAS dans `.felt-oval` : ils
-         sont ses frères dans `.training-table-zone`. Chercher les sièges sous
-         le feutre renvoyait zéro — et un audit qui ne trouve rien passait au
-         vert sans rien avoir mesuré. */
-      const table = document.querySelector('.tw');
+      /* Les sièges ne sont PAS dans `.felt-oval` : ils en sont les frères dans
+         `.training-table-zone`. Les chercher sous le feutre renvoyait zéro — et
+         un audit qui ne trouve rien passait au vert sans rien avoir mesuré.
+         Une table = `.tw` en mosaïque, `.t1-left` en 1T : le 1T a sa propre
+         structure (t1-zone-fit / t1-table-area) et n'utilise pas les mêmes
+         classes de siège. Chercher `.tw` partout faisait échouer le 1T pour une
+         raison de sélecteur, pas de produit. */
+      const table = document.querySelector('.tw') || document.querySelector('.t1-left');
       const felt = table?.querySelector('.felt-oval');
       if (!table || !felt) { o.err = 'table ou feutre absent'; return o; }
       const F = felt.getBoundingClientRect();
       const fx = F.x + F.width / 2, fy = F.y + F.height / 2;
 
-      /* ① ρ par siège — centre du MÉDAILLON, pas du bloc. */
+      /* ① ρ par siège — centre du MÉDAILLON, pas du bloc.
+         `.pf-seat-avatar-slot` n'existe qu'en mosaïque (ancrage par le centre
+         de l'avatar, §7). En 1T on le DIT plutôt que de faire semblant. */
       const slots = [...table.querySelectorAll('.pf-seat-avatar-slot')].filter(vis);
-      if (!slots.length) { o.err = 'aucun siège mesurable'; return o; }
+      if (!slots.length) o.ellipseNonApplicable = 'ancrage 1T : pas de .pf-seat-avatar-slot';
       const rhos = slots.map(e => {
         const r = e.getBoundingClientRect();
         const dx = (r.x + r.width / 2 - fx) / (F.width / 2);
@@ -116,10 +133,50 @@ try {
           .map(e => ({ px: Math.round(e.getBoundingClientRect().top - bas),
                        quoi: (e.className || '').toString().split(' ')[0] }))
           .sort((a, b) => a.px - b.px);
+        /* Aucun element sous Hero = rien a mesurer (le bandeau de decision
+           disparait en 1T une fois la main jouee). On le DIT. */
+        if (!sous.length) o.heroNonApplicable = 'aucun element rendu sous le bloc Hero';
         o.hero = { basBlocHero: Math.round(bas),
                    airSousHero: sous.length ? sous[0].px : null,
                    premierElement: sous.length ? sous[0].quoi : null };
       }
+
+      /* ④ §8 — AUCUN LABEL DE SIÈGE SUR LE CŒUR DE LA TABLE.
+         « En dessous de l'avatar » ne veut pas dire la même chose selon
+         l'endroit de l'anneau : pour un siège HAUT, en dessous, c'est le
+         board. Mesuré avant correction : la pastille du siège haut-centre le
+         CHEVAUCHAIT (distance 0px). On vérifie la conséquence — un label qui
+         touche le board ou le pot — et non la valeur des décalages. */
+      const croise = (r, s) => !(r.right < s.left || r.left > s.right || r.bottom < s.top || r.top > s.bottom);
+      /* Balayage sur TOUTES les tables et sur PLUSIEURS mains. Ne regarder
+         qu'une table à un instant rendait le contrôle dépendant du tirage :
+         le défaut n'apparaît que si un siège HAUT a jeté (la pastille existe)
+         et que le board est sorti. Une seule observation passait au vert sur
+         du code pourtant fautif. */
+      let mesures = 0, chevauchements = 0, coeurVus = 0, avecPastille = 0;
+      for (let tour = 0; tour < 4; tour++) {
+        const tables = document.querySelectorAll('.tw').length ? document.querySelectorAll('.tw') : document.querySelectorAll('.t1-left');
+        for (const t of tables) {
+          if (!vis(t)) continue;
+          const coeur = [...t.querySelectorAll('.mt-board-zone,.pf-board-zone,[class*="pot-readout"]')]
+            .filter(vis).map(e => e.getBoundingClientRect());
+          coeurVus += coeur.length;
+          for (const s of [...t.querySelectorAll('.pf-mt-seat,.pf-player-seat')].filter(vis)) {
+            for (const sel of ['.pf-mt-nameplate', '.pf-seat-nameplate', '.pf-seat-above', '.pf-seat-below', '.pf-fold-chip']) {
+              const e = s.querySelector(sel); if (!e || !vis(e)) continue;
+              if (sel === '.pf-seat-below' || sel === '.pf-fold-chip') avecPastille++;
+              mesures++;
+              const r = e.getBoundingClientRect();
+              if (coeur.some(c => croise(r, c))) chevauchements++;
+            }
+          }
+        }
+        const act = [...document.querySelectorAll('.gto-btn')].filter(vis);
+        if (act.length) { act[tour % act.length].click(); await w(800); }
+        const cta = document.querySelector('.pf-p2-next');
+        if (cta && !cta.disabled) { cta.click(); await w(900); }
+      }
+      o.labels = { coeurDetecte: coeurVus, mesures, chevauchements, pastilles: avecPastille };
 
       /* ③ Surface de cellule réellement occupée par le feutre. */
       const slot = table.closest('.mt-slot') || table;
@@ -138,14 +195,24 @@ try {
 
     rapport.push(res);
     const el = res.ellipse || {};
-    /* Rien de mesuré = ÉCHEC, jamais un vert muet. */
-    const okEllipse = !res.err && el.sieges > 0 && el.ecartType != null && el.ecartType <= RHO_MAX;
-    const okHero = !res.err && res.hero?.airSousHero != null && res.hero.airSousHero >= HERO_MIN;
-    if (!okEllipse || !okHero) failed++;
+    /* Rien de mesuré = ÉCHEC, jamais un vert muet — sauf quand le mode ne
+       PEUT pas porter la mesure : on le dit alors explicitement. */
+    const okEllipse = !res.err && (res.ellipseNonApplicable
+      || (el.sieges > 0 && el.ecartType != null && el.ecartType <= RHO_MAX));
+    const okHero = !res.err && (res.heroNonApplicable
+      || (res.hero?.airSousHero != null && res.hero.airSousHero >= HERO_MIN));
+    /* §8 : un label sur le board est un defaut, et zero label mesure aussi. */
+    const okLabels = !res.err && res.labels?.mesures > 0 && res.labels.chevauchements === 0;
+    if (!okEllipse || !okHero || !okLabels) failed++;
     if (res.err) { console.log(`❌ ${res.mode} — ${res.err}`); continue; }
-    console.log(`${okEllipse && okHero ? '✅' : '❌'} ${res.mode}`);
-    console.log(`   ① ellipse : ${el.sieges} sièges · ρ ${el.min}→${el.max} · écart-type ${el.ecartType} (seuil ${RHO_MAX})`);
-    console.log(`   ② Hero    : ${res.hero?.airSousHero ?? '—'}px d'air, puis « ${res.hero?.premierElement ?? '?'} » (seuil ${HERO_MIN})`);
+    console.log(`${okEllipse && okHero && okLabels ? '✅' : '❌'} ${res.mode}`);
+    console.log(res.ellipseNonApplicable
+      ? `   ① ellipse : non mesurable ici — ${res.ellipseNonApplicable}`
+      : `   ① ellipse : ${el.sieges} sièges · ρ ${el.min}→${el.max} · écart-type ${el.ecartType} (seuil ${RHO_MAX})`);
+    console.log(res.heroNonApplicable
+      ? `   ② Hero    : non mesurable ici — ${res.heroNonApplicable}`
+      : `   ② Hero    : ${res.hero?.airSousHero ?? '—'}px d'air, puis « ${res.hero?.premierElement ?? '?'} » (seuil ${HERO_MIN})`);
+    console.log(`   ④ labels  : ${res.labels?.mesures ?? 0} mesures dont ${res.labels?.pastilles ?? 0} pastilles · ${res.labels?.chevauchements ?? '?'} sur le board/pot (attendu 0)`);
     console.log(`   ③ surface : feutre ${res.surface?.tauxLargeur ?? '?'}% de la largeur · ${res.surface?.tauxHauteur ?? '?'}% de la hauteur`);
   }
 

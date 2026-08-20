@@ -6,17 +6,31 @@
  "plancherPx": 7,
  "rapport": [
   {
+   "mode": "1T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 85,
+   "ok": true
+  },
+  {
+   "mode": "2T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 57,
+   "ok": true
+  },
+  {
    "mode": "3T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 60,
+   "nbTextes": 49,
    "ok": true
   },
   {
    "mode": "4T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 58,
+   "nbTextes": 48,
    "ok": true
   }
  ]
