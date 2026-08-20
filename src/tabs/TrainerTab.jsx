@@ -3764,7 +3764,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
          sur quatre présentait son résultat autrement que les trois autres —
          c'est ce qui casse la lecture périphérique. En 1T il n'y a rien à
          comparer et la place ne manque pas : le bandeau y reste. */
-      if(numTables===1){
+      /* Ni en mosaïque (le bandeau flottait sur le feutre d'UNE table sur
+         quatre), ni au mobile : mesuré à l'écran, il y recouvre l'en-tête de
+         l'application alors que le verdict — même mot, même EV perdue — est
+         déjà affiché juste sous la table, en permanence. Il ne reste donc
+         qu'en 1T de bureau, où il ne masque rien. */
+      if(numTables===1&&!isMobile){
         setShowToast(showSol?`Sous-optimal - ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal - revele la solution pour le detail GTO");
         setTimeout(()=>{setShowToast(null);},3200);
       }

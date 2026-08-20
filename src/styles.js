@@ -3980,7 +3980,9 @@ input:focus,select:focus,textarea:focus{
   .mtr-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#1F8BFF,#34D8FF);transition:width .4s cubic-bezier(.4,0,.2,1);}
   .mtr-acc{flex-shrink:0;text-align:center;line-height:1.15;}
   .mtr-acc .v{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;display:block;}
-  .mtr-acc .l{font-family:'Inter',sans-serif;font-size:6.5px;color:#6F81A8;font-weight:700;letter-spacing:.06em;display:block;}
+  /* Plancher de lisibilité (finitions §3), au mobile aussi : 6.5px sur un
+     téléphone tenu à bout de bras n'est plus un mot, c'est une tache. */
+  .mtr-acc .l{font-family:'Inter',sans-serif;font-size:7.5px;color:#6F81A8;font-weight:700;letter-spacing:.06em;display:block;}
   .mtr-ico-btn{
     width:34px;height:34px;border-radius:9px;flex-shrink:0;
     display:inline-flex;align-items:center;justify-content:center;
@@ -5687,9 +5689,9 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .seat-card-pos{font-size:10px!important;margin-top:1px!important;}
   .pf-player-seat[data-mode="1T"] .seat-card-stack{font-size:8px!important;}
   .pf-player-seat[data-mode="1T"] .seat-card-stats{display:none!important;}
-  .pf-player-seat[data-mode="1T"] .pf-seat-hero-chip{font-size:5.5px!important;padding:1px 5px!important;margin-top:-5px!important;margin-bottom:1px!important;}
+  .pf-player-seat[data-mode="1T"] .pf-seat-hero-chip{font-size:7.5px!important;padding:1px 5px!important;margin-top:-5px!important;margin-bottom:1px!important;}
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
-  .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:6px!important;padding:1px 5px!important;margin-top:1px!important;}
+  .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:7.5px!important;padding:1px 5px!important;margin-top:1px!important;}
 
   /* Cartes HERO agrandies ~+50% (26×36 → 40×56) : lisibles, dominantes vs board/villains (§3). */
   .card-1t-hero-mobile{width:40px!important;height:56px!important;border-radius:6px!important;}
@@ -5723,8 +5725,8 @@ export const CSS_TABLE=`
   .pf-action-chip-badge{max-width:92px!important;min-height:23px!important;padding:2px 5px!important;border-radius:8px!important;gap:3px!important;}
   .pf-action-chip-piles{transform:scale(.78)!important;transform-origin:center right!important;margin-right:-8px!important;}
   .pf-action-chip-piles>.pf-chip-stack{margin-left:-12px!important;}
-  .pf-action-chip-copy strong{font-size:6.6px!important;max-width:42px!important;}
-  .pf-action-chip-copy em{font-size:7px!important;}
+  .pf-action-chip-copy strong{font-size:8px!important;max-width:42px!important;}
+  .pf-action-chip-copy em{font-size:9.5px!important;}
   /* Hero-centric mobile : le héros occupe le bas-centre → on masque les libellés
      de contexte qui y étaient (redondants avec l'en-tête du bandeau de décision). */
   .t1-left .table-action-line{display:none!important;}
@@ -5753,12 +5755,12 @@ export const CSS_TABLE=`
      → moins de chevauchement entre sièges voisins. */
   .player-card-1t[data-dense="1"]{min-width:0!important;gap:0!important;}
   .player-card-1t[data-dense="1"] .pf-seat-nameplate{transform:scale(.8);transform-origin:top center;}
-  .player-card-1t[data-dense="1"] .seat-card-stats{font-size:6px!important;}
+  .player-card-1t[data-dense="1"] .seat-card-stats{font-size:7.5px!important;}
   .pf-blind-anchor{transform:translate(-50%,-50%) scale(.74)!important;z-index:24!important;}
   .pf-blind-art{width:24px!important;height:21px!important;border-radius:8px!important;}
   .pf-blind-art img{width:34px!important;transform:translate(-5px,-1px)!important;}
   .pf-blind-stack strong{font-size:9px!important;}
-  .pf-blind-stack em{min-width:18px!important;height:16px!important;font-size:6px!important;}
+  .pf-blind-stack em{min-width:18px!important;height:16px!important;font-size:8px!important;}
   .dealer-btn{width:16px!important;height:16px!important;font-size:7px!important;z-index:26!important;}
   .table-action-line{bottom:3.5%!important;max-width:86%!important;font-size:8px!important;padding:2px 8px!important;}
   .t1-left>div[style*="bottom: 1%"],
@@ -5769,7 +5771,7 @@ export const CSS_TABLE=`
   .pf-mt-seat .pf-avatar-premium::before{inset:-4px!important;}
   .pf-mt-seat .pf-avatar-art{inset:3px!important;}
   .pf-mt-nameplate{padding:2px 5px!important;border-radius:7px!important;margin-top:0!important;min-width:40px!important;}
-  .pf-mt-nameplate .pf-seat-hero-chip{font-size:5px!important;padding:1px 4px!important;}
+  .pf-mt-nameplate .pf-seat-hero-chip{font-size:7.5px!important;padding:1px 4px!important;}
   /* Multi-table (maquette V1) : la zone de table remplit le viewport (plus d'aspect-ratio figé). */
   .grid2 .training-table-zone,.grid3 .training-table-zone,.grid4 .training-table-zone{padding-bottom:0!important;flex:1 1 auto!important;min-height:0!important;}
 

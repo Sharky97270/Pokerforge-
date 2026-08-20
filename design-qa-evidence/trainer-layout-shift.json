@@ -38,14 +38,14 @@
   },
   {
    "mode": "3T",
-   "releves": 16,
+   "releves": 15,
    "ecarts": [],
    "couverture": {
     "action": 5,
     "resultat": 3,
     "verdictDecision": 3,
     "solutionOuverte": 1,
-    "raccourciLot": 2
+    "raccourciLot": 1
    },
    "ref": [
     {
@@ -75,14 +75,15 @@
   },
   {
    "mode": "4T",
-   "releves": 16,
+   "releves": 17,
    "ecarts": [],
    "couverture": {
     "action": 6,
     "resultat": 3,
     "verdictDecision": 3,
     "solutionOuverte": 1,
-    "raccourciLot": 1
+    "raccourciLot": 2,
+    "coupComplet": 1
    },
    "ref": [
     {
