@@ -1,0 +1,37 @@
+{
+ "viewport": [
+  1600,
+  950
+ ],
+ "plancherPx": 7,
+ "rapport": [
+  {
+   "mode": "1T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 85,
+   "ok": true
+  },
+  {
+   "mode": "2T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 70,
+   "ok": true
+  },
+  {
+   "mode": "3T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 66,
+   "ok": true
+  },
+  {
+   "mode": "4T",
+   "trop_petit": [],
+   "arrondis": [],
+   "nbTextes": 64,
+   "ok": true
+  }
+ ]
+}

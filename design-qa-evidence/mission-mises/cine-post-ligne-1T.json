@@ -1,0 +1,128 @@
+{
+ "summary": {
+  "mode": "1T",
+  "viewport": "1600x950",
+  "décisions": 3,
+  "potChangeSansJetonEnMouvement": "2/3",
+  "changementsDeStreetObservés": 2,
+  "collecteVisible": "1/2",
+  "ghostChipsAprèsStreet": [],
+  "pointsDeDépartDeVolDistincts": 16,
+  "erreursPage": []
+ },
+ "decisions": [
+  {
+   "action": "Open 3bb3bb75% pot",
+   "relevés": 16,
+   "potChanges": [
+    {
+     "at": 76,
+     "de": "POT1.5bb",
+     "vers": "POT4bb"
+    },
+    {
+     "at": 109,
+     "de": "POT4bb",
+     "vers": "POT1.5bb"
+    },
+    {
+     "at": 546,
+     "de": "POT1.5bb",
+     "vers": "POT4bb"
+    },
+    {
+     "at": 979,
+     "de": "POT4bb",
+     "vers": "POT7bb"
+    },
+    {
+     "at": 1026,
+     "de": "POT7bb",
+     "vers": "POT4bb"
+    },
+    {
+     "at": 1490,
+     "de": "POT4bb",
+     "vers": "POT7bb"
+    }
+   ],
+   "firstFly": 76,
+   "firstBetAppear": 76,
+   "streetChangeAt": null,
+   "boardChangeAt": 2493,
+   "potAvantJetons": true,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": 2493,
+   "pointsDeDepartDistincts": 16,
+   "maxTasSimultanes": 2
+  },
+  {
+   "action": "Bet ½3bb",
+   "relevés": 10,
+   "potChanges": [
+    {
+     "at": 26,
+     "de": "POT7bb",
+     "vers": "POT10.5bb"
+    },
+    {
+     "at": 59,
+     "de": "POT10.5bb",
+     "vers": "POT7bb"
+    },
+    {
+     "at": 517,
+     "de": "POT7bb",
+     "vers": "POT10.5bb"
+    },
+    {
+     "at": 850,
+     "de": "POT10.5bb",
+     "vers": "POT14bb"
+    },
+    {
+     "at": 868,
+     "de": "POT14bb",
+     "vers": "POT10.5bb"
+    },
+    {
+     "at": 1351,
+     "de": "POT10.5bb",
+     "vers": "POT14bb"
+    }
+   ],
+   "firstFly": 26,
+   "firstBetAppear": 26,
+   "streetChangeAt": null,
+   "boardChangeAt": 850,
+   "potAvantJetons": true,
+   "collecteVisible": true,
+   "ghostChips": [],
+   "transitionAt": 850,
+   "pointsDeDepartDistincts": 6,
+   "maxTasSimultanes": 1
+  },
+  {
+   "action": "Bet ½7bb",
+   "relevés": 5,
+   "potChanges": [
+    {
+     "at": 515,
+     "de": "POT14bb",
+     "vers": "POT21bb"
+    }
+   ],
+   "firstFly": 29,
+   "firstBetAppear": 515,
+   "streetChangeAt": null,
+   "boardChangeAt": null,
+   "potAvantJetons": false,
+   "collecteVisible": false,
+   "ghostChips": [],
+   "transitionAt": null,
+   "pointsDeDepartDistincts": 3,
+   "maxTasSimultanes": 1
+  }
+ ]
+}
