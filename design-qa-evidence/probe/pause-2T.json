@@ -1,0 +1,162 @@
+{
+  "option": "Chaque action",
+  "nt": 2,
+  "steps": [
+    {
+      "step": "T0",
+      "tiles": [
+        {
+          "t": 1,
+          "paused": false,
+          "bar": false,
+          "barText": null
+        },
+        {
+          "t": 2,
+          "paused": false,
+          "bar": false,
+          "barText": null
+        }
+      ],
+      "counter": null,
+      "active": 1
+    },
+    {
+      "step": "table1 repond (FoldNe pas jouer)",
+      "tiles": [
+        {
+          "t": 1,
+          "paused": true,
+          "bar": true,
+          "barText": "⏸\nTABLE EN PAUSE\nTable 1\nTon action : Fold\nEV : 0bb\n≈ heuristique\n▶ Continuer"
+        },
+        {
+          "t": 2,
+          "paused": false,
+          "bar": false,
+          "barText": null
+        }
+      ],
+      "counter": "⏸ 1 table en pause",
+      "active": 1
+    },
+    {
+      "step": "table2 repond (Check0bbPasser)",
+      "tiles": [
+        {
+          "t": 1,
+          "paused": true,
+          "bar": true,
+          "barText": "⏸\nTABLE EN PAUSE\nTable 1\nTon action : Fold\nEV : 0bb\n≈ heuristique\n▶ Continuer"
+        },
+        {
+          "t": 2,
+          "paused": true,
+          "bar": true,
+          "barText": "⏸\nTABLE EN PAUSE\nTable 2\nTon action : Check\nOptimale : Cbet 33%\nEV : -0.8bb\n≈ heuristique\n▶ Continuer"
+        }
+      ],
+      "counter": "⏸ 2 tables en pause ▶ Continuer toutes",
+      "continueAll": true,
+      "active": 1
+    },
+    {
+      "step": "continuer table1",
+      "tiles": [
+        {
+          "t": 1,
+          "paused": false,
+          "bar": false,
+          "barText": null
+        },
+        {
+          "t": 2,
+          "paused": true,
+          "bar": true,
+          "barText": "⏸\nTABLE EN PAUSE\nTable 2\nTon action : Check\nOptimale : Cbet 33%\nEV : -0.8bb\n≈ heuristique\n▶ Continuer"
+        }
+      ],
+      "counter": "⏸ 1 table en pause"
+    }
+  ],
+  "controle": {
+    "groupRole": "radiogroup",
+    "options": [
+      {
+        "l": "Jamais",
+        "on": true,
+        "checked": "true",
+        "role": "radio",
+        "tabindex": "0",
+        "h": 28,
+        "w": 47
+      },
+      {
+        "l": "Erreur",
+        "on": false,
+        "checked": "false",
+        "role": "radio",
+        "tabindex": "-1",
+        "h": 28,
+        "w": 47
+      },
+      {
+        "l": "Imprécision+",
+        "on": false,
+        "checked": "false",
+        "role": "radio",
+        "tabindex": "-1",
+        "h": 28,
+        "w": 47
+      },
+      {
+        "l": "Chaque action",
+        "on": false,
+        "checked": "false",
+        "role": "radio",
+        "tabindex": "-1",
+        "h": 28,
+        "w": 47
+      }
+    ]
+  },
+  "apresSelection": [
+    {
+      "l": "Jamais",
+      "on": false,
+      "checked": "false",
+      "role": "radio",
+      "tabindex": "-1",
+      "h": 28,
+      "w": 47
+    },
+    {
+      "l": "Erreur",
+      "on": false,
+      "checked": "false",
+      "role": "radio",
+      "tabindex": "-1",
+      "h": 28,
+      "w": 47
+    },
+    {
+      "l": "Imprécision+",
+      "on": false,
+      "checked": "false",
+      "role": "radio",
+      "tabindex": "-1",
+      "h": 28,
+      "w": 47
+    },
+    {
+      "l": "Chaque action",
+      "on": true,
+      "checked": "true",
+      "role": "radio",
+      "tabindex": "0",
+      "h": 28,
+      "w": 47
+    }
+  ],
+  "consoleErrors": []
+}

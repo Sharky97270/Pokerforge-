@@ -19,21 +19,36 @@ const C = (r, s) => ({ r, s });
   eq(handNotation([]), null, "sans cartes → null");
 }
 
-/* ── 2. Détection push/fold résoluble ── */
+/* ── 2. Détection push/fold résoluble ──
+   Les spots portent désormais la STRUCTURE du coup (positions, format, nombre de
+   joueurs) : sans elle, on ne peut pas savoir si le modèle heads-up chip-EV du
+   solveur s'applique. Les spots de l'ancienne version de ce test étaient muets
+   là-dessus — c'est précisément pour ça qu'un BTN de 6-max passait le contrôle. */
 {
-  const jam = { street: "Preflop", stack: "12bb", toCall: 0, acts: [{ id: "FOLD", l: "Fold" }, { id: "ALLIN", l: "Push 12bb" }] };
-  ok(isSolvablePushFold(jam), "jam 12bb préflop = résoluble");
-  const call = { street: "Preflop", stack: "10bb", toCall: 10, acts: [{ id: "FOLD", l: "Fold" }, { id: "CALL", l: "Call" }] };
-  ok(isSolvablePushFold(call), "call d'un jam 10bb = résoluble");
-  ok(!isSolvablePushFold({ street: "Flop", stack: "10bb", acts: [{ id: "FOLD" }, { id: "ALLIN" }] }), "postflop non résoluble ici");
-  ok(!isSolvablePushFold({ street: "Preflop", stack: "100bb", toCall: 0, acts: [{ id: "FOLD" }, { id: "ALLIN" }] }), "100bb hors zone push/fold");
-  ok(!isSolvablePushFold({ street: "Preflop", stack: "12.5bb", toCall: 0, acts: [{ id: "FOLD" }, { id: "ALLIN" }] }), "tapis fractionnaire non tabulé");
-  ok(!isSolvablePushFold({ street: "Preflop", stack: "10bb", toCall: 0, acts: [{ id: "FOLD" }, { id: "RAISE" }] }), "open (non jam) non résoluble");
+  const HU = { hpos: "SB", vpos: "BB", fmt: "Cash HU", nplayers: 2 };
+  const jam = { street: "Preflop", stack: "12bb", toCall: 0, ...HU, acts: [{ id: "FOLD", l: "Fold" }, { id: "ALLIN", l: "Push 12bb" }] };
+  ok(isSolvablePushFold(jam), "jam SB 12bb heads-up = résoluble");
+  const call = { street: "Preflop", stack: "10bb", toCall: 10, hpos: "BB", vpos: "SB", fmt: "Cash HU", nplayers: 2, acts: [{ id: "FOLD", l: "Fold" }, { id: "CALL", l: "Call" }] };
+  ok(isSolvablePushFold(call), "call BB d'un jam 10bb heads-up = résoluble");
+  ok(!isSolvablePushFold({ street: "Flop", stack: "10bb", ...HU, acts: [{ id: "FOLD" }, { id: "ALLIN" }] }), "postflop non résoluble ici");
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "100bb", toCall: 0, ...HU, acts: [{ id: "FOLD" }, { id: "ALLIN" }] }), "100bb hors zone push/fold");
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "12.5bb", toCall: 0, ...HU, acts: [{ id: "FOLD" }, { id: "ALLIN" }] }), "tapis fractionnaire non tabulé");
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "10bb", toCall: 0, ...HU, acts: [{ id: "FOLD" }, { id: "RAISE" }] }), "open (non jam) non résoluble");
+
+  /* ── Les refus AJOUTÉS : le moteur est heads-up et chip-EV, il doit le rester ── */
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "25bb", toCall: 0, hpos: "BTN", vpos: "BB", fmt: "Cash 6-max", acts: [{ id: "FOLD" }, { id: "ALLIN" }] }),
+    "BTN 25bb Cash 6-max REFUSÉ — trois joueurs peuvent encore payer");
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "12bb", toCall: 0, ...HU, fmt: "MTT ICM", acts: [{ id: "FOLD" }, { id: "ALLIN" }] }),
+    "MTT ICM refusé — le moteur n'a aucune contrainte ICM");
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "12bb", toCall: 0, ...HU, fmt: "Spin & Go", acts: [{ id: "FOLD" }, { id: "ALLIN" }] }),
+    "Spin & Go refusé — barème de gains ICM");
+  ok(!isSolvablePushFold({ street: "Preflop", stack: "12bb", toCall: 0, hpos: "SB", vpos: "BB", acts: [{ id: "FOLD" }, { id: "ALLIN" }] }),
+    "format absent refusé — on ne suppose pas chipEV");
 }
 
 /* ── 3. Jam : AA jam ~100%, 72o fold — solution SOLVEUR ── */
 {
-  const spot = (hand) => ({ street: "Preflop", stack: "10bb", toCall: 0, hpos: "SB", vpos: "BB", hand,
+  const spot = (hand) => ({ street: "Preflop", stack: "10bb", toCall: 0, hpos: "SB", vpos: "BB", fmt: "Cash HU", nplayers: 2, hand,
     acts: [{ id: "FOLD", l: "Fold" }, { id: "ALLIN", l: "Push 10bb" }], ok: 0, freq: {} });
   const aa = resolveSpotStrategy(spot([C("A","♠"), C("A","♥")]));
   eq(aa.source, "solver", "AA : source solveur");
@@ -47,7 +62,7 @@ const C = (r, s) => ({ r, s });
 
 /* ── 4. Call d'un jam : utilise bbCall (AA call, 72o fold) ── */
 {
-  const spot = (hand) => ({ street: "Preflop", stack: "10bb", toCall: 10, hpos: "BB", vpos: "SB", hand,
+  const spot = (hand) => ({ street: "Preflop", stack: "10bb", toCall: 10, hpos: "BB", vpos: "SB", fmt: "Cash HU", nplayers: 2, hand,
     acts: [{ id: "FOLD", l: "Fold" }, { id: "CALL", l: "Call 10bb" }], ok: 0, freq: {} });
   const aa = resolveSpotStrategy(spot([C("A","♠"), C("A","♥")]));
   eq(aa.ok, 1, "AA face au jam : call");
@@ -63,11 +78,13 @@ const C = (r, s) => ({ r, s });
   eq(r.source, "heuristic", "postflop = heuristique");
   eq(r.ok, 1, "ok du template préservé");
   ok(!r.solved, "non solvé");
+  ok(/Estimation heuristique/.test(r.note), `libellé honnête (${r.note})`);
+  ok(Array.isArray(r.limits) && r.limits.length > 0, "le repli dit POURQUOI il n'a pas été résolu");
 }
 
 /* ── 6. applySolverStrategy : mute le spot + tag provenance ── */
 {
-  const spot = { street: "Preflop", stack: "8bb", toCall: 0, hand: [C("A","♠"), C("A","♥")],
+  const spot = { street: "Preflop", stack: "8bb", toCall: 0, hpos: "SB", vpos: "BB", fmt: "Cash HU", nplayers: 2, hand: [C("A","♠"), C("A","♥")],
     acts: [{ id: "FOLD", l: "Fold" }, { id: "ALLIN", l: "Push 8bb" }], ok: 0, freq: {}, best: "Fold" };
   applySolverStrategy(spot);
   eq(spot.strategySource, "solver", "tag source solveur");
@@ -86,7 +103,7 @@ const C = (r, s) => ({ r, s });
 {
   const sol = solvePreflopPushFold(15);
   ok(sol.sbJam["AA"].r >= 99, "API : AA jam ~100% à 15bb");
-  const spot = { street: "Preflop", stack: "15bb", toCall: 0, hand: [C("A","♠"), C("A","♥")],
+  const spot = { street: "Preflop", stack: "15bb", toCall: 0, hpos: "SB", vpos: "BB", fmt: "Cash HU", nplayers: 2, hand: [C("A","♠"), C("A","♥")],
     acts: [{ id: "FOLD" }, { id: "ALLIN", l: "Push" }], ok: 0, freq: {} };
   const r = resolveSpotStrategy(spot);
   eq(r.freq.ALLIN, Math.round(sol.sbJam["AA"].r * 10) / 10, "fréquence Trainer = fréquence API");

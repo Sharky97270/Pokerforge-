@@ -20,6 +20,7 @@
 
 import { solvePreflopPushFold } from "./solver/api.js";
 import { lookupPreflopChart } from "./solver/preflopCharts.js";
+import { pushFoldDomain, scopeLimitLabel } from "./trainerSolutionScope.js";
 
 const RANKS = "23456789TJQKA";
 const rIdx = (r) => RANKS.indexOf(r);
@@ -48,19 +49,20 @@ function parseStackBb(stack) {
 }
 
 /* Un spot est-il un push/fold préflop résoluble par le solveur HU ?
-   Conditions : préflop · décision jam OU call-d'un-jam · tapis entier ≤ 30bb
-   (couvert par la table pré-solvée / solve rapide). */
+
+   ATTENTION — la version précédente ne testait QUE la forme du spot : préflop,
+   tapis entier ≤ 30bb, couple fold/jam présent. Elle ne regardait ni le nombre
+   de joueurs encore dans le coup, ni le barème de gains. Le moteur, lui, est
+   déclaré heads-up et chip-EV pur. Un « BTN 25bb — Push ou fold ? » de Cash
+   6-max passait donc le test et ressortait à l'écran badgé « calcul exact »
+   alors que le modèle appliqué (SB jam vs BB, blindes postées) ne décrivait pas
+   ce spot.
+
+   La question du domaine est désormais posée à `pushFoldDomain`, qui répond
+   AVEC les motifs de refus. Voir src/trainerSolutionScope.js. */
 export function isSolvablePushFold(spot) {
   if (!spot) return false;
-  if (!/^pre/i.test(spot.street || "Preflop")) return false;
-  const acts = Array.isArray(spot.acts) ? spot.acts : [];
-  const stack = parseStackBb(spot.stack);
-  if (!(stack > 0) || stack > 30) return false;               // hors zone push/fold fiable
-  if (Math.abs(stack - Math.round(stack)) > 1e-9) return false; // tapis entier (lookup instantané)
-  const hasFold = acts.some(isFoldAct);
-  const toCall = Math.max(0, Number(spot.toCall) || 0);
-  if (toCall > 0) return hasFold && acts.some(isCallAct);      // Héro paie un jam (BB call)
-  return hasFold && acts.some(isAggAct);                       // Héro jam (SB jam)
+  return pushFoldDomain(spot).inDomain;
 }
 
 /* Catégorie de spot préflop → action de chart. Les `cat` du générateur sont
@@ -121,14 +123,24 @@ export function resolveFromChart(spot, opts = {}) {
    ────────────────────────────────────────────────────────────────────────── */
 export function resolveSpotStrategy(spot, opts = {}) {
   const acts = Array.isArray(spot?.acts) ? spot.acts : [];
-  if (!isSolvablePushFold(spot)) {
+  const domain = pushFoldDomain(spot);
+  if (!domain.inDomain) {
     // Pas solvable en interne → un CHART préflop peut prendre le relais s'il en existe
     // un pour ce spot. Aucun chart n'est livré avec l'app : sans données chargées, ceci
     // renvoie null et on retombe sur l'heuristique (comportement historique).
     const chart = resolveFromChart(spot, opts);
-    if (chart) return chart;
-    return { solved: false, source: "heuristic", provenance: "template",
-      ok: spot?.ok, freq: spot?.freq, note: "Solution du template (non solvée en interne).", meta: null };
+    if (chart) return { ...chart, scope: domain.scope, limits: domain.reasons };
+    /* Repli HONNÊTE. On garde les nombres du template — ils servent d'entraînement —
+       mais on dit d'où ils viennent ET pourquoi le solveur n'a pas pris la main.
+       Sans ce motif, l'écran affichait « heuristique » sans jamais expliquer que
+       le spot était simplement hors du domaine résolu. */
+    const why = scopeLimitLabel(domain);
+    return {
+      solved: false, source: "heuristic", provenance: "template",
+      ok: spot?.ok, freq: spot?.freq,
+      note: `Estimation heuristique (template). Non résolu en interne — ${why}.`,
+      scope: domain.scope, limits: domain.reasons, meta: null,
+    };
   }
   const hand = handNotation(spot.hand);
   const stack = parseStackBb(spot.stack);
@@ -160,8 +172,16 @@ export function resolveSpotStrategy(spot, opts = {}) {
     provenance: sol.precompiled ? "solver-library" : "solver-live",
     ok, freq,
     note: facing
-      ? `Solveur push/fold HU (${stack}bb) : call ${aggPct}% avec ${hand}.`
-      : `Solveur push/fold HU (${stack}bb) : jam ${aggPct}% avec ${hand}.`,
+      ? `Solveur push/fold heads-up chip-EV (${stack}bb) : call ${aggPct}% avec ${hand}.`
+      : `Solveur push/fold heads-up chip-EV (${stack}bb) : jam ${aggPct}% avec ${hand}.`,
+    scope: domain.scope,
+    /* Même dans le domaine, le résultat n'est pas « exact » au sens absolu : la
+       matrice d'équité porte un bruit déclaré (≈ ±0.26 pt, cf. §24 du solveur) et
+       le modèle est chip-EV. On l'écrit plutôt que de le taire. */
+    limits: [
+      "chip-EV pur — aucune contrainte ICM/PKO",
+      "précision bornée par la matrice d'équité (bruit ≈ ±0.26 pt)",
+    ],
     meta: { stack, hand, facing, aggPct, exploitability: sol.exploitability, rangeSource: sol.rangeSource },
   };
 }
@@ -172,9 +192,15 @@ export function resolveSpotStrategy(spot, opts = {}) {
 export function applySolverStrategy(spot, opts = {}) {
   if (!spot) return spot;
   const r = resolveSpotStrategy(spot, opts);
-  spot.strategySource = r.source;        // "solver" | "heuristic"
+  spot.strategySource = r.source;        // "solver" | "chart" | "heuristic"
   spot.strategyProvenance = r.provenance;
   spot.strategyNote = r.note;
+  /* Le périmètre voyage AVEC le spot : c'est lui qui autorise l'écran à écrire
+     « calcul exact » ou, au contraire, à afficher la limite. Sans ces deux
+     champs, l'affichage n'avait aucun moyen de distinguer un push/fold vraiment
+     heads-up d'un BTN de 6-max. */
+  spot.strategyScope = r.scope || null;
+  spot.strategyLimits = Array.isArray(r.limits) ? r.limits : [];
   if (r.solved) {
     spot.ok = r.ok;
     spot.freq = { ...(spot.freq || {}), ...r.freq };

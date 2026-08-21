@@ -1,0 +1,17 @@
+{
+  "ts": "2026-08-21T02:30:36.465Z",
+  "url": "http://localhost:7790",
+  "fichier": "index-standalone.html",
+  "tailleKo": 10094,
+  "ressourcesEnEchec": [],
+  "absencesAttendues": [
+    "404 http://localhost:7790/favicon.ico — serve-standalone.js ne sert pas de favicon"
+  ],
+  "erreursJs": [],
+  "suspectes": [],
+  "varsCss": {},
+  "imgsCassees": 0,
+  "imgsTotal": 2,
+  "problemes": [],
+  "verdict": "OK — toutes les images du fichier unique sont inlinées et rendues"
+}

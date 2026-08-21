@@ -1,0 +1,389 @@
+{
+ "viewport": [
+  1600,
+  950
+ ],
+ "ratioActuel": 1.7,
+ "rapport": [
+  {
+   "ratio": 1.55,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 254,
+      "aire": 99976,
+      "ratio": 1.55
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 333
+      },
+      "hauteurPerdue": 232
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 2,
+     "surLeCoeur": 0,
+     "entreVoisins": 1,
+     "echantillons": 127
+    },
+    {
+     "mode": "3T",
+     "feutre": {
+      "w": 269.8,
+      "h": 174,
+      "aire": 46952,
+      "ratio": 1.55
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 401,
+       "h": 230
+      },
+      "zone": {
+       "w": 317,
+       "h": 228
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 4,
+     "entreVoisins": 22,
+     "echantillons": 184
+    },
+    {
+     "mode": "4T",
+     "feutre": {
+      "w": 267.2,
+      "h": 172.4,
+      "aire": 46054,
+      "ratio": 1.55
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 229
+      },
+      "zone": {
+       "w": 315,
+       "h": 227
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 3,
+     "surLeCoeur": 0,
+     "entreVoisins": 4,
+     "echantillons": 232
+    }
+   ]
+  },
+  {
+   "ratio": 1.7,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 231.6,
+      "aire": 91162,
+      "ratio": 1.7
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 304
+      },
+      "hauteurPerdue": 261
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 1,
+     "entreVoisins": 11,
+     "echantillons": 120
+    },
+    {
+     "mode": "3T",
+     "feutre": {
+      "w": 295.9,
+      "h": 174,
+      "aire": 51496,
+      "ratio": 1.7
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 401,
+       "h": 230
+      },
+      "zone": {
+       "w": 347,
+       "h": 228
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 0,
+     "entreVoisins": 25,
+     "echantillons": 190
+    },
+    {
+     "mode": "4T",
+     "feutre": {
+      "w": 293,
+      "h": 172.4,
+      "aire": 50514,
+      "ratio": 1.7
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 229
+      },
+      "zone": {
+       "w": 346,
+       "h": 227
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 3,
+     "surLeCoeur": 3,
+     "entreVoisins": 9,
+     "echantillons": 252
+    }
+   ]
+  },
+  {
+   "ratio": 1.85,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 212.8,
+      "aire": 83763,
+      "ratio": 1.85
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 279
+      },
+      "hauteurPerdue": 286
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 0,
+     "entreVoisins": 33,
+     "echantillons": 125
+    },
+    {
+     "mode": "3T",
+     "feutre": {
+      "w": 322,
+      "h": 174,
+      "aire": 56040,
+      "ratio": 1.85
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 401,
+       "h": 230
+      },
+      "zone": {
+       "w": 378,
+       "h": 228
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 0,
+     "entreVoisins": 24,
+     "echantillons": 189
+    },
+    {
+     "mode": "4T",
+     "feutre": {
+      "w": 318.9,
+      "h": 172.4,
+      "aire": 54966,
+      "ratio": 1.85
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 229
+      },
+      "zone": {
+       "w": 376,
+       "h": 227
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 3,
+     "surLeCoeur": 0,
+     "entreVoisins": 3,
+     "echantillons": 246
+    }
+   ]
+  },
+  {
+   "ratio": 2,
+   "mesures": [
+    {
+     "mode": "2T",
+     "feutre": {
+      "w": 393.7,
+      "h": 196.8,
+      "aire": 77483,
+      "ratio": 2
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 565
+      },
+      "zone": {
+       "w": 417,
+       "h": 258
+      },
+      "hauteurPerdue": 307
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 0,
+     "entreVoisins": 31,
+     "echantillons": 127
+    },
+    {
+     "mode": "3T",
+     "feutre": {
+      "w": 341.7,
+      "h": 170.8,
+      "aire": 58364,
+      "ratio": 2
+     },
+     "contrainte": "LARGEUR",
+     "reserve": {
+      "conteneur": {
+       "w": 401,
+       "h": 230
+      },
+      "zone": {
+       "w": 401,
+       "h": 223
+      },
+      "hauteurPerdue": 6
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 0,
+     "surLeCoeur": 3,
+     "entreVoisins": 13,
+     "echantillons": 187
+    },
+    {
+     "mode": "4T",
+     "feutre": {
+      "w": 344.7,
+      "h": 172.4,
+      "aire": 59424,
+      "ratio": 2
+     },
+     "contrainte": "aucune",
+     "reserve": {
+      "conteneur": {
+       "w": 417,
+       "h": 229
+      },
+      "zone": {
+       "w": 407,
+       "h": 227
+      },
+      "hauteurPerdue": 2
+     },
+     "ellipse": {
+      "sieges": 6,
+      "moyenne": 0.92,
+      "ecartType": 0.014
+     },
+     "ecartementVoisins": 3,
+     "surLeCoeur": 0,
+     "entreVoisins": 0,
+     "echantillons": 241
+    }
+   ]
+  }
+ ]
+}

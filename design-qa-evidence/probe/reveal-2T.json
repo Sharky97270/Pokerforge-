@@ -1,0 +1,121 @@
+{
+  "nt": 2,
+  "steps": [
+    {
+      "step": "T0 apres lancement",
+      "solBtn": "🚫Afficher la solution",
+      "tables": [
+        {
+          "t": 1,
+          "locks": 0,
+          "answered": false,
+          "hasGtoBlock": false,
+          "hasFreqPct": false,
+          "verdict": null,
+          "heroBtns": [
+            "Fold0bbNe pas jo",
+            "Call2.5bbSuivre",
+            "3-bet 8.5bb12bbR"
+          ],
+          "snippet": "TABLE 1 ● Preflop Flop Turn River ∞ POT 4bb 0.5bb SB 1bb BB UTG 60bb FOLD HJ 60bb FOLD CO 60bb Open 2.5bb 3 ♠ ♠ 4 ♣ ♣ A toi ▶ HERO BTN 12bb SB 60bb FOLD BB 60bb FOLD 🎮 BTN vs CO Face à Open 2.5bb · à payer 2.5bb Fold 0bb Ne pas jouer Call "
+        },
+        {
+          "t": 2,
+          "locks": 0,
+          "answered": false,
+          "hasGtoBlock": false,
+          "hasFreqPct": true,
+          "verdict": null,
+          "heroBtns": [
+            "Check0bbPasser",
+            "Barrel 50%6bb50%",
+            "Barrel 66%8bb75%",
+            "ShoveTapisTapis"
+          ],
+          "snippet": "TABLE 2 Preflop Flop Turn River ∞ POT 12bb 3 ♠ ♠ Q ♦ ♦ A ♦ ♦ 5 ♣ ♣ UTG 60bb FOLD HJ 60bb FOLD CO 60bb FOLD 4 ♠ ♠ 6 ♣ ♣ A toi ▶ HERO BTN 94bb SB 60bb FOLD BB 60bb 🎮 BTN vs BB BB check — à toi Check 0bb Passer Barrel 50% 6bb 50% pot Barrel 6"
+        }
+      ],
+      "panel": {
+        "present": true,
+        "hasReveal": true,
+        "hasGto": true,
+        "text": "↑ BTN 12bb SPR 3 GTO ● Intermédiaire VILLAIN IA 🤖 TAG CO · Solide et équilibré · Peu d'erreurs · Proche GTO VPIP 22% PFR 18% AGG 2.8 ANALYSE GTO 🔒 Solution masquée Révéler HISTORIQUE UTG — HJ — CO — BTN À parler SB Petite blind 0.5bb BB Grosse blind 1bb INFORMATIONS Street Preflop Stack Hero 12bb Pot 4bb Pot Odds 38% SPR 3 Difficulté Intermédiaire TIMELINE 1/20 Decision en cours..."
+      }
+    },
+    {
+      "step": "T1 repondue seulement (Call2.5bbSuivre)",
+      "solBtn": "🚫Afficher la solution",
+      "tables": [
+        {
+          "t": 1,
+          "locks": 0,
+          "answered": false,
+          "hasGtoBlock": false,
+          "hasFreqPct": false,
+          "verdict": null,
+          "heroBtns": [],
+          "snippet": "TABLE 1 ✓ TERMINÉE Preflop Flop Turn River BTN Call POT 10.5bb 9 ♦ ♦ K ♣ ♣ J ♣ ♣ UTG 60bb FOLD HJ 60bb FOLD CO 60bb raise 4bb 3 ♠ ♠ 4 ♣ ♣ A toi ▶ HERO BTN 12bb SB 60bb FOLD BB 60bb FOLD CO BET — ta réponse ? Fold abandon Call 4bb Raise 2.5×"
+        },
+        {
+          "t": 2,
+          "locks": 0,
+          "answered": false,
+          "hasGtoBlock": false,
+          "hasFreqPct": true,
+          "verdict": null,
+          "heroBtns": [
+            "Check0bbPasser",
+            "Barrel 50%6bb50%",
+            "Barrel 66%8bb75%",
+            "ShoveTapisTapis"
+          ],
+          "snippet": "TABLE 2 ● Preflop Flop Turn River ∞ POT 12bb 3 ♠ ♠ Q ♦ ♦ A ♦ ♦ 5 ♣ ♣ UTG 60bb FOLD HJ 60bb FOLD CO 60bb FOLD 4 ♠ ♠ 6 ♣ ♣ A toi ▶ HERO BTN 94bb SB 60bb FOLD BB 60bb 🎮 BTN vs BB BB check — à toi Check 0bb Passer Barrel 50% 6bb 50% pot Barrel"
+        }
+      ],
+      "panel": {
+        "present": true,
+        "hasReveal": true,
+        "hasGto": true,
+        "text": "↑ BTN 94bb SPR 7.8 GTO ● Avancé VILLAIN IA 🤖 Calling Station BB · Call excessivement · Rare fold · Sous-agression VPIP 48% PFR 8% AGG 0.8 ANALYSE GTO 🔒 Solution masquée Révéler HISTORIQUE UTG — HJ — CO — BTN À parler SB Petite blind 0.5bb BB Grosse blind 1bb INFORMATIONS Street Turn Stack Hero 94bb Pot 12bb Pot Odds — SPR 7.8 Difficulté Avancé TIMELINE 1/20 Decision en cours..."
+      }
+    },
+    {
+      "step": "apres bascule globale",
+      "solBtn": "👁Masquer la solution",
+      "tables": [
+        {
+          "t": 1,
+          "locks": 0,
+          "answered": false,
+          "hasGtoBlock": false,
+          "hasFreqPct": false,
+          "verdict": null,
+          "heroBtns": [],
+          "snippet": "TABLE 1 ✓ TERMINÉE Preflop Flop Turn River BTN Call POT 10.5bb 9 ♦ ♦ K ♣ ♣ J ♣ ♣ UTG 60bb FOLD HJ 60bb FOLD CO 60bb raise 4bb 3 ♠ ♠ 4 ♣ ♣ A toi ▶ HERO BTN 12bb SB 60bb FOLD BB 60bb FOLD CO BET — ta réponse ? Fold abandon Call 4bb Raise 2.5×"
+        },
+        {
+          "t": 2,
+          "locks": 0,
+          "answered": false,
+          "hasGtoBlock": false,
+          "hasFreqPct": true,
+          "verdict": null,
+          "heroBtns": [
+            "Check0bbPasser",
+            "Barrel 50%6bb50%",
+            "Barrel 66%8bb75%",
+            "ShoveTapisTapis"
+          ],
+          "snippet": "TABLE 2 ● Preflop Flop Turn River ∞ POT 12bb 3 ♠ ♠ Q ♦ ♦ A ♦ ♦ 5 ♣ ♣ UTG 60bb FOLD HJ 60bb FOLD CO 60bb FOLD 4 ♠ ♠ 6 ♣ ♣ A toi ▶ HERO BTN 94bb SB 60bb FOLD BB 60bb 🎮 BTN vs BB BB check — à toi Check 0bb Passer Barrel 50% 6bb 50% pot Barrel"
+        }
+      ],
+      "panel": {
+        "present": true,
+        "hasReveal": false,
+        "hasGto": true,
+        "text": "↑ BTN 94bb SPR 7.8 GTO ● Avancé VILLAIN IA 🤖 Calling Station BB · Call excessivement · Rare fold · Sous-agression VPIP 48% PFR 8% AGG 0.8 ANALYSE GTO ≈ ESTIMATION HEURISTIQUE — non résolue en interne street Turn — le moteur ne couvre que le préflop ✦ Check 60% +0.7 Barrel 50% 25% +0.4 Barrel 66% 12% +0.3 Shove 3% +0.1 EV optimale +0.7bb 🃏 Voir les ranges GTO HISTORIQUE UTG — HJ — CO — BTN À parl"
+      }
+    }
+  ],
+  "consoleErrors": []
+}

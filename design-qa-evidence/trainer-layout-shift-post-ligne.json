@@ -1,0 +1,121 @@
+{
+ "viewport": [
+  1600,
+  950
+ ],
+ "tolerancePx": 1,
+ "hands": 7,
+ "rapport": [
+  {
+   "mode": "2T",
+   "releves": 26,
+   "ecarts": [],
+   "couverture": {
+    "action": 4,
+    "resultat": 7,
+    "verdictDecision": 7,
+    "solutionOuverte": 3,
+    "raccourciLot": 6
+   },
+   "ref": [
+    {
+     "t": 0,
+     "x": 422,
+     "y": 114,
+     "w": 421,
+     "h": 761
+    },
+    {
+     "t": 1,
+     "x": 851,
+     "y": 114,
+     "w": 421,
+     "h": 761
+    }
+   ],
+   "stable": true,
+   "type": "spot"
+  },
+  {
+   "mode": "3T",
+   "releves": 34,
+   "ecarts": [],
+   "couverture": {
+    "action": 9,
+    "resultat": 7,
+    "verdictDecision": 7,
+    "solutionOuverte": 3,
+    "raccourciLot": 4
+   },
+   "ref": [
+    {
+     "t": 0,
+     "x": 430,
+     "y": 112,
+     "w": 405,
+     "h": 377.5
+    },
+    {
+     "t": 1,
+     "x": 859,
+     "y": 112,
+     "w": 405,
+     "h": 377.5
+    },
+    {
+     "t": 2,
+     "x": 644.5,
+     "y": 499.5,
+     "w": 405,
+     "h": 377.5
+    }
+   ],
+   "stable": true,
+   "type": "spot"
+  },
+  {
+   "mode": "4T",
+   "releves": 35,
+   "ecarts": [],
+   "couverture": {
+    "action": 10,
+    "resultat": 7,
+    "verdictDecision": 7,
+    "solutionOuverte": 3,
+    "raccourciLot": 4
+   },
+   "ref": [
+    {
+     "t": 0,
+     "x": 422,
+     "y": 114,
+     "w": 421,
+     "h": 376.5
+    },
+    {
+     "t": 1,
+     "x": 851,
+     "y": 114,
+     "w": 421,
+     "h": 376.5
+    },
+    {
+     "t": 2,
+     "x": 422,
+     "y": 498.5,
+     "w": 421,
+     "h": 376.5
+    },
+    {
+     "t": 3,
+     "x": 851,
+     "y": 498.5,
+     "w": 421,
+     "h": 376.5
+    }
+   ],
+   "stable": true,
+   "type": "spot"
+  }
+ ]
+}
