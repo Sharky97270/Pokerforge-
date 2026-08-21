@@ -194,6 +194,125 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .pftog:hover{border-color:#2E6CFF;color:#FFFFFF;}
 .pftog.on{background:rgba(255,194,71,.1);color:#FFC247;border-color:rgba(255,194,71,.35);}
 
+/* ─── « Pause après » (Lot 4 bis) ───────────────────────
+   Contrôle segmenté compact, pensé pour un bandeau étroit : les quatre options
+   tiennent sur une ligne à 228px sans agrandir la hauteur de la configuration.
+   Le libellé peut se réduire (flex-basis 0 + minmax) plutôt que déborder. */
+/* 2×2 et non 4×1 : mesuré dans le bandeau de 228px, quatre colonnes donnent
+   47px par option — « Imprécision+ » y est tronqué à 8.5px de corps. Deux
+   colonnes portent chaque libellé en entier pour ~31px de hauteur en plus, ce
+   qui reste très en deçà d'un bloc de réglage ordinaire. */
+.pf-seg{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;
+  padding:2px;border-radius:8px;background:#050F30;border:1px solid #152D6E;
+}
+.pf-seg-item{
+  display:flex;align-items:center;justify-content:center;gap:3px;
+  padding:5px 2px;border-radius:6px;border:1px solid transparent;background:transparent;
+  font-family:'Space Grotesk',sans-serif;font-size:8.5px;font-weight:600;letter-spacing:.01em;
+  color:#8FA2C4;cursor:pointer;transition:background .13s,color .13s,border-color .13s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+  /* Cible tactile : le texte reste compact mais la zone cliquable ne l'est pas. */
+  min-height:28px;
+}
+.pf-seg-item:hover:not(:disabled){color:#FFFFFF;background:rgba(52,216,255,.07);}
+/* L'état sélectionné se lit SANS la couleur : fond, graisse et pastille pleine. */
+.pf-seg-item.on{
+  background:rgba(52,216,255,.14);border-color:rgba(52,216,255,.42);
+  color:#EAF4FF;font-weight:800;
+}
+.pf-seg-dot{font-size:7px;line-height:1;opacity:.9;}
+.pf-seg-item:focus-visible{outline:2px solid #FFC247;outline-offset:1px;}
+.pf-seg-item:disabled{opacity:.4;cursor:not-allowed;}
+.pf-seg-hint{
+  margin-top:5px;font-size:8px;color:#6F81A8;font-family:'Inter',sans-serif;line-height:1.5;
+}
+.pf-pause-help{
+  width:13px;height:13px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:800;color:#8FA2C4;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);cursor:help;flex-shrink:0;letter-spacing:0;
+}
+.pf-pause-help:focus-visible{outline:2px solid #FFC247;outline-offset:1px;color:#FFFFFF;}
+/* Le séparateur ::after du label ne doit pas écraser l'icône d'aide. */
+.pf-pause-after .sblbl::after{margin-left:2px;}
+
+/* ─── Bandeau de pause pédagogique (Lot 4 bis) ──────────
+   Il s'insère dans le flux au-dessus de la table : il ne recouvre donc jamais le
+   feutre, le board ni le pot — c'est la leçon des bandeaux flottants retirés
+   précédemment de la mosaïque. */
+.pf-pause-bar{
+  display:flex;flex-direction:column;gap:5px;margin:0 0 6px;padding:8px 10px;
+  border-radius:9px;background:rgba(255,194,71,.09);border:1px solid rgba(255,194,71,.42);
+  box-shadow:0 0 0 1px rgba(255,194,71,.08),0 4px 16px rgba(0,0,0,.35);
+  flex:0 0 auto;
+}
+/* PIÈGE À CONNAÎTRE AVANT D'AJOUTER QUOI QUE CE SOIT DANS UNE TUILE :
+   le rendu 1T applique  .grid1 > .mt-slot > div { flex:1 1 auto !important }
+   pour que la zone de table occupe la hauteur libre. La règle vise TOUT div
+   enfant direct — donc aussi ce bandeau. Mesuré au mobile 390x844 : 250px de
+   haut pour ~90px de contenu, et la table repoussée hors de l'écran.
+   L'exception est explicite plutôt que déduite (règle gagnante relevée par CDP,
+   pas devinée). */
+.grid1 > .mt-slot > div.pf-pause-bar{
+  flex:0 0 auto !important;height:auto !important;
+}
+/* Une décision NON ÉVALUÉE n'est pas une faute : ni rouge, ni ambre d'alerte. */
+.pf-pause-bar.neutre{background:rgba(143,162,196,.08);border-color:rgba(143,162,196,.35);}
+.pf-pause-head{
+  display:flex;align-items:center;gap:6px;
+  font-family:'Space Grotesk',sans-serif;font-size:9.5px;font-weight:800;
+  letter-spacing:.06em;color:#FFC247;text-transform:uppercase;
+}
+.pf-pause-bar.neutre .pf-pause-head{color:#9FB0CC;}
+.pf-pause-ico{font-size:11px;}
+.pf-pause-tbl{
+  margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:8.5px;
+  color:#8FA2C4;letter-spacing:.02em;text-transform:none;font-weight:600;
+}
+.pf-pause-body{
+  display:flex;flex-wrap:wrap;gap:4px 12px;
+  font-family:'Inter',sans-serif;font-size:10px;color:#9FB0CC;line-height:1.5;
+}
+.pf-pause-body b{color:#EAF4FF;font-weight:700;}
+.pf-pause-body b.best{color:#10D87A;}
+.pf-pause-body b.neg{color:#FF6B7F;}
+.pf-pause-body b.pos{color:#10D87A;}
+.pf-pause-nc{color:#6F81A8;font-style:italic;}
+.pf-pause-src{margin-left:auto;color:#6F81A8;font-size:9px;}
+.pf-pause-go{
+  align-self:flex-start;padding:6px 14px;border-radius:7px;cursor:pointer;
+  background:rgba(255,194,71,.16);border:1px solid rgba(255,194,71,.5);color:#FFD98A;
+  font-family:'Space Grotesk',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.03em;
+  transition:background .13s,color .13s;min-height:30px;
+}
+.pf-pause-go:hover{background:rgba(255,194,71,.26);color:#FFFFFF;}
+.pf-pause-go:focus-visible{outline:2px solid #FFC247;outline-offset:2px;}
+/* La tuile en pause se repère dans la mosaïque sans avoir à la lire. */
+.mt-slot-paused{
+  outline:2px solid rgba(255,194,71,.55);outline-offset:-2px;border-radius:12px;
+  animation:pf-pause-pulse 2.2s ease-in-out infinite;
+}
+@keyframes pf-pause-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,194,71,.20);}
+  50%    {box-shadow:0 0 14px 2px rgba(255,194,71,.14);}
+}
+@media (prefers-reduced-motion:reduce){
+  .mt-slot-paused{animation:none;}
+}
+/* Compteur global dans la barre de session */
+.pf-pause-count{
+  display:flex;align-items:center;gap:7px;padding:3px 10px;border-radius:20px;
+  background:rgba(255,194,71,.12);border:1px solid rgba(255,194,71,.36);
+  font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:700;color:#FFC247;
+}
+.pf-pause-all{
+  padding:2px 9px;border-radius:14px;cursor:pointer;
+  background:rgba(255,194,71,.18);border:1px solid rgba(255,194,71,.45);color:#FFD98A;
+  font-family:'Space Grotesk',sans-serif;font-size:8.5px;font-weight:800;min-height:22px;
+}
+.pf-pause-all:hover{background:rgba(255,194,71,.3);color:#FFFFFF;}
+.pf-pause-all:focus-visible{outline:2px solid #FFC247;outline-offset:2px;}
+
 /* Session pills */
 .smpill{
   padding:8px 11px;border-radius:8px;border:1px solid #152D6E;cursor:pointer;

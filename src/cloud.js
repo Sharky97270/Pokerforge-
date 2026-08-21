@@ -22,6 +22,42 @@ let origSetItem = null, origRemoveItem = null;
 function rawSet(k, v) { (origSetItem || localStorage.setItem.bind(localStorage))(k, v); }
 function rawGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   HORODATAGE DES ÉCRITURES LOCALES — pourquoi c'est nécessaire
+
+   Défaut observé le 2026-08-21 : changer un réglage du Trainer puis recharger
+   la page dans la seconde qui suit ANNULE le changement. Ce n'est pas propre à
+   un réglage — c'est structurel :
+     · une écriture locale n'est poussée au cloud qu'après 900 ms (debounce) ;
+     · au démarrage, `pfCloudBootstrap` fait un pull AVANT le rendu React et
+       réécrit chaque clé avec la valeur du cloud, sans regarder si la valeur
+       locale est plus récente.
+   Recharger pendant la fenêtre de debounce restaurait donc l'AVANT-DERNIÈRE
+   valeur. Le symptôme se lit comme « le réglage n'est pas mémorisé ».
+
+   Correction : on note l'instant de chaque écriture locale, et le pull
+   n'écrase une clé que si la version du cloud est RÉELLEMENT plus récente.
+   Une donnée qu'on vient de saisir ne peut plus être effacée par une copie
+   distante plus ancienne.
+   ══════════════════════════════════════════════════════════════════════════ */
+const LOCAL_TS_KEY = "pf_local_write_ts";
+function readLocalTs() {
+  try { return JSON.parse(rawGet(LOCAL_TS_KEY) || "{}") || {}; } catch { return {}; }
+}
+function markLocalWrite(key) {
+  if (!shouldSync(key)) return;
+  try {
+    const m = readLocalTs();
+    m[key] = Date.now();
+    /* Borne le journal : on ne garde que les 200 clés les plus récentes, sinon
+       il grossirait indéfiniment sur un appareil très utilisé. */
+    const entries = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 200);
+    rawSet(LOCAL_TS_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch {}
+}
+/* Le journal lui-même n'est pas synchronisé : il décrit CET appareil. */
+NO_SYNC.add(LOCAL_TS_KEY);
+
 export function getSyncId() {
   let id = rawGet("pf_device_id");
   if (!id) { id = genId(); try { rawSet("pf_device_id", id); } catch {} }
@@ -43,11 +79,28 @@ client = makeClient(syncId);
 
 /* ── Push debouncé d'une clé vers le cloud ── */
 const pushTimers = {};
+const pushPending = {};   // key → fonction d'envoi, pour pouvoir la déclencher tout de suite
+
+/* Déclenche immédiatement tous les envois encore en attente. Appelé quand la
+   page se cache : sinon les 900 ms de debounce sont simplement perdues et le
+   cloud conserve une version antérieure à ce que l'utilisateur vient de régler. */
+export function flushPendingPushes() {
+  for (const key of Object.keys(pushPending)) {
+    const envoyer = pushPending[key];
+    if (!envoyer) continue;
+    clearTimeout(pushTimers[key]);
+    delete pushTimers[key];
+    delete pushPending[key];
+    try { envoyer(); } catch {}
+  }
+}
+
 function pushKey(key, value) {
   if (!client || !shouldSync(key)) return;
   clearTimeout(pushTimers[key]);
+  if (pushPending[key]) { delete pushPending[key]; cloudStatus.pending = Math.max(0, cloudStatus.pending - 1); }
   cloudStatus.pending++;
-  pushTimers[key] = setTimeout(async () => {
+  const envoyer = async () => {
     try {
       let parsed; try { parsed = JSON.parse(value); } catch { parsed = value; }
       const { error } = await client.from("pf_state").upsert(
@@ -58,6 +111,12 @@ function pushKey(key, value) {
       else { cloudStatus.enabled = true; cloudStatus.lastError = null; cloudStatus.lastSync = Date.now(); }
     } catch (e) { cloudStatus.lastError = String(e && e.message || e); }
     cloudStatus.pending = Math.max(0, cloudStatus.pending - 1);
+  };
+  pushPending[key] = envoyer;
+  pushTimers[key] = setTimeout(() => {
+    delete pushTimers[key];
+    delete pushPending[key];
+    envoyer();
   }, 900);
 }
 
@@ -68,7 +127,7 @@ export function installLocalStorageSync() {
   try {
     origSetItem = localStorage.setItem.bind(localStorage);
     origRemoveItem = localStorage.removeItem.bind(localStorage);
-    localStorage.setItem = function (k, v) { origSetItem(k, v); try { pushKey(k, v); } catch {} };
+    localStorage.setItem = function (k, v) { origSetItem(k, v); try { markLocalWrite(k); } catch {} try { pushKey(k, v); } catch {} };
     localStorage.removeItem = function (k) {
       origRemoveItem(k);
       if (client && shouldSync(k)) { try { client.from("pf_state").delete().eq("device_id", syncId).eq("key", k).then(() => {}, () => {}); } catch {} }
@@ -80,15 +139,35 @@ export function installLocalStorageSync() {
 export async function pfCloudPull() {
   if (!client) return { ok: false, error: "no client" };
   try {
-    const { data, error } = await client.from("pf_state").select("key,value").eq("device_id", syncId);
+    const { data, error } = await client.from("pf_state").select("key,value,updated_at").eq("device_id", syncId);
     if (error) { cloudStatus.lastError = error.message; cloudStatus.enabled = false; return { ok: false, error: error.message }; }
+    const localTs = readLocalTs();
+    let ignores = 0;
     (data || []).forEach((row) => {
       try {
         if (NO_SYNC.has(row.key)) return;            // clés locales (ex. pf_news_seen) : jamais restaurées
+        /* Ne JAMAIS écraser une valeur locale plus récente que la copie
+           distante. C'est ce qui faisait « oublier » un réglage modifié juste
+           avant un rechargement : la valeur venait d'être saisie mais n'avait
+           pas encore franchi le debounce de 900 ms du push.
+
+           COMPARAISON STRICTE, SANS MARGE — et c'est important :
+           `updated_at` est posé au moment du PUSH, donc ~900 ms APRÈS l'écriture
+           locale correspondante. Pour une valeur déjà partie, on a toujours
+           distant > local : le cloud gagne, et il porte le même contenu — sans
+           effet. Pour une valeur encore en attente, le cloud ne contient que la
+           version PRÉCÉDENTE, plus ancienne que l'écriture : le local gagne.
+           Une marge ajoutée ici rouvrirait la fenêtre qu'on ferme (mesuré : avec
+           2 s de marge, un réglage changé moins de 2 s après le précédent était
+           encore écrasé). */
+        const distant = row.updated_at ? Date.parse(row.updated_at) : 0;
+        const local = localTs[row.key] || 0;
+        if (local && Number.isFinite(distant) && local > distant) { ignores++; return; }
         const str = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
         rawSet(row.key, str);
       } catch {}
     });
+    cloudStatus.lastPullSkipped = ignores;
     cloudStatus.enabled = true; cloudStatus.lastError = null; cloudStatus.lastSync = Date.now();
     return { ok: true, count: (data || []).length };
   } catch (e) { cloudStatus.lastError = String(e && e.message || e); return { ok: false, error: String(e) }; }
@@ -125,8 +204,21 @@ export async function setSyncId(newId) {
 }
 
 /* ── Bootstrap au démarrage (avant le rendu React) — non bloquant > 5s ── */
+/* Le garde-fou d'horodatage empêche de PERDRE une valeur locale, mais laisse le
+   cloud périmé jusqu'au prochain push. On force donc l'envoi des écritures en
+   attente quand la page part : c'est le moment exact où le debounce de 900 ms
+   allait être perdu. `pagehide` est le seul événement fiable au mobile —
+   `beforeunload` n'y est pas garanti. */
+function installFlushOnHide() {
+  if (typeof window === "undefined") return;
+  const flush = () => { try { flushPendingPushes(); } catch {} };
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
+}
+
 export async function pfCloudBootstrap() {
   installLocalStorageSync();
+  installFlushOnHide();
   try {
     await Promise.race([pfCloudPull(), new Promise((r) => setTimeout(r, 5000))]);
   } catch {}

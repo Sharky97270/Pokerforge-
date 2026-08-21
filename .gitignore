@@ -32,3 +32,6 @@ Holdem Manager 3/
 
 # Sortie regenerable de scripts/trainer-overlap-audit.mjs (ecrit a la racine).
 /audit-result.json
+
+# Sauvegardes audit (locales)
+.audit-backup/

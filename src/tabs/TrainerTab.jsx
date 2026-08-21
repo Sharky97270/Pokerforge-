@@ -31,6 +31,10 @@ import { attachPreflopLine, buildPreflopLine, paintedPreflopAmounts, paintedPref
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
 import { applySolverStrategy } from "../trainerStrategyProvider.js";
+import { recordSolutionDiag, recordPauseDiag } from "../trainerDiagnostics.js";
+import { PAUSE_AFTER, PAUSE_AFTER_OPTIONS, PAUSE_AFTER_DEFAULT, PAUSE_AFTER_HELP, normalizePauseAfter,
+  shouldPauseAfter, classFromSpotVerdict, classFromPostflopQuality, isEvaluableSpot,
+  decisionId as pauseDecisionId, pauseKey, pausedCountLabel } from "../trainerPausePolicy.js";
 import { isSolvablePostflop, buildPostflopSolveRequest, mapWorkerResultToStrategy } from "../trainerPostflopSolver.js";
 import { solvePostflopAsync } from "../solver/cfrPostflopClient.js";
 import { evaluatePostflopDecision } from "../postflopHeuristic.js";
@@ -3235,7 +3239,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade}){
+export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade,paused=null,onResume,onPauseRequest}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
@@ -3279,6 +3283,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const[raiseSzIdx,setRaiseSzIdx]=useState(2); // default 3x
   const[customBB,setCustomBB]=useState(null); // null = use preset
   const timerRef=useRef(null);
+  /* Lot 4 bis — reste du chrono en %, mémorisé pour que la pause le SUSPENDE
+     au lieu de le remettre à zéro. */
+  const timerLeftRef=useRef(100);
+  /* Cette table est-elle figée par le réglage « Pause après » ? Toute la
+     mécanique d'avancement automatique lit ce booléen, et lui seul : c'est ce
+     qui garantit qu'une pause ne dépend jamais d'un état de rendu. */
+  const pausedNow=!!paused;
+  const pausedRef=useRef(false);
+  useEffect(()=>{pausedRef.current=pausedNow;},[pausedNow]);
   const autoFull=useRef(false); // 30% auto full-hand trigger
   const currentPotRef=useRef(roundBb(spot?.pot||1.5));
   const settledRef=useRef(false);
@@ -3451,20 +3464,36 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     autoFull.current=fullDesired
       &&(spot?.hand?.length>=2)
       &&(spot?.street==="Preflop"||spot?.street==="preflop");
-    // Démarrer le timer (configurable — 0 = aucun)
-    if(timerRef.current)clearInterval(timerRef.current);
-    if(!timerSec||timerSec<=0){setTimerPct(100);}
-    else{
-      const start=Date.now();const dur=timerSec*1000;
-      timerRef.current=setInterval(()=>{
-        const elapsed=Date.now()-start;
-        const pct=Math.max(0,100-elapsed/dur*100);
-        setTimerPct(pct);
-        if(pct<=0)clearInterval(timerRef.current);
-      },80);
-    }
-    return()=>{if(timerRef.current)clearInterval(timerRef.current);};
+    /* Nouveau spot : le chrono repart plein. Le DÉCOMPTE lui-même vit dans son
+       propre effet (juste en dessous) — sinon ajouter la pause à ses dépendances
+       rejouerait toute cette réinitialisation de spot (board, sièges, jetons) à
+       chaque « Continuer ». */
+    timerLeftRef.current=100;
+    setTimerPct(100);
   },[spot,timerSec,trainMode]);
+
+  /* ── Compte à rebours de la décision, SUSPENDU par la pause pédagogique ──
+     Le temps restant est mémorisé en pourcentage : la pause le gèle, « Continuer »
+     le reprend exactement là où il s'est arrêté. Sans cela, reprendre redonnerait
+     les secondes entières et le réglage « vitesse de décision » ne voudrait plus
+     rien dire. Un chrono déjà écoulé ne redémarre pas. */
+  useEffect(()=>{
+    if(timerRef.current){clearInterval(timerRef.current);timerRef.current=null;}
+    if(!timerSec||timerSec<=0)return;
+    if(pausedNow)return;                      // gelé : aucun tick n'est planifié
+    if(answered!==null)return;                // décision prise : plus rien à décompter
+    const depart=Math.max(0,Math.min(100,timerLeftRef.current??100));
+    if(depart<=0)return;
+    const start=Date.now();
+    const dureeRestante=Math.max(1,timerSec*1000*(depart/100));
+    timerRef.current=setInterval(()=>{
+      const pct=Math.max(0,depart-(Date.now()-start)/dureeRestante*depart);
+      timerLeftRef.current=pct;
+      setTimerPct(pct);
+      if(pct<=0){clearInterval(timerRef.current);timerRef.current=null;}
+    },80);
+    return()=>{if(timerRef.current){clearInterval(timerRef.current);timerRef.current=null;}};
+  },[spot,timerSec,pausedNow,answered]);
 
   // §1 — Calcul DYNAMIQUE de l'échelle des cartes Hero (1T uniquement ; le multi a
   // ses propres tailles compactes). On mesure l'espace réel board→cartes et on réduit
@@ -3734,7 +3763,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             <span>Exploit {heroFeedback.exploitFrequency}%</span>
           </>
         ):(
-          <span>Solution masquee - revele pour EV, frequence et meilleure action.</span>
+          <span>Solution masquée — révèle-la pour l’EV, les fréquences et la meilleure action.</span>
         )}
       </div>
     );
@@ -3770,7 +3799,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
          déjà affiché juste sous la table, en permanence. Il ne reste donc
          qu'en 1T de bureau, où il ne masque rien. */
       if(numTables===1&&!isMobile){
-        setShowToast(showSol?`Sous-optimal - ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal - revele la solution pour le detail GTO");
+        setShowToast(showSol?`Sous-optimal — ${spot.acts[spot.ok].l} est la meilleure action ici`:"Sous-optimal — révèle la solution pour le détail GTO");
         setTimeout(()=>{setShowToast(null);},3200);
       }
       setTimeout(()=>{setErrorFlash(false);},600);
@@ -3960,7 +3989,44 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     setFhReport(r=>[...r,{street:st.street,action:ev.action,best:ev.bestAction,quality:ev.quality,evDelta:ev.evDelta,correct:ev.correct,note:ev.note}]);
     if(fhFeedbackTimer.current)clearTimeout(fhFeedbackTimer.current);
     fhFeedbackTimer.current=setTimeout(()=>{setFhFeedback(f=>(f&&f.id===fb.id)?null:f);fhFeedbackTimer.current=null;},1600);
+    return ev;
   }
+
+  /* ── Lot 4 bis · coup complet ───────────────────────────────────────────
+     En Full Hand, l'avancement EST automatique : dès qu'Hero agit, le Villain
+     joue et la street suivante s'ouvre. C'est donc ici — et pas au niveau du
+     spot isolé — que la pause a un effet visible.
+
+     Deux précautions :
+     ① la décision est d'abord APPLIQUÉE et évaluée (le joueur doit voir son
+        verdict et le pot à jour) ; seule la SUITE est retenue ;
+     ② la continuation est gardée dans une ref et rejouée au « Continuer ». On ne
+        rejoue pas l'action : on reprend le fil là où il s'est arrêté.
+     Chaque street porte son propre `decisionId`, donc flop, turn et river
+     peuvent mettre en pause à tour de rôle sur la même main. */
+  const fhResumeRef=useRef(null);
+  function fhAfterHeroDecision(ev,street,suite){
+    const misEnPause=onPauseRequest?onPauseRequest({
+      verdictClass:classFromPostflopQuality(ev&&ev.quality),
+      decision:pauseDecisionId({street}),
+      chosen:(ev&&ev.action)||null,
+      best:(ev&&ev.bestAction)||null,
+      evDiff:(ev&&typeof ev.evDelta==="number")?roundBb(ev.evDelta):null,
+      provenance:"heuristic-postflop",
+      fullHand:true,
+    }):false;
+    if(misEnPause){fhResumeRef.current=suite;return;}
+    suite();
+  }
+  /* Reprise : le fil retenu repart UNE fois, puis la ref est vidée — un second
+     « Continuer » ne doit pas faire jouer le Villain deux fois. */
+  useEffect(()=>{
+    if(pausedNow)return;
+    const suite=fhResumeRef.current;
+    if(!suite)return;
+    fhResumeRef.current=null;
+    suite();
+  },[pausedNow]);
 
   function fhHeroAct(ui){
     const st=fhStateRef.current; if(!st||st.done||st.toAct!=="hero")return;
@@ -3970,11 +4036,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     else if(ui==="CHECK")action={type:"CHECK"};
     else if(ui==="BET")action={type:"BET",amount:Math.max(1,roundBb(st.pot*0.5))};
     else action={type:"BET",amount:Math.max(1,roundBb(st.pot))}; // bouton "PSB" (mappé RAISE dans l'UI)
-    fhEvaluate(st,ui==="RAISE"?"BET":ui,false); // PSB = BET pot ; évalue AVANT d'appliquer
+    const ev=fhEvaluate(st,ui==="RAISE"?"BET":ui,false); // PSB = BET pot ; évalue AVANT d'appliquer
     if(ui!=="CHECK"&&ui!=="FOLD")fhFireChip(ui==="BET"?"Bet ½":"Bet PSB");
     const after=fhApplyAction(st,"hero",action);
     fhSync(after);
-    fhAdvanceVillain();
+    fhAfterHeroDecision(ev,st.street,()=>fhAdvanceVillain());
   }
 
   /* Héro répond à une mise Villain : FOLD · CALL · RAISE. */
@@ -3985,11 +4051,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     if(ui==="FOLD")action={type:"FOLD"};
     else if(ui==="CALL")action={type:"CALL"};
     else action={type:"RAISE"};
-    fhEvaluate(st,ui,true); // face à une mise
+    const ev=fhEvaluate(st,ui,true); // face à une mise
     if(ui!=="FOLD")fhFireChip(ui==="CALL"?"Call":"Raise");
     const after=fhApplyAction(st,"hero",action);
     fhSync(after);
-    fhAdvanceVillain();
+    fhAfterHeroDecision(ev,st.street,()=>fhAdvanceVillain());
   }
 
   // Haptique fin de main complète (victoire/défaite)
@@ -6724,6 +6790,67 @@ function PillGroup({label,options,value,onChange,disabled,multi=false,color="#34
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   PauseAfterControl (Lot 4 bis) — contrôle segmenté « Pause après ».
+
+   Choix d'implémentation, et pourquoi :
+   · `role="radiogroup"` + `role="radio"` plutôt que des <button> : c'est ce qui
+     fait annoncer « 2 sur 4, sélectionné » par un lecteur d'écran. Une rangée de
+     boutons ne dit rien de l'exclusivité du choix.
+   · Navigation ← → / Début / Fin, un seul arrêt de tabulation (roving tabindex) :
+     c'est le comportement attendu d'un groupe de radios, et il évite de faire
+     traverser quatre arrêts au clavier dans un bandeau déjà long.
+   · L'option retenue est marquée par un POINT plein et une graisse, pas
+     seulement par la couleur — le réglage reste lisible en vision des couleurs
+     déficiente et en niveaux de gris.
+   · L'aide est disponible au survol ET au focus (title + texte affiché sous le
+     groupe), condition pour qu'elle existe pour qui navigue au clavier.
+   ══════════════════════════════════════════════════════════════════════════ */
+function PauseAfterControl({value,onChange,disabled=false,compact=false}){
+  const val=normalizePauseAfter(value);
+  const idx=Math.max(0,PAUSE_AFTER_OPTIONS.findIndex(o=>o.id===val));
+  const courante=PAUSE_AFTER_OPTIONS[idx];
+  const refs=useRef([]);
+  const bouger=(next)=>{
+    if(disabled)return;
+    const n=(next+PAUSE_AFTER_OPTIONS.length)%PAUSE_AFTER_OPTIONS.length;
+    onChange(PAUSE_AFTER_OPTIONS[n].id);
+    refs.current[n]?.focus();
+  };
+  const onKey=(e)=>{
+    if(disabled)return;
+    if(e.key==="ArrowRight"||e.key==="ArrowDown"){e.preventDefault();bouger(idx+1);}
+    else if(e.key==="ArrowLeft"||e.key==="ArrowUp"){e.preventDefault();bouger(idx-1);}
+    else if(e.key==="Home"){e.preventDefault();bouger(0);}
+    else if(e.key==="End"){e.preventDefault();bouger(PAUSE_AFTER_OPTIONS.length-1);}
+  };
+  return(
+    <div className="sb pf-pause-after">
+      <div className="sblbl" style={{display:"flex",alignItems:"center",gap:5}}>
+        <span>⏸ Pause après</span>
+        <span className="pf-pause-help" tabIndex={0} role="img" aria-label={PAUSE_AFTER_HELP} title={PAUSE_AFTER_HELP}>?</span>
+      </div>
+      <div className="pf-seg" role="radiogroup" aria-label="Pause après" onKeyDown={onKey}>
+        {PAUSE_AFTER_OPTIONS.map((o,i)=>{
+          const on=o.id===val;
+          return(
+            <button key={o.id} ref={el=>{refs.current[i]=el;}} type="button"
+              role="radio" aria-checked={on} aria-label={`${o.l} — ${o.hint}`} title={o.hint}
+              tabIndex={on?0:-1} disabled={disabled}
+              className={`pf-seg-item${on?" on":""}`}
+              onClick={()=>{if(!disabled){vibrate(VIB.tap);onChange(o.id);}}}>
+              {/* Marqueur non chromatique : plein = sélectionné, creux = non sélectionné. */}
+              <span className="pf-seg-dot" aria-hidden="true">{on?"●":"○"}</span>
+              {compact&&o.id===PAUSE_AFTER.INACCURACY?"Imprécis.+":o.l}
+            </button>
+          );
+        })}
+      </div>
+      <div className="pf-seg-hint">{courante?.hint}</div>
+    </div>
+  );
+}
+
 /* ── Leak Hunter : agrège les stats (positions, catégories, formats) → leak principal ── */
 function buildTrainerLeak(stats){
   if(!stats)return null;
@@ -6746,6 +6873,7 @@ const TRAINER_CFG_DEFAULT={
   adaptiveMode:"balanced",
   heroLayout:"hero",/* placement Hero : "hero" = bas-centre (rotation) · "table" = vue canonique */
   diffLvl:0,objectives:[],objective:null,timer:0,coachLevel:"Intermédiaire",
+  pauseAfter:PAUSE_AFTER_DEFAULT, /* Lot 4 bis — cf. src/trainerPausePolicy.js */
 };
 /* ── Types de session d'entraînement (indépendant de GTO/Exploit) ── */
 const TRAIN_MODES=[
@@ -6864,6 +6992,52 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   },[mobileTrainingSingleTableOnly,ntables]);
   // Multi-table : au changement de lot (idx) ou de nombre de tables, la table 1 redevient active
   useEffect(()=>{setActiveTable(a=>a>=ntables?0:a);},[idx,ntables]);
+  /* ══════════════════════════════════════════════════════════════════
+     PAUSE PÉDAGOGIQUE — état, déclenchement, levée. (Lot 4 bis)
+
+     Une pause est LOCALE à une table. Les autres tables continuent leur vie ;
+     ce qui est empêché, c'est l'avancement automatique de CETTE table (fin de
+     coup complet, bascule du focus) et le décompte de son timer.
+
+     Idempotence : `pauseFiredRef` mémorise les clés `tableId|handId|decisionId`
+     déjà déclenchées. Sans elle, un simple re-rendu React aurait remis en pause
+     une table que le joueur venait de relancer. La ref est purgée avec l'état de
+     main de la table (voir `clearTableHandState`), donc elle ne grossit pas
+     indéfiniment au fil d'une session illimitée.
+     ══════════════════════════════════════════════════════════════════ */
+  const[pausedTables,setPausedTables]=useState({});   // {tid: {key, verdictClass, …}}
+  const pauseFiredRef=useRef(new Set());
+  const pausePolicy=normalizePauseAfter(f.pauseAfter);
+  /* Le rendu lit une ref pour éviter de recréer les callbacks des tables à
+     chaque changement de réglage (une table en cours d'animation serait
+     remontée). La règle, elle, est toujours lue au moment du verdict. */
+  const pausePolicyRef=useRef(pausePolicy);
+  useEffect(()=>{pausePolicyRef.current=pausePolicy;},[pausePolicy]);
+
+  const requestPause=useCallback((tid,spot,info)=>{
+    const policy=pausePolicyRef.current;
+    const veutPause=shouldPauseAfter(policy,info.verdictClass);
+    const key=pauseKey(tid,spot?.id,info.decision);
+    const dejaVue=pauseFiredRef.current.has(key);
+    /* Toute décision est tracée, pause ou pas : c'est ce qui permet à l'audit de
+       vérifier la règle dans les deux sens — s'est arrêté quand il fallait, ET
+       ne s'est pas arrêté quand il ne fallait pas. */
+    try{recordPauseDiag({tableId:tid,handId:spot?.id??null,decision:info.decision,
+      policy,verdictClass:info.verdictClass,paused:veutPause&&!dejaVue,duplicate:veutPause&&dejaVue});}catch{}
+    if(!veutPause||dejaVue)return false;
+    pauseFiredRef.current.add(key);
+    setPausedTables(p=>({...p,[tid]:{key,tableId:tid,handId:spot?.id??null,at:Date.now(),...info}}));
+    vibrate(VIB.tap);
+    return true;
+  },[]);
+
+  const resumeTable=useCallback(tid=>{
+    setPausedTables(p=>{if(!(tid in p))return p;const n={...p};delete n[tid];return n;});
+  },[]);
+  const resumeAllTables=useCallback(()=>{setPausedTables({});},[]);
+  const pausedIds=useMemo(()=>Object.keys(pausedTables).map(Number).sort((a,b)=>a-b),[pausedTables]);
+  const isTablePaused=useCallback(t=>Object.prototype.hasOwnProperty.call(pausedTables,t),[pausedTables]);
+
   /* Le panneau decrit la table focalisee ; le focus ne changeait QUE sur un clic.
      Sur une mosaique ou les tables avancent de facon asynchrone, on se retrouvait
      donc a decider sur une table pendant que le panneau en decrivait une autre.
@@ -6873,10 +7047,28 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   useEffect(()=>{
     if(ntables<2)return;
     const attend=t=>!tableAns[t]&&!tableSettled[t];
-    if(attend(activeTable))return;
+    /* ── Lot 4 / Lot 4 bis — priorité au verdict qu'on vient de produire ──
+       Mesuré le 2026-08-21 en 2T : après une réponse sur la table 1, le focus
+       partait aussitôt sur la table 2 et le panneau droit — seul endroit où la
+       solution complète existe — décrivait la table 2. Le joueur venait de
+       décider sur la 1 et lisait l'analyse de la 2. Une table EN PAUSE demande
+       explicitement l'attention : elle garde le focus, et l'attire si elle ne
+       l'a pas. Elle passe donc AVANT la recherche d'une table qui attend. */
+    if(pausedTables[activeTable])return;
+    const enPause=Object.keys(pausedTables).map(Number).filter(t=>t<ntables).sort((a,b)=>a-b)[0];
+    if(enPause!=null){setActiveTable(enPause);return;}
+    /* Une table qui vient de répondre a un VERDICT À LIRE. Le panneau droit est
+       unique : le lui retirer à cet instant précis, c'est afficher l'analyse
+       d'une autre main que celle qu'on vient de jouer. Mesuré le 2026-08-21 en
+       2T/3T/4T : table 1 = BB 120bb, panneau = BTN 65bb.
+       Le verdict cesse d'être « à lire » quand le joueur fait avancer la table
+       (`clearTableHandState` efface `tableAns`), et le focus peut alors migrer.
+       Le clic direct sur une tuile reste prioritaire dans tous les cas. */
+    const aUnVerdictALire=t=>!!tableAns[t];
+    if(attend(activeTable)||aUnVerdictALire(activeTable))return;
     const suivante=Array.from({length:ntables},(_,i)=>i).find(i=>i!==activeTable&&attend(i));
     if(suivante!=null)setActiveTable(suivante);
-  },[ntables,activeTable,tableAns,tableSettled]);
+  },[ntables,activeTable,tableAns,tableSettled,pausedTables]);
   /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
      table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
      pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
@@ -6911,7 +7103,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   const lastConstraintsRef=useRef(null); // dernière résolution de contraintes (§25)
   // Tag §28 : applique la solution solveur (ou marque heuristique) à chaque spot.
   // Utilisé par TOUS les chemins de queue (start, resume, import HH, similaires).
-  const stampStrategy=useCallback((arr)=>{(arr||[]).forEach(s=>{if(s)try{applySolverStrategy(s);}catch{}});return arr;},[]);
+  /* Point de passage UNIQUE de toutes les queues (start, resume, import HH,
+     spots similaires). C'est donc le seul endroit où tracer la résolution : une
+     trace posée ailleurs raterait forcément un chemin. */
+  const stampStrategy=useCallback((arr)=>{(arr||[]).forEach(s=>{
+    if(!s)return;
+    const t0=(typeof performance!=="undefined"?performance.now():Date.now());
+    try{applySolverStrategy(s);}catch{}
+    try{recordSolutionDiag(s,{durationMs:Math.round(((typeof performance!=="undefined"?performance.now():Date.now())-t0)*100)/100});}catch{}
+  });return arr;},[]);
   // ── AI Training Orchestrator (§57) : demande en langage naturel → config ──
   const[aiRequest,setAiRequest]=useState("");
   const[aiUnderstanding,setAiUnderstanding]=useState(null); // {text, ok}
@@ -7382,6 +7582,21 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const dt=(Date.now()-spotStartRef.current)/1000;
     if(dt>0&&dt<120)setDecisionTimes(d=>[...d,dt]);
     setTableAns(a=>({...a,[tid]:{correct,ua}}));
+    /* ── Lot 4 bis — « Pause après » ──
+       L'ÉVALUATION EST TERMINÉE À CE POINT : le verdict, l'action optimale et
+       l'EV perdue sont connus. On ne fige donc jamais une table avant d'avoir de
+       quoi expliquer pourquoi. Un spot non évaluable ne produit pas de verdict
+       et n'est pas comptabilisé comme une faute du joueur (cf. isEvaluableSpot). */
+    requestPause(tid,spot,{
+      verdictClass: isEvaluableSpot(spot)?classFromSpotVerdict(spotVerdict(spot,ua)):"unevaluated",
+      decision: pauseDecisionId({street:spot.street}),
+      chosen: spot.acts?.[ua]?.l||null,
+      best: spot.acts?.[spot.ok]?.l||null,
+      evDiff: (()=>{const b=spot.acts?.[spot.ok],c=spot.acts?.[ua];
+        if(!b||!c||spot.ev?.[b.id]==null||spot.ev?.[c.id]==null)return null;
+        return roundBb(Number(spot.ev[c.id])-Number(spot.ev[b.id]));})(),
+      provenance: spot.strategySource||null,
+    });
     setResults(r=>[...r,{spot,correct,ua,qi}]); // qi = position dans la queue (timeline)
     appendPlayedSpot(spot,correct,ua,trainerMode); // sauvegarde dans pf_played_spots
     try{
@@ -7402,6 +7617,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   function handleTableSettled(tid){
     setTableSettled(s=>({...s,[tid]:true}));
   }
+
   /* ══════════════════════════════════════════════════════════════════
      CONTRÔLEUR UNIQUE « MAIN SUIVANTE »
 
@@ -7444,6 +7660,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     setTableSettled(s=>{const n={...s};delete n[t];return n;});
     setFhLive(f=>{const n={...f};delete n[t];return n;});
     setTableLive(m=>{const n={...m};delete n[t];return n;});
+    /* Une main qui s'en va emporte sa pause ET les clés qui la protégeaient du
+       double déclenchement : la main suivante doit pouvoir mettre en pause à son
+       tour, et le jeu de clés ne doit pas croître sans fin en session illimitée. */
+    setPausedTables(p=>{const n={...p};delete n[t];return n;});
+    const prefixe=`t${t}|`;
+    for(const k of [...pauseFiredRef.current]) if(k.startsWith(prefixe)) pauseFiredRef.current.delete(k);
   },[]);
 
   /**
@@ -7537,7 +7759,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     const acts=Array.isArray(s.acts)?s.acts:[];
     const best=s.ok!=null?s.acts?.[s.ok]:null;
     const bestEv=best?Number(s.ev?.[best.id]||0):0;
-    const revealed=showSol||!!ans;
+    /* ── Lot 4 — « Masquer la solution » doit MASQUER ──
+       La condition était `showSol || !!ans` : dès qu'une table avait répondu, le
+       panneau ouvrait la solution complète même avec la bascule sur « masquée ».
+       Le mode difficile ne tenait donc qu'une seule main, et le bouton global
+       n'avait plus d'effet observable après la première décision. La bascule
+       globale est désormais la SEULE autorité sur la révélation ; le verdict de
+       la décision, lui, reste visible (il n'expose ni fréquences ni EV
+       optimale). */
+    const revealed=showSol;
     const chosen=ans?s.acts?.[ans.ua]:null;
     const chosenEv=chosen?Number(s.ev?.[chosen.id]||0):0;
     const isGto=trainerMode==="gto";
@@ -7610,13 +7840,25 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 const col=chart?"#FFB020":cfr?"#20CFFF":solver?"#10D87A":T.text3;
                 const dim=chart?"rgba(255,176,32,.1)":cfr?"rgba(32,207,255,.1)":solver?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)";
                 const bd=chart?"rgba(255,176,32,.3)":cfr?"rgba(32,207,255,.3)":solver?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)";
+                /* Le libellé DÉCRIT LE MODÈLE APPLIQUÉ, il ne se contente pas de dire
+                   « exact ». Le mot « exact » sans domaine est ce qui a permis à un
+                   BTN de Cash 6-max de porter le badge du solveur heads-up. Le
+                   périmètre voyage maintenant avec le spot (strategyScope), et la
+                   raison du repli avec lui (strategyLimits). */
+                const sc=s.strategyScope||null;
                 const label=chart?"CHART PRÉFLOP — fréquences lues (non calculées ici)"
                   :cfr?"SOLUTION CFR POSTFLOP — expérimental (ranges heuristiques)"
-                  :solver?"SOLUTION SOLVEUR — calcul exact":"SOLUTION HEURISTIQUE — template";
+                  :solver?`SOLVEUR PUSH/FOLD — heads-up chip-EV${sc?.depthBb?` · ${sc.depthBb}bb`:""}`
+                  :"ESTIMATION HEURISTIQUE — non résolue en interne";
+                const why=!solver&&!chart&&!cfr?(s.strategyLimits||[])[0]:null;
+                const tip=[s.strategyNote||"",...(s.strategyLimits||[]).map(l=>"· "+l)].filter(Boolean).join("\n");
                 return(
-                  <div title={s.strategyNote||""} style={{display:"flex",alignItems:"center",gap:6,margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,background:dim,border:`1px solid ${bd}`}}>
-                    <span style={{fontSize:11}}>{chart?"📊":solver?"🦈":"≈"}</span>
-                    <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:col}}>{label}</span>
+                  <div title={tip} style={{margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,background:dim,border:`1px solid ${bd}`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:11}}>{chart?"📊":solver?"🦈":"≈"}</span>
+                      <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:col}}>{label}</span>
+                    </div>
+                    {why&&<div style={{fontFamily:T.stats,fontSize:8,color:T.text4,lineHeight:1.5,marginTop:2,paddingLeft:17}}>{why}</div>}
                   </div>
                 );
               })()}
@@ -8002,6 +8244,15 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             options={TIMER_OPTS.map(t=>({id:t,l:t===0?"Aucun":t+"s"}))} value={f.timer} onChange={v=>upd("timer",v)}/>
           <div className="sbsep"/>
 
+          {/* ── PAUSE APRÈS (Lot 4 bis) ──
+             Volontairement placé juste après le Timer : les deux règlent le RYTHME
+             de la session, et la pause suspend précisément ce compte à rebours.
+             Contrairement aux filtres de génération, il reste modifiable PENDANT la
+             session (pas de `disabled={sessionActive}`) : c'est un réglage de
+             confort de lecture, pas un paramètre qui changerait les spots servis. */}
+          <PauseAfterControl value={f.pauseAfter} onChange={v=>upd("pauseAfter",v)}/>
+          <div className="sbsep"/>
+
           {/* ── NIVEAU COACH AI ── */}
           <PillGroup label="Niveau Coach AI" color="#34D8FF"
             options={COACH_LEVELS} value={f.coachLevel} onChange={v=>upd("coachLevel",v)}
@@ -8214,6 +8465,23 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
               <span>{showSol?"👁":"🚫"}</span>
               {showSol?"Masquer la solution":"Afficher la solution"}
             </button>
+            {/* ══ Lot 4 bis — compteur global de pauses ══
+               En mosaïque, une table figée au fond de la grille peut passer
+               inaperçue. Le compteur dit combien de tables attendent, et « Continuer
+               toutes » évite d'aller les relancer une à une. Il n'apparaît qu'à
+               partir de deux tables en pause : au singulier, le bandeau de la table
+               concernée suffit et un second bouton ne ferait que dupliquer. */}
+            {pausedIds.length>0&&(
+              <div className="pf-pause-count" role="status" aria-live="polite">
+                <span aria-hidden="true">⏸</span>
+                <b>{pausedCountLabel(pausedIds.length)}</b>
+                {pausedIds.length>1&&(
+                  <button className="pf-pause-all" onClick={()=>{vibrate(VIB.tap);resumeAllTables();}}>
+                    ▶ Continuer toutes
+                  </button>
+                )}
+              </div>
+            )}
             {/* Progression */}
             <div style={{fontFamily:"'JetBrains Mono',monospace",fontSize:9.5,color:T.text4}}>
               {idx+1}/{smode===999?"∞":smode}
@@ -8331,9 +8599,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
                 const isActiveT=ntables>1&&activeTable===t;
+                const enPause=pausedTables[t]||null;
                 return(
                   <div key={`${tblIdx(t)}-${t}`}
-                    className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}${isActiveT?" mt-slot-focus":""}`}
+                    className={`mt-slot${slotCls?" "+slotCls:""}${expanded?" mt-slot-expanded":""}${isActiveT?" mt-slot-focus":""}${enPause?" mt-slot-paused":""}`}
                     style={ntables>1?{display:"flex",flexDirection:"column"}:undefined}
                     onMouseDown={ntables>1&&!isMobile?()=>setActiveTable(t):undefined}
                     onTouchStart={isMobile&&ntables>1?slotTouchStart:undefined}
@@ -8350,13 +8619,50 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                         {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
                       </div>
                     )}
+                    {/* ══ Lot 4 bis — BANDEAU DE PAUSE ══
+                       Rendu ici, dans le conteneur de table, parce que c'est le seul
+                       point de montage traversé par les TROIS rendus (1T, mosaïque,
+                       mobile agrandi) : un bandeau écrit dans l'un des trois aurait
+                       manqué les deux autres. Il porte ce dont le joueur a besoin
+                       pour décider de continuer — verdict, action optimale, EV
+                       perdue, provenance — et rien d'autre. */}
+                    {enPause&&(
+                      <div className={`pf-pause-bar${enPause.verdictClass==="unevaluated"?" neutre":""}`} role="status" aria-live="polite">
+                        <div className="pf-pause-head">
+                          <span className="pf-pause-ico" aria-hidden="true">⏸</span>
+                          <b>{enPause.verdictClass==="unevaluated"?"Décision non évaluée":"Table en pause"}</b>
+                          {ntables>1&&<span className="pf-pause-tbl">Table {t+1}</span>}
+                        </div>
+                        <div className="pf-pause-body">
+                          {enPause.chosen&&<span>Ton action : <b>{enPause.chosen}</b></span>}
+                          {/* La pause ne contourne PAS le mode difficile. Solution
+                              masquée = ni action optimale, ni EV : sinon le réglage
+                              « Pause après » serait devenu la façon de lire la
+                              solution qu'on venait justement de cacher. */}
+                          {showSol?(<>
+                            {enPause.best&&enPause.best!==enPause.chosen&&<span>Optimale : <b className="best">{enPause.best}</b></span>}
+                            {/* L'EV perdue n'est affichée QUE si elle a été calculée.
+                               `null` veut dire « non calculé », pas « zéro ». */}
+                            {enPause.evDiff!=null
+                              ?<span>EV : <b className={enPause.evDiff<0?"neg":"pos"}>{enPause.evDiff>0?"+":""}{fmtNum(enPause.evDiff,2)}bb</b></span>
+                              :<span className="pf-pause-nc">EV non calculée</span>}
+                          </>):(
+                            <span className="pf-pause-nc">Solution masquée — révèle-la pour l'action optimale et l'EV.</span>
+                          )}
+                          {enPause.provenance&&<span className="pf-pause-src">{enPause.provenance==="solver"?"🦈 solveur":enPause.provenance==="chart"?"📊 chart":"≈ heuristique"}</span>}
+                        </div>
+                        <button className="pf-pause-go" onClick={()=>{vibrate(VIB.tap);resumeTable(t);}} autoFocus>
+                          {enPause.fullHand?"▶ Continuer le coup":"▶ Continuer"}
+                        </button>
+                      </div>
+                    )}
                     {/* Bouton fermer (table agrandie) */}
                     {expanded&&<button className="mt-expand-x" onClick={()=>setExpandedT(null)} title="Réduire">✕</button>}
                     {/* Bouton agrandir (mobile multi) */}
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined}/>
+                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined} paused={pausedTables[t]||null} onResume={()=>resumeTable(t)} onPauseRequest={info=>requestPause(t,spot,info)}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);

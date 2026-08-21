@@ -19,6 +19,9 @@
    (§26) des phases suivantes.
    ══════════════════════════════════════════════════════════════════════════ */
 
+import { PAUSE_AFTER_DEFAULT, normalizePauseAfter } from "./trainerPausePolicy.js";
+
+
 /* ── Valeurs par défaut alignées sur TRAINER_CFG_DEFAULT + states frères ── */
 export const DEFAULT_TRAINING_CONFIG = Object.freeze({
   // §4 Session
@@ -72,6 +75,10 @@ export const DEFAULT_TRAINING_CONFIG = Object.freeze({
   timer: 0,                   // ← f.timer (0 = aucun, sinon secondes)
   // §24 Niveau Coach AI
   coachLevel: "Intermédiaire",// ← f.coachLevel
+  /* Lot 4 bis — « Pause après ». Vit dans le config CANONIQUE (et pas seulement
+     dans `f`) pour être persisté avec le reste des réglages de session et
+     restauré à la reprise d'une session interrompue, exactement comme le timer. */
+  pauseAfter: PAUSE_AFTER_DEFAULT, // ← f.pauseAfter
 });
 
 /* Longueurs de session valides (§4). */
@@ -115,6 +122,7 @@ const F_TO_CONFIG = {
   category: "cat",
   timer: "timer",
   coachLevel: "coachLevel",
+  pauseAfter: "pauseAfter",
 };
 
 function coerceNumber(v, fallback) {
@@ -194,6 +202,9 @@ export function normalizeTrainingConfig(cfg = {}) {
   out.heroDisplayMode = out.heroDisplayMode === "table" ? "table" : "hero";
 
   out.timer = Math.max(0, coerceNumber(out.timer, 0));
+  // Une valeur inconnue retombe sur « Jamais » : le réglage ne peut jamais
+  // interrompre la session à cause d'une préférence corrompue.
+  out.pauseAfter = normalizePauseAfter(out.pauseAfter);
   out.difficultyLevel = Math.max(0, coerceNumber(out.difficultyLevel, 0));
 
   out.spotTypes = Array.isArray(out.spotTypes) ? out.spotTypes : [];

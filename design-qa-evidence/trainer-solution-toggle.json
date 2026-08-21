@@ -1,0 +1,249 @@
+{
+  "ts": "2026-08-21T02:07:23.580Z",
+  "url": "http://localhost:7799",
+  "viewport": {
+    "w": 1920,
+    "h": 1080
+  },
+  "cas": [
+    {
+      "tables": 2,
+      "erreurs": [],
+      "etapes": [
+        {
+          "etape": "solution masquée, table 1 répondue",
+          "etat": "masquee",
+          "panneau": {
+            "pos": "CO",
+            "stack": "130",
+            "verrouille": true,
+            "montreFreq": false,
+            "montreEvOptimale": false
+          },
+          "joue": "Check0bbPasser",
+          "identiteT1": {
+            "pos": "CO",
+            "stack": "130"
+          }
+        },
+        {
+          "etape": "solution affichée",
+          "etat": "affichee",
+          "panneau": {
+            "pos": "CO",
+            "stack": "130",
+            "verrouille": false,
+            "montreFreq": true,
+            "montreEvOptimale": true
+          },
+          "tuiles": [
+            {
+              "t": 1,
+              "id": {
+                "pos": "CO",
+                "stack": "130"
+              },
+              "sol": {
+                "repondue": true,
+                "montreMeilleure": true,
+                "meilleure": "Check GTO 65% Exploit 65",
+                "montreFreq": true,
+                "ditMasquee": false
+              }
+            },
+            {
+              "t": 2,
+              "id": {
+                "pos": "BB",
+                "stack": "74"
+              },
+              "sol": {
+                "repondue": false,
+                "montreMeilleure": false,
+                "meilleure": null,
+                "montreFreq": false,
+                "ditMasquee": false
+              }
+            }
+          ]
+        }
+      ],
+      "problemes": [],
+      "ok": true
+    },
+    {
+      "tables": 3,
+      "erreurs": [],
+      "etapes": [
+        {
+          "etape": "solution masquée, table 1 répondue",
+          "etat": "masquee",
+          "panneau": {
+            "pos": "BTN",
+            "stack": "65",
+            "verrouille": true,
+            "montreFreq": false,
+            "montreEvOptimale": false
+          },
+          "joue": "Check0bbPasser",
+          "identiteT1": {
+            "pos": "BTN",
+            "stack": "65"
+          }
+        },
+        {
+          "etape": "solution affichée",
+          "etat": "affichee",
+          "panneau": {
+            "pos": "BTN",
+            "stack": "65",
+            "verrouille": false,
+            "montreFreq": true,
+            "montreEvOptimale": true
+          },
+          "tuiles": [
+            {
+              "t": 1,
+              "id": {
+                "pos": "BTN",
+                "stack": "65"
+              },
+              "sol": {
+                "repondue": true,
+                "montreMeilleure": true,
+                "meilleure": "Bet PSB GTO 75% Exploit",
+                "montreFreq": true,
+                "ditMasquee": false
+              }
+            },
+            {
+              "t": 2,
+              "id": {
+                "pos": "BB",
+                "stack": "90"
+              },
+              "sol": {
+                "repondue": false,
+                "montreMeilleure": false,
+                "meilleure": null,
+                "montreFreq": false,
+                "ditMasquee": false
+              }
+            },
+            {
+              "t": 3,
+              "id": {
+                "pos": "BTN",
+                "stack": "10"
+              },
+              "sol": {
+                "repondue": false,
+                "montreMeilleure": false,
+                "meilleure": null,
+                "montreFreq": false,
+                "ditMasquee": false
+              }
+            }
+          ]
+        }
+      ],
+      "problemes": [],
+      "ok": true
+    },
+    {
+      "tables": 4,
+      "erreurs": [],
+      "etapes": [
+        {
+          "etape": "solution masquée, table 1 répondue",
+          "etat": "masquee",
+          "panneau": {
+            "pos": "BTN",
+            "stack": "80",
+            "verrouille": true,
+            "montreFreq": false,
+            "montreEvOptimale": false
+          },
+          "joue": "Check0bbPasser",
+          "identiteT1": {
+            "pos": "BTN",
+            "stack": "80"
+          }
+        },
+        {
+          "etape": "solution affichée",
+          "etat": "affichee",
+          "panneau": {
+            "pos": "BTN",
+            "stack": "80",
+            "verrouille": false,
+            "montreFreq": true,
+            "montreEvOptimale": true
+          },
+          "tuiles": [
+            {
+              "t": 1,
+              "id": {
+                "pos": "BTN",
+                "stack": "80"
+              },
+              "sol": {
+                "repondue": true,
+                "montreMeilleure": true,
+                "meilleure": "Bet 50% GTO 35% Exploit",
+                "montreFreq": true,
+                "ditMasquee": false
+              }
+            },
+            {
+              "t": 2,
+              "id": {
+                "pos": "UTG",
+                "stack": "100"
+              },
+              "sol": {
+                "repondue": false,
+                "montreMeilleure": false,
+                "meilleure": null,
+                "montreFreq": false,
+                "ditMasquee": false
+              }
+            },
+            {
+              "t": 3,
+              "id": {
+                "pos": "BB",
+                "stack": "110"
+              },
+              "sol": {
+                "repondue": false,
+                "montreMeilleure": false,
+                "meilleure": null,
+                "montreFreq": false,
+                "ditMasquee": false
+              }
+            },
+            {
+              "t": 4,
+              "id": {
+                "pos": "CO",
+                "stack": "15"
+              },
+              "sol": {
+                "repondue": false,
+                "montreMeilleure": false,
+                "meilleure": null,
+                "montreFreq": false,
+                "ditMasquee": false
+              }
+            }
+          ]
+        }
+      ],
+      "problemes": [],
+      "ok": true
+    }
+  ],
+  "echecs": [],
+  "verdict": "OK — bascule globale conforme sur 3 configuration(s)"
+}
