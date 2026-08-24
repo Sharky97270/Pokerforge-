@@ -1,6 +1,6 @@
 {
-  "ts": "2026-08-21T02:17:16.316Z",
-  "url": "http://localhost:7799",
+  "ts": "2026-08-21T18:42:09.755Z",
+  "url": "http://localhost:7801",
   "viewport": {
     "w": 1920,
     "h": 1080
@@ -15,12 +15,40 @@
       "selectionne": "Jamais",
       "apresRechargement": "Jamais",
       "persiste": true,
-      "decisions": 1,
+      "decisions": 3,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "Call7bbSuivre",
+          "joue": "Tapis 23bb23bbta",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": null
+        },
+        {
+          "main": 1,
+          "table": 0,
+          "joue": "Bet 2.5bb2.5bb50",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": null
+        },
+        {
+          "main": 2,
+          "table": 0,
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -50,12 +78,12 @@
       "selectionne": "Erreur",
       "apresRechargement": "Erreur",
       "persiste": true,
-      "decisions": 3,
+      "decisions": 2,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "Push 22bbTapisTa",
+          "joue": "Bet 18bb18bb67% ",
           "tuiles": [
             {
               "t": 0,
@@ -69,21 +97,7 @@
         {
           "main": 1,
           "table": 0,
-          "joue": "Check0bbPasser",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            }
-          ],
-          "compteur": null
-        },
-        {
-          "main": 2,
-          "table": 0,
-          "joue": "Check0bbPasser",
+          "joue": "Call 1.5bb1.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -118,35 +132,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "Cbet 33%3.6bb33%",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": true,
-              "bar": true,
-              "peutJouer": false
-            }
-          ],
-          "compteur": "⏸ 1 table en pause"
-        },
-        {
-          "main": 1,
-          "table": 0,
-          "joue": "Cbet pot6bbPot",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": true,
-              "bar": true,
-              "peutJouer": false
-            }
-          ],
-          "compteur": "⏸ 1 table en pause"
-        },
-        {
-          "main": 2,
-          "table": 0,
-          "joue": "Barrel 66%13bb75",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -156,11 +142,39 @@
             }
           ],
           "compteur": null
+        },
+        {
+          "main": 1,
+          "table": 0,
+          "joue": "FoldNe pas jouer",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": null
+        },
+        {
+          "main": 2,
+          "table": 0,
+          "joue": "Call 2.5bb2.5bbà",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            }
+          ],
+          "compteur": "⏸ 1 table en pause"
         }
       ],
       "desaccords": [],
       "doublons": 0,
-      "pausesDeclenchees": 2,
+      "pausesDeclenchees": 1,
       "politiqueLue": [
         "inaccuracy"
       ],
@@ -176,12 +190,12 @@
       "selectionne": "Chaque action",
       "apresRechargement": "Chaque action",
       "persiste": true,
-      "decisions": 2,
+      "decisions": 3,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "Fold0bbNe pas jo",
+          "joue": "Open 2.5bb2.5bb2",
           "tuiles": [
             {
               "t": 0,
@@ -195,7 +209,21 @@
         {
           "main": 1,
           "table": 0,
-          "joue": "Call2.5bbSuivre",
+          "joue": "FoldNe pas jouer",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            }
+          ],
+          "compteur": "⏸ 1 table en pause"
+        },
+        {
+          "main": 2,
+          "table": 0,
+          "joue": "Bet 2.5bb2.5bb36",
           "tuiles": [
             {
               "t": 0,
@@ -209,7 +237,7 @@
       ],
       "desaccords": [],
       "doublons": 0,
-      "pausesDeclenchees": 2,
+      "pausesDeclenchees": 3,
       "politiqueLue": [
         "every"
       ],
@@ -230,7 +258,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "Delayed 50%8bb50",
+          "joue": "Tapis 123bb123bb",
           "tuiles": [
             {
               "t": 0,
@@ -250,7 +278,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "ShoveTapisTapis",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -290,7 +318,7 @@
         {
           "main": 2,
           "table": 0,
-          "joue": "Call1.5bbSuivre",
+          "joue": "Relancer à 11bb1",
           "tuiles": [
             {
               "t": 0,
@@ -331,7 +359,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "Probe 50%10bb50%",
+          "joue": "Tapis 17bb17bbta",
           "tuiles": [
             {
               "t": 0,
@@ -351,7 +379,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Check0bbPasser",
+          "joue": "Call 2.5bb2.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -371,7 +399,7 @@
         {
           "main": 1,
           "table": 0,
-          "joue": "Cbet 33%3bb33% p",
+          "joue": "CheckPasser sans",
           "tuiles": [
             {
               "t": 0,
@@ -391,7 +419,7 @@
         {
           "main": 2,
           "table": 0,
-          "joue": "Bet 33%6.6bb33% ",
+          "joue": "4-Bet 22bb22bbà ",
           "tuiles": [
             {
               "t": 0,
@@ -432,7 +460,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "Push 10bbTapisTa",
+          "joue": "Bet 4bb4bb36% du",
           "tuiles": [
             {
               "t": 0,
@@ -452,7 +480,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Check0bbPasser",
+          "joue": "Call 7bb7bbà pay",
           "tuiles": [
             {
               "t": 0,
@@ -462,17 +490,17 @@
             },
             {
               "t": 1,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             }
           ],
-          "compteur": "⏸ 1 table en pause"
+          "compteur": null
         },
         {
           "main": 1,
-          "table": 1,
-          "joue": "3-bet 8.5bb12bbR",
+          "table": 0,
+          "joue": "Open 2bb2bb2× BB",
           "tuiles": [
             {
               "t": 0,
@@ -482,17 +510,17 @@
             },
             {
               "t": 1,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             }
           ],
-          "compteur": "⏸ 1 table en pause"
+          "compteur": null
         },
         {
           "main": 2,
-          "table": 1,
-          "joue": "FoldNe pas jouer",
+          "table": 0,
+          "joue": "3-Bet 9bb9bbà 9b",
           "tuiles": [
             {
               "t": 0,
@@ -502,17 +530,17 @@
             },
             {
               "t": 1,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             }
           ],
-          "compteur": "⏸ 1 table en pause"
+          "compteur": null
         }
       ],
       "desaccords": [],
       "doublons": 0,
-      "pausesDeclenchees": 3,
+      "pausesDeclenchees": 0,
       "politiqueLue": [
         "inaccuracy"
       ],
@@ -528,12 +556,12 @@
       "selectionne": "Chaque action",
       "apresRechargement": "Chaque action",
       "persiste": true,
-      "decisions": 3,
+      "decisions": 4,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "3-bet 9bb12bbRel",
+          "joue": "3-Bet 8.5bb8.5bb",
           "tuiles": [
             {
               "t": 0,
@@ -553,7 +581,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Call5bbSuivre",
+          "joue": "3-Bet 9bb9bbà 9b",
           "tuiles": [
             {
               "t": 0,
@@ -573,7 +601,27 @@
         {
           "main": 1,
           "table": 0,
-          "joue": "Call1.5bbSuivre",
+          "joue": "Open 3bb3bb3× BB",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": "⏸ 1 table en pause"
+        },
+        {
+          "main": 2,
+          "table": 0,
+          "joue": "Bet 6bb6bb75% du",
           "tuiles": [
             {
               "t": 0,
@@ -593,7 +641,7 @@
       ],
       "desaccords": [],
       "doublons": 0,
-      "pausesDeclenchees": 3,
+      "pausesDeclenchees": 4,
       "politiqueLue": [
         "every"
       ],
@@ -609,12 +657,12 @@
       "selectionne": "Jamais",
       "apresRechargement": "Jamais",
       "persiste": true,
-      "decisions": 5,
+      "decisions": 3,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "Check0bbPasser",
+          "joue": "Call 1.5bb1.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -640,7 +688,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Fold0bbNe pas jo",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -666,59 +714,7 @@
         {
           "main": 0,
           "table": 2,
-          "joue": "Check0bbPasser",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            }
-          ],
-          "compteur": null
-        },
-        {
-          "main": 1,
-          "table": 0,
-          "joue": "Barrel 50%9bb50%",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            }
-          ],
-          "compteur": null
-        },
-        {
-          "main": 2,
-          "table": 0,
-          "joue": "Fold0bbNe pas jo",
+          "joue": "Call 6.5bb6.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -760,12 +756,12 @@
       "selectionne": "Erreur",
       "apresRechargement": "Erreur",
       "persiste": true,
-      "decisions": 3,
+      "decisions": 5,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "Call2bbSuivre",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -791,7 +787,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "4-bet 24bb39bbRe",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -817,7 +813,59 @@
         {
           "main": 0,
           "table": 2,
-          "joue": "Call5bbSuivre",
+          "joue": "Open 2.5bb2.5bb2",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 2,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": null
+        },
+        {
+          "main": 1,
+          "table": 0,
+          "joue": "Bet 7bb7bb54% du",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 2,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": null
+        },
+        {
+          "main": 2,
+          "table": 0,
+          "joue": "Call 1.5bb1.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -864,12 +912,12 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "FoldNe pas jouer",
+          "joue": "Bet 8bb8bb100% d",
           "tuiles": [
             {
               "t": 0,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             },
             {
@@ -877,6 +925,32 @@
               "paused": false,
               "bar": false,
               "peutJouer": true
+            },
+            {
+              "t": 2,
+              "paused": false,
+              "bar": false,
+              "peutJouer": true
+            }
+          ],
+          "compteur": null
+        },
+        {
+          "main": 0,
+          "table": 1,
+          "joue": "Relancer à 11bb1",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
             },
             {
               "t": 2,
@@ -889,13 +963,13 @@
         },
         {
           "main": 0,
-          "table": 1,
-          "joue": "Raise All-in149.",
+          "table": 2,
+          "joue": "3-Bet 8.5bb8.5bb",
           "tuiles": [
             {
               "t": 0,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             },
             {
@@ -906,22 +980,22 @@
             },
             {
               "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": true
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
             }
           ],
           "compteur": "⏸ 2 tables en pause ▶ Continuer toutes"
         },
         {
-          "main": 0,
-          "table": 2,
+          "main": 1,
+          "table": 1,
           "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             },
             {
@@ -932,43 +1006,17 @@
             },
             {
               "t": 2,
-              "paused": true,
-              "bar": true,
-              "peutJouer": false
-            }
-          ],
-          "compteur": "⏸ 3 tables en pause ▶ Continuer toutes"
-        },
-        {
-          "main": 1,
-          "table": 0,
-          "joue": "Fold0bbNe pas jo",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
               "paused": false,
               "bar": false,
               "peutJouer": false
             }
           ],
-          "compteur": null
+          "compteur": "⏸ 1 table en pause"
         },
         {
           "main": 2,
-          "table": 0,
-          "joue": "Fold0bbNe pas jo",
+          "table": 1,
+          "joue": "Tapis 20bb20bbta",
           "tuiles": [
             {
               "t": 0,
@@ -1015,7 +1063,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "3-bet 9bb10.5bbR",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -1041,7 +1089,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Bet 50%14bb33% p",
+          "joue": "Call 1.5bb1.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -1067,7 +1115,7 @@
         {
           "main": 0,
           "table": 2,
-          "joue": "Open 3bb4.5bbRel",
+          "joue": "Open 2.5bb2.5bb2",
           "tuiles": [
             {
               "t": 0,
@@ -1093,7 +1141,7 @@
         {
           "main": 1,
           "table": 0,
-          "joue": "Open 3bb4.5bbRel",
+          "joue": "Tapis 43bb43bbta",
           "tuiles": [
             {
               "t": 0,
@@ -1119,7 +1167,7 @@
         {
           "main": 2,
           "table": 0,
-          "joue": "5-bet Jam 100bbT",
+          "joue": "Tapis 100bb100bb",
           "tuiles": [
             {
               "t": 0,
@@ -1166,7 +1214,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "Cbet 33%3bb33% p",
+          "joue": "Tapis 9.5bb9.5bb",
           "tuiles": [
             {
               "t": 0,
@@ -1198,7 +1246,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Barrel 50%8bb50%",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -1230,7 +1278,7 @@
         {
           "main": 0,
           "table": 2,
-          "joue": "Delayed 50%9bb50",
+          "joue": "Bet 6.5bb6.5bb72",
           "tuiles": [
             {
               "t": 0,
@@ -1262,7 +1310,7 @@
         {
           "main": 0,
           "table": 3,
-          "joue": "Fold0bbNe pas jo",
+          "joue": "Tapis 12bb12bbta",
           "tuiles": [
             {
               "t": 0,
@@ -1326,7 +1374,7 @@
         {
           "main": 2,
           "table": 0,
-          "joue": "Bet 33%13.2bb33%",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -1379,7 +1427,7 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "Push 20bbTapisTa",
+          "joue": "Open 2.5bb2.5bb2",
           "tuiles": [
             {
               "t": 0,
@@ -1411,7 +1459,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "FoldNe pas jouer",
+          "joue": "Bet 9bb9bb53% du",
           "tuiles": [
             {
               "t": 0,
@@ -1443,7 +1491,7 @@
         {
           "main": 0,
           "table": 2,
-          "joue": "Fold0bbNe pas jo",
+          "joue": "3-Bet 12bb12bbà ",
           "tuiles": [
             {
               "t": 0,
@@ -1475,7 +1523,7 @@
         {
           "main": 0,
           "table": 3,
-          "joue": "Barrel 50%11bb50",
+          "joue": "Tapis 13bb13bbta",
           "tuiles": [
             {
               "t": 0,
@@ -1507,7 +1555,7 @@
         {
           "main": 1,
           "table": 0,
-          "joue": "FoldNe pas jouer",
+          "joue": "Tapis 12bb12bbta",
           "tuiles": [
             {
               "t": 0,
@@ -1539,7 +1587,7 @@
         {
           "main": 2,
           "table": 0,
-          "joue": "Cbet 33%4.3bb33%",
+          "joue": "Call 2.5bb2.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -1592,12 +1640,12 @@
         {
           "main": 0,
           "table": 0,
-          "joue": "ShoveTapisTapis",
+          "joue": "3-Bet 8.5bb8.5bb",
           "tuiles": [
             {
               "t": 0,
-              "paused": false,
-              "bar": false,
+              "paused": true,
+              "bar": true,
               "peutJouer": false
             },
             {
@@ -1619,81 +1667,113 @@
               "peutJouer": true
             }
           ],
-          "compteur": null
+          "compteur": "⏸ 1 table en pause"
         },
         {
           "main": 0,
           "table": 1,
-          "joue": "Open 3bb75% pot",
+          "joue": "3-Bet 5bb5bbà 5b",
           "tuiles": [
             {
               "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": true
-            },
-            {
-              "t": 3,
-              "paused": false,
-              "bar": false,
-              "peutJouer": true
-            }
-          ],
-          "compteur": null
-        },
-        {
-          "main": 0,
-          "table": 2,
-          "joue": "Check0bbPasser",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
               "paused": true,
               "bar": true,
               "peutJouer": false
             },
             {
+              "t": 1,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 2,
+              "paused": false,
+              "bar": false,
+              "peutJouer": true
+            },
+            {
               "t": 3,
               "paused": false,
               "bar": false,
               "peutJouer": true
             }
           ],
-          "compteur": "⏸ 1 table en pause"
+          "compteur": "⏸ 2 tables en pause ▶ Continuer toutes"
+        },
+        {
+          "main": 0,
+          "table": 2,
+          "joue": "Tapis 10bb10bbta",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 2,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 3,
+              "paused": false,
+              "bar": false,
+              "peutJouer": true
+            }
+          ],
+          "compteur": "⏸ 2 tables en pause ▶ Continuer toutes"
         },
         {
           "main": 0,
           "table": 3,
-          "joue": "Call1.5bbSuivre",
+          "joue": "Tapis 25bb25bbta",
           "tuiles": [
             {
               "t": 0,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": true,
+              "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 2,
               "paused": false,
               "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 3,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            }
+          ],
+          "compteur": "⏸ 2 tables en pause ▶ Continuer toutes"
+        },
+        {
+          "main": 1,
+          "table": 0,
+          "joue": "FoldNe pas jouer",
+          "tuiles": [
+            {
+              "t": 0,
+              "paused": true,
+              "bar": true,
               "peutJouer": false
             },
             {
@@ -1704,8 +1784,8 @@
             },
             {
               "t": 2,
-              "paused": true,
-              "bar": true,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             },
             {
@@ -1718,58 +1798,26 @@
           "compteur": "⏸ 1 table en pause"
         },
         {
-          "main": 1,
-          "table": 2,
+          "main": 2,
+          "table": 0,
           "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 3,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            }
-          ],
-          "compteur": null
-        },
-        {
-          "main": 2,
-          "table": 2,
-          "joue": "ShoveTapisTapis",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
               "paused": true,
               "bar": true,
+              "peutJouer": false
+            },
+            {
+              "t": 1,
+              "paused": false,
+              "bar": false,
+              "peutJouer": false
+            },
+            {
+              "t": 2,
+              "paused": false,
+              "bar": false,
               "peutJouer": false
             },
             {
@@ -1784,7 +1832,7 @@
       ],
       "desaccords": [],
       "doublons": 0,
-      "pausesDeclenchees": 2,
+      "pausesDeclenchees": 4,
       "politiqueLue": [
         "inaccuracy"
       ],
@@ -1800,12 +1848,12 @@
       "selectionne": "Chaque action",
       "apresRechargement": "Chaque action",
       "persiste": true,
-      "decisions": 6,
+      "decisions": 4,
       "observations": [
         {
           "main": 0,
           "table": 0,
-          "joue": "Fold0bbNe pas jo",
+          "joue": "Call 1.5bb1.5bbà",
           "tuiles": [
             {
               "t": 0,
@@ -1837,7 +1885,7 @@
         {
           "main": 0,
           "table": 1,
-          "joue": "Check0bbPasser",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -1901,7 +1949,7 @@
         {
           "main": 0,
           "table": 3,
-          "joue": "Check0bbPasser",
+          "joue": "FoldNe pas jouer",
           "tuiles": [
             {
               "t": 0,
@@ -1929,75 +1977,11 @@
             }
           ],
           "compteur": "⏸ 4 tables en pause ▶ Continuer toutes"
-        },
-        {
-          "main": 1,
-          "table": 0,
-          "joue": "Open 2.5bb33% po",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": true,
-              "bar": true,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 3,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            }
-          ],
-          "compteur": "⏸ 1 table en pause"
-        },
-        {
-          "main": 2,
-          "table": 0,
-          "joue": "Squeeze 12bb19.5",
-          "tuiles": [
-            {
-              "t": 0,
-              "paused": true,
-              "bar": true,
-              "peutJouer": false
-            },
-            {
-              "t": 1,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 2,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            },
-            {
-              "t": 3,
-              "paused": false,
-              "bar": false,
-              "peutJouer": false
-            }
-          ],
-          "compteur": "⏸ 1 table en pause"
         }
       ],
       "desaccords": [],
       "doublons": 0,
-      "pausesDeclenchees": 6,
+      "pausesDeclenchees": 4,
       "politiqueLue": [
         "every"
       ],

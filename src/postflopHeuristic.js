@@ -12,23 +12,13 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { cardToInt } from "./fullHandEngine.js";
-import { eval5i, eval7i } from "./solver/core/evaluator.js";
+import { evalBestI, handCategoryOf, HAND_CATEGORY_COUNT } from "./solver/core/evaluator.js";
 
-/* Meilleure main parmi 5, 6 ou 7 cartes (flop=5, turn=6, river=7). */
-function evalBest(cardsInt) {
-  const n = cardsInt.length;
-  if (n < 5) return -1;
-  if (n === 5) return eval5i(cardsInt);
-  if (n === 7) return eval7i(cardsInt);
-  // 6 cartes (turn) : meilleure des 6 combinaisons de 5.
-  let best = -1;
-  for (let skip = 0; skip < n; skip++) {
-    const five = cardsInt.filter((_, i) => i !== skip);
-    const s = eval5i(five);
-    if (s > best) best = s;
-  }
-  return best;
-}
+/* Meilleure main parmi 5, 6 ou 7 cartes — MÊME abstraction que le Vilain (C1).
+   Cette fonction vivait ici en double ; c'est précisément cette duplication qui
+   permettait au chemin Vilain de rester cassé pendant que celui d'Hero était
+   juste. Il n'y a plus qu'un évaluateur, et il refuse les longueurs invalides. */
+const evalBest = evalBestI;
 
 /* Force normalisée 0..1 de la main Héro sur le board (catégorie de main → 0..1).
    score ≈ cat*15^5 + kickers ; on ramène la catégorie (0=hauteur … 8=quinte fl)
@@ -39,9 +29,10 @@ export function normalizedHandStrength(heroHand, board) {
   const cards = [...(heroHand || []), ...b].filter(Boolean).map(cardToInt);
   const score = evalBest(cards);
   if (score < 0) return 0.5;
-  const cat = Math.floor(score / Math.pow(15, 5)); // 0..8
+  const cat = handCategoryOf(score);                          // 0..8
   const within = (score % Math.pow(15, 5)) / Math.pow(15, 5); // 0..1 kickers
-  return Math.min(1, cat / 8 + within * (1 / 8) * 0.6);
+  const span = HAND_CATEGORY_COUNT - 1;
+  return Math.min(1, cat / span + within * (1 / span) * 0.6);
 }
 
 // Seuils calés sur les catégories de main (cat/8) : brelan+ (cat≥3 → ≥0.375)

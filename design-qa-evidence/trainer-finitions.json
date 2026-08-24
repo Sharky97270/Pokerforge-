@@ -19,12 +19,12 @@
    },
    "heroNonApplicable": "aucun element rendu sous le bloc Hero",
    "hero": {
-    "basBlocHero": 673,
+    "basBlocHero": 682,
     "airSousHero": null,
     "premierElement": null
    },
    "labels": {
-    "coeurDetecte": 6,
+    "coeurDetecte": 5,
     "mesures": 40,
     "chevauchements": 0,
     "pastilles": 16
@@ -48,12 +48,12 @@
    "ellipse": {
     "sieges": 6,
     "rho": [
+     0.9,
      0.93,
      0.93,
      0.9,
      0.93,
-     0.93,
-     0.9
+     0.93
     ],
     "min": 0.9,
     "max": 0.93,
@@ -61,28 +61,28 @@
     "ecartType": 0.014
    },
    "hero": {
-    "basBlocHero": 639,
-    "airSousHero": 98,
+    "basBlocHero": 625,
+    "airSousHero": 112,
     "premierElement": "mtr-actions"
    },
    "labels": {
-    "coeurDetecte": 10,
+    "coeurDetecte": 13,
     "mesures": 176,
     "chevauchements": 0,
     "pastilles": 80
    },
    "surface": {
     "cellule": {
-     "w": 421,
-     "h": 761
+     "w": 0,
+     "h": 0
     },
     "feutre": {
      "w": 394,
      "h": 232
     },
-    "tauxLargeur": 94,
-    "tauxHauteur": 30,
-    "tauxSurface": 28
+    "tauxLargeur": null,
+    "tauxHauteur": null,
+    "tauxSurface": null
    }
   },
   {
@@ -108,23 +108,23 @@
     "premierElement": "mtr-actions"
    },
    "labels": {
-    "coeurDetecte": 18,
-    "mesures": 264,
+    "coeurDetecte": 12,
+    "mesures": 263,
     "chevauchements": 0,
-    "pastilles": 120
+    "pastilles": 119
    },
    "surface": {
     "cellule": {
-     "w": 405,
-     "h": 378
+     "w": 0,
+     "h": 0
     },
     "feutre": {
      "w": 296,
      "h": 174
     },
-    "tauxLargeur": 73,
-    "tauxHauteur": 46,
-    "tauxSurface": 34
+    "tauxLargeur": null,
+    "tauxHauteur": null,
+    "tauxSurface": null
    }
   },
   {
@@ -150,23 +150,23 @@
     "premierElement": "mtr-actions"
    },
    "labels": {
-    "coeurDetecte": 27,
-    "mesures": 352,
+    "coeurDetecte": 26,
+    "mesures": 348,
     "chevauchements": 0,
-    "pastilles": 160
+    "pastilles": 156
    },
    "surface": {
     "cellule": {
-     "w": 421,
-     "h": 377
+     "w": 0,
+     "h": 0
     },
     "feutre": {
      "w": 293,
      "h": 172
     },
-    "tauxLargeur": 70,
-    "tauxHauteur": 46,
-    "tauxSurface": 32
+    "tauxLargeur": null,
+    "tauxHauteur": null,
+    "tauxSurface": null
    }
   }
  ]

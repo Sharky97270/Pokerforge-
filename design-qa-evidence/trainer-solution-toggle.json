@@ -1,6 +1,6 @@
 {
-  "ts": "2026-08-21T02:07:23.580Z",
-  "url": "http://localhost:7799",
+  "ts": "2026-08-24T09:37:07.936Z",
+  "url": "http://localhost:7801",
   "viewport": {
     "w": 1920,
     "h": 1080
@@ -14,24 +14,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "CO",
-            "stack": "130",
+            "pos": "BB",
+            "stack": "48",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "Check0bbPasser",
+          "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "CO",
-            "stack": "130"
+            "pos": "BB",
+            "stack": "48"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "CO",
-            "stack": "130",
+            "pos": "BB",
+            "stack": "48",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -40,22 +40,22 @@
             {
               "t": 1,
               "id": {
-                "pos": "CO",
-                "stack": "130"
+                "pos": "BB",
+                "stack": "48"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Check GTO 65% Exploit 65",
-                "montreFreq": true,
+                "meilleure": "Check Réf. 70% Best Move",
+                "montreFreq": false,
                 "ditMasquee": false
               }
             },
             {
               "t": 2,
               "id": {
-                "pos": "BB",
-                "stack": "74"
+                "pos": "CO",
+                "stack": "79.5"
               },
               "sol": {
                 "repondue": false,
@@ -79,24 +79,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "BTN",
-            "stack": "65",
+            "pos": "SB",
+            "stack": "135",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "Check0bbPasser",
+          "joue": "FoldNe pas jouer",
           "identiteT1": {
-            "pos": "BTN",
-            "stack": "65"
+            "pos": "SB",
+            "stack": "135"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "BTN",
-            "stack": "65",
+            "pos": "SB",
+            "stack": "135",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -105,22 +105,22 @@
             {
               "t": 1,
               "id": {
-                "pos": "BTN",
-                "stack": "65"
+                "pos": "SB",
+                "stack": "135"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Bet PSB GTO 75% Exploit",
-                "montreFreq": true,
+                "meilleure": "Fold Réf. 70% Best Move",
+                "montreFreq": false,
                 "ditMasquee": false
               }
             },
             {
               "t": 2,
               "id": {
-                "pos": "BB",
-                "stack": "90"
+                "pos": "CO",
+                "stack": "62.5"
               },
               "sol": {
                 "repondue": false,
@@ -134,7 +134,7 @@
               "t": 3,
               "id": {
                 "pos": "BTN",
-                "stack": "10"
+                "stack": "84"
               },
               "sol": {
                 "repondue": false,
@@ -158,24 +158,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "BTN",
-            "stack": "80",
+            "pos": "HJ",
+            "stack": "100",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "Check0bbPasser",
+          "joue": "FoldNe pas jouer",
           "identiteT1": {
-            "pos": "BTN",
-            "stack": "80"
+            "pos": "HJ",
+            "stack": "100"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "BTN",
-            "stack": "80",
+            "pos": "HJ",
+            "stack": "100",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -184,22 +184,22 @@
             {
               "t": 1,
               "id": {
-                "pos": "BTN",
-                "stack": "80"
+                "pos": "HJ",
+                "stack": "100"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Bet 50% GTO 35% Exploit",
-                "montreFreq": true,
+                "meilleure": "3-bet 9bb Réf. 75% Erreu",
+                "montreFreq": false,
                 "ditMasquee": false
               }
             },
             {
               "t": 2,
               "id": {
-                "pos": "UTG",
-                "stack": "100"
+                "pos": "BB",
+                "stack": "29"
               },
               "sol": {
                 "repondue": false,
@@ -212,8 +212,8 @@
             {
               "t": 3,
               "id": {
-                "pos": "BB",
-                "stack": "110"
+                "pos": "BTN",
+                "stack": "15"
               },
               "sol": {
                 "repondue": false,
@@ -227,7 +227,7 @@
               "t": 4,
               "id": {
                 "pos": "CO",
-                "stack": "15"
+                "stack": "12"
               },
               "sol": {
                 "repondue": false,

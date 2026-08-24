@@ -1,0 +1,69 @@
+{
+  "1T": {
+    "viewport": "1920x1080",
+    "horsEcranBas": [],
+    "horsEcranDroite": [],
+    "chevauchements": [],
+    "scrollH": false,
+    "erreurs": []
+  },
+  "2T": {
+    "viewport": "1920x1080",
+    "horsEcranBas": [],
+    "horsEcranDroite": [],
+    "chevauchements": [],
+    "scrollH": false,
+    "erreurs": []
+  },
+  "4T": {
+    "viewport": "1920x1080",
+    "horsEcranBas": [],
+    "horsEcranDroite": [],
+    "chevauchements": [],
+    "scrollH": false,
+    "erreurs": []
+  },
+  "1T-1366": {
+    "viewport": "1366x768",
+    "horsEcranBas": [
+      {
+        "c": "pf-p2-sec",
+        "bottom": 775,
+        "vh": 768,
+        "depasse": 7,
+        "txt": "INFORMATIONS|Street|Turn|Stack Hero|72bb"
+      }
+    ],
+    "horsEcranDroite": [],
+    "chevauchements": [
+      {
+        "a": "pf-p2-irow «Stack Hero|72bb»",
+        "b": "pf-p2-tl-track «»",
+        "ox": 293,
+        "oy": 6
+      },
+      {
+        "a": "pf-p2-irow «Pot|15bb»",
+        "b": "pf-p2-tl-row «1/20|Decision en cours...»",
+        "ox": 293,
+        "oy": 17
+      },
+      {
+        "a": "pf-p2-irow «Pot Odds|—»",
+        "b": "pf-p2-tl-row «1/20|Decision en cours...»",
+        "ox": 293,
+        "oy": 12
+      }
+    ],
+    "scrollH": false,
+    "erreurs": []
+  },
+  "mobile": {
+    "viewport": "390x844",
+    "horsEcranBas": [],
+    "horsEcranDroite": [],
+    "chevauchements": [],
+    "scrollH": false,
+    "erreurs": []
+  }
+}

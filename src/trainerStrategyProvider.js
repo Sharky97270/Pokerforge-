@@ -22,6 +22,19 @@ import { solvePreflopPushFold } from "./solver/api.js";
 import { lookupPreflopChart } from "./solver/preflopCharts.js";
 import { pushFoldDomain, scopeLimitLabel } from "./trainerSolutionScope.js";
 
+/* ── QUI A PRODUIT CETTE SOLUTION, ET DANS QUELLE VERSION (C13) ─────────────
+   Trois moteurs seulement, chacun nommé et versionné. La version n'est pas
+   décorative : elle permet de dire d'une solution archivée si elle a été
+   produite par le moteur courant ou par un plus ancien. */
+export const STRATEGY_ENGINES = {
+  solver: { name: "solvePreflopPushFold", version: "1.0", exact: true, label: "🦈 Solveur" },
+  chart: { name: "preflopCharts", version: "1.0", exact: false, label: "📊 Chart" },
+  heuristic: { name: "trainer-template", version: "1.0", exact: false, label: "≈ Heuristique" },
+};
+/* La confiance DÉCOULE de la source ; elle ne se règle pas à la main. Un
+   template n'est pas « moyennement fiable » : il n'est pas calculé. */
+export const STRATEGY_CONFIDENCE = { solver: "exact", chart: "documented", heuristic: "none" };
+
 const RANKS = "23456789TJQKA";
 const rIdx = (r) => RANKS.indexOf(r);
 
@@ -201,6 +214,19 @@ export function applySolverStrategy(spot, opts = {}) {
      heads-up d'un BTN de 6-max. */
   spot.strategyScope = r.scope || null;
   spot.strategyLimits = Array.isArray(r.limits) ? r.limits : [];
+  /* ── LA FICHE DE PROVENANCE COMPLÈTE (C13) ────────────────────────────────
+     Le périmètre et le motif de repli voyageaient déjà avec le spot. Il y
+     manquait deux champs que la mission exige : la VERSION du moteur qui a
+     produit la solution, et la CONFIANCE qu'on peut lui accorder. Sans eux,
+     deux solutions « heuristique » sont indiscernables — celle qui vient d'un
+     chart attribué et celle qui vient d'un template.
+
+     La confiance n'est pas une note inventée : elle découle de la source.
+     Un template ne peut pas être « moyennement fiable », il est non calculé. */
+  spot.strategyEngine = STRATEGY_ENGINES[r.source] || STRATEGY_ENGINES.heuristic;
+  spot.strategyConfidence = STRATEGY_CONFIDENCE[r.source] || "none";
+  spot.strategyPayoutModel = (r.scope && r.scope.payout) || null;
+  spot.strategyFallbackReason = r.solved ? null : (Array.isArray(r.limits) && r.limits[0]) || r.note || null;
   if (r.solved) {
     spot.ok = r.ok;
     spot.freq = { ...(spot.freq || {}), ...r.freq };

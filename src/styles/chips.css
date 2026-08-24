@@ -207,6 +207,13 @@ body .pf-pot-chip-cluster{
   height:100%!important;
   isolation:isolate!important;
   transform:translateZ(0)!important;
+  /* Les piles sont décalées latéralement par --pf-pot-pile-x (jusqu'à ±10.5 px
+     à quatre piles). Un `transform` ne compte pas dans la largeur de la boîte :
+     sans cette réserve, la pile la plus à droite se peignait 4 px par-dessus le
+     libellé « POT » alors que les boîtes, elles, ne se touchaient pas. */
+  padding-left:11px!important;
+  padding-right:11px!important;
+  box-sizing:content-box!important;
 }
 body .pf-pot-chip-cluster.compact{min-width:30px!important;}
 body .pf-pot-chip-cluster>.pf-chip-stack-v2{

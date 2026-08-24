@@ -277,6 +277,24 @@ export function validateSpotConsistency(spot, ctx = {}, options = {}) {
   const expectedBoard = boardCountForStreet(street);
   if (board.length !== expectedBoard) errors.push(`street ${street} requires ${expectedBoard} board cards`);
 
+  /* ── LE POT DOIT AVOIR PU ÊTRE PRODUIT PAR CETTE PROFONDEUR ───────────────
+     Les générateurs postflop tiraient le tapis et le pot INDÉPENDAMMENT. Un pot
+     de river de 75bb en face d'une profondeur de 40bb décrit un coup
+     impossible : pour l'avoir construit, chacun des deux joueurs aurait engagé
+     (pot − mise)/2 puis payé la mise, soit (pot + mise)/2 — plus que son tapis
+     de départ. Le défaut restait invisible tant que le tapis adverse valait
+     « 60 » en dur ; le ledger le mesure maintenant, et il se traduit par des
+     jetons créés (mesuré : siège de 25bb engagé à 27.8bb).
+
+     Un spot qui échoue ici est régénéré par la boucle de génération : rien
+     n'est masqué, le coup impossible n'atteint simplement pas l'écran. */
+  if (!/^pre/i.test(street) && stackBb > 0 && (Number(spot?.pot) || 0) > 0) {
+    const engagementParJoueur = ((Number(spot.pot) || 0) + toCall) / 2;
+    if (engagementParJoueur > stackBb + 0.05) {
+      errors.push(`pot ${spot.pot}bb incompatible avec la profondeur ${stackBb}bb (chaque joueur aurait engagé ${Math.round(engagementParJoueur * 10) / 10}bb)`);
+    }
+  }
+
   const isPreflop = /^pre/i.test(street);
   const hasFacing = !!ctx?.facing || toCall > 0;
   for (const rawAction of acts) {

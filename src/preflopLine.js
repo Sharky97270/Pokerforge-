@@ -253,6 +253,29 @@ export function buildPreflopLine(spot) {
     facing = { kind: "4bet", label: "4-Bet", amount: fourBet, position: villain };
   }
 
+  /* ── LES BLINDES AUSSI SE COUCHENT (C9) ──────────────────────────────────
+     `foldsBefore` excluait systématiquement SB et BB, parce que leur blinde est
+     dans le pot quoi qu'il arrive. Conséquence : sur un spot « BB défend face à
+     un open du CO », la SB n'avait AUCUNE action enregistrée — ni fold, ni
+     autre. Le rendu ne pouvait donc pas savoir qu'elle était sortie du coup, et
+     le seul moyen de l'afficher couchée était de le DÉDUIRE, ce que la mission
+     interdit (« n'affiche FOLD qu'après une action de fold réellement
+     enregistrée »).
+
+     Un fold vaut 0bb : il ne retire pas la blinde du pot, déjà postée avant le
+     script. On l'insère à sa place dans l'ordre de parole. */
+  const roles = new Set([hero, villain, ...callers.map(c => c.pos), ...script.map(s => s.pos)]);
+  for (const p of ["SB", "BB"]) {
+    const pi = seats.indexOf(p);
+    if (pi < 0 || pi >= hi || roles.has(p)) continue;      // pas assis, parle après Hero, ou a un rôle
+    let insert = script.length;
+    for (let i = 0; i < script.length; i++) {
+      if (seats.indexOf(script[i].pos) > pi) { insert = i; break; }
+    }
+    script.splice(insert, 0, { pos: p, act: "FOLD" });
+    roles.add(p);
+  }
+
   const state = playPreflop({ seats, script });
   const heroCommitted = roundPot(state.committed[hero] || 0);
   return {

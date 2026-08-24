@@ -1,0 +1,28 @@
+{
+  "ts": "2026-08-24T09:43:13.767Z",
+  "url": "http://localhost:7801",
+  "viewport": {
+    "w": 1920,
+    "h": 1080
+  },
+  "tables": 1,
+  "stackFiltre": "(par defaut)",
+  "mainsRelevees": 60,
+  "ecartsParInvariant": {},
+  "tapisAdverses": {
+    "valeursDistinctes": 92,
+    "profondeursDistinctes": 32
+  },
+  "ecarts": [],
+  "experienceSelecteurDeSizing": {
+    "boutonAvant": "Tapis 47bb",
+    "sizingAvant": "47bb",
+    "sizingApresAllIn": "47bb",
+    "potAvant": 43.2,
+    "potApres": 90.2,
+    "deltaPot": 47,
+    "montantAnnonceParLeSelecteur": "47bb"
+  },
+  "consoleErrors": [],
+  "verdict": "OK — aucune incoherence arithmetique relevee"
+}
