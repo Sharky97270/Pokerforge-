@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T18:42:05.508Z",
+  "ts": "2026-08-24T23:02:42.448Z",
   "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
@@ -14,24 +14,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "SB",
-            "stack": "99.5",
+            "pos": "BB",
+            "stack": "47.9",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "FoldNe pas jouer",
+          "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "SB",
-            "stack": "99.5"
+            "pos": "BB",
+            "stack": "47.9"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "SB",
-            "stack": "99.5",
+            "pos": "BB",
+            "stack": "47.9",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -40,13 +40,13 @@
             {
               "t": 1,
               "id": {
-                "pos": "SB",
-                "stack": "99.5"
+                "pos": "BB",
+                "stack": "47.9"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Open 3bb Réf. 80% Impréc",
+                "meilleure": "Check Réf. 70% Best Move",
                 "montreFreq": false,
                 "ditMasquee": false
               }
@@ -55,7 +55,7 @@
               "t": 2,
               "id": {
                 "pos": "BB",
-                "stack": "31"
+                "stack": "184"
               },
               "sol": {
                 "repondue": false,
@@ -79,24 +79,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "SB",
-            "stack": "11.5",
+            "pos": "CO",
+            "stack": "54.9",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "FoldNe pas jouer",
+          "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "SB",
-            "stack": "11.5"
+            "pos": "CO",
+            "stack": "54.9"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "SB",
-            "stack": "11.5",
+            "pos": "CO",
+            "stack": "54.9",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -105,13 +105,13 @@
             {
               "t": 1,
               "id": {
-                "pos": "SB",
-                "stack": "11.5"
+                "pos": "CO",
+                "stack": "54.9"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Push 12bb Réf. 90% Erreu",
+                "meilleure": "Check Réf. 60% Best Move",
                 "montreFreq": false,
                 "ditMasquee": false
               }
@@ -119,8 +119,8 @@
             {
               "t": 2,
               "id": {
-                "pos": "BTN",
-                "stack": "25"
+                "pos": "BB",
+                "stack": "19"
               },
               "sol": {
                 "repondue": false,
@@ -133,8 +133,8 @@
             {
               "t": 3,
               "id": {
-                "pos": "CO",
-                "stack": "10"
+                "pos": "BTN",
+                "stack": "100"
               },
               "sol": {
                 "repondue": false,
@@ -159,7 +159,7 @@
           "etat": "masquee",
           "panneau": {
             "pos": "BTN",
-            "stack": "82",
+            "stack": "11",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
@@ -167,7 +167,7 @@
           "joue": "FoldNe pas jouer",
           "identiteT1": {
             "pos": "BTN",
-            "stack": "82"
+            "stack": "11"
           }
         },
         {
@@ -175,7 +175,7 @@
           "etat": "affichee",
           "panneau": {
             "pos": "BTN",
-            "stack": "82",
+            "stack": "11",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -185,12 +185,12 @@
               "t": 1,
               "id": {
                 "pos": "BTN",
-                "stack": "82"
+                "stack": "11"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Fold Réf. 80% Best Move",
+                "meilleure": "Shove 11bb Réf. 90% Blun",
                 "montreFreq": false,
                 "ditMasquee": false
               }
@@ -198,8 +198,8 @@
             {
               "t": 2,
               "id": {
-                "pos": "CO",
-                "stack": "81.4"
+                "pos": "BTN",
+                "stack": "54.4"
               },
               "sol": {
                 "repondue": false,
@@ -213,7 +213,7 @@
               "t": 3,
               "id": {
                 "pos": "BTN",
-                "stack": "82"
+                "stack": "75"
               },
               "sol": {
                 "repondue": false,
@@ -227,7 +227,7 @@
               "t": 4,
               "id": {
                 "pos": "BTN",
-                "stack": "25"
+                "stack": "79"
               },
               "sol": {
                 "repondue": false,

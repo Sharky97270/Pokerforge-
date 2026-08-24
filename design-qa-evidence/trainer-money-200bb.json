@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T18:54:16.644Z",
+  "ts": "2026-08-24T22:44:48.974Z",
   "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
@@ -10,7 +10,7 @@
   "mainsRelevees": 30,
   "ecartsParInvariant": {},
   "tapisAdverses": {
-    "valeursDistinctes": 78,
+    "valeursDistinctes": 66,
     "profondeursDistinctes": 1
   },
   "ecarts": [],

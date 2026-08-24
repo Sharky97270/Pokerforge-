@@ -37,7 +37,7 @@
      {
       "pos": "BTN",
       "hero": true,
-      "rho": 0.678
+      "rho": 0.723
      },
      {
       "pos": "SB",
@@ -52,7 +52,7 @@
     ],
     "heroExclu": true,
     "rhoHero": [
-     0.678
+     0.723
     ],
     "min": 0.838,
     "max": 0.99,
@@ -60,8 +60,8 @@
     "ecartType": 0.05
    },
    "hero": {
-    "basBlocHero": 682,
-    "airSousHero": 22,
+    "basBlocHero": 673,
+    "airSousHero": 32,
     "premierElement": "t1-table-area",
     "reference": "bas de la zone de table (le bandeau d'action est en colonne)"
    },
@@ -79,10 +79,10 @@
     "tauxSurface": 42
    },
    "labels": {
-    "coeurDetecte": 7,
-    "mesures": 40,
+    "coeurDetecte": 6,
+    "mesures": 37,
     "chevauchements": 0,
-    "pastilles": 16
+    "pastilles": 13
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -95,8 +95,8 @@
     "rho": [
      0.93,
      0.93,
-     0.93,
      0.9,
+     0.93,
      0.93
     ],
     "detail": [
@@ -107,13 +107,13 @@
      },
      {
       "pos": "HJ",
-      "hero": true,
-      "rho": 0.9
+      "hero": false,
+      "rho": 0.93
      },
      {
       "pos": "CO",
       "hero": false,
-      "rho": 0.93
+      "rho": 0.9
      },
      {
       "pos": "BTN",
@@ -123,12 +123,12 @@
      {
       "pos": "SB",
       "hero": false,
-      "rho": 0.9
+      "rho": 0.93
      },
      {
       "pos": "BB",
-      "hero": false,
-      "rho": 0.93
+      "hero": true,
+      "rho": 0.9
      }
     ],
     "heroExclu": true,
@@ -142,7 +142,7 @@
    },
    "hero": {
     "basBlocHero": 641,
-    "airSousHero": 139,
+    "airSousHero": 83,
     "premierElement": "mtr-actions",
     "reference": "premier élément rendu sous Hero"
    },
@@ -160,10 +160,10 @@
     "tauxSurface": 28
    },
    "labels": {
-    "coeurDetecte": 14,
-    "mesures": 171,
+    "coeurDetecte": 8,
+    "mesures": 164,
     "chevauchements": 0,
-    "pastilles": 75
+    "pastilles": 68
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -174,17 +174,17 @@
    "ellipse": {
     "sieges": 5,
     "rho": [
+     0.9,
      0.93,
      0.93,
      0.93,
-     0.93,
-     0.9
+     0.93
     ],
     "detail": [
      {
       "pos": "UTG",
       "hero": false,
-      "rho": 0.93
+      "rho": 0.9
      },
      {
       "pos": "HJ",
@@ -193,13 +193,13 @@
      },
      {
       "pos": "CO",
-      "hero": true,
-      "rho": 0.9
+      "hero": false,
+      "rho": 0.93
      },
      {
       "pos": "BTN",
-      "hero": false,
-      "rho": 0.93
+      "hero": true,
+      "rho": 0.9
      },
      {
       "pos": "SB",
@@ -209,7 +209,7 @@
      {
       "pos": "BB",
       "hero": false,
-      "rho": 0.9
+      "rho": 0.93
      }
     ],
     "heroExclu": true,
@@ -222,8 +222,8 @@
     "ecartType": 0.012
    },
    "hero": {
-    "basBlocHero": 400,
-    "airSousHero": 19,
+    "basBlocHero": 410,
+    "airSousHero": 10,
     "premierElement": "mtr-actions",
     "reference": "premier élément rendu sous Hero"
    },
@@ -241,10 +241,10 @@
     "tauxSurface": 34
    },
    "labels": {
-    "coeurDetecte": 23,
-    "mesures": 263,
+    "coeurDetecte": 12,
+    "mesures": 262,
     "chevauchements": 0,
-    "pastilles": 119
+    "pastilles": 118
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -257,8 +257,8 @@
     "rho": [
      0.93,
      0.93,
-     0.93,
      0.9,
+     0.93,
      0.93
     ],
     "detail": [
@@ -269,13 +269,13 @@
      },
      {
       "pos": "HJ",
-      "hero": true,
-      "rho": 0.9
+      "hero": false,
+      "rho": 0.93
      },
      {
       "pos": "CO",
       "hero": false,
-      "rho": 0.93
+      "rho": 0.9
      },
      {
       "pos": "BTN",
@@ -285,12 +285,12 @@
      {
       "pos": "SB",
       "hero": false,
-      "rho": 0.9
+      "rho": 0.93
      },
      {
       "pos": "BB",
-      "hero": false,
-      "rho": 0.93
+      "hero": true,
+      "rho": 0.9
      }
     ],
     "heroExclu": true,
@@ -322,10 +322,10 @@
     "tauxSurface": 32
    },
    "labels": {
-    "coeurDetecte": 25,
-    "mesures": 343,
+    "coeurDetecte": 16,
+    "mesures": 314,
     "chevauchements": 0,
-    "pastilles": 151
+    "pastilles": 122
    },
    "mesuresManquantes": [],
    "conforme": true

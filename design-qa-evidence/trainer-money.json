@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T18:56:20.091Z",
+  "ts": "2026-08-24T22:43:02.668Z",
   "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
@@ -10,18 +10,18 @@
   "mainsRelevees": 60,
   "ecartsParInvariant": {},
   "tapisAdverses": {
-    "valeursDistinctes": 136,
-    "profondeursDistinctes": 31
+    "valeursDistinctes": 161,
+    "profondeursDistinctes": 35
   },
   "ecarts": [],
   "experienceSelecteurDeSizing": {
-    "boutonAvant": "Open 2.5bb",
-    "sizingAvant": "2.5bb",
-    "sizingApresAllIn": "15bb",
-    "potAvant": 1.5,
-    "potApres": 16.5,
-    "deltaPot": 15,
-    "montantAnnonceParLeSelecteur": "15bb"
+    "boutonAvant": "3-Bet 12bb",
+    "sizingAvant": "12bb",
+    "sizingApresAllIn": "20bb",
+    "potAvant": 6.5,
+    "potApres": 25.5,
+    "deltaPot": 19,
+    "montantAnnonceParLeSelecteur": "20bb"
   },
   "consoleErrors": [],
   "verdict": "OK — aucune incoherence arithmetique relevee"

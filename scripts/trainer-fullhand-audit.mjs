@@ -56,6 +56,13 @@ const SHOT_NAME = arg('shot', 'trainer-fullhand.png');
    Hero : c'est par lui qu'on obtient des coups complets à trois joueurs. */
 const SPOTS = arg('spot', '').split(',').map(s => s.trim()).filter(Boolean);
 const MULTIWAY_MIN = +arg('multiway', 0);
+/* Comment Hero joue sa decision preflop : 'call' (defaut) ou 'raise'. */
+const HERO_MODE = arg('hero', 'call');
+/* Nombre minimal de sieges supplementaires ayant REPONDU a la relance d Hero.
+   Exiger du multiway en mode 'raise' n aurait pas de sens : un suiveur qui se
+   couche face a un squeeze fait exactement ce qu il doit faire. Ce qu on veut
+   verifier ici, c est qu il a PARLE. */
+const REPONSES_MIN = +arg('reponses', 0);
 
 const CHROMES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -152,9 +159,17 @@ const HELPERS = () => {
       if (b) { b.click(); return true; }
       return false;
     },
-    heroAct() {
+    /* `mode` = 'call' (par defaut) ou 'raise'.
+       En 'raise', Hero prend l'action AGRESSIVE quand elle existe : c'est la
+       seule facon d'exercer la reponse des sieges supplementaires, qui ne se
+       declenche que si Hero releve le niveau. Un audit qui appelle toujours
+       l'ouverture ne fait jamais parler le suiveur. */
+    heroAct(mode) {
       const b = [...document.querySelectorAll('button.gto-btn')].filter(x => x.getBoundingClientRect().width > 0);
-      const pick = b.find(x => /Call/i.test(x.textContent)) || b.find(x => !/Fold/i.test(x.textContent)) || b[0];
+      const agressif = x => /squeeze|raise|3-?bet|4-?bet|bet|all-?in|shove|jam/i.test(x.textContent);
+      const pick = mode === 'raise'
+        ? (b.find(agressif) || b.find(x => /Call/i.test(x.textContent)) || b.find(x => !/Fold/i.test(x.textContent)) || b[0])
+        : (b.find(x => /Call/i.test(x.textContent)) || b.find(x => !/Fold/i.test(x.textContent)) || b[0]);
       if (pick) { pick.click(); return (pick.querySelector('.gto-btn-label') || {}).textContent || '?'; }
       return null;
     },
@@ -239,9 +254,23 @@ while (mains.length < HANDS && garde++ < HANDS * 14) {
      Tant que la barre d'action du coup complet n'est pas montée, on joue la
      décision préflop. */
   if (!await page.evaluate(() => window.__fh.enCoupComplet())) {
-    const joue = await page.evaluate(() => window.__fh.heroAct());
+    const joue = await page.evaluate(m => window.__fh.heroAct(m), HERO_MODE);
     if (!joue) { tentatives.sansAction++; await page.evaluate(HELPERS); await page.evaluate(() => window.__fh.nextHand()); await sleep(700); continue; }
-    await sleep(2400);                       // réflexion du vilain + montée du coup
+    /* ── ATTENDRE LA MONTÉE DU COUP, PAS UNE DURÉE ──────────────────────────
+       Ici dormait `sleep(2400)`. Ce délai suffit quand Hero SUIT l'ouverture,
+       mais pas quand il RELANCE : le chemin comporte alors une réaction du
+       vilain en plus (réflexion ~0.5-0.9s, commit, puis `startFullHand` posé à
+       +1.5s), soit ~3.4s. L'instrument déclarait donc « résolu au préflop » des
+       coups qui montaient une fraction de seconde plus tard — mesuré en mode
+       `--hero=raise` : 25 tentatives sur 41 classées à tort.
+
+       On attend l'ÉVÉNEMENT (la barre d'action du coup complet, ou un verdict
+       qui clôt vraiment la main), avec un plafond. Mesurer la patience de
+       l'instrument n'apprend rien sur le produit. */
+    await waitFor(
+      () => window.__fh.enCoupComplet() || !!window.__fh.verdict()
+        || /COUP COMPLET INDISPONIBLE/i.test(document.body.innerText),
+      null, 'montée du coup complet', 7000);
     await page.evaluate(HELPERS);
     if (!await page.evaluate(() => window.__fh.enCoupComplet())) {
       /* ── POURQUOI CETTE TENTATIVE N'A PAS PRODUIT DE COUP COMPLET ────────
@@ -384,6 +413,7 @@ while (mains.length < HANDS && garde++ < HANDS * 14) {
     main.sidePots = F.sidePots;
     main.versements = F.versements;
     main.engageTotal = F.engageTotal;
+    main.suiveurs = F.suiveurs || null;
     const paliers = F.paliers || [];
     const eng = F.engageTotal || {};
     /* F8① la somme des paliers PLUS l'argent mort vaut le pot disputé.
@@ -478,6 +508,11 @@ const rapport = {
        là : le total seul confondrait « le moteur refuse » et « le générateur
        n'en produit pas ». */
     parSpot: mains.map(m => ({ main: m.i, ligne: m.spot && m.spot.kind, extras: m.spot && m.spot.extras, assis: m.nb, joueurs: m.joueurs })),
+    /* Ce que les sieges supplementaires ont DECIDE face a la relance d Hero.
+       Sans cette colonne, un preflop equilibre ne dit pas si le suiveur a
+       reellement parle ou s il a simplement ete ecarte en silence. */
+    reponsesSuiveurs: mains.filter(m => m.suiveurs && m.suiveurs.decisions.length)
+      .map(m => ({ main: m.i, niveau: m.suiveurs.niveau, totalPaye: m.suiveurs.totalPaye, decisions: m.suiveurs.decisions })),
     exemples: mainsAvecSidePot.slice(0, 6).map(m => ({
       main: m.i, joueurs: m.joueurs, engageTotal: m.engageTotal,
       paliers: m.paliers, versements: m.versements, verdict: m.verdict,
@@ -496,6 +531,8 @@ console.log('Issues :', JSON.stringify(issues));
 console.log('Tentatives :', JSON.stringify(tentatives));
 console.log('Joueurs assis au flop :', JSON.stringify(parNbJoueurs), `-> ${mainsMultiway.length} main(s) a 3 joueurs+`);
 console.log('Side pots reellement disputes :', mainsAvecSidePot.length);
+const avecReponse = mains.filter(m => m.suiveurs && m.suiveurs.decisions.some(d => d.aPayer > 0 || d.action === "FOLD"));
+console.log("Sieges supplementaires ayant repondu a la relance :", avecReponse.length);
 console.log('Ecarts par invariant :', JSON.stringify(byCode, null, 1));
 console.log('Erreurs console :', consoleErrors.length);
 console.log('Rapport :', OUT);
@@ -506,6 +543,7 @@ if (consoleErrors.length) echecs.push(`${consoleErrors.length} erreur(s) console
 if (mains.length < HANDS) echecs.push(`${mains.length} main(s) completee(s) sur ${HANDS}`);
 /* Exiger le multiway est le point de la manoeuvre : sans ce seuil, un audit
    vert prouverait seulement que le heads-up marche toujours. */
+if (REPONSES_MIN && avecReponse.length < REPONSES_MIN) echecs.push(`${avecReponse.length} reponse(s) de siege supplementaire sur ${REPONSES_MIN} exigee(s)`);
 if (MULTIWAY_MIN && mainsMultiway.length < MULTIWAY_MIN) echecs.push(`${mainsMultiway.length} main(s) multiway observee(s) sur ${MULTIWAY_MIN} exigee(s)`);
 if (echecs.length) { console.error('\nECHEC audit:fullhand — ' + echecs.join(' · ')); process.exit(1); }
 console.log('\nOK audit:fullhand —', mains.length, 'coups complets, comptabilite conforme');

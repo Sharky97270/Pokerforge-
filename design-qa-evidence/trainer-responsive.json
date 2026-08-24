@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T18:54:30.155Z",
+  "ts": "2026-08-24T23:07:37.682Z",
   "url": "http://localhost:7799",
   "mainsParConfig": 3,
   "configurations": [
@@ -12,7 +12,7 @@
       "tables": 1,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 482,
+      "feuillesMesurees": 466,
       "colonnes": [
         {
           "cls": "",
@@ -57,7 +57,7 @@
       "tables": 2,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 611,
+      "feuillesMesurees": 590,
       "colonnes": [
         {
           "cls": "",
@@ -102,7 +102,7 @@
       "tables": 3,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 670,
+      "feuillesMesurees": 655,
       "colonnes": [
         {
           "cls": "",
@@ -147,7 +147,7 @@
       "tables": 4,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 770,
+      "feuillesMesurees": 779,
       "colonnes": [
         {
           "cls": "",
@@ -192,7 +192,7 @@
       "tables": 1,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 480,
+      "feuillesMesurees": 483,
       "colonnes": [
         {
           "cls": "",
@@ -237,7 +237,7 @@
       "tables": 2,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 368,
+      "feuillesMesurees": 373,
       "colonnes": [
         {
           "cls": "",
@@ -282,7 +282,7 @@
       "tables": 1,
       "relevés": 3,
       "scrollHorizontal": false,
-      "feuillesMesurees": 278,
+      "feuillesMesurees": 285,
       "colonnes": [
         {
           "cls": "",

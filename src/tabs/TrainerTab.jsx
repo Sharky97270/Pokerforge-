@@ -50,6 +50,7 @@ import { exploitAdjustment, EXPLOIT_MODE_LABEL, EXPLOIT_PANEL_LABEL } from "../t
 import { solvePreflopPushFold } from "../solver/api.js";
 import { potDistributionSupport } from "../potDistribution.js";
 import { dealVillainHand, villainHandStrength, handTilt, neutralStrength } from "../trainerVillainHand.js";
+import { resolveExtraCallers, SQUEEZE_RANGE_PCT, OPEN_RANGE_PCT, EXTRA_CALLER_LIMITS } from "../trainerExtraCallers.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -1022,6 +1023,14 @@ const VILLAIN_PROFILES={
     col:"#34D8FF",
   },
 };
+
+/* VPIP d'un profil, pour les sièges supplémentaires qui doivent décider de
+   suivre ou non. Un profil inconnu retombe sur le Reg — jamais sur une valeur
+   inventée qui rendrait le siège arbitrairement large ou serré. */
+function trainerProfileVpip(type){
+  const p=VILLAIN_PROFILES[type]||VILLAIN_PROFILES.Reg;
+  return p.vpip;
+}
 
 /* ── Plateformes et populations ── */
 const PLATFORM_PROFILES={
@@ -3554,6 +3563,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
      misé. Maintenant que le moteur joue N joueurs, la correspondance est
      établie UNE fois au lancement du coup et lue partout. */
   const fhSeatMapRef=useRef(null);
+  /* Décisions des sièges supplémentaires face à la relance d'Hero, mémorisées
+     PAR SPOT : « ↺ Rejouer » relance le coup complet, il ne doit pas faire
+     reparler un siège qui a déjà parlé — ni lui faire payer deux fois. */
+  const extrasResolvedRef=useRef(null);
   const fhIdForPos=p=>fhSeatMapRef.current?.byPos?.[p]
     ??(p===spot?.hpos?"hero":p===spot?.vpos?"villain":null);
   const fhPosForId=id=>fhSeatMapRef.current?.byId?.[id]
@@ -3622,6 +3635,24 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     return base;
   },[spot,spotCtx,handLog]);
   const streetContribRef=useRef({});
+  /* ── CE QU'UN SIÈGE DOIT ENCORE PAYER (C4/C5) ────────────────────────────
+     Le montant à payer d'un CALL est la DIFFÉRENCE entre la mise en cours et
+     ce que le siège a déjà devant lui. Les deux réactions du vilain passaient
+     le TOTAL atteint par Hero (`heroCommit.amountBb`) : le vilain, qui avait
+     déjà 2.5bb devant lui, les remettait une seconde fois.
+
+     Mesuré au navigateur (F10) : Hero 3-bet « to 9 », le vilain suit — et son
+     engagement de street finit à 11.5bb. Le pot et les tapis se contredisaient
+     sans se contredire entre eux, donc `audit:money` ne pouvait rien voir : il
+     fallait comparer les DEUX joueurs pour que l'écart apparaisse.
+
+     La mise en cours est le plus gros engagement de la street, lu dans la ref
+     qui la tient — pas déduit de qui a relancé. */
+  const aPayerPour=pos=>{
+    const c=streetContribRef.current||{};
+    const niveau=Object.values(c).reduce((m,v)=>Math.max(m,roundBb(v||0)),0);
+    return Math.max(0,roundBb(niveau-roundBb(c[pos]||0)));
+  };
   useEffect(()=>{streetContribRef.current={...streetContributions};},[streetContributions]);
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -3770,6 +3801,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport par street (§ cycle)
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // reset moteur main complète au changement de spot
+    fhSeatMapRef.current=null;     // la correspondance siège → joueur appartient au coup précédent
+    extrasResolvedRef.current=null; // idem pour les décisions des suiveurs
     onFhState&&onFhState(null); // §P0-C : le panneau droit repasse sur le spot (préflop)
     fullPending.current=false;
     // Décide si ce spot sera joué jusqu'à la river selon le type de session :
@@ -4199,7 +4232,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       if(autoFull.current&&!playingFull&&/^pre/i.test(spot.street||"")&&a.id!=="FOLD"&&a.id!=="ALLIN"&&v.action!=="CALL"&&v.action!=="CHECK"){
         v={action:"CALL",label:"Call",color:T.green};
       }
-      const vilCommit=commitTableAction({playerId:"villain",position:spot.vpos,action:v,callAmount:v.action==="CALL"?heroCommit.amountBb:undefined});
+      const vilCommit=commitTableAction({playerId:"villain",position:spot.vpos,action:v,callAmount:v.action==="CALL"?aPayerPour(spot.vpos):undefined});
       setVact(v);setThinking(false);
       setTl(t=>[...t,{pos:spot.vpos,act:v.action,lbl:v.label,hero:false,amt:vilCommit.amountBb}]);
       if(v.action!=="FOLD"&&v.action!=="CHECK"&&v.action!=="WIN"){
@@ -4267,7 +4300,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         const v2=villainDecide(spot.street,"RAISE",spot.vtype,currentPotRef.current,trainerMode,platform,spr,seatRemainingStack(spot.vpos),spot.vpos,(spot.board||[]).length,field,
           {openTo:replyCommit.amountBb,callers:trainerExtraPlayers(spot).length,
            hand:spot.villainHand,board:spot.board||[]});
-        const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?replyCommit.amountBb:undefined});
+        const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?aPayerPour(spot.vpos):undefined});
         setThinking(false);
         setTl(t=>[...t,{pos:spot.vpos,act:v2.action,lbl:v2.label,hero:false,amt:v2Commit.amountBb}]);
         if(v2.action!=="FOLD"&&v2.action!=="CHECK"&&v2.action!=="WIN"){
@@ -4381,15 +4414,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
        Le ledger est lu par sa REF : cette fonction est appelée par un timer,
        donc depuis un rendu ANTÉRIEUR à la décision d'Hero. */
     const LG=handLedgerRef.current;
-    const encoreEnJeu=[...new Set([spot.hpos,spot.vpos,...trainerExtraPlayers(spot).map(p=>p.pos)])]
+    const candidats=[...new Set([spot.hpos,spot.vpos,...trainerExtraPlayers(spot).map(p=>p.pos)])]
       .filter(p=>p&&!(LG.seats?.[p]||{}).folded);
-    const support=potDistributionSupport({players:encoreEnJeu,engine:"fullHand"});
-    if(!support.supported){
-      setFhUnsupported({raison:support.reason,joueurs:encoreEnJeu});
-      finishTable();
-      return;
-    }
-    setFhUnsupported(null);
     const heroHand=spot.hand||[];
     /* ── LE VILAIN GARDE LES CARTES QU'IL AVAIT AU PRÉFLOP (C12) ───────────
        Le coup complet lui en tirait de NOUVELLES : ses décisions préflop et
@@ -4398,7 +4424,69 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     const villHandSpot=Array.isArray(spot.villainHand)&&spot.villainHand.length===2?spot.villainHand:null;
     const fullBoard=genBoard([...heroHand,...(villHandSpot||[])]);    // 5 cartes (exclut Héro + Vilain)
     const villHand=villHandSpot||genBoard([...heroHand,...fullBoard]).slice(0,2);
-    const startPot=roundBb(currentPotRef.current||spot.pot||15);
+    const profondeur=roundBb(LG.depthBb||parseFloat(spot.stack)||100);
+    /* Cartes des sièges supplémentaires : tirées dans ce qui reste du paquet,
+       jamais dupliquées. Un siège sans cartes ne peut ni décider, ni abattre. */
+    const dejaVues=[...heroHand,...villHand,...fullBoard];
+    const mains={[spot.hpos]:heroHand,[spot.vpos]:villHand};
+    for(const p of candidats){
+      if(mains[p])continue;
+      const m=genBoard(dejaVues).slice(0,2);
+      mains[p]=m;dejaVues.push(...m);
+    }
+
+    /* ══ LE TOUR D'ENCHÈRES PRÉFLOP DOIT ÊTRE CLOS AVANT LE FLOP (C12) ══════
+       Un spot de squeeze pose un SUIVEUR au niveau de l'ouverture — « CO ouvre
+       à 2.5, BTN suit, Hero squeeze à 12 » — et s'arrête là. Le BTN n'était
+       jamais rappelé à parler. Le coup complet le faisait alors entrer au flop
+       avec 2.5bb pendant que les deux autres y entraient à 12bb, ce qui
+       produisait un side pot PARFAITEMENT CALCULÉ décrivant une situation
+       impossible : au poker, le préflop se ferme quand tout le monde a égalé.
+       Le palier était juste ; l'histoire était fausse.
+
+       `resolveExtraCallers` fait parler ces sièges : ils complètent ou ils se
+       couchent. Leur décision compare une ÉQUITÉ CALCULÉE à la cote du pot —
+       heuristique, et nommée comme telle. Ils ne re-relancent pas : cela
+       rouvrirait la parole à Hero, dont la décision est déjà notée
+       (`EXTRA_CALLER_LIMITS` publie cette limite au lieu de la taire).
+
+       La résolution est MÉMORISÉE par spot : « ↺ Rejouer » ne doit pas retirer
+       une seconde décision à un siège qui a déjà parlé. */
+    const niveau=roundBb(Math.max(
+      roundBb(LG.seats?.[spot.hpos]?.total??0),
+      roundBb(LG.seats?.[spot.vpos]?.total??0),
+    ));
+    const potAvant=roundBb(currentPotRef.current||spot.pot||15);
+    let resolution=extrasResolvedRef.current;
+    if(!resolution||resolution.spotId!==spot.id){
+      const supp=trainerExtraPlayers(spot)
+        .map(e=>e.pos)
+        .filter(p=>p&&p!==spot.hpos&&p!==spot.vpos&&candidats.includes(p));
+      const r=resolveExtraCallers({
+        extras:supp,
+        niveau,pot:potAvant,
+        engagements:Object.fromEntries(supp.map(p=>[p,roundBb(LG.seats?.[p]?.total??0)])),
+        tapis:Object.fromEntries(supp.map(p=>[p,roundBb(LG.seats?.[p]?.remaining??Math.max(0,profondeur-roundBb(LG.seats?.[p]?.total??0)))])),
+        hands:Object.fromEntries(supp.map(p=>[p,mains[p]])),
+        vpips:Object.fromEntries(trainerExtraPlayers(spot).map(e=>[e.pos,trainerProfileVpip(e.type||e.profile)])),
+        raiserPct:niveau>=roundBb((spot.toCall||0)+2)?SQUEEZE_RANGE_PCT:OPEN_RANGE_PCT,
+      });
+      resolution={spotId:spot.id,...r,niveau};
+      extrasResolvedRef.current=resolution;
+    }
+    /* Le pot du flop inclut ce que les suiveurs viennent de payer. Les jetons
+       de ceux qui se couchent RESTENT au pot : c'est de l'argent mort, et le
+       moteur sait le verser au gagnant du pot principal. */
+    const startPot=roundBb(potAvant+resolution.totalPaye);
+    currentPotRef.current=startPot;
+    const encoreEnJeu=candidats.filter(p=>!resolution.couches.includes(p));
+    const support=potDistributionSupport({players:encoreEnJeu,engine:"fullHand"});
+    if(!support.supported){
+      setFhUnsupported({raison:support.reason,joueurs:encoreEnJeu});
+      finishTable();
+      return;
+    }
+    setFhUnsupported(null);
     /* ── ORDRE DE PAROLE POSTFLOP, POUR N SIÈGES ───────────────────────────
        `trainerPostflopFirstActor` ne comparait que deux positions. L'ordre
        postflop réel est celui de la table : SB parle en premier, le bouton en
@@ -4423,25 +4511,47 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
        avec pot 8 + 20 + 20 = 48bb — 8bb créés à partir de rien.
 
        Le ledger connaît les tapis restants et les engagements de chacun : on
-       les lui demande au lieu de les réinitialiser. */
-    const profondeur=roundBb(LG.depthBb||parseFloat(spot.stack)||100);
-    /* Cartes des sièges supplémentaires : tirées dans ce qui reste du paquet,
-       jamais dupliquées. Un siège sans cartes n'irait pas à l'abattage. */
-    const dejaVues=[...heroHand,...villHand,...fullBoard];
+       les lui demande au lieu de les réinitialiser.
+
+       Un suiveur qui vient de compléter entre au flop avec son engagement
+       RELEVÉ au niveau et son tapis débité d'autant : la décision qu'on vient
+       de lui faire prendre doit coûter des jetons, sinon elle est décorative. */
+    const paiement=Object.fromEntries(resolution.decisions.map(d=>[d.pos,roundBb(d.aPayer)]));
     const players=ordre.map(p=>{
       const l=LG.seats?.[p];
-      const engage=roundBb(l?.total??0);
-      const restant=roundBb(l?.remaining??Math.max(0,profondeur-engage));
-      let hand;
-      if(p===spot.hpos)hand=heroHand;
-      else if(p===spot.vpos)hand=villHand;
-      else{hand=genBoard(dejaVues).slice(0,2);dejaVues.push(...hand);}
-      return {id:idDe(p),hand,stack:restant,committedBefore:engage};
+      const paye=roundBb(paiement[p]||0);
+      const engage=roundBb(roundBb(l?.total??0)+paye);
+      const restant=roundBb(Math.max(0,roundBb(l?.remaining??Math.max(0,profondeur-engage))-paye));
+      return {id:idDe(p),hand:mains[p]||[],stack:restant,committedBefore:engage};
     });
     const st=createFullHand({
       players,seats,fullBoard,startPot,
       firstToAct:seats[0],
     });
+    /* La décision d'un suiveur doit se VOIR : sans ligne au journal, le siège
+       se coucherait ou compléterait sans que rien ne l'explique à l'écran, et
+       le badge Fold n'apparaîtrait pas. Les états sont posés dans le même bloc
+       que `setPlayingFull` : React les regroupe, donc aucun rendu intermédiaire
+       ne montre un journal enrichi avec un pot qui ne l'est pas encore. */
+    if(resolution.decisions.length){
+      setHandLog(h=>[...h,...resolution.decisions
+        .filter(d=>d.aPayer>0||d.action==="FOLD")
+        .map(d=>({
+          street:spot.street,player:"Villain",position:d.pos,
+          actionType:d.action,
+          amountBb:roundBb(d.aPayer),
+          displayAmount:roundBb(d.aPayer),
+          committedAmount:roundBb(d.aPayer),
+          totalStreetContributionAfterAction:roundBb(d.to),
+          amountToCallBeforeAction:roundBb(niveau-roundBb(LG.seats?.[d.pos]?.total??0)),
+          resultingPot:startPot,potAfterAction:startPot,
+          isAllIn:!!d.allIn,
+          displayLabel:d.action==="FOLD"?"Fold":`Call ${fmtNum(roundBb(d.aPayer),1)}bb`,
+          provenance:EXTRA_CALLER_LIMITS.provenance,
+          raison:d.raison,
+          timestamp:new Date().toISOString(),
+        }))]);
+    }
     setPlayingFull(true);setFhVilAct(null);setFhResult(null);setFhNet(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport de la main précédente
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
@@ -4898,6 +5008,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       engagePreflop:parSiege(id=>roundBb(st.players?.[id]?.committedBefore||0)),
       tapis:parSiege(id=>roundBb((st.seatStacks||{})[id]||0)),
       couches:ids.filter(id=>st.players?.[id]?.folded).map(id=>fhPosForId(id)||id),
+      /* Ce que les sièges supplémentaires ont décidé face à la relance d'Hero,
+         avec la raison. Sans cela, un audit voit bien que le préflop est clos
+         mais pas COMMENT il s'est fermé — donc pas si un suiveur a réellement
+         parlé ou s'il a simplement disparu. */
+      suiveurs:extrasResolvedRef.current?{
+        niveau:extrasResolvedRef.current.niveau,
+        totalPaye:extrasResolvedRef.current.totalPaye,
+        decisions:extrasResolvedRef.current.decisions.map(d=>({pos:d.pos,action:d.action,aPayer:d.aPayer,raison:d.raison})),
+      }:null,
       fini:!!st.done,
       sidePots:st.result?.sidePots??null,
       argentMort:st.result?.argentMort??null,

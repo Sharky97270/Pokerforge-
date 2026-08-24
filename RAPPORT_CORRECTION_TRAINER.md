@@ -164,7 +164,7 @@ dont les neuf fichiers ajoutés :
 | `audit:money --w=390` | 15 mains · mobile | **0 écart** |
 | `npm run audit:sizing` | 10 scénarios dirigés, 6 préréglages, pas à pas | **0 écart** — `libellé = sélecteur = pot = tapis` |
 | `npm run audit:fullhand` | 20 coups complets jusqu'à l'attribution (33 tentatives, 5 mains résolues au préflop) | **0 écart** · 18 gagnés / 2 perdus · **3 coups à trois joueurs, 3 side pots disputés** — sans aucun filtre |
-| `npm run audit:multiway` | 16 coups complets, filtre « Squeeze » — **3 joués à trois joueurs, 3 side pots disputés**, capture à l’appui | **0 écart** (`F7`/`F8`/`F10` compris) |
+| `npm run audit:multiway` | 16 coups complets, filtre « Squeeze » — **4 joués à trois joueurs, 3 side pots disputés**, capture à l’appui | **0 écart** (`F7`/`F8`/`F10` compris) |
 | `npm run audit:responsive` | 7 configurations (1920 1T/2T/3T/4T · 1366 1T/2T · 390 1T), 267 à 774 boîtes peintes mesurées par config | **0 débordement, 0 chevauchement, 0 ligne rognée** |
 | `npm run audit:finitions` | 4 modes × 4 mesures (ellipse, air sous Hero, labels, surface) | **4/4 conformes** — et les quatre mesures sont désormais PRISES |
 | `npm run audit:provenance` | 100 mains | **0 provenance surévaluée** |
@@ -288,18 +288,15 @@ nommée et le ρ du Hero reste publié**, jamais escamoté.
 
 ## 6. Limites qui restent
 
-*(Les trois premières limites annoncées ici après le deuxième passage — pot
-reporté réparti, coup complet heads-up, barème préflop — ont été levées ; voir
-§ 8. Ce qui suit est ce qui reste vraiment.)*
+*(Les limites annoncées ici après les deuxième et troisième passages — pot
+reporté réparti, coup complet heads-up, barème préflop, suiveur muet — ont
+toutes été levées ; voir § 8 et § 9. Ce qui suit est ce qui reste vraiment.)*
 
-1. **Le suiveur d'un spot de squeeze ne répond pas à la relance d'Hero.** Le
-   générateur pose un suiveur au niveau de l'ouverture ; si Hero squeeze, ce
-   siège n'est pas rappelé à parler. Le coup complet le fait alors entrer au
-   flop avec son engagement réel — donc un palier de moins que les autres, ce
-   qui est comptablement exact mais décrit une ligne préflop inachevée.
-   `F10-flop-non-egalise` **mesure** cet écart main par main ; sur le relevé
-   final il est nul, mais l'instrument est là pour le jour où il ne le sera
-   plus.
+1. **Un siège supplémentaire ne re-relance jamais.** Il complète ou il se
+   couche ; le cold 4-bet n'est pas modélisé. Ce n'est pas un oubli : une
+   re-relance rouvrirait la parole à Hero, dont la décision est déjà prise et
+   déjà notée — l'exercice serait annulé après coup. La limite est **publiée**
+   par `EXTRA_CALLER_LIMITS.peutRelancer`, pas tue.
 
 2. **Les 97 % de solutions heuristiques restent des heuristiques** (G6). La
    correction porte sur leur **nom** et sur la complétude de leur fiche de
@@ -316,7 +313,7 @@ reporté réparti, coup complet heads-up, barème préflop — ont été levées
 **Modules créés (purs, testés) :**
 `src/trainerHandLedger.js` · `src/trainerSizing.js` · `src/trainerSeatStatus.js` ·
 `src/trainerJamThreshold.js` · `src/trainerExploit.js` · `src/potDistribution.js` ·
-`src/trainerVillainHand.js`
+`src/trainerVillainHand.js` · `src/trainerExtraCallers.js`
 
 **Modules corrigés :**
 `src/solver/core/evaluator.js` (+`evalBestI`) · `src/fullHandEngine.js` (règles
@@ -334,12 +331,12 @@ push/fold est heads-up » : la phrase était devenue ambiguë)
 `test-trainer-hand-ledger.mjs` · `test-trainer-sizing.mjs` ·
 `test-trainer-seat-status.mjs` · `test-trainer-honesty.mjs` ·
 `test-pot-distribution.mjs` · `test-trainer-villain-hand.mjs` ·
-`test-full-hand-multiway.mjs`
+`test-full-hand-multiway.mjs` · `test-trainer-extra-callers.mjs`
 
 **Instruments :** `scripts/trainer-money-audit.mjs` (renforcé) ·
 `scripts/trainer-finitions-audit.mjs` (mesure enfin ses quatre points) ·
 `scripts/trainer-sizing-audit.mjs` · `scripts/trainer-fullhand-audit.mjs`
-(+ `F7`/`F8`/`F9`/`F10`, filtre `--spot=`, seuil `--multiway=`) ·
+(+ `F7`/`F8`/`F9`/`F10`, filtres `--spot=` / `--hero=`, seuils `--multiway=` / `--reponses=`) ·
 `scripts/trainer-responsive-audit.mjs`
 
 **Sondes DOM :** `data-pf-ledger` (état canonique de l'argent) ·
@@ -450,14 +447,14 @@ unitaire.
 npm run audit:multiway
   → filtre « Squeeze » activé avant le lancement
   16 coups complets joués jusqu'à l'attribution
-  Joueurs assis au flop : {"2": 13, "3": 3}
+  Joueurs assis au flop : {"2": 12, "3": 4}
   Side pots réellement disputés : 3
   Écarts par invariant : {}     Erreurs console : 0
 
 npm run audit:fullhand          ← AUCUN filtre, tirage ordinaire
   20 coups complets joués jusqu'à l'attribution
-  Joueurs assis au flop : {"2": 17, "3": 3}
-  Side pots réellement disputés : 3
+  Joueurs assis au flop : {"2": 18, "3": 2}
+  Side pots réellement disputés : 2
   Écarts par invariant : {}     Erreurs console : 0
 ```
 
@@ -489,7 +486,7 @@ raison ; sa bannière ne promet plus « le moteur ne les joue pas encore ».
 | Commande | Résultat |
 |---|---|
 | `npm test` | **exit 0** — `test-full-hand-multiway.mjs` ajouté (78 assertions, dont 500 mains aléatoires à 3 et 4 joueurs, tapis délibérément inégaux) ; `test-trainer-hand-ledger.mjs` porté à 202 ; `test-pot-distribution.mjs` à 82 |
-| `npm run audit:multiway` | **0 écart** · 16 coups · 3 à trois joueurs · **3 side pots disputés** |
+| `npm run audit:multiway` | **0 écart** · 16 coups · **4 à trois joueurs** · **3 side pots disputés** |
 | `npm run audit:fullhand` | **0 écart** · 20 coups · 3 à trois joueurs · 3 side pots — **sans filtre** |
 | `npm run audit:money` (7 configurations : 1T/3T/4T · 200bb/10bb · 1366/390) | **0 écart** |
 | `npm run audit:sizing` | **0 écart** après correction de l'instrument (§ 8.8) |
@@ -512,3 +509,110 @@ faisait proposer « Tapis 67bb » à un joueur qui en a 66.9. Mesuré : 1 écart
 `I3-mise-hors-tapis` sur 40 mains en 4T. Les **capacités** passent maintenant par
 `floorStep` (troncature) ; seules les **propositions** restent arrondies. Un
 plafond faux est toujours faux, même de 0.1bb.
+
+---
+
+## 9. Quatrième passage — le tour d'enchères préflop se ferme
+
+Le troisième passage laissait une limite : **le suiveur d'un spot de squeeze ne
+répondait pas à la relance d'Hero.**
+
+### 9.1 · Un side pot juste qui racontait une histoire fausse
+
+Le générateur de squeeze pose un suiveur au niveau de l'ouverture — « CO ouvre
+à 2.5, BTN suit, Hero squeeze à 12 » — et s'arrête là. Le BTN n'était jamais
+rappelé à parler.
+
+Tant que le coup complet refusait le multiway, cela ne se voyait pas. Une fois
+qu'il l'a joué, le BTN entrait au flop avec 2.5bb pendant que les deux autres y
+entraient à 12bb, et le moteur en tirait — correctement — un **palier**.
+
+Le side pot était exact. La situation qu'il décrivait n'existe pas : au poker,
+le tour d'enchères préflop se ferme quand tout le monde a égalé. Un palier ne
+naît que d'un **tapis trop court**, jamais d'un joueur qu'on a oublié
+d'interroger.
+
+### 9.2 · `src/trainerExtraCallers.js` — le siège parle
+
+Chaque siège supplémentaire complète ou se couche, selon deux conditions
+**toutes deux nécessaires** :
+
+| Condition | Ce qu'elle compare |
+|---|---|
+| la cote est payée | **équité calculée** (matrice 169×169 du dépôt, pondérée par le card removal) contre la range supposée du relanceur, face à la cote du pot, plus une marge de position de 3 points |
+| la main est dans sa range | force préflop ≥ seuil du profil (VPIP → quantile sur la distribution réelle des 169 mains) |
+
+La range du relanceur n'est pas une table écrite à la main : c'est le **haut de
+la même distribution** que le reste du modèle du Vilain — 6 % pour un squeeze,
+20 % pour une relance ordinaire.
+
+Chaque décision porte **la raison qui la fonde**, publiée au DOM et relevée par
+l'audit :
+
+```
+CO  FOLD   « équité 27.6 % < cote 25.4 % + marge 3 % »
+CO  FOLD   « main hors range du profil (force 39.8 % < seuil 57.7 %) »
+```
+
+Le pot **grandit entre deux suiveurs** : le second voit la cote que le premier
+vient de créer. Les traiter en parallèle sur un pot figé donnerait des cotes
+fausses à tout le monde sauf au premier.
+
+Les jetons d'un siège qui se couche **restent au pot** : c'est de l'argent mort,
+et le moteur sait le verser au gagnant du pot principal (§ 8.2).
+
+### 9.3 · Le défaut que cet invariant a révélé — et il n'est pas multiway
+
+`F10-flop-non-egalise` compare les engagements préflop des joueurs assis. En
+mode `--hero=raise`, il a signalé **15 écarts sur 15 coups**, tous **heads-up** :
+
+```
+Hero (BB) 3-bet « to 9 »  ·  le vilain (SB) suit  →  SB:CALL:11.5
+```
+
+Le vilain avait déjà 2.5bb devant lui. Les deux réactions du vilain passaient à
+`commitTableAction` le **total atteint par Hero** (`heroCommit.amountBb = 9`)
+comme montant à payer, alors qu'il ne devait que `9 − 2.5 = 6.5`. Il remettait
+donc sa propre mise une seconde fois, à chaque 3-bet suivi.
+
+Pourquoi `audit:money` ne l'avait jamais vu : **le pot et les tapis se
+contredisaient sans se contredire entre eux**. Le vilain payait 9, le pot
+grossissait de 9, son tapis baissait de 9 — tout était cohérent. Il fallait
+comparer les **deux joueurs** pour que l'écart apparaisse.
+
+Le montant à payer se lit maintenant dans la ref qui tient les engagements de
+street (`aPayerPour`), comme différence entre la mise en cours et ce que le
+siège a déjà devant lui — la même grandeur que celle qu'utilisaient déjà les
+deux chemins d'Hero.
+
+### 9.4 · Relevés
+
+| Commande | Résultat |
+|---|---|
+| `test-trainer-extra-callers.mjs` | **44 assertions**, dont 2 000 décisions aléatoires : 0 montant illégal, échantillon bilatéral |
+| `npm run audit:suiveurs` | 12 coups · **5 sièges supplémentaires ont réellement répondu à l'écran**, chacun avec sa raison · **0 écart** · 0 erreur console |
+| `npm run audit:multiway` | 16 coups · **4 à trois joueurs** · 3 side pots disputés · **0 écart** |
+| `F10-flop-non-egalise` | **15 → 0** |
+
+*Réserve d'honnêteté* : sur l'échantillon navigateur, les cinq réponses
+observées face à un squeeze sont des **folds** — ce qui est le jeu correct à ce
+prix. Le chemin du **call** (le siège complète, paie, et va au flop) est
+verrouillé par le test unitaire (§ 6 et § 7 de `test-trainer-extra-callers.mjs`),
+pas encore par une observation à l'écran. En mode `--hero=call` le siège reste
+avec la mention « déjà à niveau » — c'est ce cas qui produit les flops à trois
+joueurs de `audit:multiway`.
+
+### 9.5 · Un dernier défaut d'instrument
+
+`audit:fullhand` dormait `sleep(2400)` après la décision d'Hero. Ce délai suffit
+quand Hero **suit** l'ouverture, mais pas quand il **relance** : ce chemin
+comporte une réaction du vilain en plus (réflexion, commit, puis `startFullHand`
+posé à +1.5 s), soit ~3.4 s. L'instrument classait donc « résolu au préflop » des
+coups qui montaient une fraction de seconde plus tard — **25 tentatives sur 41**
+en mode `--hero=raise`.
+
+Il attend maintenant l'**événement** (barre d'action du coup complet, verdict, ou
+bannière de refus) avec un plafond. Effet mesuré : `resoluPreflop` 25 → 18,
+`sansAction` 1 → 0, réponses observées 0 → 5 sur le même nombre de mains.
+C'est la troisième fois dans ce dossier qu'un instrument mesure sa propre
+patience au lieu du produit.
