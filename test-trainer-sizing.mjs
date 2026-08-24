@@ -12,7 +12,7 @@
 import assert from "node:assert/strict";
 import {
   sizingContext, sizingPresets, clampRaiseTo, stepRaiseTo, resolveTrainerAction,
-  actionHint, sizingSelectorVisible, roundStep, fmtBbNum, actionFamily, followsSizingSelector,
+  actionHint, sizingSelectorVisible, roundStep, floorStep, fmtBbNum, actionFamily, followsSizingSelector,
   villainThreeBetTo, villainIsolateTo, villainBetTo, TRAINER_BB_STEP, BB,
 } from "./src/trainerSizing.js";
 
@@ -237,6 +237,38 @@ const FLOP_VS_BET = sizingContext({ street: "Flop", streetCommitted: { BB: 14 },
   const bet = villainBetTo({ potBefore: 20, pct: 66, effectiveStack: 5 });
   near(bet.raiseTo, 5, "la mise est bornée au tapis");
   eq(bet.pct, 25, "et le pourcentage ANNONCÉ est celui du montant réel, pas celui visé");
+}
+
+/* ── C7 bis — UNE CAPACITÉ NE S'ARRONDIT PAS VERS LE HAUT ────────────────
+   Le ledger publie l'argent au dixième de blinde (le pot reporté se répartit à
+   cette précision) ; les tailles de mise vivent au demi-blind. Faire passer une
+   CAPACITÉ par l'arrondi au demi-blind pouvait la faire grandir : ledger 66.9bb,
+   bouton « Tapis 67bb ». Mesuré au navigateur : 1 écart `I3-mise-hors-tapis` sur
+   40 mains en 4T — rare, mais faux à chaque fois qu'il tombe. */
+{
+  near(floorStep(66.9), 66.5, "une capacité de 66.9bb est tronquée à 66.5, jamais relevée à 67");
+  near(floorStep(67), 67, "une capacité déjà au pas ne bouge pas");
+  near(floorStep(0.4), 0, "moins d'un demi-blind ne fait pas un demi-blind");
+  near(roundStep(66.9), 67, "l'arrondi, lui, reste l'arrondi — il sert aux PROPOSITIONS");
+
+  const ctx = sizingContext({
+    street: "Turn", streetCommitted: { CO: 0, BB: 0 }, heroPos: "CO",
+    heroRemaining: 66.9, potBefore: 20, toCall: 0,
+  });
+  ok(ctx.maxTo <= 66.9 + 0.001, `le plafond ne dépasse jamais le tapis réel (${ctx.maxTo} ≤ 66.9)`);
+  near(ctx.maxTo, 66.5, "et il vaut le plus grand pas atteignable");
+  for (const p of sizingPresets(ctx)) {
+    ok(p.raiseTo <= 66.9 + 0.001, `le préréglage ${p.id} (${p.raiseTo}) reste dans le tapis`);
+  }
+  /* Même contrôle du côté de la capacité ADVERSE : proposer plus que ce que
+     l'adversaire peut couvrir revient à proposer une mise qui se rembourserait
+     aussitôt. */
+  const ctx2 = sizingContext({
+    street: "Turn", streetCommitted: { CO: 0, BB: 0 }, heroPos: "CO",
+    heroRemaining: 200, potBefore: 20, toCall: 0, opponentCapacity: 33.4,
+  });
+  ok(ctx2.maxTo <= 33.4 + 0.001, `le plafond suit la capacité adverse réelle (${ctx2.maxTo} ≤ 33.4)`);
+  near(ctx2.maxTo, 33, "tronquée au pas, pas relevée à 33.5");
 }
 
 console.log(`✅ tailles de mise du Trainer (C4→C8/C12) — ${passed} assertions OK`);

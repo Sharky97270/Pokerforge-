@@ -1,6 +1,6 @@
 {
-  "ts": "2026-08-24T11:59:34.675Z",
-  "url": "http://localhost:7801",
+  "ts": "2026-08-24T18:49:36.645Z",
+  "url": "http://localhost:7799",
   "viewport": {
     "w": 1366,
     "h": 768
@@ -11,17 +11,17 @@
   "ecartsParInvariant": {},
   "tapisAdverses": {
     "valeursDistinctes": 80,
-    "profondeursDistinctes": 19
+    "profondeursDistinctes": 18
   },
   "ecarts": [],
   "experienceSelecteurDeSizing": {
-    "boutonAvant": "3-Bet 9bb",
-    "sizingAvant": "9bb",
-    "sizingApresAllIn": "30bb",
-    "potAvant": 3.5,
-    "potApres": 32.5,
-    "deltaPot": 29,
-    "montantAnnonceParLeSelecteur": "30bb"
+    "boutonAvant": "Tapis 43bb",
+    "sizingAvant": "43bb",
+    "sizingApresAllIn": "43bb",
+    "potAvant": 56.5,
+    "potApres": 99.5,
+    "deltaPot": 43,
+    "montantAnnonceParLeSelecteur": "43bb"
   },
   "consoleErrors": [],
   "verdict": "OK — aucune incoherence arithmetique relevee"

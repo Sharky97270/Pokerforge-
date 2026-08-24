@@ -101,7 +101,7 @@ function distribute(total, weights) {
    ────────────────────────────────────────────────────────────────────────── */
 export function trainerHandLedger({
   spot = null, ctx = null, seatOrder = [], streetContributions = {},
-  pot = 0, seatStates = {}, fullHandState = null, toCall = null,
+  pot = 0, seatStates = {}, fullHandState = null, fullHandSeats = null, toCall = null,
 } = {}) {
   const depthBb = parseDepthBb(spot?.stack);
   const street = spot?.street || "Preflop";
@@ -110,33 +110,73 @@ export function trainerHandLedger({
   const potM = roundLedgerBb(pot);
 
   /* ── Coup complet : le moteur Full Hand EST la source ────────────────────
-     Il tient les tapis restants et l'engagement de street des deux joueurs.
-     On ne réinterprète rien : on recopie. */
+     Il tient les tapis restants et l'engagement de street de CHAQUE joueur.
+     On ne réinterprète rien : on recopie.
+
+     ⚠ CE BLOC ÉTAIT HEADS-UP. Il ne lisait que `fh.heroStack` / `fh.villStack`
+     et donnait à tout autre siège sa profondeur de DÉPART, marquée « couché ».
+     Tant que le coup complet ne se jouait qu'à deux, c'était exact. Depuis que
+     le moteur joue N joueurs, un troisième siège apparaissait avec son tapis
+     intact alors qu'il avait déjà de l'argent dans le pot : mesuré au
+     navigateur, la conservation cassait de 12 à 48bb sur les coups à trois.
+     On lit donc la table du moteur, pas deux champs miroirs.
+
+     `fullHandSeats` porte la correspondance siège → joueur du moteur. Sans
+     elle (états fabriqués par les tests), on retombe sur hero/villain. */
   if (fullHandState) {
     const fh = fullHandState;
-    const seats = {};
-    const streetOf = p => p === hpos ? roundLedgerBb(fh.contrib?.hero || 0)
-      : p === vpos ? roundLedgerBb(fh.contrib?.villain || 0) : 0;
-    for (const p of positions) {
+    const idDe = p => (fullHandSeats && fullHandSeats[p]) || (p === hpos ? "hero" : p === vpos ? "villain" : null);
+    const joueurDe = p => { const id = idDe(p); return id && fh.players ? (fh.players[id] || null) : null; };
+    /* Chemin hérité : un état sans table de joueurs (tests, anciens appels). */
+    const legacy = p => {
       const estHero = p === hpos, estVil = p === vpos;
-      const dansLeCoup = estHero || estVil;
-      const restant = estHero ? roundLedgerBb(fh.heroStack) : estVil ? roundLedgerBb(fh.villStack) : roundLedgerBb(seatDepth(spot, p, depthBb));
-      const avant = estHero ? roundLedgerBb(fh.committedBefore?.hero || 0) : estVil ? roundLedgerBb(fh.committedBefore?.villain || 0) : 0;
-      const rue = streetOf(p);
+      if (!estHero && !estVil) return null;
+      return {
+        stack: estHero ? fh.heroStack : fh.villStack,
+        contrib: estHero ? (fh.contrib?.hero || 0) : (fh.contrib?.villain || 0),
+        committedBefore: estHero ? (fh.committedBefore?.hero || 0) : (fh.committedBefore?.villain || 0),
+        folded: false,
+      };
+    };
+    const seats = {};
+    let potStreetFh = 0;
+    for (const p of positions) {
+      const j = joueurDe(p) || legacy(p);
+      const estHero = p === hpos, estVil = p === vpos;
+      if (!j) {
+        /* Siège absent du coup complet : il n'a rien dans ce pot, son tapis est
+           sa profondeur. Il est « couché » au sens du coup en cours. */
+        const restant = roundLedgerBb(seatDepth(spot, p, depthBb));
+        seats[p] = {
+          position: p, isHero: estHero, isVillain: estVil,
+          initial: restant, carried: 0, street: 0, total: 0,
+          remaining: restant, capacity: restant,
+          folded: true, allIn: false, live: false,
+        };
+        continue;
+      }
+      const restant = roundLedgerBb(j.stack);
+      const avant = roundLedgerBb(j.committedBefore || 0);
+      const rue = roundLedgerBb(j.contrib || 0);
+      potStreetFh = roundLedgerBb(potStreetFh + rue);
       seats[p] = {
         position: p, isHero: estHero, isVillain: estVil,
         initial: roundLedgerBb(restant + avant + rue),
         carried: avant, street: rue, total: roundLedgerBb(avant + rue),
         remaining: restant,
         capacity: roundLedgerBb(rue + restant),
-        folded: !dansLeCoup, allIn: dansLeCoup && restant <= LEDGER_EPSILON,
-        live: dansLeCoup && restant > LEDGER_EPSILON,
+        folded: !!j.folded, allIn: !j.folded && restant <= LEDGER_EPSILON,
+        live: !j.folded && restant > LEDGER_EPSILON,
       };
     }
     const potFh = roundLedgerBb(fh.pot);
     const actifs = positions.filter(p => seats[p] && !seats[p].folded);
     const eff = actifs.length ? Math.min(...actifs.map(p => seats[p].remaining)) : 0;
-    return finalize({ depthBb, seats, pot: potFh, potStreet: roundLedgerBb((fh.contrib?.hero || 0) + (fh.contrib?.villain || 0)), potCarried: roundLedgerBb(potFh - ((fh.contrib?.hero || 0) + (fh.contrib?.villain || 0))), effectiveStack: eff, toCall: fhToCall(fh, hpos, vpos), positions, heroPos: hpos });
+    return finalize({
+      depthBb, seats, pot: potFh,
+      potStreet: potStreetFh, potCarried: roundLedgerBb(potFh - potStreetFh),
+      effectiveStack: eff, toCall: fhToCall(fh, hpos, vpos), positions, heroPos: hpos,
+    });
   }
 
   /* ── Spot ordinaire ──────────────────────────────────────────────────── */
@@ -147,13 +187,43 @@ export function trainerHandLedger({
     rue[p] = v; potStreet = roundLedgerBb(potStreet + v);
   }
   const potCarried = Math.max(0, roundLedgerBb(potM - potStreet));
-  let poids = carriedWeights(ctx?.preActions, street);
-  if (!Object.keys(poids).length && potCarried > 0) {
-    /* Sans ligne exploitable, le pot reporté est celui d'un coup heads-up qui
-       n'a pu arriver là que parce que la dernière mise a été suivie. */
-    poids = {}; if (hpos) poids[hpos] = 1; if (vpos) poids[vpos] = 1;
+  /* ── LE POT REPORTÉ EST CONNU QUAND LE SPOT LE DIT ───────────────────────
+     `spot.carriedCommitted` porte l'engagement EXACT de chaque siège sur les
+     streets antérieures, produit par la séquence qui a construit le pot
+     (`carriedLineForPostflopSpot`). Quand il est là, on ne répartit rien : on
+     lit. C'est ce qui fait disparaître l'hypothèse « à parts égales », et avec
+     elle l'erreur sur les blindes mortes — la part du pot qui n'appartient à
+     personne et que le partage égal attribuait aux deux joueurs.
+
+     Sans lui — spots anciens, spots importés — on retombe sur la répartition
+     par la ligne reconstruite, puis à parts égales. Le repli est nommé. */
+  let carried, sourceCarried;
+  const declare = spot?.carriedCommitted;
+  if (declare && Object.keys(declare).length && potCarried > 0) {
+    carried = {};
+    let somme = 0;
+    for (const p of positions) {
+      const v = roundLedgerBb(declare[p] || 0);
+      if (v > 0) { carried[p] = v; somme = roundLedgerBb(somme + v); }
+    }
+    sourceCarried = "declare";
+    /* Le pot du moteur fait foi : si la déclaration ne le reconstitue pas
+       exactement (une action a bougé le pot depuis), on complète au prorata
+       plutôt que de laisser un écart silencieux. */
+    if (Math.abs(somme - potCarried) > LEDGER_EPSILON) {
+      carried = distribute(potCarried, carried);
+      sourceCarried = "declare-ajuste";
+    }
+  } else {
+    let poids = carriedWeights(ctx?.preActions, street);
+    if (!Object.keys(poids).length && potCarried > 0) {
+      poids = {}; if (hpos) poids[hpos] = 1; if (vpos) poids[vpos] = 1;
+      sourceCarried = "parts-egales";
+    } else {
+      sourceCarried = "ligne-reconstruite";
+    }
+    carried = distribute(potCarried, poids);
   }
-  const carried = distribute(potCarried, poids);
 
   const seats = {};
   for (const p of positions) {
@@ -192,6 +262,7 @@ export function trainerHandLedger({
   return finalize({
     depthBb, seats, pot: potM, potStreet, potCarried, effectiveStack,
     toCall: toCall != null ? num(toCall) : num(spot?.toCall), positions, heroPos: hpos,
+    sourceCarried,
   });
 }
 
@@ -201,7 +272,7 @@ function fhToCall(fh, hpos, vpos) {
   return Math.max(0, roundLedgerBb((c.villain || 0) - (c.hero || 0)));
 }
 
-function finalize({ depthBb, seats, pot, potStreet, potCarried, effectiveStack, toCall, positions, heroPos = null }) {
+function finalize({ depthBb, seats, pot, potStreet, potCarried, effectiveStack, toCall, positions, heroPos = null, sourceCarried = null }) {
   /* Ce que l ADVERSAIRE le plus fourni peut atteindre sur cette street. Une
      relance au-dela ne pourrait etre suivie par personne : le surplus
      reviendrait aussitot. C est la seconde borne du sizing (C7). */
@@ -215,7 +286,7 @@ function finalize({ depthBb, seats, pot, potStreet, potCarried, effectiveStack, 
     seats, pot: roundLedgerBb(pot),
     potStreet: roundLedgerBb(potStreet), potCarried: roundLedgerBb(potCarried),
     effectiveStack: roundLedgerBb(effectiveStack),
-    spr, potOdds, toCall: aPayer, opponentCapacity,
+    spr, potOdds, toCall: aPayer, opponentCapacity, sourceCarried,
     problems: auditHandLedger({ seats, pot, positions }),
   };
 }

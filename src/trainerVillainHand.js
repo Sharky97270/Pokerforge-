@@ -16,75 +16,123 @@
      • tirer une main plausible pour le Vilain, cohérente avec sa RANGE
        (un Nit ne reçoit pas 72o aussi souvent qu'un Maniac) et avec les cartes
        déjà connues (main d'Hero, board) ;
-     • en déduire une force — équité préflop tabulée, catégorie de main
-       postflop — qui PONDÈRE la décision au lieu de la laisser au hasard seul.
+     • en déduire une force — ÉQUITÉ PRÉFLOP CALCULÉE depuis la matrice 169×169
+       du dépôt, catégorie de main réalisée postflop — qui PONDÈRE la décision
+       au lieu de la laisser au hasard seul.
    Il ne fait pas :
-     • résoudre la stratégie du Vilain. Ce n'est pas un solveur : c'est une
-       décision cohérente avec une main réelle, pas une décision d'équilibre.
-       La provenance reste « heuristique », et l'écran continue de le dire.
+     • résoudre la stratégie du Vilain. L'équité, elle, est calculée et sa
+       provenance est publiée (`PREFLOP_EQUITY_PROVENANCE`) ; la STRATÉGIE qui
+       s'en sert reste heuristique, et l'écran continue de le dire.
 
    Module PUR : le tirage passe par `rng` injectable, donc rejouable en test.
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { normalizedHandStrength } from "./postflopHeuristic.js";
+import { PF_HANDS, pfEquity, pfCardRemovalWeights, pfComboCounts, PF_MATRIX_META } from "./solver/core/pushfold.js";
 
 const RANKS = "23456789TJQKA";
 const SUITS = "♠♥♦♣";
 const rankIndex = r => RANKS.indexOf(r);
 
-/* ── FORCE PRÉFLOP D'UNE MAIN, 0..1 ───────────────────────────────────────
-   Pas de table de 169 entrées : une formule monotone et vérifiable, calée sur
-   les trois choses qui font la valeur d'une main préflop — la hauteur, la
-   paire, et le potentiel (assortie / connectée). Elle n'a pas à être exacte ;
-   elle doit être ORDONNÉE correctement, et c'est ce que les tests vérifient. */
-export function preflopStrength(hand) {
-  if (!Array.isArray(hand) || hand.length !== 2) return 0.5;
+/* Clé canonique d'une main : « AA », « AKs », « AKo ». C'est l'index de la
+   matrice d'équité du dépôt. */
+export function handKey(hand) {
+  if (!Array.isArray(hand) || hand.length !== 2) return null;
   const [a, b] = hand;
   const ra = rankIndex(a?.r), rb = rankIndex(b?.r);
-  if (ra < 0 || rb < 0) return 0.5;
-  const haut = Math.max(ra, rb), bas = Math.min(ra, rb);
-  const paire = ra === rb;
-  const assortie = a.s === b.s;
-  const ecart = haut - bas;
+  if (ra < 0 || rb < 0) return null;
+  const haut = RANKS[Math.max(ra, rb)], bas = RANKS[Math.min(ra, rb)];
+  if (ra === rb) return haut + haut;
+  return haut + bas + (a.s === b.s ? "s" : "o");
+}
 
-  if (paire) {
-    /* 22 → 0.55, AA → 1.00. Une paire vaut plus que n'importe quelle main non
-       appariée : c'est ce que les échelles de poker disent, et c'est ce que le
-       barème ci-dessous garantit (le plafond des non-paires est 0.86). */
-    return Math.min(1, 0.55 + (haut / 12) * 0.45);
+/* ══════════════════════════════════════════════════════════════════════════
+   ÉQUITÉ PRÉFLOP — CALCULÉE, PLUS ESTIMÉE
+
+   La première version notait les mains avec un barème maison : hauteur ×1.6,
+   bonus assortie, malus déconnectée. Il était correctement ORDONNÉ, mais ce
+   n'était pas une équité — juste une intuition chiffrée, et sa provenance
+   restait « heuristique ».
+
+   Le dépôt embarque pourtant la vraie matrice : `src/solver/data/preflopEquity.js`,
+   169×169 équités all-in, générée hors ligne, avec ses métadonnées et son bruit
+   documenté. `pushfold.js` sait déjà la lire et pondère par le CARD REMOVAL
+   (une main ne peut pas affronter une main qui partage ses cartes).
+
+   `preflopEquityVsRandom` en tire, pour chaque main, son équité moyenne contre
+   une main quelconque — un nombre CALCULÉ, avec une provenance nommée :
+
+       eq(i) = Σ_j W[i][j] · eq(i,j) / Σ_j W[i][j]
+
+   Ce que ce n'est pas : une équité contre la range réelle de l'adversaire.
+   `preflopEquityVsRange` existe pour ça et accepte des poids ; par défaut on
+   prend l'adversaire quelconque, et on le dit.
+   ══════════════════════════════════════════════════════════════════════════ */
+export const PREFLOP_EQUITY_PROVENANCE = {
+  engine: "solver/data/preflopEquity.js",
+  method: "équité all-in 169×169, pondérée par le card removal",
+  iterations: PF_MATRIX_META.iters,
+  matchups: PF_MATRIX_META.matchups,
+  noise: PF_MATRIX_META.matrixNoise,
+  reference: "adversaire quelconque (main uniforme)",
+};
+
+const HAND_INDEX = (() => {
+  const m = new Map();
+  PF_HANDS.forEach((k, i) => m.set(k, i));
+  return m;
+})();
+
+/* Équité d'une main contre une RANGE pondérée (par défaut : uniforme). */
+export function preflopEquityVsRange(key, freqs = null) {
+  const i = HAND_INDEX.get(key);
+  if (i == null) return null;
+  const W = pfCardRemovalWeights();
+  let num = 0, den = 0;
+  for (let j = 0; j < PF_HANDS.length; j++) {
+    const poidsRange = freqs ? (Number(freqs[PF_HANDS[j]]) || 0) : 1;
+    if (poidsRange <= 0) continue;
+    const w = W[i][j] * poidsRange;
+    if (w <= 0) continue;
+    num += w * pfEquity(i, j);
+    den += w;
   }
-  /* Non appariée : la hauteur pèse 1.6 fois la seconde carte, et l'échelle est
-     bornée pour que AK — la meilleure — reste SOUS les grosses paires.
-     Une première version divisait par 36 et donnait AKo à 0.97, au-dessus de
-     KK : l'ordre du poker était inversé. */
-  const PLAFOND = 0.78, MAX = 12 * 1.6 + 11;
-  let s = ((haut * 1.6 + bas) / MAX) * PLAFOND;
-  if (assortie) s += 0.05;                       // le tirage couleur
-  if (ecart === 1) s += 0.03;                    // connectée
-  else if (ecart === 2) s += 0.015;
-  else if (ecart > 4) s -= 0.05;                 // déconnectée : moins de potentiel
-  return Math.max(0.02, Math.min(0.86, s));
+  return den ? num / den / 100 : null;   // 0..1
+}
+
+/* Table calculée UNE fois : équité de chacune des 169 mains vs main quelconque. */
+const EQUITY_VS_RANDOM = (() => {
+  const t = new Map();
+  for (const k of PF_HANDS) t.set(k, preflopEquityVsRange(k, null));
+  return t;
+})();
+
+export function preflopEquityVsRandom(key) {
+  const v = EQUITY_VS_RANDOM.get(key);
+  return v == null ? null : v;
+}
+
+/* ── FORCE PRÉFLOP D'UNE MAIN, 0..1 ───────────────────────────────────────
+   C'est désormais son ÉQUITÉ contre une main quelconque — un nombre calculé,
+   pas un barème. Une main illisible rend 0.5 (neutre), jamais une valeur
+   inventée. */
+export function preflopStrength(hand) {
+  const k = handKey(hand);
+  if (!k) return 0.5;
+  const eq = preflopEquityVsRandom(k);
+  return eq == null ? 0.5 : eq;
 }
 
 /* ── DISTRIBUTION RÉELLE DES 169 MAINS ────────────────────────────────────
    Le seuil de range doit vouloir dire quelque chose : « VPIP 12 % » doit
-   sélectionner le haut 12 % des mains, pas « les mains au-dessus de 0.88 » —
-   deux choses différentes, puisque la force n'est pas uniformément répartie.
-   On tabule donc la distribution une fois, pondérée par le nombre de
-   combinaisons (6 par paire, 4 par assortie, 12 par dépareillée). */
+   sélectionner le haut 12 % des mains. On tabule donc la distribution des
+   équités, pondérée par le nombre de COMBINAISONS réellement distribuables
+   (6 par paire, 4 par assortie, 12 par dépareillée) — les combos viennent
+   eux aussi du solveur, pas d'une hypothèse. */
 const DISTRIBUTION = (() => {
-  const points = [];
-  for (let i = 0; i < 13; i++) {
-    for (let j = 0; j <= i; j++) {
-      const a = { r: RANKS[i], s: "♠" };
-      if (i === j) {
-        points.push({ f: preflopStrength([a, { r: RANKS[j], s: "♥" }]), poids: 6 });
-      } else {
-        points.push({ f: preflopStrength([a, { r: RANKS[j], s: "♠" }]), poids: 4 });
-        points.push({ f: preflopStrength([a, { r: RANKS[j], s: "♥" }]), poids: 12 });
-      }
-    }
-  }
+  const combos = pfComboCounts();
+  const points = PF_HANDS.map((k, i) => ({ f: preflopEquityVsRandom(k), poids: combos[i] }))
+    .filter(p => p.f != null && p.poids > 0);
   points.sort((x, y) => y.f - x.f);              // de la meilleure à la pire
   const total = points.reduce((a, p) => a + p.poids, 0);
   let cumul = 0;
@@ -199,7 +247,11 @@ export function tiltDecision({ fold = 0.3, call = 0.5, raise = 0.2 }, force, neu
    rôle est d'être le point où la main ne change rien.
    ══════════════════════════════════════════════════════════════════════════ */
 export const NEUTRAL_STRENGTH = {
-  preflop: 0.446,   // médiane exacte des 169 mains, pondérée par combinaisons
+  /* Médiane EXACTE de la distribution des équités, pondérée par les combos.
+     Elle vaut ~0.50 : une main quelconque gagne une fois sur deux contre une
+     autre main quelconque — c est la définition même de l équité, et c est ce
+     qui rend cette référence vérifiable au lieu d être choisie. */
+  preflop: strengthAtPercentile(50),
   flop: 0.075,      // médiane mesurée, 20 000 tirages
   turn: 0.160,
   river: 0.185,

@@ -215,14 +215,24 @@ while (scenarios.length < SCENARIOS && garde++ < SCENARIOS * 12) {
      pots bruts attribuerait à Hero des jetons qui ne sont pas les siens (relevé
      à l'instrument : complément 7bb, pot +15bb parce que le Vilain avait suivi
      puis relancé). On retranche donc ce que le Vilain a ajouté, lu sur le même
-     ledger — trois grandeurs, toutes issues de la même source. */
+     ledger — trois grandeurs, toutes issues de la même source.
+
+     ⚠ « LA MÊME SOURCE » N'ÉTAIT PAS LA MÊME SOURCE. Le pot était lu sur
+     `.pf-pot-value`, c'est-à-dire le pot PEINT, qui attend délibérément
+     l'arrivée des jetons (§12/§26), pendant que les engagements venaient du
+     ledger, immédiat. Mesuré : Hero ouvre à 3.5 (complément 3), le Vilain
+     3-bet à 13 — ledger à jour, pot peint encore à +3 → « écart » de 10bb qui
+     ne décrivait qu'une animation en cours. L'arithmétique se contrôle sur le
+     pot CANONIQUE ; le pot peint reste relevé, à part, pour ce qu'il est. */
   const complementAttendu = montantSizing != null ? R2(montantSizing - hero.rue) : null;
   const heroApres = apres.ledger && apres.ledger.sieges && apres.ledger.sieges[L.hero];
   const vilAvant = L.vilain ? L.sieges[L.vilain] : null;
   const vilApres = apres.ledger && L.vilain ? apres.ledger.sieges[L.vilain] : null;
   const deltaVilain = (vilAvant && vilApres) ? R2(vilApres.total - vilAvant.total) : 0;
-  const deltaPotBrut = (apres.pot != null && etat.pot != null) ? R2(apres.pot - etat.pot) : null;
+  const deltaPotBrut = (apres.ledger && apres.ledger.pot != null && L.pot != null) ? R2(apres.ledger.pot - L.pot) : null;
   const deltaPotHero = deltaPotBrut != null ? R2(deltaPotBrut - deltaVilain) : null;
+  sc.potPeintAvant = etat.pot;
+  sc.potPeintApres = apres.pot;
   sc.complementAttendu = complementAttendu;
   sc.deltaPotBrut = deltaPotBrut;
   sc.deltaVilain = deltaVilain;

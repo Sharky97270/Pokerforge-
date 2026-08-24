@@ -131,21 +131,25 @@ Toutes les mesures ci-dessous sont rejouables. Le serveur de dev doit tourner
 ### Suite unitaire — `npm test`
 
 ```
-51 fichiers de tests · 5 626 assertions · exit 0
+57 fichiers invoqués · 52 sorties vertes · 5 673 assertions/contrôles · exit 0
 ```
 
-dont les huit fichiers ajoutés :
+*(Le décompte est la somme des nombres annoncés par chaque fichier ; six d'entre
+eux disent « N ok » plutôt que « N assertions ».)*
+
+dont les neuf fichiers ajoutés :
 
 | Fichier | Ce qu'il verrouille | Assertions |
 |---|---|---:|
 | `test-evaluator-card-count.mjs` | C1 — aucune carte fantôme (20 000 tirages flop/turn/river) | 37 |
 | `test-full-hand-rules.mjs` | C3/C7/C8 — conservation, remboursement, min-raise, split (400 mains aléatoires) | 76 |
-| `test-trainer-hand-ledger.mjs` | C2 — tapis réels, SPR, cotes, tapis inégaux par siège (1 000 tirages) | 141 |
-| `test-trainer-sizing.mjs` | C4→C8/C12 — un montant par action, bornes, indices (300+ combinaisons) | 81 |
+| `test-trainer-hand-ledger.mjs` | C2 — tapis réels, SPR, cotes, tapis inégaux par siège, coup complet à N sièges (1 000 tirages) | 202 |
+| `test-trainer-sizing.mjs` | C4→C8/C12 — un montant par action, bornes, indices, capacités tronquées (300+ combinaisons) | 95 |
 | `test-trainer-seat-status.mjs` | C9 — aucun badge FOLD injustifié (36 contrôles + 9-max) | 48 |
 | `test-trainer-honesty.mjs` | C10/C11/C13 — Nash, Exploit, fiche de provenance | 175 |
-| `test-pot-distribution.mjs` | C8 — pot principal, side pots, jeton indivisible (3 000 configurations de 2 à 5 joueurs) | 77 |
-| `test-trainer-villain-hand.mjs` | C12/G5 — le Vilain regarde ses cartes, et elles pèsent ; point neutre calibré sur la distribution | 85 |
+| `test-pot-distribution.mjs` | C8 — pot principal, side pots, jeton indivisible (3 000 configurations de 2 à 5 joueurs) | 82 |
+| `test-trainer-villain-hand.mjs` | C12/G5 — le Vilain regarde ses cartes ; force préflop = équité CALCULÉE (matrice 169×169), point neutre calibré sur la distribution | 102 |
+| `test-full-hand-multiway.mjs` | C8 — side pots JOUÉS, paroles rouvertes, argent mort (500 mains à 3 et 4 joueurs) | 78 |
 
 ### Audits navigateur
 
@@ -159,7 +163,8 @@ dont les huit fichiers ajoutés :
 | `audit:money --w=1366` | 25 mains | **0 écart** |
 | `audit:money --w=390` | 15 mains · mobile | **0 écart** |
 | `npm run audit:sizing` | 10 scénarios dirigés, 6 préréglages, pas à pas | **0 écart** — `libellé = sélecteur = pot = tapis` |
-| `npm run audit:fullhand` | 20 coups complets jusqu'à l'attribution (36 tentatives, 12 mains résolues au préflop) | **0 écart** · 16 gagnés / 4 perdus |
+| `npm run audit:fullhand` | 20 coups complets jusqu'à l'attribution (33 tentatives, 5 mains résolues au préflop) | **0 écart** · 18 gagnés / 2 perdus · **3 coups à trois joueurs, 3 side pots disputés** — sans aucun filtre |
+| `npm run audit:multiway` | 16 coups complets, filtre « Squeeze » — **3 joués à trois joueurs, 3 side pots disputés**, capture à l’appui | **0 écart** (`F7`/`F8`/`F10` compris) |
 | `npm run audit:responsive` | 7 configurations (1920 1T/2T/3T/4T · 1366 1T/2T · 390 1T), 267 à 774 boîtes peintes mesurées par config | **0 débordement, 0 chevauchement, 0 ligne rognée** |
 | `npm run audit:finitions` | 4 modes × 4 mesures (ellipse, air sous Hero, labels, surface) | **4/4 conformes** — et les quatre mesures sont désormais PRISES |
 | `npm run audit:provenance` | 100 mains | **0 provenance surévaluée** |
@@ -241,14 +246,13 @@ qu'un palier, donc le résultat est identique — mais la règle n'est plus câb
 pour deux joueurs.
 
 Et quand le moteur de jeu ne peut pas suivre, **le refus est affiché** avec sa
-raison : « COUP COMPLET INDISPONIBLE — 3 joueurs encore en jeu… il faudrait des
-side pots pendant le déroulé ; le calcul existe, le moteur de jeu ne les joue
-pas encore ».
+raison, au lieu d'être subi en silence.
 
-*Réserve d'honnêteté* : sur l'échantillon navigateur, ce refus **ne s'est pas
-déclenché** (`refusExplicite: 0` sur 36 tentatives) — le mode Full Hand filtre
-déjà les spots vers du heads-up. Le chemin est couvert par le test unitaire
-(`potDistributionSupport`), pas par une observation à l'écran.
+> **Suite du dossier — voir § 8.** À ce stade le refus **ne s'était jamais
+> déclenché** au navigateur (`refusExplicite: 0` sur 36 tentatives) : le calcul
+> des paliers existait, mais aucune main à trois ne l'atteignait jamais. Le
+> moteur de coup complet joue désormais **N joueurs**, et les side pots sont
+> **observés à l'écran**.
 
 *Mesuré* : `test-pot-distribution.mjs`, 77 assertions dont **3 000
 configurations aléatoires de 2 à 5 joueurs, 0 écart** de conservation, de
@@ -284,24 +288,24 @@ nommée et le ρ du Hero reste publié**, jamais escamoté.
 
 ## 6. Limites qui restent
 
-1. **Le pot reporté d'un spot postflop est réparti, pas connu.** Il est
-   attribué selon la ligne préflop reconstruite quand elle existe, à parts
-   égales sinon. La somme est exacte ; l'attribution est une hypothèse écrite.
+*(Les trois premières limites annoncées ici après le deuxième passage — pot
+reporté réparti, coup complet heads-up, barème préflop — ont été levées ; voir
+§ 8. Ce qui suit est ce qui reste vraiment.)*
 
-2. **Le coup complet reste heads-up.** `potDistribution` sait calculer les side
-   pots ; le moteur de jeu ne sait pas les **jouer** (il n'a qu'un tour
-   d'enchères à deux). La différence est maintenant dite à l'écran au lieu
-   d'être subie.
+1. **Le suiveur d'un spot de squeeze ne répond pas à la relance d'Hero.** Le
+   générateur pose un suiveur au niveau de l'ouverture ; si Hero squeeze, ce
+   siège n'est pas rappelé à parler. Le coup complet le fait alors entrer au
+   flop avec son engagement réel — donc un palier de moins que les autres, ce
+   qui est comptablement exact mais décrit une ligne préflop inachevée.
+   `F10-flop-non-egalise` **mesure** cet écart main par main ; sur le relevé
+   final il est nul, mais l'instrument est là pour le jour où il ne le sera
+   plus.
 
-3. **La force préflop du Vilain est un barème, pas une équité calculée.** Elle
-   est ordonnée correctement — c'est ce que les tests vérifient — mais ce n'est
-   pas une table d'équité. Sa provenance reste « heuristique ».
-
-4. **Les 97 % de solutions heuristiques restent des heuristiques** (G6). La
+2. **Les 97 % de solutions heuristiques restent des heuristiques** (G6). La
    correction porte sur leur **nom** et sur la complétude de leur fiche de
    provenance, pas sur leur calcul. Aucune EV n'a été fabriquée.
 
-5. **`audit:responsive` mesure 7 configurations sur 3 à 5 mains chacune.** Assez
+3. **`audit:responsive` mesure 7 configurations sur 3 à 5 mains chacune.** Assez
    pour verrouiller une règle de mise en page, pas pour décrire une
    distribution de tirages.
 
@@ -316,18 +320,195 @@ nommée et le ρ du Hero reste publié**, jamais escamoté.
 
 **Modules corrigés :**
 `src/solver/core/evaluator.js` (+`evalBestI`) · `src/fullHandEngine.js` (règles
-No-Limit + ledger) · `src/postflopHeuristic.js` (abstraction unique) ·
-`src/preflopLine.js` (fold des blindes enregistré) · `src/trainerActionEvent.js`
-(cohérence pot/profondeur)
+No-Limit + ledger, puis **réécrit pour N joueurs**) · `src/postflopHeuristic.js`
+(abstraction unique) · `src/preflopLine.js` (fold des blindes enregistré) ·
+`src/trainerActionEvent.js` (cohérence pot/profondeur) ·
+`src/trainerHandLedger.js` (bloc coup complet porté à N sièges) ·
+`src/potDistribution.js` (domaine supporté redéfini) ·
+`src/trainerSolutionScope.js` (« le moteur est heads-up » → « le solveur
+push/fold est heads-up » : la phrase était devenue ambiguë)
 
 **Rendu :** `src/tabs/TrainerTab.jsx` · `src/styles.js` · `src/styles/chips.css`
 
 **Tests ajoutés :** `test-evaluator-card-count.mjs` · `test-full-hand-rules.mjs` ·
 `test-trainer-hand-ledger.mjs` · `test-trainer-sizing.mjs` ·
 `test-trainer-seat-status.mjs` · `test-trainer-honesty.mjs` ·
-`test-pot-distribution.mjs` · `test-trainer-villain-hand.mjs`
+`test-pot-distribution.mjs` · `test-trainer-villain-hand.mjs` ·
+`test-full-hand-multiway.mjs`
 
 **Instruments :** `scripts/trainer-money-audit.mjs` (renforcé) ·
 `scripts/trainer-finitions-audit.mjs` (mesure enfin ses quatre points) ·
-`scripts/trainer-sizing-audit.mjs` · `scripts/trainer-fullhand-audit.mjs` ·
+`scripts/trainer-sizing-audit.mjs` · `scripts/trainer-fullhand-audit.mjs`
+(+ `F7`/`F8`/`F9`/`F10`, filtre `--spot=`, seuil `--multiway=`) ·
 `scripts/trainer-responsive-audit.mjs`
+
+**Sondes DOM :** `data-pf-ledger` (état canonique de l'argent) ·
+`data-pf-fullhand` (état vivant du coup complet : sièges, paliers, versements) ·
+`data-pf-spot` (+ `extras` : les sièges déclarés en plus d'Hero et du vilain)
+
+---
+
+## 8. Troisième passage — le coup complet se joue à N joueurs
+
+Le deuxième passage s'était arrêté sur trois réserves. Elles sont levées.
+
+> « Le coup complet reste heads-up. `potDistribution` sait calculer les side
+> pots ; le moteur de jeu ne sait pas les jouer. […] Ce chemin est couvert par
+> un test unitaire, pas par une observation à l'écran. »
+> « La force préflop du Vilain est un barème, pas une équité calculée. »
+> « Le pot reporté d'un spot postflop est réparti, pas connu. »
+
+### 8.1 · Le moteur n'est plus écrit pour deux
+
+`src/fullHandEngine.js` tenait exactement deux sièges : `heroStack`,
+`villStack`, `contrib.hero`, `contrib.villain`, `toAct` valant l'un ou l'autre.
+« Heads-up par construction » signifiait qu'aucune règle n'était écrite nulle
+part — c'était la forme des variables qui interdisait le troisième joueur.
+
+L'état interne est désormais une **table de joueurs** et un **ordre de parole**.
+Le heads-up n'est plus un cas particulier : c'est une table de deux. Les champs
+historiques sont conservés comme **miroirs** resynchronisés après chaque
+mutation, si bien que les 113 assertions heads-up existantes passent **sans une
+seule modification**.
+
+Ce que le passage à N a rendu explicite, et qui était jusque-là implicite dans
+l'alternance à deux :
+
+| Règle | Ce qui la portait avant | Ce qui la porte maintenant |
+|---|---|---|
+| Une mise ou relance **complète** rouvre la parole à **tous** les autres | l'alternance : il n'y avait qu'un « autre » | remise à zéro de `acted` sur chaque joueur non couché |
+| Un all-in **incomplet** ne la rouvre pour **personne** | `raiseLocked`, testé à deux | `raiseLocked`, exercé à trois et quatre |
+| Chaque street repart de l'**OOP** | « l'autre joueur » | `premierParleur()` — le premier siège capable d'agir depuis l'OOP |
+| La mise **non suivie** revient à son propriétaire | différence entre deux `contrib` | excédent du premier contributeur sur le **second** |
+| Le pot se découpe en **paliers** | un seul palier, invisible | `potDistribution` — paliers réellement atteints |
+
+### 8.2 · Trois catégories d'argent, et trois seulement
+
+En jouant réellement à trois, un écart est apparu entre le pot et la somme des
+paliers. Il n'était pas une erreur de comptabilité mais une **catégorie
+manquante** : le pot d'un spot de squeeze contient les blindes des sièges
+couchés avant le flop, qui n'appartiennent à aucun joueur assis.
+
+Le moteur poussait ce surplus en bloc vers le joueur hors de position —
+c'est-à-dire, une fois sur deux, vers le **perdant** du coup. L'argent mort
+entre désormais dans le **pot principal** et suit son gagnant, comme au poker
+réel. Le pot se décompose en trois parts exhaustives, et l'audit le vérifie :
+
+```
+paliers disputés  +  mise non suivie (rendue)  +  argent mort  =  pot
+```
+
+### 8.3 · Deux défauts trouvés en câblant l'interface
+
+Le passage à N n'a pas seulement ajouté une capacité : il a **rendu visibles**
+deux défauts qui existaient déjà en heads-up.
+
+**① Le ledger lu par un `setTimeout` était celui d'avant la décision.**
+`startFullHand` est appelé par un timer posé au moment où Hero décide. La
+fonction capturée appartient donc au rendu **précédent**, et le `handLedger`
+qu'elle voit ne contient pas le call d'Hero — alors que le pot, lui, venait
+d'une **ref** et le contenait. Deux lectures de la même vérité, l'une fraîche,
+l'autre périmée.
+
+*Mesuré au navigateur* : sur **11 coups complets sur 11**, la BB entrait au flop
+avec un engagement de 1bb — sa blinde — pendant que le pot comptait bien son
+call de 1.5bb. Le tapis d'Hero arrivait au flop **1.5bb trop haut**. Corrigé par
+`handLedgerRef` : toute lecture différée passe par la ref.
+
+**② Le bloc « coup complet » du ledger était heads-up.** Il ne lisait que
+`heroStack` / `villStack` et donnait à tout autre siège sa profondeur de
+**départ**, marquée « couché ». Exact tant que le coup se jouait à deux ; faux
+dès le troisième joueur, dont le tapis apparaissait intact alors que son argent
+était au pot.
+
+*Mesuré* : la conservation cassait de **12 à 48bb** sur les coups à trois.
+Le bloc lit maintenant la table du moteur via `fullHandSeats`, la correspondance
+siège → joueur établie au lancement du coup.
+
+### 8.4 · L'instrument aussi s'est trompé — et c'est la mesure qui l'a dit
+
+Un nouvel invariant `F10-flop-non-egalise` compare les engagements à l'entrée du
+flop : le tour d'enchères préflop étant clos, tous les joueurs assis doivent y
+avoir engagé le même montant. Il a d'abord signalé **4 écarts**… qui étaient tous
+des **c-bets** : l'instrument lisait l'engagement *total* alors que l'adversaire
+hors de position avait déjà misé entre le démarrage du coup et la lecture de la
+sonde.
+
+L'invariant lit désormais l'engagement **préflop seul** (`engagePreflop`), qui ne
+dépend pas du moment de la lecture. Un instrument qui mesure la mauvaise
+grandeur ne mesure rien : il fabrique des défauts.
+
+### 8.5 · Ce que le navigateur a vu
+
+`data-pf-fullhand` publie l'état vivant du moteur — qui est assis, qui parle,
+quels paliers ont été disputés, comment le pot a été versé. Sans cette sonde, un
+audit ne peut pas distinguer un coup heads-up d'un coup à trois : c'est
+exactement pourquoi « les side pots sont joués » n'était vérifiable qu'en test
+unitaire.
+
+```
+npm run audit:multiway
+  → filtre « Squeeze » activé avant le lancement
+  16 coups complets joués jusqu'à l'attribution
+  Joueurs assis au flop : {"2": 13, "3": 3}
+  Side pots réellement disputés : 3
+  Écarts par invariant : {}     Erreurs console : 0
+
+npm run audit:fullhand          ← AUCUN filtre, tirage ordinaire
+  20 coups complets joués jusqu'à l'attribution
+  Joueurs assis au flop : {"2": 17, "3": 3}
+  Side pots réellement disputés : 3
+  Écarts par invariant : {}     Erreurs console : 0
+```
+
+Le second relevé compte davantage que le premier : le multiway n'apparaît pas
+seulement quand on va le chercher avec un filtre, il apparaît **en session
+ordinaire** — donc il apparaissait déjà pour le joueur, et le coup s'arrêtait.
+
+`design-qa-evidence/probe/trainer-multiway-en-jeu.png` montre l'écran : trois
+sièges avec des cartes au turn (Hero BB · HJ 78.5bb · CO 128bb), pot 16bb, les
+trois autres sièges couchés.
+
+Trois nouveaux invariants, sur des coups réellement joués à l'écran :
+
+| Code | Ce qu'il vérifie |
+|---|---|
+| `F7` | les paliers sont **emboîtés** : chaque side pot est disputé par un sous-ensemble strict du précédent, et les joueurs écartés ont engagé **moins** que ceux qui restent ; à tapis inégaux, il **doit** y avoir plus d'un palier |
+| `F8` | le pot se décompose **exactement** en paliers + mise non suivie + argent mort, et la somme des versements vaut le pot disputé |
+| `F10` | à l'entrée du flop, tous les joueurs assis ont le **même** engagement préflop |
+
+### 8.6 · Le refus qui reste
+
+`potDistributionSupport` refusait toute table de plus de deux joueurs. Il refuse
+maintenant ce qui n'est pas une table : moins de deux joueurs, ou plus grande
+que la plus grande table du Trainer (9). Le refus reste **affiché** avec sa
+raison ; sa bannière ne promet plus « le moteur ne les joue pas encore ».
+
+### 8.7 · Relevés
+
+| Commande | Résultat |
+|---|---|
+| `npm test` | **exit 0** — `test-full-hand-multiway.mjs` ajouté (78 assertions, dont 500 mains aléatoires à 3 et 4 joueurs, tapis délibérément inégaux) ; `test-trainer-hand-ledger.mjs` porté à 202 ; `test-pot-distribution.mjs` à 82 |
+| `npm run audit:multiway` | **0 écart** · 16 coups · 3 à trois joueurs · **3 side pots disputés** |
+| `npm run audit:fullhand` | **0 écart** · 20 coups · 3 à trois joueurs · 3 side pots — **sans filtre** |
+| `npm run audit:money` (7 configurations : 1T/3T/4T · 200bb/10bb · 1366/390) | **0 écart** |
+| `npm run audit:sizing` | **0 écart** après correction de l'instrument (§ 8.8) |
+| `audit:responsive` · `audit:finitions` · `audit:provenance` · `audit:pause` · `audit:solution` · `audit:layout` | conformes |
+
+### 8.8 · Deux corrections d'instrument, et une de plus dans le produit
+
+**L'audit de sizing lisait le pot PEINT.** `S2-pot-ne-suit-pas` comparait la
+variation du pot au complément engagé par Hero, mais lisait le pot sur
+`.pf-pot-value` — la valeur affichée, qui attend délibérément l'arrivée des
+jetons (§12/§26) — pendant que les engagements venaient du ledger, immédiat.
+Relevé : Hero ouvre à 3.5 (complément 3), le Vilain 3-bet à 13 ; ledger à jour,
+pot peint encore à +3 → « écart » de 10bb qui ne décrivait qu'une animation.
+L'arithmétique se contrôle désormais sur le pot **canonique** ; le pot peint est
+relevé à part, pour ce qu'il est.
+
+**Une capacité ne s'arrondit pas vers le haut.** Le ledger publie l'argent au
+dixième de blinde, les tailles vivent au demi-blind : `roundStep(66.9) = 67`
+faisait proposer « Tapis 67bb » à un joueur qui en a 66.9. Mesuré : 1 écart
+`I3-mise-hors-tapis` sur 40 mains en 4T. Les **capacités** passent maintenant par
+`floorStep` (troncature) ; seules les **propositions** restent arrondies. Un
+plafond faux est toujours faux, même de 0.1bb.

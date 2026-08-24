@@ -185,18 +185,30 @@ const somme = o => roundChip(Object.values(o).reduce((a, v) => a + v, 0));
   ok(avecSplit > 100, `${avecSplit} configurations avec partage`);
 }
 
-/* ── 9. Le domaine non supporté est DIT, pas subi ───────────────────────── */
+/* ── 9. Le domaine supporté dit ce qu'il couvre, et ce qu'il ne couvre pas ─
+   Ce bloc affirmait « trois joueurs : le coup complet ne se joue pas ». Ce
+   n'est plus vrai : le moteur joue N joueurs et les side pots sont exercés
+   (voir test-full-hand-multiway). Ce qui reste refusé est une table qui n'en
+   est pas une, et une table plus grande que celles que le Trainer propose. */
 {
   const hu = potDistributionSupport({ players: ["hero", "villain"], engine: "fullHand" });
   ok(hu.supported, "le heads-up est jouable jusqu'au bout");
   ok(!hu.needsSidePots, "et n'a pas besoin de side pots");
   const trois = potDistributionSupport({ players: ["A", "B", "C"], engine: "fullHand" });
-  ok(!trois.supported, "trois joueurs : le coup complet ne se joue pas");
-  ok(/heads-up/i.test(trois.reason), `et la raison est dite : « ${trois.reason} »`);
-  ok(trois.needsSidePots, "la configuration réclame des side pots");
-  /* Le calcul, lui, sait faire — c'est le MOTEUR de jeu qui ne suit pas. */
+  ok(trois.supported, "trois joueurs : le coup complet se joue désormais");
+  ok(trois.needsSidePots, "et la configuration réclame des side pots");
+  eq(trois.reason, null, "aucune raison de refus à afficher");
+  const neuf = potDistributionSupport({ players: Array.from({ length: 9 }, (_, i) => `p${i}`), engine: "fullHand" });
+  ok(neuf.supported, "une table de 9 reste dans le domaine");
+  const seul = potDistributionSupport({ players: ["hero"], engine: "fullHand" });
+  ok(!seul.supported, "un seul joueur : il n'y a pas de pot à disputer");
+  ok(/au moins deux/i.test(seul.reason), `et la raison est dite : « ${seul.reason} »`);
+  const dix = potDistributionSupport({ players: Array.from({ length: 10 }, (_, i) => `p${i}`), engine: "fullHand" });
+  ok(!dix.supported, "au-delà de 9, la table ne vient pas du produit");
+  ok(/n'existe pas/i.test(dix.reason), `et la raison est dite : « ${dix.reason} »`);
+  /* Le calcul à trois reste correct — c'est lui qui n'avait jamais été exercé. */
   const r = distributePots({ contributions: { A: 5, B: 25, C: 25 }, ranking: { A: 3, B: 2, C: 1 } });
-  eq(auditDistribution(r), [], "la distribution à trois est calculée correctement malgré tout");
+  eq(auditDistribution(r), [], "la distribution à trois est calculée correctement");
 }
 
 

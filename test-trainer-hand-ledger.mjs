@@ -16,6 +16,7 @@
 import assert from "node:assert/strict";
 import { trainerHandLedger, auditHandLedger, parseDepthBb, seatDepth,
   assignSeatStacks, auditSeatStacks, LEDGER_EPSILON } from "./src/trainerHandLedger.js";
+import { carriedLineForPostflopSpot } from "./src/potAccounting.js";
 
 let passed = 0;
 const ok = (c, m) => { assert.ok(c, m); passed++; };
@@ -261,6 +262,112 @@ function conserve(l, m) {
   ok(auditSeatStacks({ BTN: 55, BB: 60 }, 40).length > 0, "une table dont le minimum dépasse le réglage est refusée");
   ok(auditSeatStacks({ BTN: 30, BB: 40 }, 40).length > 0, "un siège sous la profondeur est refusé");
   eq(auditSeatStacks({ BTN: 40, BB: 90 }, 40), [], "une table conforme passe");
+}
+
+/* ── 11. LE POT REPORTÉ EST CONNU, PLUS RÉPARTI ─────────────────────────── */
+{
+  /* Avant : le ledger répartissait le pot d'entrée à parts égales — la somme
+     était exacte, l'attribution était une hypothèse, et les blindes mortes
+     (celles des joueurs couchés) se retrouvaient créditées aux deux joueurs.
+     Maintenant le spot porte la séquence qui a produit le pot. */
+  const seats = SEATS6;
+  const ligne = carriedLineForPostflopSpot({
+    street: "Turn", hpos: "BTN", vpos: "BB", seats, targetPot: 24, blinds: { SB: 0.5, BB: 1 },
+  });
+  ok(ligne && ligne.coherent, "la séquence reconstruit exactement son pot");
+  near(ligne.dead, 0.5, "la SB couchée laisse 0.5bb de blinde morte");
+  near(ligne.pot, ligne.dead + 2 * ligne.parJoueur, "pot = blindes mortes + 2 × engagement");
+  ok(ligne.actions.some(a => a.street === "Préflop"), "la ligne contient le préflop");
+  ok(ligne.actions.some(a => a.street === "Flop"), "et le flop, déjà joué avant le turn");
+
+  const spot = {
+    hpos: "BTN", vpos: "BB", street: "Turn", stack: "100bb",
+    pot: ligne.pot, toCall: 0, nplayers: 6,
+    carriedCommitted: ligne.committed,
+  };
+  const l = trainerHandLedger({
+    spot, ctx: { preActions: ligne.actions }, seatOrder: seats,
+    streetContributions: {}, pot: ligne.pot, seatStates: {},
+  });
+  eq(l.sourceCarried, "declare", "le ledger LIT les engagements au lieu de les répartir");
+  near(l.seats.BTN.carried, ligne.parJoueur, "Hero porte son engagement réel");
+  near(l.seats.BB.carried, ligne.parJoueur, "le vilain aussi");
+  /* La différence qui compte : la blinde morte reste à la SB, pas partagée. */
+  near(l.seats.SB.carried, 0.5, "la blinde morte reste à la SB");
+  ok(l.seats.BTN.carried !== l.pot / 2, `l'attribution n'est plus « la moitié du pot » (${l.seats.BTN.carried} ≠ ${l.pot / 2})`);
+  conserve(l, "conservation avec un pot reporté connu");
+
+  /* Sans déclaration, le repli est NOMMÉ — il n'est pas silencieux. */
+  const sansDeclare = trainerHandLedger({
+    spot: { ...spot, carriedCommitted: undefined }, ctx: { preActions: [] }, seatOrder: seats,
+    streetContributions: {}, pot: ligne.pot, seatStates: {},
+  });
+  eq(sansDeclare.sourceCarried, "parts-egales", "le repli à parts égales se déclare");
+  conserve(sansDeclare, "et conserve quand même");
+
+  /* La cible n'est pas une contrainte : le pot rendu est celui de la séquence. */
+  for (const [st, cible] of [["Flop", 12], ["Turn", 24], ["River", 48]]) {
+    const li = carriedLineForPostflopSpot({ street: st, hpos: "CO", vpos: "BB", seats, targetPot: cible, blinds: { SB: 0.5, BB: 1 } });
+    ok(li.coherent, `${st} : séquence cohérente`);
+    ok(Math.abs(li.pot - cible) <= 1.01, `${st} : le pot produit (${li.pot}) reste proche de la cible (${cible})`);
+    ok(li.parJoueur >= 2.5, `${st} : chaque joueur a au moins payé l'ouverture`);
+  }
+  eq(carriedLineForPostflopSpot({ hpos: "BTN", vpos: "BTN", seats, targetPot: 10 }), null,
+     "Hero et le vilain au même siège : aucune séquence n'est produite");
+}
+
+/* ── 12. COUP COMPLET À TROIS : LE LEDGER LIT LA TABLE DU MOTEUR ─────────
+   Le bloc Full Hand du ledger ne connaissait que `heroStack` et `villStack`.
+   Un troisième siège recevait sa profondeur de DÉPART et le drapeau « couché »,
+   alors qu'il avait déjà de l'argent dans le pot : la conservation cassait
+   d'autant. Mesuré au navigateur avant correction : 12 à 48bb d'écart sur les
+   coups à trois joueurs. */
+{
+  const spot = { stack: "100bb", street: "Flop", hpos: "BTN", vpos: "CO", seatStacks: { BTN: 100, CO: 100, HJ: 100, SB: 100, BB: 100 } };
+  const seats = ["SB", "BB", "HJ", "CO", "BTN"];
+  /* État du moteur : trois joueurs assis, tapis et engagements différents. */
+  const fh = {
+    pot: 40,
+    players: {
+      hero:    { id: "hero",    stack: 80, contrib: 5, committedBefore: 10, folded: false },
+      villain: { id: "villain", stack: 75, contrib: 5, committedBefore: 10, folded: false },
+      HJ:      { id: "HJ",      stack: 0,  contrib: 0, committedBefore: 10, folded: true },
+    },
+    heroStack: 80, villStack: 75,
+    contrib: { hero: 5, villain: 5 },
+    committedBefore: { hero: 10, villain: 10 },
+  };
+  const l = trainerHandLedger({
+    spot, ctx: { preActions: [] }, seatOrder: seats, streetContributions: {},
+    pot: 40, seatStates: {}, fullHandState: fh,
+    fullHandSeats: { BTN: "hero", CO: "villain", HJ: "HJ" },
+  });
+  near(l.seats.BTN.remaining, 80, "le tapis d'Hero vient du moteur");
+  near(l.seats.CO.remaining, 75, "celui du vilain aussi");
+  /* Le point du test : HJ est DANS le coup, à zéro, pas à 100bb intacts. */
+  near(l.seats.HJ.remaining, 0, "le troisième joueur n'a plus de tapis — il est à tapis, pas assis à 100bb");
+  near(l.seats.HJ.total, 10, "et ses 10bb sont bien comptés comme engagés");
+  ok(l.seats.HJ.folded, "HJ s'est couché : le moteur le dit, le ledger le recopie");
+  /* Un siège qui n'est PAS du coup garde sa profondeur et reste hors du pot. */
+  near(l.seats.SB.remaining, 100, "un siège hors du coup garde sa profondeur");
+  near(l.seats.SB.total, 0, "et n'a rien engagé");
+  near(l.potStreet, 10, "engagement de street = 5 + 5 (HJ est à 0 sur cette street)");
+  near(l.potCarried, 30, "le reste du pot est reporté (10 + 10 + 10 du préflop)");
+  /* Σ engagements des joueurs du coup = pot. */
+  const somme = ["BTN", "CO", "HJ"].reduce((a, p) => a + l.seats[p].total, 0);
+  near(somme, 40, "les trois engagements reconstruisent le pot");
+  eq(auditHandLedger(l), [], "aucun écart sur un coup complet à trois");
+
+  /* Rétro-compatibilité : sans `fullHandSeats` ni table de joueurs, le chemin
+     hérité heads-up donne exactement ce qu'il donnait avant. */
+  const legacy = trainerHandLedger({
+    spot, ctx: { preActions: [] }, seatOrder: ["CO", "BTN"], streetContributions: {},
+    pot: 30, seatStates: {},
+    fullHandState: { pot: 30, heroStack: 80, villStack: 75, contrib: { hero: 5, villain: 5 }, committedBefore: { hero: 10, villain: 10 } },
+  });
+  near(legacy.seats.BTN.remaining, 80, "chemin hérité : tapis Hero");
+  near(legacy.seats.CO.total, 15, "chemin hérité : engagement total du vilain");
+  eq(auditHandLedger(legacy), [], "chemin hérité : aucun écart");
 }
 
 console.log(`✅ ledger de main du Trainer (C2) — ${passed} assertions OK`);

@@ -26,7 +26,7 @@ import { createSpotRecoveryManager, RECOVERY_STATUS } from "../spotRecovery.js";
 import { orchestrateTrainingRequest, describeUnderstanding } from "../aiTrainingOrchestrator.js";
 import { createAnimationQueue } from "../immersionEngine.js";
 import { CINE, cineDuration, collectTotalMs, collectContributions, projectDisplayedPot, streetRankFromBoard } from "../trainerBetCinematics.js";
-import { preflopPot } from "../potAccounting.js";
+import { preflopPot, carriedLineForPostflopSpot } from "../potAccounting.js";
 import { attachPreflopLine, buildPreflopLine, paintedPreflopAmounts, paintedPreflopTotal, blindOf as preflopBlindOf } from "../preflopLine.js";
 import { createFullHand, applyAction as fhApplyAction, playVillain as fhPlayVillain, amountToCall as fhAmountToCall, defaultVillainPolicy, raiseBounds as fhRaiseBounds, stackOf as fhStackOf, legalActions as fhLegalActions } from "../fullHandEngine.js";
 import { generateSimilarSpots, buildSimilarSession } from "../spotSimilarityEngine.js";
@@ -2411,6 +2411,29 @@ function generateDynamicSpots(count=50,f={}){
          cesse d'etre une valeur ecrite quelque part — il est la somme des
          engagements, donc reconstructible depuis la table par construction. */
       attachPreflopLine(spot);
+      /* ── LE POT REPORTÉ D'UN SPOT POSTFLOP EST UNE SÉQUENCE, PAS UN TIRAGE ──
+         Le générateur écrivait un pot au hasard ; le ledger devait ensuite le
+         RÉPARTIR entre les joueurs, à parts égales faute de mieux — la somme
+         était exacte, l'attribution était une hypothèse, et les blindes mortes
+         se retrouvaient attribuées aux deux joueurs.
+
+         On construit maintenant la séquence qui a produit ce pot, et le pot en
+         découle : ouverture suivie, puis une mise suivie par street déjà jouée.
+         Chaque siège porte alors son engagement RÉEL, blindes mortes comprises. */
+      if(!/^pre/i.test(spot.street||"")){
+        const _seats=(spot.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])||TRAINER_POS_ORDER;
+        const _toCall=Math.max(0,+spot.toCall||0);
+        const _ligne=carriedLineForPostflopSpot({
+          street:spot.street,hpos:spot.hpos,vpos:spot.vpos,seats:_seats,
+          targetPot:Math.max(0,(+spot.pot||0)-_toCall),
+          blinds:TRAINER_BLINDS,
+        });
+        if(_ligne&&_ligne.coherent){
+          spot.carriedCommitted=_ligne.committed;
+          spot.carriedActions=_ligne.actions;
+          spot.pot=roundBb(_ligne.pot+_toCall);
+        }
+      }
       if(stF&&spot.street!==stF)continue;
       if(catF&&spot.cat!==catF)continue;
       if(typeCats&&!typeCats.has(spot.cat))continue;
@@ -2907,12 +2930,11 @@ const TRAINER_POSTFLOP_ORDER=["SB","BB","UTG","HJ","CO","BTN"];   // ordre d'act
 const TRAINER_BLINDS={SB:0.5,BB:1};
 function parseStackBb(s){const n=parseFloat(s);return Number.isFinite(n)&&n>0?n:100;}
 function blindOf(pos){return TRAINER_BLINDS[pos]||0;}
-function trainerPostflopFirstActor(hpos,vpos){
-  const hi=TRAINER_POSTFLOP_ORDER.indexOf(hpos);
-  const vi=TRAINER_POSTFLOP_ORDER.indexOf(vpos);
-  if(hi<0||vi<0)return"hero";
-  return hi<vi?"hero":"villain";
-}
+/* `trainerPostflopFirstActor(hpos,vpos)` vivait ici : il ne savait comparer que
+   DEUX positions et rendait "hero" ou "villain". Le coup complet se jouant
+   désormais à N, l'ordre de parole postflop se lit directement dans
+   TRAINER_POSTFLOP_ORDER pour tous les sièges en jeu (cf. startFullHand) —
+   ce qui redonne exactement l'ancien résultat quand il n'y a que deux joueurs. */
 
 /* Reconstruit { preActions:[{position,actionType,amountBb,potAfterAction,street}],
    facing:{kind,label,amount,position}|null, heroCommitted } pour un spot. */
@@ -3015,10 +3037,19 @@ function buildSpotContext(spot){
   }
 
   // ── POSTFLOP ── préface préflop simple (pot ouvert) + action de street courante
-  const heroIP=TRAINER_POSTFLOP_ORDER.indexOf(hpos)>TRAINER_POSTFLOP_ORDER.indexOf(vpos);
-  const pfRaiser=heroIP?hpos:vpos,pfCaller=heroIP?vpos:hpos; // l'IP (dernier à parler) a ouvert préflop
-  A.push({position:pfRaiser,actionType:"RAISE",amountBb:2.5,potAfterAction:0,street:"Préflop"});
-  A.push({position:pfCaller,actionType:"CALL",amountBb:2.5,potAfterAction:0,street:"Préflop"});
+  /* ── LA PRÉFACE EST LA VRAIE SÉQUENCE QUAND ELLE EXISTE ──────────────────
+     Cette préface valait « 2.5 / 2.5 » quel que soit le pot : nominale, donc
+     incapable d'expliquer un pot de 48bb. Quand le spot porte sa ligne reportée
+     (`carriedActions`, construite par `carriedLineForPostflopSpot`), c'est ELLE
+     qu'on montre — chaque street antérieure avec son montant réel. */
+  if(Array.isArray(spot.carriedActions)&&spot.carriedActions.length){
+    for(const a of spot.carriedActions)A.push({...a,potAfterAction:0});
+  }else{
+    const heroIP=TRAINER_POSTFLOP_ORDER.indexOf(hpos)>TRAINER_POSTFLOP_ORDER.indexOf(vpos);
+    const pfRaiser=heroIP?hpos:vpos,pfCaller=heroIP?vpos:hpos; // l'IP (dernier à parler) a ouvert préflop
+    A.push({position:pfRaiser,actionType:"RAISE",amountBb:2.5,potAfterAction:0,street:"Préflop"});
+    A.push({position:pfCaller,actionType:"CALL",amountBb:2.5,potAfterAction:0,street:"Préflop"});
+  }
   if(toCall>0){
     const isFlop=street.toLowerCase()==="flop";
     A.push({position:vpos,actionType:"BET",amountBb:roundBb(toCall),potAfterAction:roundBb(spot.pot||0),street});
@@ -3516,6 +3547,23 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   // État autoritatif du moteur de main complète (fullHandEngine). Les states fh*
   // ci-dessus en sont la projection pour le rendu.
   const fhStateRef=useRef(null);
+  /* ── QUEL SIÈGE EST QUEL JOUEUR DU MOTEUR ──────────────────────────────
+     Le rendu traduisait la position en identifiant avec un ternaire figé
+     (`p===hpos?"hero":p===vpos?"villain":"_"`) : tout siège supplémentaire
+     tombait sur `"_"` et affichait donc un engagement de 0, quoi qu'il ait
+     misé. Maintenant que le moteur joue N joueurs, la correspondance est
+     établie UNE fois au lancement du coup et lue partout. */
+  const fhSeatMapRef=useRef(null);
+  const fhIdForPos=p=>fhSeatMapRef.current?.byPos?.[p]
+    ??(p===spot?.hpos?"hero":p===spot?.vpos?"villain":null);
+  const fhPosForId=id=>fhSeatMapRef.current?.byId?.[id]
+    ??(id==="hero"?spot?.hpos:id==="villain"?spot?.vpos:id);
+  /* Engagement de street d'un siège, lu au moteur. */
+  const fhContribOf=p=>{
+    const id=fhIdForPos(p);
+    if(!id)return 0;
+    return roundBb((fhStateRef.current?.seatContrib||fhStateRef.current?.contrib||{})[id]||0);
+  };
   // Board visible = board progressif du moteur (flop 3 · turn 4 · river 5).
   const fhVisBoard=fhBoardRef;
   const isSmall=numTables>1;
@@ -3600,8 +3648,27 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     spot,ctx:spotCtx,seatOrder:ledgerSeatOrder,streetContributions,
     pot:canonicalPotBb,seatStates:seatStatesPre,
     fullHandState:playingFull?fhStateRef.current:null,
+    /* Sans cette correspondance, le ledger ne connaîtrait du coup complet que
+       « hero » et « villain » : un troisième siège afficherait sa profondeur de
+       départ alors que son argent est déjà au pot. */
+    fullHandSeats:playingFull?(fhSeatMapRef.current?.byPos||null):null,
     toCall:playingFull?null:spot?.toCall,
   }),[spot,spotCtx,ledgerSeatOrder,streetContributions,canonicalPotBb,seatStatesPre,playingFull,fhPot,fhStreet]);
+  /* ── LE LEDGER LU PLUS TARD DOIT ÊTRE CELUI DE PLUS TARD ───────────────────
+     `startFullHand` est appelé par un `setTimeout` posé au moment de la
+     décision d'Hero. La fonction capturée appartient donc au rendu d'AVANT
+     cette décision, et le `handLedger` qu'elle voit est celui d'avant : le
+     call d'Hero n'y figure pas.
+
+     Mesuré au navigateur (F10) sur 11 coups complets sur 11 : au flop, la BB
+     entrait avec un engagement de 1bb — sa blinde — alors que le pot, lui,
+     venait d'une REF et contenait bien son call de 1.5bb. Deux lectures de la
+     même vérité, l'une fraîche, l'autre périmée : le tapis d'Hero arrivait au
+     flop 1.5bb trop haut, et le coup complet démarrait sur des jetons créés.
+
+     Une ref suit le rendu ; toute lecture différée passe par elle. */
+  const handLedgerRef=useRef(handLedger);
+  handLedgerRef.current=handLedger;
   const seatStates=useMemo(()=>trainerSeatStates(spot,spotCtx,handLog,vact,answered,{
     ledgerSeats:handLedger.seats,activePlayerId,playingFull,
   }),[spot,spotCtx,handLog,vact,answered,handLedger,activePlayerId,playingFull]);
@@ -3981,7 +4048,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     const rows=handLog.map(a=>`${a.position} ${a.actionType==="BET"||a.actionType==="OPEN"||a.actionType==="RAISE"||a.actionType==="3BET"||a.actionType==="4BET"||a.actionType==="5BET"||a.actionType==="ALLIN"?`${trainerActionVerb(a.actionType)} ${roundBb(a.displayAmount??a.amountBb)}bb`:trainerActionVerb(a.actionType)}`);
     if(activePlayerId==="hero"&&answered===null)rows.push(`${spot.hpos} decision`);
     if(activePlayerId==="hero"&&phase==="hero_reply")rows.push(`${spot.hpos} decision`);
-    if(activePlayerId==="villain")rows.push(`${spot.vpos} thinking`);
+    /* « qui réfléchit » n'est plus forcément le vilain désigné : en coup
+       complet à trois, c'est le siège dont c'est le tour. */
+    if(activePlayerId&&activePlayerId!=="hero")rows.push(`${fhPosForId(activePlayerId)||spot.vpos} thinking`);
     const visible=numTables>=2?rows.slice(-3):rows;
     return visible.join(" -> ");
   }
@@ -4215,7 +4284,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
      Le Héro joue TOUT le coup street par street contre le Villain, avec de vraies
      règles et un showdown réel (plus de résultat aléatoire). fhStateRef détient
      l'état autoritatif ; fhSync le projette vers les states de rendu. */
-  function fhVillainPolicy(st){return defaultVillainPolicy(st,{random:Math.random});}
+  function fhVillainPolicy(st,ctx){return defaultVillainPolicy(st,{...(ctx||{}),random:Math.random});}
 
   function fhSync(st){
     const prevStreet=fhStateRef.current?.street;
@@ -4229,8 +4298,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     setFhBoardRef(st.board);
     setFhPot(roundBb(st.pot));
     setFhStreet(st.street==="done"?(st.board.length>=5?"river":st.board.length>=4?"turn":"flop"):st.street);
-    setFhActs(st.history.map(h=>({street:h.street,actor:h.actor==="hero"?"Hero":"Villain",action:h.action,amount:h.amount})));
-    const lastVil=[...st.history].reverse().find(h=>h.actor==="villain");
+    /* Le libellé d'un acteur n'est plus « Hero ou Villain » : au-delà de deux
+       joueurs, un siège supplémentaire doit être nommé par SA position, sinon
+       trois adversaires écrivent la même ligne d'historique. */
+    setFhActs(st.history.map(h=>({street:h.street,actor:h.actor==="hero"?"Hero":(fhPosForId(h.actor)||"Villain"),action:h.action,amount:h.amount})));
+    const lastVil=[...st.history].reverse().find(h=>h.actor!=="hero");
     if(st.done){
       fullPending.current=false;
       setFhPhase("done");
@@ -4239,58 +4311,78 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
          `winner==="villain" ? "lose" : "win"`, donc le partage était porté au
          crédit du joueur. Les trois issues sont maintenant distinctes, et le
          résultat net en bb vient du ledger, pas d'une étiquette. */
-      setFhResult(st.result.winner==="villain"?"lose":st.result.winner==="split"?"split":"win");
-      setFhNet(st.result.netBb?roundBb(st.result.netBb.hero):null);
+      /* À plus de deux joueurs « gagné / perdu » ne se lit plus sur l'étiquette
+         du vainqueur : c'est le résultat NET d'Hero qui tranche, et lui seul.
+         Un partage de pot principal peut laisser Hero gagnant ou perdant selon
+         le side pot — l'étiquette, elle, dirait « split » dans les deux cas. */
+      const net=st.result.netBb?roundBb(st.result.netBb.hero):null;
+      const gagne=st.result.winner==="hero"
+        ||(st.result.winner==="split"&&(st.result.gagnants||[]).includes("hero"));
+      setFhResult(net!=null?(net>0.001?"win":net<-0.001?"lose":"split"):(gagne?"win":"lose"));
+      setFhNet(net);
       setActivePlayerId(null);
     }else if(st.toAct==="hero"){
       const toCall=fhAmountToCall(st,"hero");
-      setFhVilAct(lastVil&&toCall>0?{label:lastVil.action,amount:lastVil.amount,color:T.purple}:null);
+      setFhVilAct(lastVil&&toCall>0?{label:lastVil.action,amount:lastVil.amount,color:T.purple,pos:fhPosForId(lastVil.actor)}:null);
       setFhPhase(toCall>0?"hero_facing_bet":"hero");
       setActivePlayerId("hero");
     }else{
-      setFhPhase("villain_thinking");setActivePlayerId("villain");
+      /* L'adversaire qui réfléchit est celui dont c'est le tour — pas
+         « le Vilain » par défaut. Son identifiant moteur EST sa position quand
+         c'est un siège supplémentaire, ce qui allume le bon halo. */
+      setFhPhase("villain_thinking");setActivePlayerId(st.toAct);
     }
     // §P0-C : remonte l'état Full Hand au parent (panneau droit : Street/Pot/SPR + analyse).
     const streetLabel=st.street==="done"?(st.board.length>=5?"River":st.board.length>=4?"Turn":"Flop"):(st.street.charAt(0).toUpperCase()+st.street.slice(1));
     onFhState&&onFhState({active:true,street:streetLabel,pot:roundBb(st.pot),heroStack:roundBb(st.heroStack),done:!!st.done});
   }
 
-  /* Fait jouer le Villain (potentiellement plusieurs fois d'affilée si l'OOP est
-     le Villain sur une nouvelle street) jusqu'à ce que ce soit au Héro / fin. */
+  /* Fait jouer l'ADVERSAIRE dont c'est le tour — pas « le Villain ». Le test
+     était `st.toAct!=="villain"`, donc à trois joueurs la main se figeait dès
+     qu'un siège supplémentaire devait parler : personne ne jouait, et Hero
+     n'avait pas la main non plus. On avance tant que ce n'est pas au Héro. */
   function fhAdvanceVillain(){
     const st=fhStateRef.current;
-    if(!st||st.done||st.toAct!=="villain")return;
-    setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId("villain");
+    if(!st||st.done||!st.toAct||st.toAct==="hero")return;
+    const acteur=st.toAct;
+    setFhVilThink(true);setFhPhase("villain_thinking");setActivePlayerId(acteur);
     animQRef.current.enqueue([
       {type:"VILLAIN_THINK",duration:520+Math.random()*380},
       {type:"VILLAIN_ACT",duration:0,perform:()=>{
         setFhVilThink(false);
         const after=fhPlayVillain(fhStateRef.current,fhVillainPolicy);
-        const lastVil=[...after.history].reverse().find(h=>h.actor==="villain");
-        if(lastVil&&lastVil.action!=="CHECK"&&lastVil.action!=="FOLD"){fireVilChip(lastVil.action);fireChip(lastVil.action);}
+        const dernier=[...after.history].reverse().find(h=>h.actor===acteur);
+        if(dernier&&dernier.action!=="CHECK"&&dernier.action!=="FOLD"){fireVilChip(dernier.action);fireChip(dernier.action);}
         fhSync(after);
-        fhAdvanceVillain(); // le Villain peut reparler en premier sur la street suivante
+        fhAdvanceVillain(); // un adversaire peut reparler en premier sur la street suivante
       }},
     ]);
   }
 
   function startFullHand(){
-    /* ── UNE CONFIGURATION NON SUPPORTÉE SE DIT, ELLE NE SE SUBIT PAS (C8) ──
-       Le coup complet est heads-up : son moteur ne gère qu'un tour d'enchères
-       à deux. À trois joueurs encore en jeu, il faudrait des side pots dans le
-       DÉROULÉ, pas seulement à l'attribution — `potDistribution` sait les
-       calculer, le moteur de jeu ne sait pas les jouer.
+    /* ── LE COUP COMPLET N'EST PLUS HEADS-UP PAR CONSTRUCTION (C8) ─────────
+       Le moteur ne gérait qu'un tour d'enchères à deux : à trois joueurs
+       encore en jeu il aurait fallu des side pots dans le DÉROULÉ, pas
+       seulement à l'attribution. `potDistribution` savait les calculer, le
+       moteur ne savait pas les jouer — donc la règle existait sans jamais
+       être exercée, et le coup était refusé.
 
-       L'ancien comportement était de « bloquer par construction », c'est-à-dire
-       de ne rien lancer et de ne rien expliquer. Le joueur voyait le coup
-       s'arrêter sans raison. On refuse explicitement, à l'écran. */
+       `fullHandEngine` joue désormais N joueurs : paliers de contribution
+       suivis pendant les enchères, relance complète qui rouvre la parole à
+       tous, all-in incomplet qui ne la rouvre pour personne. Le refus qui
+       subsiste (moins de deux joueurs, ou plus grand que la table) reste
+       AFFICHÉ à l'écran, jamais subi en silence. */
     /* Qui est RÉELLEMENT dans le pot au moment où le coup complet démarre :
        Hero, le vilain désigné, et les éventuels suiveurs déclarés du spot. Un
        siège qui n'a pas encore parlé n'en fait PAS partie — le compter reviendrait
        à refuser presque tous les coups (mesuré : un « BTN vs open du CO » compte
-       SB et BB comme vivants tant qu'ils n'ont pas parlé, donc 4 joueurs). */
+       SB et BB comme vivants tant qu'ils n'ont pas parlé, donc 4 joueurs).
+
+       Le ledger est lu par sa REF : cette fonction est appelée par un timer,
+       donc depuis un rendu ANTÉRIEUR à la décision d'Hero. */
+    const LG=handLedgerRef.current;
     const encoreEnJeu=[...new Set([spot.hpos,spot.vpos,...trainerExtraPlayers(spot).map(p=>p.pos)])]
-      .filter(p=>p&&!(handLedger.seats?.[p]||{}).folded);
+      .filter(p=>p&&!(LG.seats?.[p]||{}).folded);
     const support=potDistributionSupport({players:encoreEnJeu,engine:"fullHand"});
     if(!support.supported){
       setFhUnsupported({raison:support.reason,joueurs:encoreEnJeu});
@@ -4307,7 +4399,23 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     const fullBoard=genBoard([...heroHand,...(villHandSpot||[])]);    // 5 cartes (exclut Héro + Vilain)
     const villHand=villHandSpot||genBoard([...heroHand,...fullBoard]).slice(0,2);
     const startPot=roundBb(currentPotRef.current||spot.pot||15);
-    const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
+    /* ── ORDRE DE PAROLE POSTFLOP, POUR N SIÈGES ───────────────────────────
+       `trainerPostflopFirstActor` ne comparait que deux positions. L'ordre
+       postflop réel est celui de la table : SB parle en premier, le bouton en
+       dernier. On classe TOUS les joueurs encore en jeu, et le premier de la
+       liste ouvre — ce qui redonne exactement l'ancien résultat à deux. */
+    const ordre=[...encoreEnJeu].sort((a,b)=>TRAINER_POSTFLOP_ORDER.indexOf(a)-TRAINER_POSTFLOP_ORDER.indexOf(b));
+    /* Identifiants moteur : `hero` et `villain` restent nommés ainsi (tout le
+       rendu et les tests les lisent sous ce nom) ; un siège supplémentaire
+       porte sa POSITION comme identifiant. La correspondance est mémorisée
+       pour que le rendu sache à quel siège appartient chaque engagement. */
+    const idDe=p=>p===spot.hpos?"hero":p===spot.vpos?"villain":p;
+    const seats=ordre.map(idDe);
+    fhSeatMapRef.current={
+      byPos:Object.fromEntries(ordre.map(p=>[p,idDe(p)])),
+      byId:Object.fromEntries(ordre.map(p=>[idDe(p),p])),
+      ordre,
+    };
     /* ── LES ENGAGEMENTS PRÉFLOP QUITTENT LES TAPIS (C3) ────────────────────
        Ici était écrit `heroStack:stackBb, villStack:stackBb` avec `stackBb` =
        profondeur de DÉPART, pendant que `startPot` contenait déjà les
@@ -4316,18 +4424,23 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
        Le ledger connaît les tapis restants et les engagements de chacun : on
        les lui demande au lieu de les réinitialiser. */
-    const ledgerHero=handLedger.seats?.[spot.hpos];
-    const ledgerVil=handLedger.seats?.[spot.vpos];
-    const profondeur=roundBb(handLedger.depthBb||parseFloat(spot.stack)||100);
-    const heroEngage=roundBb(ledgerHero?.total??0);
-    const vilEngage=roundBb(ledgerVil?.total??0);
-    const heroRestant=roundBb(ledgerHero?.remaining??Math.max(0,profondeur-heroEngage));
-    const vilRestant=roundBb(ledgerVil?.remaining??Math.max(0,profondeur-vilEngage));
+    const profondeur=roundBb(LG.depthBb||parseFloat(spot.stack)||100);
+    /* Cartes des sièges supplémentaires : tirées dans ce qui reste du paquet,
+       jamais dupliquées. Un siège sans cartes n'irait pas à l'abattage. */
+    const dejaVues=[...heroHand,...villHand,...fullBoard];
+    const players=ordre.map(p=>{
+      const l=LG.seats?.[p];
+      const engage=roundBb(l?.total??0);
+      const restant=roundBb(l?.remaining??Math.max(0,profondeur-engage));
+      let hand;
+      if(p===spot.hpos)hand=heroHand;
+      else if(p===spot.vpos)hand=villHand;
+      else{hand=genBoard(dejaVues).slice(0,2);dejaVues.push(...hand);}
+      return {id:idDe(p),hand,stack:restant,committedBefore:engage};
+    });
     const st=createFullHand({
-      heroHand,villHand,fullBoard,startPot,
-      heroStack:heroRestant,villStack:vilRestant,
-      heroCommittedBefore:heroEngage,villCommittedBefore:vilEngage,
-      firstToAct:firstActor,
+      players,seats,fullBoard,startPot,
+      firstToAct:seats[0],
     });
     setPlayingFull(true);setFhVilAct(null);setFhResult(null);setFhNet(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport de la main précédente
@@ -4404,7 +4517,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       bounds:b,
       demiPot:borne(st.pot*0.5),
       pot:borne(st.pot),
-      raiseTo:borne(Math.max(b.minTo,(st.contrib.villain||0)*2.5)),
+      /* La relance se calcule sur la mise AFFRONTÉE, pas sur celle du vilain
+         désigné : à trois joueurs, l'agresseur peut être un autre siège et
+         `contrib.villain` vaudrait alors 0. */
+      raiseTo:borne(Math.max(b.minTo,Math.max(...Object.values(st.seatContrib||{villain:st.contrib.villain||0}),0)*2.5)),
       aPayer:roundStep(aPayer),
       callAllIn:aPayer>=fhStackOf(st,"hero")-0.001&&fhStackOf(st,"hero")>0,
       peutRelancer:fhLegalActions(st,"hero").some(a=>a.type==="RAISE"),
@@ -4669,9 +4785,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const seatBlindPainted=(p)=>showStaticBlindMarkers?(TRAINER_BLINDS[p]||0):0;
   const seatStreetChip=(p)=>{
     if(!p||spotChipsPerimes)return 0;
-    const raw=playingFull
-      ?roundBb(((fhStateRef.current?.contrib||{})[p===spot?.hpos?"hero":p===spot?.vpos?"villain":"_"])||0)
-      :roundBb(streetContributions[p]||0);
+    /* Un siège supplémentaire tombait sur la clé "_" — donc 0bb peint, quel
+       que soit ce qu'il venait de miser. fhContribOf lit le moteur via la
+       correspondance siège → joueur établie au lancement du coup. */
+    const raw=playingFull?fhContribOf(p):roundBb(streetContributions[p]||0);
     // Un seul tas par joueur : ce que le marqueur de blinde dit déjà ne se répète pas.
     return raw>seatBlindPainted(p)+0.001?raw:0;
   };
@@ -4697,8 +4814,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const collectChips=useMemo(()=>{
     if(!potCollecting)return [];
     if(playingFull&&fhStateRef.current){
-      const c=fhStateRef.current.contrib||{};
-      return collectContributions({[spot?.hpos||"BTN"]:c.hero||0,[spot?.vpos||"BB"]:c.villain||0});
+      /* La collecte ne concernait que deux sièges nommés en dur : à trois
+         joueurs, la mise du troisième restait à son ancre pendant que les deux
+         autres partaient vers le pot. On collecte TOUS les sièges du moteur. */
+      const ordre=fhSeatMapRef.current?.ordre||[spot?.hpos,spot?.vpos].filter(Boolean);
+      return collectContributions(Object.fromEntries(ordre.map(p=>[p,fhContribOf(p)])));
     }
     return collectContributions(Object.fromEntries(seatOrder.map(p=>[p,(seatStates[p]||{}).invested||0])));
   },[potCollecting,playingFull,spot?.hpos,spot?.vpos,seatOrder,seatStates]);
@@ -4718,6 +4838,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const spotProbe=useMemo(()=>JSON.stringify({
     cat:spot?.cat,street:spot?.street,hpos:spot?.hpos,vpos:spot?.vpos,
     toCall:spot?.toCall,potSpot:spot?.pot,potMoteur:mainPotBb,
+    /* Les sièges DÉCLARÉS en plus d'Hero et du vilain : sans eux, un audit ne
+       peut pas savoir si le spot qu'il vient de jouer était multiway. */
+    extras:trainerExtraPlayers(spot).map(p=>p.pos),
     kindLigne:spot?.line?.kind||null,potLigne:spot?.line?.pot??null,
     engagements:spot?.line?.committed||null,
     heroCommitted:spotCtx?.heroCommitted??null,facing:spotCtx?.facing?.amount??null,
@@ -4744,6 +4867,49 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     }])),
     ecarts:handLedger.problems,
   }),[handLedger,seatStates,spot?.hpos,spot?.vpos,visualStreet]);
+  /* ── LE COUP COMPLET, LISIBLE DEPUIS LE DOM ───────────────────────────────
+     Le ledger publié décrit le SPOT (profondeurs, engagements préflop). Il ne
+     dit rien de la table réellement assise au flop : combien de joueurs, qui
+     parle, quels paliers ont été disputés. Sans cela, un audit ne peut pas
+     distinguer un coup heads-up d'un coup à trois — c'est exactement pourquoi
+     « les side pots sont joués » n'était vérifiable qu'en test unitaire.
+     Calculé au rendu (pas mémoïsé) : l'état vit dans une ref, et chaque
+     synchronisation du moteur provoque déjà un rendu. */
+  const fullHandProbe=(()=>{
+    const st=playingFull?fhStateRef.current:null;
+    if(!st)return null;
+    const ids=st.seats||[];
+    const parSiege=f=>Object.fromEntries(ids.map(id=>[fhPosForId(id)||id,f(id)]));
+    return JSON.stringify({
+      actif:true,
+      joueurs:ids.map(id=>fhPosForId(id)||id),
+      nb:ids.length,
+      aParler:st.toAct?(fhPosForId(st.toAct)||st.toAct):null,
+      street:st.street,
+      pot:roundBb(st.pot),
+      totalJetons:st.totalChips,
+      engagements:parSiege(id=>roundBb((st.seatContrib||{})[id]||0)),
+      /* Engagement TOTAL du coup, préflop compris : c'est lui qui définit les
+         paliers, donc lui qu'un audit doit pouvoir relire. */
+      engageTotal:parSiege(id=>roundBb((st.players?.[id]?.committedBefore||0)+(st.players?.[id]?.committed||0))),
+      /* Engagement PRÉFLOP seul : l état d entrée au flop, indépendant du moment
+         où la sonde est lue. Le tour d enchères préflop étant clos, il doit être
+         le MÊME pour tous les joueurs encore assis. */
+      engagePreflop:parSiege(id=>roundBb(st.players?.[id]?.committedBefore||0)),
+      tapis:parSiege(id=>roundBb((st.seatStacks||{})[id]||0)),
+      couches:ids.filter(id=>st.players?.[id]?.folded).map(id=>fhPosForId(id)||id),
+      fini:!!st.done,
+      sidePots:st.result?.sidePots??null,
+      argentMort:st.result?.argentMort??null,
+      nonSuivi:st.result?.nonSuivi??null,
+      paliers:st.result?.pots?.map(p=>({
+        nom:p.nom,montant:p.montant,
+        disputePar:(p.disputePar||[]).map(id=>fhPosForId(id)||id),
+      }))||null,
+      versements:st.result?Object.fromEntries(ids.map(id=>[fhPosForId(id)||id,roundBb(st.result.payout?.[id]||0)])):null,
+      net:st.result?.netBb?roundBb(st.result.netBb.hero):null,
+    });
+  })();
   const anchorForSeat=useCallback(pos=>{
     if(!pos)return null;
     return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
@@ -5485,9 +5651,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             </div>
             <div style={{fontFamily:T.stats,fontSize:fhC?8:9.5,color:T.text2,lineHeight:1.6,textAlign:"center"}}>
               {fhUnsupported.raison}.<br/>
-              Il faudrait des <b>side pots</b> pendant le déroulé — le calcul existe,
-              le moteur de jeu ne les joue pas encore. Le spot reste noté ;
-              seule la suite du coup est indisponible.
+              Le spot reste noté ; seule la suite du coup est indisponible.
             </div>
           </div>
         )}
@@ -5945,7 +6109,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
            const ar=trainerZoneAspect(1,trainingLayout.tableGeometry).toFixed(4);
            return{"--pf-zone-ar-min":ar,"--pf-zone-ar-max":ar};
          })()}>
-         <div className="t1-table-area" ref={ringScaleRef} data-pf-spot={spotProbe} data-pf-ledger={ledgerProbe} style={{
+         <div className="t1-table-area" ref={ringScaleRef} data-pf-spot={spotProbe} data-pf-ledger={ledgerProbe} data-pf-fullhand={fullHandProbe} style={{
            position:"relative",minHeight:0,overflow:"hidden",
            "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport}),
          }}>
@@ -6058,7 +6222,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             const seatState=seatStates[pos]||{};
             const seatFolded=!!seatState.folded;
             const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
-            const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV);
+            const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV)||(!!activePlayerId&&activePlayerId===pos);
             const isDone=answered!==null;
             const col=isH?T.gold:isV?"#c090ff":T.text3;
             const seatLiveAction=tableAction?.position===pos?tableAction:null;
@@ -6232,10 +6396,17 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     pile de jetons au repos, seul le fling passait. */}
                 {(()=>{
                   let fhSeatBet=0, fhSeatLabel=null;
-                  if(playingFull&&fhStateRef.current){
-                    const c=fhStateRef.current.contrib||{};
-                    if(isH){ fhSeatBet=roundBb(c.hero||0); const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet); fhSeatLabel=ha?trainerActionDisplayVerb(ha.action):null; }
-                    else if(isV){ fhSeatBet=roundBb(c.villain||0); fhSeatLabel=fhVilAct?(fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action)):null; }
+                  if(playingFull&&fhStateRef.current&&fhIdForPos(pos)){
+                    /* Ce bloc ne connaissait que deux sièges : un troisième
+                       joueur ne recevait ni montant ni verbe, donc aucune pile
+                       au repos et aucune étiquette d'action. Le montant vient
+                       du moteur, l'étiquette de l'historique du siège. */
+                    fhSeatBet=fhContribOf(pos);
+                    const cle=isH?"Hero":pos;
+                    const ha=[...fhActs].reverse().find(a=>a.actor===cle&&a.street===fhStreet);
+                    fhSeatLabel=ha?trainerActionDisplayVerb(ha.action)
+                      :(!isH&&fhVilAct&&(fhVilAct.pos==null||fhVilAct.pos===pos)
+                        ?(fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action)):null);
                   }
                   // Source unique du montant, coup complet compris (seatChipAmount).
                   const zoneAmount=seatChipAmount(pos);
@@ -6422,7 +6593,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         const ar=trainerZoneAspect(numTables,trainingLayout.tableGeometry).toFixed(4);
         return{"--pf-zone-ar-min":ar,"--pf-zone-ar-max":ar};
       })()}>
-      <div className="training-table-zone" ref={ringScaleRef} data-pf-spot={spotProbe} data-pf-ledger={ledgerProbe} style={{
+      <div className="training-table-zone" ref={ringScaleRef} data-pf-spot={spotProbe} data-pf-ledger={ledgerProbe} data-pf-fullhand={fullHandProbe} style={{
         /* Le board suit la hauteur REELLE du feutre (§21/§34). La densite seule
            ne suffit pas : a 1366x768 la mosaique 4T tombe a 133px de feutre et
            un board de 37px y repassait sur les cartes du Hero (mesure -18.6px).
@@ -6565,7 +6736,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const seatState=seatStates[pos]||{};
           const seatFolded=!!seatState.folded;
           const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
-          const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV);
+          const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV)||(!!activePlayerId&&activePlayerId===pos);
           const sz=cfg.seat;
           const col=isH?T.gold:isV?"#c090ff":T.text3;
           const bg=isH?"rgba(255,194,71,.12)":isV?"rgba(155,92,255,.1)":"rgba(31,139,255,.04)";

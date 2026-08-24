@@ -63,6 +63,12 @@ function weights() {
 }
 export function pfComboCounts() { weights(); return _nCombos; }
 
+/* Poids de card removal, exposés en LECTURE : W[i][j] = nombre de paires de
+   combos (i,j) sans carte commune. Le Trainer en a besoin pour calculer une
+   équité moyenne honnête (une main ne peut pas affronter une main qui partage
+   ses cartes). Aucune logique de résolution ne change. */
+export function pfCardRemovalWeights() { return weights(); }
+
 /* EV de BB s'il paie le jam avec la main j, face à la range de jam `sbJam`. */
 function bbCallEV(j, sbJam, S) {
   const W = weights();

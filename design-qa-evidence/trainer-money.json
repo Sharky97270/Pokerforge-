@@ -1,6 +1,6 @@
 {
-  "ts": "2026-08-24T11:57:04.869Z",
-  "url": "http://localhost:7801",
+  "ts": "2026-08-24T18:56:20.091Z",
+  "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
     "h": 1080
@@ -10,12 +10,18 @@
   "mainsRelevees": 60,
   "ecartsParInvariant": {},
   "tapisAdverses": {
-    "valeursDistinctes": 158,
+    "valeursDistinctes": 136,
     "profondeursDistinctes": 31
   },
   "ecarts": [],
   "experienceSelecteurDeSizing": {
-    "erreur": "TypeError: Cannot read properties of null (reading 'textContent')"
+    "boutonAvant": "Open 2.5bb",
+    "sizingAvant": "2.5bb",
+    "sizingApresAllIn": "15bb",
+    "potAvant": 1.5,
+    "potApres": 16.5,
+    "deltaPot": 15,
+    "montantAnnonceParLeSelecteur": "15bb"
   },
   "consoleErrors": [],
   "verdict": "OK — aucune incoherence arithmetique relevee"

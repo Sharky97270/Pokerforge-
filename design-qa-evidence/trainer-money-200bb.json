@@ -1,6 +1,6 @@
 {
-  "ts": "2026-08-24T11:58:38.969Z",
-  "url": "http://localhost:7801",
+  "ts": "2026-08-24T18:54:16.644Z",
+  "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
     "h": 1080
@@ -10,17 +10,17 @@
   "mainsRelevees": 30,
   "ecartsParInvariant": {},
   "tapisAdverses": {
-    "valeursDistinctes": 84,
+    "valeursDistinctes": 78,
     "profondeursDistinctes": 1
   },
   "ecarts": [],
   "experienceSelecteurDeSizing": {
-    "boutonAvant": "4-Bet 22bb",
-    "sizingAvant": "22bb",
+    "boutonAvant": "3-Bet 8.5bb",
+    "sizingAvant": "8.5bb",
     "sizingApresAllIn": "200bb",
-    "potAvant": 12,
-    "potApres": 209.5,
-    "deltaPot": 197.5,
+    "potAvant": 4,
+    "potApres": 204,
+    "deltaPot": 200,
     "montantAnnonceParLeSelecteur": "200bb"
   },
   "consoleErrors": [],

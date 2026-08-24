@@ -22,7 +22,23 @@
  *   F5 pot versé         le coup se termine sans pot orphelin ;
  *   F6 montants          le bouton annonce ce que le moteur engage.
  *
+ * ── AJOUT : LE MULTIWAY EST OBSERVÉ, PLUS SEULEMENT TESTÉ ──────────────────
+ * Le coup complet ne se jouait qu'en heads-up ; les side pots étaient calculés
+ * par `potDistribution` mais jamais atteints, et le refus multiway ne s'était
+ * JAMAIS déclenché sur l'échantillon navigateur (refusExplicite : 0 sur 36
+ * tentatives) — la règle était couverte par un test unitaire, pas par une
+ * observation à l'écran. Le moteur joue désormais N joueurs, et cet instrument
+ * le regarde faire :
+ *   F7 paliers emboîtés  chaque side pot est disputé par un SOUS-ensemble
+ *                        strict du palier précédent, et les joueurs écartés
+ *                        ont engagé moins que ceux qui restent ;
+ *   F8 pot entièrement   la somme des paliers et la somme des versements
+ *      versé             valent exactement le pot disputé ;
+ *   F9 table observée    le nombre de joueurs assis au flop est relevé, main
+ *                        par main (`--multiway=N` exige N coups à 3 joueurs+).
+ *
  *   node scripts/trainer-fullhand-audit.mjs --url=http://localhost:7799 --hands=20
+ *   node scripts/trainer-fullhand-audit.mjs --spot=Squeeze --hands=12 --multiway=4
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,6 +50,12 @@ const HANDS = +arg('hands', 20);
 const W = +arg('w', 1920), H = +arg('h', 1080);
 const OUT = path.resolve(arg('out', 'design-qa-evidence/trainer-fullhand.json'));
 const SHOTS = arg('shots', 'design-qa-evidence/probe');
+const SHOT_NAME = arg('shot', 'trainer-fullhand.png');
+/* Types de spot à activer avant le lancement (pastilles « Type de spot »).
+   « Squeeze » est le seul générateur qui pose un SUIVEUR entre l'ouvreur et
+   Hero : c'est par lui qu'on obtient des coups complets à trois joueurs. */
+const SPOTS = arg('spot', '').split(',').map(s => s.trim()).filter(Boolean);
+const MULTIWAY_MIN = +arg('multiway', 0);
 
 const CHROMES = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -68,6 +90,22 @@ const HELPERS = () => {
       const e = document.querySelector('[data-pf-ledger]');
       if (!e) return null;
       try { return JSON.parse(e.getAttribute('data-pf-ledger')); } catch { return null; }
+    },
+    spotInfo() {
+      const e = document.querySelector('[data-pf-spot]');
+      const v = e && e.getAttribute('data-pf-spot');
+      if (!v) return null;
+      try { const s = JSON.parse(v); return { cat: s.cat, kind: s.kindLigne, extras: s.extras || [], hpos: s.hpos, vpos: s.vpos, coups: s.coups || [], engagementsLigne: s.engagements || null, toCall: s.toCall, contribs: s.contribs || null, vact: s.vact || null, heroCommitted: s.heroCommitted, facing: s.facing }; } catch { return null; }
+    },
+    /* État VIVANT du moteur de coup complet : qui est assis, qui parle, quels
+       paliers ont été disputés. Le ledger décrit le spot, pas la table assise
+       au flop — sans cette sonde, un audit ne peut pas distinguer un coup
+       heads-up d'un coup à trois. */
+    fullhand() {
+      const e = document.querySelector('[data-pf-fullhand]');
+      const v = e && e.getAttribute('data-pf-fullhand');
+      if (!v) return null;
+      try { return JSON.parse(v); } catch { return null; }
     },
     /* Boutons d'action du coup complet (classe `ab`). */
     fhButtons() {
@@ -144,6 +182,14 @@ await waitFor(() => { const e = [...document.querySelectorAll('.ntab')].find(x =
 await waitFor(() => !!document.querySelector('.mtbtn'), null, 'bandeau');
 await waitFor(n => window.__fh.setSmode(n), 100, 'longueur');
 await sleep(200);
+/* Types de spot demandés : les pastilles sont de simples boutons portant le
+   libellé exact. Un type introuvable fait ÉCHOUER l'audit — mesurer sur un
+   filtre qui n'a pas été appliqué reviendrait à mesurer autre chose. */
+for (const s of SPOTS) {
+  const ok = await waitFor(t => window.__fh.clickLeaf(t), s, `type de spot ${s}`, 6000);
+  if (!ok) { console.error(`Type de spot « ${s} » introuvable — audit impossible.`); await browser.close(); process.exit(2); }
+  await sleep(150);
+}
 const modeChoisi = await waitFor(() => window.__fh.choisirFullHand(), null, 'type de session Full Hand');
 if (!modeChoisi) { console.error('Type de session « Full Hand » introuvable — audit impossible.'); await browser.close(); process.exit(2); }
 await sleep(300);
@@ -156,6 +202,9 @@ const findings = [];
 const note = (code, i, detail) => findings.push({ code, main: i, ...detail });
 
 const tentatives = { total: 0, coupsLances: 0, refusExplicite: 0, resoluPreflop: 0, sansAction: 0, interrompus: 0 };
+const kindsJoues = {};
+let shotMultiway = false;
+let spotsAvecExtras = 0;
 let garde = 0;
 /* Le plafond de TENTATIVES, pas d'exigence : il faut toujours `HANDS` coups
    complets pour que l'audit passe. Il a été relevé de 6× à 14× parce que le
@@ -208,10 +257,17 @@ while (mains.length < HANDS && garde++ < HANDS * 14) {
     }
   }
   tentatives.coupsLances++;
+  /* Nature du spot dont ce coup est issu : sans elle, « 0 main multiway » ne
+     dit pas si le moteur refuse le multiway ou si le générateur n'en produit
+     pas. Deux causes très différentes, un même chiffre. */
+  await page.evaluate(HELPERS);
+  const infoSpot = await page.evaluate(() => window.__fh.spotInfo());
+  if (infoSpot) { kindsJoues[infoSpot.kind || '?'] = (kindsJoues[infoSpot.kind || '?'] || 0) + 1; if (infoSpot.extras.length) spotsAvecExtras++; }
 
-  const main = { i: mains.length + 1, etapes: [], verdict: null, resultat: null };
+  const main = { i: mains.length + 1, etapes: [], verdict: null, resultat: null, joueurs: null, nb: null, paliers: null, sidePots: null, spot: infoSpot };
   let pas = 0;
   let totalReference = null;
+  let totalMoteur = null;
 
   while (pas++ < 24) {
     await page.evaluate(HELPERS);
@@ -220,7 +276,52 @@ while (mains.length < HANDS && garde++ < HANDS * 14) {
       boutons: window.__fh.fhButtons(),
       plaques: window.__fh.plaques(),
       verdict: window.__fh.verdict(),
+      fh: window.__fh.fullhand(),
     }));
+    /* ── F9 — COMBIEN DE JOUEURS SONT RÉELLEMENT ASSIS ────────────────────
+       Relevé à l'écran, pas déduit du spot : c'est la seule façon de dire
+       « ce coup s'est joué à trois » sans le supposer. */
+    if (snap.fh && snap.fh.actif) {
+      if (main.nb == null || snap.fh.nb > main.nb) { main.nb = snap.fh.nb; main.joueurs = snap.fh.joueurs; }
+      /* PREUVE VISUELLE d'un coup complet à trois joueurs : un chiffre dans un
+         JSON ne montre pas trois sièges avec des jetons devant eux. */
+      if (snap.fh.nb >= 3 && !shotMultiway && snap.fh.street !== 'flop') {
+        shotMultiway = true;
+        fs.mkdirSync(SHOTS, { recursive: true });
+        await page.screenshot({ path: path.join(SHOTS, 'trainer-multiway-en-jeu.png') });
+      }
+      /* ── L'ÉTAT D'ENTRÉE AU FLOP ─────────────────────────────────────────
+         Le tour d'enchères préflop est CLOS quand le flop tombe : tout joueur
+         encore assis y a donc engagé le MÊME montant. Un écart ici n'est pas
+         un side pot, c'est une ligne préflop inachevée.
+
+         On lit l'engagement PRÉFLOP seul, jamais l'engagement total : entre le
+         moment où le coup démarre et celui où la sonde est relue, l'adversaire
+         hors de position a souvent déjà misé au flop. Comparer des totaux
+         faisait alors crier au déséquilibre là où il n'y avait qu'une mise —
+         mesuré : 4 « écarts » qui étaient tous des c-bets. */
+      if (!main.engagePreflop && snap.fh.engagePreflop) {
+        main.engagePreflop = snap.fh.engagePreflop;
+        const v = Object.values(snap.fh.engagePreflop);
+        if (v.length > 1 && Math.max(...v) - Math.min(...v) > 0.051) {
+          note('F10-flop-non-egalise', main.i, {
+            engagePreflop: snap.fh.engagePreflop, joueurs: snap.fh.joueurs, pot: snap.fh.pot, spot: infoSpot,
+            ledger: snap.ledger && { pot: snap.ledger.pot, potStreet: snap.ledger.potStreet, potCarried: snap.ledger.potCarried },
+          });
+        }
+      }
+      /* Conservation vue par le MOTEUR (tapis + pot), en plus de celle vue par
+         le ledger du spot : deux comptabilités indépendantes qui doivent dire
+         la même chose. */
+      const tot = R2(Object.values(snap.fh.tapis || {}).reduce((a, v) => a + v, 0) + snap.fh.pot);
+      if (!snap.fh.fini) {
+        if (totalMoteur == null) totalMoteur = tot;
+        else if (Math.abs(tot - totalMoteur) > 0.051) {
+          note('F1-conservation-moteur', main.i, { attendu: totalMoteur, obtenu: tot, street: snap.fh.street, joueurs: snap.fh.nb });
+          totalMoteur = tot;
+        }
+      }
+    }
     if (!snap.ledger) break;
     const L = snap.ledger;
     const total = R2(Object.values(L.sieges).reduce((a, s) => a + s.restant, 0) + L.pot);
@@ -268,9 +369,70 @@ while (mains.length < HANDS && garde++ < HANDS * 14) {
   }
 
   await page.evaluate(HELPERS);
-  const fin = await page.evaluate(() => ({ ledger: window.__fh.ledger(), verdict: window.__fh.verdict(), res: window.__fh.resultat() }));
+  const fin = await page.evaluate(() => ({ ledger: window.__fh.ledger(), verdict: window.__fh.verdict(), res: window.__fh.resultat(), fh: window.__fh.fullhand() }));
   main.verdict = fin.verdict || main.verdict;
   main.resultat = fin.res;
+
+  /* ── F7 / F8 — CE QUE LES PALIERS DOIVENT RESPECTER ────────────────────
+     Un side pot n'est pas une ligne comptable de plus : c'est la conséquence
+     d'un tapis trop court pour suivre. Sa signature est vérifiable, et c'est
+     elle qu'on vérifie ici sur des coups RÉELLEMENT joués à l'écran. */
+  if (fin.fh && fin.fh.actif && fin.fh.fini) {
+    const F = fin.fh;
+    if (main.nb == null || F.nb > main.nb) { main.nb = F.nb; main.joueurs = F.joueurs; }
+    main.paliers = F.paliers;
+    main.sidePots = F.sidePots;
+    main.versements = F.versements;
+    main.engageTotal = F.engageTotal;
+    const paliers = F.paliers || [];
+    const eng = F.engageTotal || {};
+    /* F8① la somme des paliers PLUS l'argent mort vaut le pot disputé.
+       L'argent mort (blindes des sièges couchés avant le flop, antes) n'a pas
+       de propriétaire : il n'entre dans aucun palier de contribution, mais il
+       est bien dans le pot. Ne pas l'isoler ferait passer pour un écart de
+       comptabilité ce qui est une catégorie d'argent différente. */
+    const sommePaliers = R2(paliers.reduce((a, p) => a + p.montant, 0));
+    const mort = F.argentMort || 0;
+    const nonSuivi = F.nonSuivi ? F.nonSuivi.montant : 0;
+    const potDispute = fin.res.potDispute;
+    /* Le pot se décompose en TROIS catégories, et en trois seulement :
+       ce qui est disputé (les paliers), ce que personne n'a suivi (rendu à son
+       propriétaire), et ce qui n'appartient à personne (argent mort). */
+    if (potDispute != null && Math.abs(sommePaliers + mort + nonSuivi - potDispute) > 0.051) {
+      note('F8-decomposition-du-pot', main.i, {
+        sommePaliers, argentMort: mort, nonSuivi, potDispute, paliers: paliers.length,
+        engageTotal: eng, joueurs: F.joueurs,
+      });
+    }
+    /* F8② la somme des versements vaut le pot disputé : rien n'est perdu, rien
+       n'est créé au moment de payer. */
+    const sommeVersements = R2(Object.values(F.versements || {}).reduce((a, v) => a + v, 0));
+    if (potDispute != null && Math.abs(sommeVersements - potDispute) > 0.051) {
+      note('F8-versements-vs-pot', main.i, { sommeVersements, potDispute, versements: F.versements });
+    }
+    /* F7 les paliers sont EMBOÎTÉS : chaque side pot est disputé par un
+       sous-ensemble strict du précédent, et ceux qu'on écarte ont engagé
+       moins que ceux qu'on garde. C'est la définition même d'un side pot. */
+    for (let k = 1; k < paliers.length; k++) {
+      const avant = paliers[k - 1].disputePar || [];
+      const apres = paliers[k].disputePar || [];
+      const intrus = apres.filter(j => !avant.includes(j));
+      if (intrus.length) note('F7-palier-non-emboite', main.i, { palier: paliers[k].nom, intrus, avant, apres });
+      const ecartes = avant.filter(j => !apres.includes(j));
+      for (const e of ecartes) for (const g of apres) {
+        if ((eng[e] ?? 0) > (eng[g] ?? 0) + 0.051) {
+          note('F7-ecarte-plus-engage', main.i, { palier: paliers[k].nom, ecarte: e, engageEcarte: eng[e], garde: g, engageGarde: eng[g] });
+        }
+      }
+    }
+    /* F7 bis — à tapis inégaux, il DOIT y avoir plus d'un palier. Sans cela,
+       « side pots joués » resterait une affirmation sur du heads-up déguisé. */
+    const engages = Object.entries(eng).filter(([j]) => !(F.couches || []).includes(j)).map(([, v]) => v);
+    const inegaux = engages.length > 2 && Math.max(...engages) - Math.min(...engages) > 0.051;
+    if (inegaux && paliers.length < 2) {
+      note('F7-side-pot-manquant', main.i, { engageTotal: eng, paliers: paliers.length });
+    }
+  }
   /* F5 — le pot est versé : aucun pot orphelin à la fin du coup. */
   if (main.verdict && fin.ledger && fin.ledger.pot > 0.051) {
     note('F5-pot-orphelin', main.i, { potRestant: fin.ledger.pot, verdict: main.verdict });
@@ -287,16 +449,40 @@ while (mains.length < HANDS && garde++ < HANDS * 14) {
 }
 
 fs.mkdirSync(SHOTS, { recursive: true });
-await page.screenshot({ path: path.join(SHOTS, 'trainer-fullhand.png') });
+await page.screenshot({ path: path.join(SHOTS, SHOT_NAME) });
 await browser.close();
 
 const byCode = {};
 for (const f of findings) byCode[f.code] = (byCode[f.code] || 0) + 1;
 const issues = {};
 for (const m of mains) issues[m.verdict] = (issues[m.verdict] || 0) + 1;
+/* Répartition OBSERVÉE du nombre de joueurs assis au flop, et combien de coups
+   ont réellement disputé un side pot. C'est le chiffre qui manquait. */
+const parNbJoueurs = {};
+for (const m of mains) parNbJoueurs[m.nb || '?'] = (parNbJoueurs[m.nb || '?'] || 0) + 1;
+const mainsMultiway = mains.filter(m => (m.nb || 0) >= 3);
+const mainsAvecSidePot = mains.filter(m => (m.sidePots || 0) >= 1);
 const rapport = {
   ts: new Date().toISOString(), url: URL, viewport: { w: W, h: H },
+  filtres: { spotTypes: SPOTS, multiwayExige: MULTIWAY_MIN },
+  spotsJoues: { parLigne: kindsJoues, avecSiegesSupplementaires: spotsAvecExtras },
   mainsCompletes: mains.length, issues, tentatives,
+  multiway: {
+    parNbJoueurs,
+    mainsA3JoueursOuPlus: mainsMultiway.length,
+    mainsAvecSidePotDispute: mainsAvecSidePot.length,
+    /* Les paliers réellement observés, pour que le chiffre soit relisible et
+       pas seulement compté. */
+    /* Croisement « ce que le spot déclarait » × « qui s'est réellement assis
+       au flop ». Un spot de squeeze qui produit un coup à deux ne se voit que
+       là : le total seul confondrait « le moteur refuse » et « le générateur
+       n'en produit pas ». */
+    parSpot: mains.map(m => ({ main: m.i, ligne: m.spot && m.spot.kind, extras: m.spot && m.spot.extras, assis: m.nb, joueurs: m.joueurs })),
+    exemples: mainsAvecSidePot.slice(0, 6).map(m => ({
+      main: m.i, joueurs: m.joueurs, engageTotal: m.engageTotal,
+      paliers: m.paliers, versements: m.versements, verdict: m.verdict,
+    })),
+  },
   ecartsParInvariant: byCode, ecarts: findings.slice(0, 80),
   resultatsNets: mains.map(m => m.resultat && m.resultat.net).filter(v => v != null),
   consoleErrors,
@@ -308,6 +494,8 @@ fs.writeFileSync(OUT, JSON.stringify(rapport, null, 2), 'utf8');
 console.log(`\nMains completes jouees : ${mains.length}`);
 console.log('Issues :', JSON.stringify(issues));
 console.log('Tentatives :', JSON.stringify(tentatives));
+console.log('Joueurs assis au flop :', JSON.stringify(parNbJoueurs), `-> ${mainsMultiway.length} main(s) a 3 joueurs+`);
+console.log('Side pots reellement disputes :', mainsAvecSidePot.length);
 console.log('Ecarts par invariant :', JSON.stringify(byCode, null, 1));
 console.log('Erreurs console :', consoleErrors.length);
 console.log('Rapport :', OUT);
@@ -316,5 +504,8 @@ const echecs = [];
 if (findings.length) echecs.push(`${findings.length} ecart(s)`);
 if (consoleErrors.length) echecs.push(`${consoleErrors.length} erreur(s) console`);
 if (mains.length < HANDS) echecs.push(`${mains.length} main(s) completee(s) sur ${HANDS}`);
+/* Exiger le multiway est le point de la manoeuvre : sans ce seuil, un audit
+   vert prouverait seulement que le heads-up marche toujours. */
+if (MULTIWAY_MIN && mainsMultiway.length < MULTIWAY_MIN) echecs.push(`${mainsMultiway.length} main(s) multiway observee(s) sur ${MULTIWAY_MIN} exigee(s)`);
 if (echecs.length) { console.error('\nECHEC audit:fullhand — ' + echecs.join(' · ')); process.exit(1); }
 console.log('\nOK audit:fullhand —', mains.length, 'coups complets, comptabilite conforme');

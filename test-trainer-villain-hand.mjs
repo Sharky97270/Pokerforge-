@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import {
   preflopStrength, rangeThreshold, dealVillainHand, villainHandStrength,
   handTilt, tiltDecision, TILT_MAX, strengthAtPercentile, neutralStrength, NEUTRAL_STRENGTH,
+  handKey, preflopEquityVsRandom, preflopEquityVsRange, PREFLOP_EQUITY_PROVENANCE,
 } from "./src/trainerVillainHand.js";
 
 let passed = 0;
@@ -38,9 +39,9 @@ const graine = n => { let s = n >>> 0; return () => { s ^= s << 13; s >>>= 0; s 
   const _22 = preflopStrength([C("2", "♠"), C("2", "♥")]);
 
   ok(AA > KK, `AA (${AA.toFixed(2)}) > KK (${KK.toFixed(2)})`);
-  /* Une première version divisait par 36 et plaçait AKo à 0.97, AU-DESSUS de
-     KK : l'ordre du poker était inversé. Le plafond des non-paires (0.86) le
-     garantit désormais. */
+  /* L'équité calculée place naturellement les grosses paires devant AK — ce
+     qu'un barème maison, lui, avait inversé (AKo sortait à 0.97, au-dessus de
+     KK). Ici l'ordre n'est plus décrété, il est mesuré. */
   ok(KK > AKs, `KK (${KK.toFixed(2)}) > AKs (${AKs.toFixed(2)}) — une grosse paire passe devant`);
   ok(preflopStrength([C("Q", "♠"), C("Q", "♥")]) > AKs, "QQ aussi");
   ok(preflopStrength([C("J", "♠"), C("J", "♥")]) > AKo, "JJ passe devant AK dépareillé");
@@ -48,8 +49,17 @@ const graine = n => { let s = n >>> 0; return () => { s ^= s << 13; s >>>= 0; s 
   ok(AKo > T9s, `AK dépareillé > T9 assorti`);
   ok(T9s > _72o, `T9s (${T9s.toFixed(2)}) > 72o (${_72o.toFixed(2)})`);
   ok(_22 > _72o, "la plus petite paire bat la pire main non appariée");
-  ok(_72o < 0.25, `72o est bien en bas de la distribution (${_72o.toFixed(2)})`);
-  ok(AA >= 0.99, "AA est au sommet");
+  /* ── L'ÉCHELLE EST CELLE D'UNE ÉQUITÉ, PAS D'UNE NOTE ───────────────────
+     L'ancien barème plaçait 72o à 0.157 et AA à 1.00 — des notes, pas des
+     probabilités. La force est maintenant l'ÉQUITÉ calculée : même la pire
+     main gagne environ une fois sur trois, et la meilleure ne gagne pas
+     toujours. Une échelle qui descendrait à 0 ou monterait à 1 décrirait un
+     jeu qui n'existe pas. */
+  ok(_72o > 0.30 && _72o < 0.40, `72o gagne encore ~1 fois sur 3 (${(_72o * 100).toFixed(1)} %)`);
+  ok(AA > 0.80 && AA < 0.90, `AA gagne ~85 % du temps, pas 100 % (${(AA * 100).toFixed(1)} %)`);
+  ok(AA === Math.max(...["AA", "KK", "QQ", "AKs"].map(k =>
+    preflopStrength(k.length === 2 ? [C(k[0], "♠"), C(k[1], "♥")] : [C(k[0], "♠"), C(k[1], "♠")]))),
+    "AA reste la meilleure main");
   /* Monotonie : à couleur et écart constants, plus haut = plus fort. */
   for (const r of ["3", "5", "8", "T", "Q"]) {
     const bas = preflopStrength([C(r, "♠"), C("2", "♥")]);
@@ -63,7 +73,7 @@ const graine = n => { let s = n >>> 0; return () => { s ^= s << 13; s >>>= 0; s 
   ok(rangeThreshold(12) > rangeThreshold(48), "un nit a un seuil de range plus haut qu'une station");
   /* Le seuil est un QUANTILE : « VPIP 24 % » sélectionne le haut 24 % de la
      distribution réelle des 169 mains, pondérée par les combinaisons. */
-  near(rangeThreshold(24), strengthAtPercentile(24), "le seuil EST le quantile du VPIP");
+  near(rangeThreshold(24), strengthAtPercentile(24), "le seuil EST le quantile du VPIP", 0.001);
   ok(rangeThreshold(12) > rangeThreshold(24), "12 % est plus sélectif que 24 %");
   ok(rangeThreshold(0) > 0 && rangeThreshold(0) < 1, "un VPIP absent donne un seuil plausible");
   ok(rangeThreshold(200) <= 0.95 && rangeThreshold(-5) <= 0.95, "le seuil reste borné");
@@ -108,7 +118,7 @@ const graine = n => { let s = n >>> 0; return () => { s ^= s << 13; s >>>= 0; s 
   const main = [C("K", "♥"), C("K", "♠")];
   const pre = villainHandStrength(main, []);
   eq(pre.source, "preflop", "sans board, on lit la force de départ");
-  ok(pre.strength > 0.9, "KK est une main de départ très forte");
+  ok(pre.strength > 0.8, `KK est une main de départ très forte : ${(pre.strength*100).toFixed(1)} % d équité`);
   const flop = villainHandStrength(main, [C("K", "♦"), C("7", "♣"), C("2", "♥")]);
   eq(flop.source, "postflop", "avec un board, on lit la main réalisée");
   ok(flop.strength > 0.3, `brelan de rois au flop : force ${flop.strength.toFixed(2)}`);
@@ -217,6 +227,47 @@ const graine = n => { let s = n >>> 0; return () => { s ^= s << 13; s >>>= 0; s 
     const part = dessus / N;
     ok(part > 0.30 && part < 0.70, `board de ${nb} : ${(part * 100).toFixed(0)} % des mains au-dessus du neutre (équilibré)`);
   }
+}
+
+/* ── 9. L'ÉQUITÉ EST CALCULÉE, PAS ESTIMÉE ─────────────────────────────── */
+{
+  /* Le premier passage notait les mains avec un barème maison — correctement
+     ordonné, mais ce n'était pas une équité. La force vient maintenant de la
+     matrice 169×169 du dépôt, pondérée par le card removal. */
+  ok(PREFLOP_EQUITY_PROVENANCE.engine.includes("preflopEquity"), "la provenance nomme l'artefact");
+  ok(PREFLOP_EQUITY_PROVENANCE.iterations > 0, `itérations publiées (${PREFLOP_EQUITY_PROVENANCE.iterations})`);
+  ok(PREFLOP_EQUITY_PROVENANCE.matchups > 10000, `${PREFLOP_EQUITY_PROVENANCE.matchups} confrontations tabulées`);
+  ok(PREFLOP_EQUITY_PROVENANCE.noise && PREFLOP_EQUITY_PROVENANCE.noise.mean != null,
+     `le bruit de la matrice est publié (±${PREFLOP_EQUITY_PROVENANCE.noise.mean} pt)`);
+  ok(/quelconque/i.test(PREFLOP_EQUITY_PROVENANCE.reference), "la référence est dite : adversaire quelconque");
+
+  /* La clé canonique correspond à celle de la matrice. */
+  eq(handKey([C("A", "♠"), C("A", "♥")]), "AA", "paire");
+  eq(handKey([C("A", "♠"), C("K", "♠")]), "AKs", "assortie");
+  eq(handKey([C("K", "♥"), C("A", "♠")]), "AKo", "dépareillée, ordonnée par la hauteur");
+  eq(handKey([C("X", "♠"), C("A", "♥")]), null, "une carte illisible ne produit pas de clé");
+
+  /* La valeur EST celle de la matrice, pas une approximation. */
+  near(preflopStrength([C("A", "♠"), C("A", "♥")]), preflopEquityVsRandom("AA"),
+       "la force d'une main est son équité tabulée", 1e-9);
+
+  /* Propriété de l'équité : la moyenne pondérée sur toutes les mains vaut 50 %.
+     C'est un contrôle du calcul lui-même — un barème ne la satisferait pas. */
+  let somme = 0, poids = 0;
+  for (let p = 1; p <= 100; p++) { somme += strengthAtPercentile(p); poids++; }
+  const moyenne = somme / poids;
+  ok(moyenne > 0.44 && moyenne < 0.56, `équité moyenne sur la distribution ≈ ${(moyenne * 100).toFixed(1)} %`);
+  near(NEUTRAL_STRENGTH.preflop, 0.5, "la médiane des équités vaut ~50 %", 0.03);
+
+  /* Une main contre une RANGE serrée vaut moins que contre une main quelconque. */
+  const vsPaires = preflopEquityVsRange("AKo", { AA: 1, KK: 1, QQ: 1 });
+  ok(vsPaires != null && vsPaires < preflopEquityVsRandom("AKo"),
+     `AKo vaut moins face à {AA,KK,QQ} (${(vsPaires * 100).toFixed(1)} %) que face à une main quelconque (${(preflopEquityVsRandom("AKo") * 100).toFixed(1)} %)`);
+  eq(preflopEquityVsRange("ZZ", null), null, "une clé inconnue ne produit pas de nombre");
+
+  /* Card removal : AA face à AA est presque impossible, et la matrice le sait. */
+  ok(preflopEquityVsRandom("AA") > preflopEquityVsRandom("KK"), "AA au-dessus de KK");
+  ok(preflopEquityVsRandom("22") > preflopEquityVsRandom("32o"), "une paire au-dessus de sa déclinaison dépareillée");
 }
 
 console.log(`✅ Vilain — décision infléchie par sa main (C12/G5) — ${passed} assertions OK`);

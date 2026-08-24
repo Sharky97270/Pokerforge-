@@ -204,16 +204,36 @@ export function auditPlausibility(resultat) {
 }
 
 /* ── DOMAINE SUPPORTÉ, DIT EXPLICITEMENT ───────────────────────────────────
-   Le module calcule N joueurs. Le MOTEUR de coup complet, lui, ne joue que du
-   heads-up. `potDistributionSupport` répond à « cette configuration est-elle
-   jouable jusqu'au bout ? » pour que l'appelant puisse l'AFFICHER au lieu de
-   s'arrêter en silence. */
+   `potDistributionSupport` répond à « cette configuration est-elle jouable
+   jusqu'au bout ? » pour que l'appelant puisse l'AFFICHER au lieu de s'arrêter
+   en silence.
+
+   ⚠ CE QUI A CHANGÉ. Cette fonction refusait toute table de plus de deux
+   joueurs : le module savait DÉCOUPER les paliers, mais le moteur de coup
+   complet ne savait pas les JOUER, si bien qu'aucune main à trois n'atteignait
+   jamais l'attribution. Le moteur est désormais écrit pour N joueurs (paliers
+   de contribution suivis pendant les tours d'enchères, relance complète qui
+   rouvre la parole à tous, all-in incomplet qui ne la rouvre pour personne).
+   Le refus qui reste est celui d'une table qui n'en est pas une : il faut au
+   moins deux joueurs pour disputer un pot.
+
+   `TABLE_MAX` borne la table à la plus grande réellement proposée par le
+   Trainer (9-max). Au-delà, la configuration ne vient pas du produit : on le
+   dit plutôt que de la jouer en silence. */
+export const TABLE_MAX = 9;
 export function potDistributionSupport({ players = [], engine = "fullHand" } = {}) {
   const n = players.length;
-  if (engine === "fullHand" && n > 2) {
+  if (n < 2) {
     return {
       supported: false,
-      reason: `${n} joueurs encore en jeu — le coup complet ne se joue qu'en heads-up`,
+      reason: `${n} joueur${n > 1 ? "s" : ""} en jeu — il en faut au moins deux pour disputer un pot`,
+      needsSidePots: false,
+    };
+  }
+  if (engine === "fullHand" && n > TABLE_MAX) {
+    return {
+      supported: false,
+      reason: `${n} joueurs encore en jeu — au-delà de ${TABLE_MAX} la table n'existe pas dans le Trainer`,
       needsSidePots: true,
     };
   }

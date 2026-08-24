@@ -10,7 +10,7 @@
     "test:trainer": "node test-trainer-engine.mjs",
     "test:coach-engine": "node test-coach-engine.mjs",
     "test:coach-agents": "node test-coach-agents.mjs",
-    "test:refonte": "node test-preflop-line.mjs && node test-training-config.mjs && node test-constraint-engine.mjs && node test-spot-schema.mjs && node test-spot-recovery.mjs && node test-immersion-engine.mjs && node test-ai-orchestrator.mjs && node test-full-hand-engine.mjs && node test-spot-similarity.mjs && node test-trainer-matrix.mjs && node test-immersion-amounts.mjs && node test-next-hand.mjs && node test-chip-display.mjs && node test-strategy-provider.mjs && node test-replayer-state-engine.mjs && node test-replayer-decision-analysis.mjs && node test-range-color-theme.mjs && node test-replayer-formats.mjs && node test-replayer-anchors.mjs && node test-postflop-heuristic.mjs && node test-trainer-postflop-solver.mjs && node test-preflop-charts.mjs && node test-trainer-multitable.mjs && node test-trainer-density.mjs && node test-trainer-table-geometry.mjs && node test-trainer-cinematics.mjs && node test-replayer-ai-analysis.mjs && node test-supabase-config.mjs && node test-replayer-cfr.mjs && node test-replayer-poker-state.mjs && node test-format-numbers.mjs && node test-trainer-solution-scope.mjs && node test-trainer-pause-policy.mjs && node test-evaluator-card-count.mjs && node test-full-hand-rules.mjs && node test-trainer-hand-ledger.mjs && node test-trainer-sizing.mjs && node test-trainer-seat-status.mjs && node test-trainer-honesty.mjs && node test-pot-distribution.mjs && node test-trainer-villain-hand.mjs",
+    "test:refonte": "node test-preflop-line.mjs && node test-training-config.mjs && node test-constraint-engine.mjs && node test-spot-schema.mjs && node test-spot-recovery.mjs && node test-immersion-engine.mjs && node test-ai-orchestrator.mjs && node test-full-hand-engine.mjs && node test-spot-similarity.mjs && node test-trainer-matrix.mjs && node test-immersion-amounts.mjs && node test-next-hand.mjs && node test-chip-display.mjs && node test-strategy-provider.mjs && node test-replayer-state-engine.mjs && node test-replayer-decision-analysis.mjs && node test-range-color-theme.mjs && node test-replayer-formats.mjs && node test-replayer-anchors.mjs && node test-postflop-heuristic.mjs && node test-trainer-postflop-solver.mjs && node test-preflop-charts.mjs && node test-trainer-multitable.mjs && node test-trainer-density.mjs && node test-trainer-table-geometry.mjs && node test-trainer-cinematics.mjs && node test-replayer-ai-analysis.mjs && node test-supabase-config.mjs && node test-replayer-cfr.mjs && node test-replayer-poker-state.mjs && node test-format-numbers.mjs && node test-trainer-solution-scope.mjs && node test-trainer-pause-policy.mjs && node test-evaluator-card-count.mjs && node test-full-hand-rules.mjs && node test-full-hand-multiway.mjs && node test-trainer-hand-ledger.mjs && node test-trainer-sizing.mjs && node test-trainer-seat-status.mjs && node test-trainer-honesty.mjs && node test-pot-distribution.mjs && node test-trainer-villain-hand.mjs",
     "test": "node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs && node test-mental-diagnostic.mjs && npm run test:refonte && npm run test:certify",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --esm prisma/seed.ts",
@@ -37,12 +37,13 @@
     "audit:provenance": "node scripts/trainer-provenance-audit.mjs",
     "audit:pause": "node scripts/trainer-pause-audit.mjs",
     "audit:solution": "node scripts/trainer-solution-toggle-audit.mjs",
-    "audit:trainer": "npm run audit:provenance && npm run audit:pause && npm run audit:solution && npm run audit:money && npm run audit:sizing && npm run audit:fullhand && npm run audit:responsive",
+    "audit:trainer": "npm run audit:provenance && npm run audit:pause && npm run audit:solution && npm run audit:money && npm run audit:sizing && npm run audit:fullhand && npm run audit:multiway && npm run audit:responsive",
     "check:standalone": "node scripts/standalone-assets-check.mjs",
     "audit:money": "node scripts/trainer-money-audit.mjs",
     "audit:responsive": "node scripts/trainer-responsive-audit.mjs",
     "audit:fullhand": "node scripts/trainer-fullhand-audit.mjs",
-    "audit:sizing": "node scripts/trainer-sizing-audit.mjs"
+    "audit:sizing": "node scripts/trainer-sizing-audit.mjs",
+    "audit:multiway": "node scripts/trainer-fullhand-audit.mjs --spot=Squeeze --hands=16 --multiway=3 --out=design-qa-evidence/trainer-multiway.json --shot=trainer-multiway.png"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"

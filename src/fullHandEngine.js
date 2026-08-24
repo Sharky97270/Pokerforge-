@@ -1,22 +1,25 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   fullHandEngine.js — MOTEUR DE MAIN COMPLÈTE (Full Hand, heads-up postflop)
+   fullHandEngine.js — MOTEUR DE MAIN COMPLÈTE (Full Hand, postflop)
 
    Permet au Héro de jouer TOUT le coup street par street (flop → turn → river)
-   contre le Villain, avec des règles de poker correctes et un VRAI showdown
-   (évaluation de main via le solver), en remplacement de l'ancien comportement
-   probabiliste (Math.random pour le résultat).
+   contre ses adversaires, avec des règles de poker correctes et un VRAI
+   showdown (évaluation de main via le solver), en remplacement de l'ancien
+   comportement probabiliste (Math.random pour le résultat).
 
-   Modèle : heads-up (Héro vs Villain), No-Limit. L'attribution du pot passe par
-   `potDistribution.js`, qui sait découper N paliers : en heads-up il n'y en a
-   qu'un, mais la règle n'est plus câblée pour deux joueurs.
-   Le Villain joue via une politique injectable (`villainPolicy`) ; à défaut une
-   politique par défaut raisonnable est utilisée.
+   Modèle : N joueurs, No-Limit. Le heads-up n'est plus un cas particulier
+   câblé dans le moteur — c'est une table de deux. Les side pots sont JOUÉS
+   (paliers de contribution suivis pendant les tours d'enchères) et non
+   seulement calculés au moment de l'attribution ; le découpage final est
+   délégué à `potDistribution.js`.
+   Chaque adversaire joue via une politique injectable (`villainPolicy`) ; à
+   défaut une politique par défaut raisonnable est utilisée.
 
-   Module PUR (aucune dépendance React/DOM). Dépend uniquement de l'évaluateur.
+   Module PUR (aucune dépendance React/DOM). Dépend uniquement de l'évaluateur
+   et de `potDistribution`.
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { evalBestI, handCategoryOf, HAND_CATEGORY_COUNT } from "./solver/core/evaluator.js";
-import { distributePots } from "./potDistribution.js";
+import { distributePots, partager } from "./potDistribution.js";
 
 const RANK_ORDER = "23456789TJQKA";
 const SUIT_ORDER = "♠♥♦♣"; // ♠♥♦♣ (identique côté trainer + générateur)
@@ -58,57 +61,135 @@ export function handStrength(hole, board) {
 }
 export const handStrength7 = handStrength;
 
-function roundBb(v) { return Math.round((Number(v) || 0) * 2) / 2; }
+const EPS = 1e-9;
+const roundBb = v => Math.round((Number(v) || 0) * 2) / 2;
+
 function boardForStreet(fullBoard, street) {
   const n = street === "flop" ? 3 : street === "turn" ? 4 : 5;
-  return fullBoard.slice(0, n);
+  return (fullBoard || []).slice(0, n);
 }
-function otherActor(a) { return a === "hero" ? "villain" : "hero"; }
 
-const STACK_KEY = { hero: "heroStack", villain: "villStack" };
 export const FH_MIN_BET_BB = 1;      // une grosse blinde : plancher légal d'ouverture
+export const HERO = "hero";
+export const VILLAIN = "villain";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   N JOUEURS, PAS DEUX
+
+   Le moteur était écrit pour exactement deux sièges : `heroStack` / `villStack`,
+   `contrib.hero` / `contrib.villain`, `toAct` valant l'un ou l'autre. Toute
+   configuration à trois joueurs était donc refusée — « heads-up par
+   construction », c'est-à-dire sans que la règle soit énoncée nulle part, et
+   les side pots n'existaient qu'au moment de payer.
+
+   L'état interne est maintenant une TABLE de joueurs et un ORDRE de parole.
+   Les identifiants des deux principaux restent `hero` / `villain`, et les
+   champs historiques (`heroStack`, `villStack`, `contrib`, `acted`,
+   `committedBefore`, `startStacks`, `heroHand`, `villHand`) sont conservés
+   comme MIROIRS resynchronisés après chaque mutation : une seule vérité,
+   plusieurs lectures.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function makePlayer({ id, hand = [], stack = 0, committedBefore = 0 }) {
+  return {
+    id,
+    hand: Array.isArray(hand) ? hand : [],
+    stack: Math.max(0, roundBb(stack)),
+    contrib: 0,                 // engagé sur la street courante
+    committed: 0,               // engagé depuis le début du coup complet (postflop)
+    committedBefore: roundBb(committedBefore),
+    folded: false,
+    acted: false,
+  };
+}
+
+/* Recopie l'état interne vers les champs historiques lus par l'interface et
+   par les tests. */
+function sync(s) {
+  const h = s.players[HERO], v = s.players[VILLAIN];
+  s.heroStack = h ? h.stack : 0;
+  s.villStack = v ? v.stack : 0;
+  s.contrib = { hero: h ? h.contrib : 0, villain: v ? v.contrib : 0 };
+  s.acted = { hero: h ? h.acted : false, villain: v ? v.acted : false };
+  s.committedBefore = { hero: h ? h.committedBefore : 0, villain: v ? v.committedBefore : 0 };
+  s.heroHand = h ? h.hand : [];
+  s.villHand = v ? v.hand : [];
+  /* Vue par siège, seule forme utilisable au-delà de deux joueurs. */
+  s.seatContrib = Object.fromEntries(s.seats.map(id => [id, s.players[id].contrib]));
+  s.seatStacks = Object.fromEntries(s.seats.map(id => [id, s.players[id].stack]));
+  return s;
+}
+
+const alive = s => s.seats.filter(id => !s.players[id].folded);
+const canAct = s => s.seats.filter(id => !s.players[id].folded && s.players[id].stack > EPS);
+const maxContrib = s => alive(s).reduce((m, id) => Math.max(m, s.players[id].contrib), 0);
 
 /* ──────────────────────────────────────────────────────────────────────────
    createFullHand — état initial au flop.
 
-   ⚠ CONTINUITÉ DES TAPIS (C3). `heroStack` / `villStack` sont les tapis
-   RESTANTS après le préflop, pas la profondeur de départ. L'appelant qui
-   passe la profondeur entière pendant que `startPot` contient déjà les
-   engagements préflop CRÉE des jetons : c'est le défaut mesuré (pot 8 + deux
-   tapis de 20 pour deux joueurs à 20bb = 8bb sortis de nulle part).
+   ⚠ CONTINUITÉ DES TAPIS (C3). Les tapis passés sont ceux RESTANTS après le
+   préflop, pas la profondeur de départ. L'appelant qui passe la profondeur
+   entière pendant que `startPot` contient déjà les engagements préflop CRÉE
+   des jetons.
 
-   `heroCommittedBefore` / `villCommittedBefore` ne servent pas au jeu : ils
-   servent au BILAN (résultat net en bb) et à l'invariant de conservation.
-
-   opts : { heroHand, villHand, fullBoard(5), startPot, heroStack, villStack,
-            heroCommittedBefore, villCommittedBefore, firstToAct, minBet }
+   Deux formes acceptées :
+     • héritée, heads-up : { heroHand, villHand, heroStack, villStack,
+                             heroCommittedBefore, villCommittedBefore }
+     • générale, N joueurs : { players: [{ id, hand, stack, committedBefore }],
+                               seats: [id…] }   ← `seats` = ordre de parole
    ────────────────────────────────────────────────────────────────────────── */
 export function createFullHand(opts = {}) {
   const {
     heroHand = [], villHand = [], fullBoard = [],
     startPot = 6, heroStack = 100, villStack = 100,
     heroCommittedBefore = null, villCommittedBefore = null,
-    firstToAct = "villain", minBet = FH_MIN_BET_BB,
+    firstToAct = VILLAIN, minBet = FH_MIN_BET_BB,
+    players: playersIn = null, seats: seatsIn = null,
   } = opts;
+
   const pot = roundBb(startPot);
-  const hs = Math.max(0, roundBb(heroStack));
-  const vs = Math.max(0, roundBb(villStack));
-  /* Faute d'information, on attribue le pot d'entrée à parts égales aux deux
-     joueurs : en heads-up postflop, le coup n'a pu arriver là que parce que la
-     dernière mise préflop a été SUIVIE. C'est une hypothèse, elle est écrite. */
-  const hBefore = heroCommittedBefore != null ? roundBb(heroCommittedBefore) : roundBb(pot / 2);
-  const vBefore = villCommittedBefore != null ? roundBb(villCommittedBefore) : roundBb(pot - roundBb(pot / 2));
-  return {
+  let liste;
+  if (Array.isArray(playersIn) && playersIn.length >= 2) {
+    /* Faute d'information sur qui a mis quoi avant le flop, le pot d'entrée est
+       partagé à parts égales — c'est une HYPOTHÈSE, elle est écrite, et
+       l'appelant la remplace en fournissant `committedBefore` par joueur. */
+    const part = roundBb(pot / playersIn.length);
+    liste = playersIn.map((p, i) => makePlayer({
+      ...p,
+      committedBefore: p.committedBefore != null ? p.committedBefore
+        : (i === playersIn.length - 1 ? roundBb(pot - part * (playersIn.length - 1)) : part),
+    }));
+  } else {
+    const hs = Math.max(0, roundBb(heroStack)), vs = Math.max(0, roundBb(villStack));
+    const hBefore = heroCommittedBefore != null ? roundBb(heroCommittedBefore) : roundBb(pot / 2);
+    const vBefore = villCommittedBefore != null ? roundBb(villCommittedBefore) : roundBb(pot - roundBb(pot / 2));
+    liste = [
+      makePlayer({ id: HERO, hand: heroHand, stack: hs, committedBefore: hBefore }),
+      makePlayer({ id: VILLAIN, hand: villHand, stack: vs, committedBefore: vBefore }),
+    ];
+  }
+
+  const players = {};
+  for (const p of liste) players[p.id] = p;
+  const seats = (Array.isArray(seatsIn) && seatsIn.length ? seatsIn : liste.map(p => p.id))
+    .filter(id => players[id]);
+  const premier = players[firstToAct] ? firstToAct : seats[0];
+
+  const startStacks = {};
+  for (const p of liste) startStacks[p.id] = p.stack;
+  /* `startStacks` est aussi lu sous sa forme héritée {hero, villain}. */
+  startStacks.hero = startStacks[HERO] ?? 0;
+  startStacks.villain = startStacks[VILLAIN] ?? 0;
+
+  const s = {
+    seats, players,
     street: "flop",
     fullBoard,
     board: boardForStreet(fullBoard, "flop"),
     pot,
-    heroHand, villHand,
-    heroStack: hs, villStack: vs,
-    contrib: { hero: 0, villain: 0 },   // engagé sur la street courante
-    acted: { hero: false, villain: false },
-    toAct: firstToAct,
-    firstToActPostflop: firstToAct,     // l'OOP reparle en premier chaque street
+    toAct: premier,
+    firstToActPostflop: premier,     // l'OOP reparle en premier à chaque street
+    lastActor: null,
     lastAggressor: null,
     /* Incrément de la dernière mise ou relance COMPLÈTE de la street : c'est
        lui — et pas le total misé — qui fixe la relance minimale. */
@@ -118,24 +199,26 @@ export function createFullHand(opts = {}) {
     history: [],
     /* LEDGER : chaque débit, crédit, remboursement et attribution. C'est la
        pièce qui rend la comptabilité vérifiable au lieu d'être crue. */
-    ledger: [{ street: "flop", actor: null, kind: "carry", amount: pot, potAfter: pot, heroStack: hs, villStack: vs }],
-    committedBefore: { hero: hBefore, villain: vBefore },
-    startStacks: { hero: hs, villain: vs },
+    ledger: [{ street: "flop", actor: null, kind: "carry", amount: pot, potAfter: pot }],
+    startStacks,
     /* Total de jetons du coup complet, invariant : tapis + pot ne peut ni
        croître ni décroître avant l'attribution finale. */
-    totalChips: roundBb(hs + vs + pot),
+    totalChips: roundBb(liste.reduce((a, p) => a + p.stack, 0) + pot),
     done: false,
     result: null,
-    lastVillainAction: null,
+    pots: null,
   };
+  return sync(s);
 }
 
-/* Montant à payer par l'acteur courant (0 s'il peut checker). */
+/* Montant à payer par l'acteur (0 s'il peut checker). */
 export function amountToCall(state, actor = state.toAct) {
-  return Math.max(0, roundBb(state.contrib[otherActor(actor)] - state.contrib[actor]));
+  const p = state.players?.[actor];
+  if (!p) return 0;
+  return Math.max(0, roundBb(maxContrib(state) - p.contrib));
 }
 
-export function stackOf(state, actor) { return state[STACK_KEY[actor]] || 0; }
+export function stackOf(state, actor) { return state.players?.[actor]?.stack || 0; }
 
 /* ── BORNES LÉGALES D'UNE MISE OU D'UNE RELANCE (C7/C8) ────────────────────
    `minTo` / `maxTo` sont des TOTAUX atteints sur la street (« to X »), pas des
@@ -143,10 +226,11 @@ export function stackOf(state, actor) { return state[STACK_KEY[actor]] || 0; }
    dépasser. Quand `minTo` est plafonné par le tapis, la seule relance possible
    est le tapis — l'appelant doit alors l'annoncer comme ALL-IN. */
 export function raiseBounds(state, actor = state.toAct) {
-  const stack = stackOf(state, actor);
-  const own = state.contrib[actor] || 0;
-  const facing = state.contrib[otherActor(actor)] || 0;
-  const maxTo = roundBb(own + stack);
+  const p = state.players?.[actor];
+  if (!p) return { minTo: 0, maxTo: 0, increment: 0, fullRaisePossible: false, allInOnly: false };
+  const own = p.contrib || 0;
+  const facing = maxContrib(state);
+  const maxTo = roundBb(own + p.stack);
   const increment = Math.max(state.lastRaiseSize || 0, state.minBet);
   const minToRaw = facing > 0 ? roundBb(facing + increment) : roundBb(own + state.minBet);
   const minTo = Math.min(minToRaw, maxTo);
@@ -154,236 +238,323 @@ export function raiseBounds(state, actor = state.toAct) {
     minTo, maxTo, increment,
     /* Une relance « complète » exige minToRaw ; en dessous, seul le tapis est
        jouable et il NE ROUVRE PAS l'action (règle du all-in incomplet). */
-    fullRaisePossible: maxTo >= minToRaw - 1e-9,
-    allInOnly: maxTo < minToRaw - 1e-9,
+    fullRaisePossible: maxTo >= minToRaw - EPS,
+    allInOnly: maxTo < minToRaw - EPS,
   };
 }
 
-/* Actions légales pour l'acteur courant, avec leurs bornes. */
+/* Actions légales pour l'acteur, avec leurs bornes. */
 export function legalActions(state, actor = state.toAct) {
-  if (state.done || !actor) return [];
+  if (state.done || !actor || !state.players?.[actor]) return [];
+  const p = state.players[actor];
+  if (p.folded || p.stack <= EPS) return [];
   const toCall = amountToCall(state, actor);
-  const stack = stackOf(state, actor);
   const b = raiseBounds(state, actor);
   const acts = [];
   if (toCall > 0) {
     acts.push({ type: "FOLD" });
-    acts.push({ type: "CALL", amount: Math.min(toCall, stack), allIn: stack <= toCall + 1e-9 });
-    if (stack > toCall + 1e-9 && !state.raiseLocked) acts.push({ type: "RAISE", minTo: b.minTo, maxTo: b.maxTo, allInOnly: b.allInOnly });
+    acts.push({ type: "CALL", amount: Math.min(toCall, p.stack), allIn: p.stack <= toCall + EPS });
+    if (p.stack > toCall + EPS && !state.raiseLocked)
+      acts.push({ type: "RAISE", minTo: b.minTo, maxTo: b.maxTo, allInOnly: b.allInOnly });
   } else {
     acts.push({ type: "CHECK" });
-    if (stack > 0) acts.push({ type: "BET", minTo: b.minTo, maxTo: b.maxTo, allInOnly: b.allInOnly });
+    if (p.stack > 0) acts.push({ type: "BET", minTo: b.minTo, maxTo: b.maxTo, allInOnly: b.allInOnly });
   }
   return acts;
 }
 
-/* Tailles par DÉFAUT (quand l'appelant n'impose rien). Elles sont ensuite
-   bornées par `raiseBounds` : jamais au-dessus du tapis, jamais sous le
-   minimum légal. */
+/* Tailles par DÉFAUT (quand l'appelant n'impose rien), bornées ensuite. */
 function defaultBetAmount(state) {
   return Math.max(state.minBet, roundBb(state.pot * 0.6));
 }
 function defaultRaiseTo(state, actor) {
   const b = raiseBounds(state, actor);
-  const opp = state.contrib[otherActor(actor)] || 0;
+  const opp = maxContrib(state);
   const souhaite = roundBb(opp + Math.max((b.increment || state.minBet) * 2, state.pot * 0.5));
   return Math.max(b.minTo, Math.min(souhaite, b.maxTo));
 }
 
-/* Applique une action de l'acteur `actor`. Retourne un NOUVEL état (immuable).
-   Une action illégale laisse l'état inchangé — elle n'est jamais « rattrapée »
-   en silence vers une valeur voisine. */
+/* Applique une action. Retourne un NOUVEL état (immuable). Une action illégale
+   laisse l'état inchangé — elle n'est jamais « rattrapée » vers une valeur
+   voisine. */
 export function applyAction(state, actor, action) {
-  if (state.done || state.toAct !== actor) return state;
+  if (state.done || state.toAct !== actor || !state.players?.[actor]) return state;
   const s = cloneState(state);
+  const p = s.players[actor];
   const type = String(action?.type || "").toUpperCase();
-  const stackKey = STACK_KEY[actor];
-  const opp = otherActor(actor);
   const toCall = amountToCall(s, actor);
 
   const commit = (amt, kind) => {
-    const pay = Math.min(roundBb(amt), s[stackKey]);
-    s[stackKey] = roundBb(s[stackKey] - pay);
-    s.contrib[actor] = roundBb(s.contrib[actor] + pay);
+    const pay = Math.min(roundBb(amt), p.stack);
+    p.stack = roundBb(p.stack - pay);
+    p.contrib = roundBb(p.contrib + pay);
+    p.committed = roundBb(p.committed + pay);
     s.pot = roundBb(s.pot + pay);
-    s.ledger.push({ street: s.street, actor, kind, amount: pay, potAfter: s.pot, heroStack: s.heroStack, villStack: s.villStack });
+    s.ledger.push({ street: s.street, actor, kind, amount: pay, potAfter: s.pot });
     return pay;
   };
 
   if (type === "FOLD") {
+    p.folded = true; p.acted = true; s.lastActor = actor;
     s.history.push({ street: s.street, actor, action: "FOLD", amount: 0 });
-    returnUncalled(s);                              // la mise non suivie revient au miseur
-    return finish(s, opp, "fold");
+    sync(s);
+    return advance(s);
   }
   if (type === "CHECK" && toCall === 0) {
-    s.acted[actor] = true;
+    p.acted = true; s.lastActor = actor;
     s.history.push({ street: s.street, actor, action: "CHECK", amount: 0 });
-    if (s.acted[opp]) return closeStreet(s);       // les deux ont checké
-    s.toAct = opp; return s;
+    sync(s);
+    return advance(s);
   }
   if (type === "CALL" && toCall > 0) {
     const paid = commit(toCall, "call");
-    s.acted[actor] = true;
-    s.history.push({ street: s.street, actor, action: "CALL", amount: paid, allIn: s[stackKey] <= 0 });
-    return closeStreet(s);                          // suivre clôt le tour d'enchères
+    p.acted = true; s.lastActor = actor;
+    s.history.push({ street: s.street, actor, action: "CALL", amount: paid, to: p.contrib, allIn: p.stack <= EPS });
+    sync(s);
+    return advance(s);
   }
-  if (type === "RAISE" && s.raiseLocked) return state;   // all-in incomplet : action non rouverte
   if ((type === "BET" && toCall === 0) || (type === "RAISE" && toCall > 0)) {
+    if (type === "RAISE" && s.raiseLocked) return state;   // all-in incomplet : action non rouverte
     const b = raiseBounds(s, actor);
+    /* `amount` est un TOTAL atteint sur la street (« to X »), pas un
+       complément. Un appelant qui envoie un complément se trompe de grandeur,
+       et le moteur le refuse plutôt que de deviner. */
     const wanted = action.amount != null
       ? roundBb(action.amount)
-      : (type === "BET" ? roundBb(s.contrib[actor] + defaultBetAmount(s)) : defaultRaiseTo(s, actor));
-    /* `amount` est un TOTAL atteint sur la street. Un appelant qui envoie un
-       complément se trompe de grandeur, et le moteur le refuse plutôt que de
-       deviner : c'est la confusion `raiseTo` / `additionalChips` qui faisait
-       accepter une « relance » à 6.5bb face à une mise de 6bb. */
+      : (type === "BET" ? roundBb(p.contrib + defaultBetAmount(s)) : defaultRaiseTo(s, actor));
     const raiseTo = Math.min(wanted, b.maxTo);
-    const estTapis = raiseTo >= b.maxTo - 1e-9;
-    if (raiseTo < b.minTo - 1e-9 && !estTapis) return state;      // sous la relance minimale
-    if (raiseTo <= (s.contrib[opp] || 0) + 1e-9 && !estTapis) return state;
-    const delta = roundBb(raiseTo - s.contrib[actor]);
+    const estTapis = raiseTo >= b.maxTo - EPS;
+    const facingAvant = maxContrib(s);
+    if (raiseTo < b.minTo - EPS && !estTapis) return state;
+    if (raiseTo <= facingAvant + EPS && !estTapis) return state;
+    const delta = roundBb(raiseTo - p.contrib);
     if (delta <= 0) return state;
-    const paid = commit(delta, type === "BET" ? "bet" : "raise");
-    const total = s.contrib[actor];
-    /* ── ALL-IN INFÉRIEUR À LA RELANCE MINIMALE : PAS DE RÉOUVERTURE ────────
-       Un tapis trop court pour constituer une relance complète doit être suivi
-       ou couché, il ne rend PAS la parole à celui qui avait déjà misé. On ne
-       met donc `acted[opp]` à faux que si l'incrément était complet. */
-    const increment = roundBb(total - (state.contrib[opp] || 0));
-    const relanceComplete = increment >= b.increment - 1e-9;
+    commit(delta, type === "BET" ? "bet" : "raise");
+    const increment = roundBb(p.contrib - facingAvant);
+    const relanceComplete = increment >= b.increment - EPS;
     if (relanceComplete) { s.lastRaiseSize = increment; s.raiseLocked = false; }
-    else if (s.acted[opp]) {
-      /* L'adversaire avait déjà agi et fait face à un all-in INCOMPLET : il
-         peut suivre ou se coucher, pas relancer. L'action n'est pas rouverte. */
-      s.raiseLocked = true;
-    }
-    s.acted[actor] = true;
-    s.lastAggressor = actor;
-    s.history.push({ street: s.street, actor, action: type, amount: paid, to: total, allIn: s[stackKey] <= 0, fullRaise: relanceComplete });
-    s.toAct = opp; s.acted[opp] = false;
-    /* Le relanceur est à tapis et l'adversaire a déjà couvert : plus rien à
-       décider, on clôt. */
-    if (stackOf(s, actor) <= 0 && amountToCall(s, opp) <= 0) return closeStreet(s);
-    return s;
+    else s.raiseLocked = true;   // all-in incomplet : personne ne peut re-relancer
+    p.acted = true; s.lastAggressor = actor; s.lastActor = actor;
+    /* Une mise ou une relance COMPLÈTE rouvre la parole à TOUS les autres —
+       règle qui n'a de sens visible qu'au-delà de deux joueurs, et qui était
+       jusqu'ici implicite dans l'alternance heads-up. */
+    if (relanceComplete)
+      for (const id of s.seats) if (id !== actor && !s.players[id].folded) s.players[id].acted = false;
+    s.history.push({
+      street: s.street, actor, action: type, amount: roundBb(delta),
+      to: p.contrib, allIn: p.stack <= EPS, fullRaise: relanceComplete,
+    });
+    sync(s);
+    return advance(s);
   }
-  // Action illégale → inchangé.
-  return state;
+  return state;   // action illégale → inchangé
+}
+
+/* ── QUI PARLE MAINTENANT ? ────────────────────────────────────────────────
+   Le tour d'enchères se ferme quand tout joueur encore capable d'agir a parlé
+   ET a égalé la mise en cours. Écrit pour N, il vaut aussi pour deux. */
+function advance(s) {
+  const vivants = alive(s);
+  if (vivants.length <= 1) return finish(s, vivants[0] || null, "fold");
+  const max = maxContrib(s);
+  const doitAgir = s.seats.filter(id => {
+    const q = s.players[id];
+    return !q.folded && q.stack > EPS && (!q.acted || q.contrib < max - EPS);
+  });
+  if (!doitAgir.length) return closeStreet(s);
+  const depart = s.seats.indexOf(s.lastActor);
+  const n = s.seats.length;
+  for (let k = 1; k <= n; k++) {
+    const id = s.seats[((depart + k) % n + n) % n];
+    if (doitAgir.includes(id)) { s.toAct = id; return sync(s); }
+  }
+  s.toAct = doitAgir[0];
+  return sync(s);
 }
 
 /* ── LA MISE NON SUIVIE REVIENT À SON PROPRIÉTAIRE (C8) ────────────────────
    Hero mise 40bb, le Vilain n'a que 5bb et paie à tapis : 35bb d'Hero n'ont
    été suivis par personne. Sans ce remboursement, le pot valait 55bb et un
-   tapis de 5bb pouvait encaisser 55bb. La règle est arithmétique, pas
-   optionnelle. */
+   tapis de 5bb pouvait encaisser 55bb. Écrit pour N : l'excédent du plus gros
+   contributeur sur le SECOND plus gros lui revient. */
 function returnUncalled(s) {
-  const d = roundBb(s.contrib.hero - s.contrib.villain);
-  if (Math.abs(d) < 1e-9) return 0;
-  const who = d > 0 ? "hero" : "villain";
-  const amt = Math.abs(d);
-  s[STACK_KEY[who]] = roundBb(s[STACK_KEY[who]] + amt);
-  s.contrib[who] = roundBb(s.contrib[who] - amt);
-  s.pot = roundBb(s.pot - amt);
-  s.ledger.push({ street: s.street, actor: who, kind: "return", amount: amt, potAfter: s.pot, heroStack: s.heroStack, villStack: s.villStack });
-  return amt;
+  const enJeu = s.seats.filter(id => s.players[id].contrib > EPS);
+  if (!enJeu.length) return 0;
+  const tries = [...enJeu].sort((a, b) => s.players[b].contrib - s.players[a].contrib);
+  const premier = s.players[tries[0]];
+  const second = tries.length > 1 ? s.players[tries[1]].contrib : 0;
+  const excedent = roundBb(premier.contrib - second);
+  if (excedent <= EPS) return 0;
+  premier.stack = roundBb(premier.stack + excedent);
+  premier.contrib = roundBb(premier.contrib - excedent);
+  premier.committed = roundBb(premier.committed - excedent);
+  s.pot = roundBb(s.pot - excedent);
+  s.ledger.push({ street: s.street, actor: premier.id, kind: "return", amount: excedent, potAfter: s.pot });
+  sync(s);
+  return excedent;
+}
+
+/* Premier à parler d'une nouvelle street : l'OOP s'il peut encore agir, sinon
+   le suivant dans l'ordre de parole. */
+function premierParleur(s) {
+  const n = s.seats.length;
+  const base = Math.max(0, s.seats.indexOf(s.firstToActPostflop));
+  for (let k = 0; k < n; k++) {
+    const id = s.seats[(base + k) % n];
+    const q = s.players[id];
+    if (!q.folded && q.stack > EPS) return id;
+  }
+  return null;
 }
 
 /* Clôture la street : si river → showdown ; sinon distribue la carte suivante. */
 function closeStreet(s) {
   returnUncalled(s);                                 // avant tout transfert
-  const unJoueurATapis = s.heroStack <= 0 || s.villStack <= 0;
-  const idx = FH_STREETS.indexOf(s.street);
-  if (s.street === "river" || unJoueurATapis) {
-    // Déroule le reste du board si all-in, puis showdown.
-    return resolveShowdown(s);
-  }
-  const next = FH_STREETS[idx + 1];
+  /* Plus personne ne peut miser (tapis) : on déroule le board et on abat. */
+  if (s.street === "river" || canAct(s).length <= 1) return resolveShowdown(s);
+  const next = FH_STREETS[FH_STREETS.indexOf(s.street) + 1];
+  if (!next) return resolveShowdown(s);
   /* CHANGEMENT DE STREET : les engagements sont DÉJÀ dans le pot (ils ont
-     quitté le tapis au moment du commit). On remet les compteurs de street à
-     zéro — on ne recrédite rien, on ne recrée rien. */
-  s.ledger.push({ street: s.street, actor: null, kind: "collect", amount: roundBb(s.contrib.hero + s.contrib.villain), potAfter: s.pot, heroStack: s.heroStack, villStack: s.villStack });
+     quitté le tapis au commit). On remet les compteurs de street à zéro — on ne
+     recrédite rien, on ne recrée rien. */
+  const collecte = roundBb(s.seats.reduce((a, id) => a + s.players[id].contrib, 0));
+  s.ledger.push({ street: s.street, actor: null, kind: "collect", amount: collecte, potAfter: s.pot });
   s.street = next;
   s.board = boardForStreet(s.fullBoard, next);
-  s.contrib = { hero: 0, villain: 0 };
-  s.acted = { hero: false, villain: false };
+  for (const id of s.seats) { s.players[id].contrib = 0; s.players[id].acted = false; }
   s.lastAggressor = null;
   s.lastRaiseSize = 0;
   s.raiseLocked = false;
-  // Postflop heads-up : l'OOP (premier à parler au flop) reparle en premier.
-  s.toAct = s.firstToActPostflop || "villain";
-  return s;
+  s.lastActor = null;
+  s.toAct = premierParleur(s);
+  sync(s);
+  return s.toAct ? s : resolveShowdown(s);
 }
 
 function resolveShowdown(s) {
   s.board = boardForStreet(s.fullBoard, "river");
-  const hero = handStrength(s.heroHand, s.board);
-  const vill = handStrength(s.villHand, s.board);
-  const winner = hero > vill ? "hero" : vill > hero ? "villain" : "split";
-  return finish(s, winner, "showdown", { heroRank: hero, villRank: vill });
+  const rangs = {};
+  for (const id of alive(s)) rangs[id] = handStrength(s.players[id].hand, s.board);
+  const ids = Object.keys(rangs);
+  const meilleur = ids.length ? Math.max(...ids.map(id => rangs[id])) : -1;
+  const gagnants = ids.filter(id => rangs[id] === meilleur);
+  const winner = gagnants.length === 1 ? gagnants[0] : "split";
+  return finish(s, winner, "showdown", {
+    heroRank: rangs[HERO] ?? null,
+    villRank: rangs[VILLAIN] ?? null,
+    ranks: rangs,
+    gagnants,
+  });
 }
 
-/* ── PARTAGE D'UN POT EN DEMI-BLINDES ──────────────────────────────────────
-   La plus petite unité du Trainer est le demi-blind. Un pot impair ne se coupe
-   donc pas en deux : le demi-blind indivisible va au joueur HORS DE POSITION
-   (celui qui parle en premier postflop), convention usuelle du jeton impair. */
-export function splitPot(pot, oopActor = "villain") {
+/* Partage d'un pot en demi-blindes — conservé pour les appelants existants. */
+export function splitPot(pot, oopActor = VILLAIN) {
   const total = roundBb(pot);
   const bas = Math.floor((total / 2) * 2) / 2;   // plancher au demi-blind
   const haut = roundBb(total - bas);
-  return oopActor === "hero" ? { hero: haut, villain: bas } : { hero: bas, villain: haut };
+  return oopActor === HERO ? { hero: haut, villain: bas } : { hero: bas, villain: haut };
 }
 
-/* ── ATTRIBUTION DU POT AUX TAPIS (C8) ─────────────────────────────────────
+/* ── ATTRIBUTION DU POT AUX TAPIS, SIDE POTS COMPRIS (C8) ──────────────────
    Un coup ne peut pas se terminer sur un pot orphelin : sans versement, aucun
-   résultat en bb n'est dérivable des jetons. */
+   résultat en bb n'est dérivable des jetons. Le découpage en pot principal et
+   side pots est délégué à `potDistribution`, qui empile les paliers par
+   contribution TOTALE (préflop inclus). En heads-up il n'y a qu'un palier ;
+   au-delà, chaque tapis court ne dispute que ce qu'il a pu payer. */
 function finish(s, winner, reason, extra = {}) {
   returnUncalled(s);
   const potFinal = roundBb(s.pot);
-  /* ── L'ATTRIBUTION PASSE PAR LE DÉCOUPAGE EN POTS (C8) ────────────────────
-     Le versement était écrit ici, pour deux joueurs : `part[winner] = pot`.
-     Il est maintenant délégué à `distributePots`, qui empile les engagements
-     par paliers et rend un pot principal plus autant de side pots que
-     nécessaire. En heads-up il n'y a qu'un palier, donc le résultat est
-     identique — mais la règle n'est plus câblée pour deux joueurs, elle est
-     énoncée pour N et testée comme telle.
+  const contributions = {};
+  for (const id of s.seats) {
+    const q = s.players[id];
+    const v = roundBb(q.committedBefore + q.committed);
+    if (v > 0) contributions[id] = v;
+  }
+  const couches = s.seats.filter(id => s.players[id].folded);
+  const classement = {};
+  if (winner === "split") {
+    for (const id of (extra.gagnants || alive(s))) classement[id] = 1;
+  } else if (extra.ranks) {
+    for (const [id, r] of Object.entries(extra.ranks)) classement[id] = r;
+  } else if (winner) {
+    classement[winner] = 1;
+  }
+  const oop = s.firstToActPostflop || s.seats[0];
+  const dist = distributePots({ contributions, folded: couches, ranking: classement, oddChipTo: oop });
 
-     Le jeton indivisible d'un partage va au joueur HORS DE POSITION : c'est
-     `firstToActPostflop`, la convention déjà retenue par le moteur. */
-  const oop = s.firstToActPostflop || "villain";
-  const totalEngage = { hero: roundBb(s.committedBefore.hero + s.contrib.hero), villain: roundBb(s.committedBefore.villain + s.contrib.villain) };
-  /* Le pot courant est la seule grandeur dont le versement dispose : on répartit
-     ce qu'il contient, en respectant les proportions engagées. */
-  const proportion = roundBb(totalEngage.hero + totalEngage.villain);
-  const contributions = proportion > 0
-    ? { hero: roundBb(potFinal * (totalEngage.hero / proportion)), villain: roundBb(potFinal - roundBb(potFinal * (totalEngage.hero / proportion))) }
-    : { hero: roundBb(potFinal / 2), villain: roundBb(potFinal - roundBb(potFinal / 2)) };
-  const classement = winner === "split"
-    ? { hero: 1, villain: 1 }
-    : winner === "hero" ? { hero: 1, villain: 0 } : { hero: 0, villain: 1 };
-  const dist = distributePots({ contributions, folded: [], ranking: classement, oddChipTo: oop });
-  const part = { hero: roundBb(dist.payouts.hero || 0), villain: roundBb(dist.payouts.villain || 0) };
-  /* Garde-fou : le découpage doit rendre EXACTEMENT le pot. Un écart d'arrondi
-     est corrigé au profit du joueur hors de position, jamais perdu. */
-  const ecart = roundBb(potFinal - (part.hero + part.villain));
-  if (Math.abs(ecart) > 1e-9) part[oop] = roundBb(part[oop] + ecart);
-  s.heroStack = roundBb(s.heroStack + part.hero);
-  s.villStack = roundBb(s.villStack + part.villain);
+  const part = {};
+  let verse = 0;
+  for (const id of s.seats) { part[id] = roundBb(dist.payouts[id] || 0); verse = roundBb(verse + part[id]); }
+
+  /* ── L'ARGENT MORT APPARTIENT AU POT PRINCIPAL, PAS À « QUELQU'UN » ──────
+     Le pot peut contenir plus que la somme des contributions des joueurs
+     ASSIS : blindes mortes d'un siège couché avant le flop, antes, pot reporté
+     dont une part n'est rattachable à personne. `potDistribution` ne répartit
+     que ce qui a un propriétaire ; le reste était jusqu'ici poussé en bloc
+     vers le joueur hors de position — un choix arbitraire qui pouvait donner
+     de l'argent mort au PERDANT du coup.
+
+     L'argent mort entre dans le pot PRINCIPAL : il revient à qui remporte ce
+     pot-là, comme au poker réel. Le résidu d'arrondi, lui, va à l'OOP. */
+  let mort = roundBb(potFinal - verse);
+  const mortInitial = mort > EPS ? mort : 0;
+  if (mort > EPS) {
+    const principal = dist.detail && dist.detail.length ? dist.detail[0] : null;
+    const beneficiaires = (principal && principal.gagnants && principal.gagnants.length)
+      ? principal.gagnants
+      : (winner === "split" ? (extra.gagnants || alive(s)) : (winner ? [winner] : [oop]));
+    const parts = partager(mort, beneficiaires, oop);
+    for (const id of beneficiaires) { part[id] = roundBb((part[id] || 0) + (parts[id] || 0)); verse = roundBb(verse + (parts[id] || 0)); }
+    s.ledger.push({ street: s.street, actor: null, kind: "dead", amount: mort, beneficiaires: [...beneficiaires], potAfter: s.pot });
+    mort = roundBb(potFinal - verse);
+  }
+  /* Garde-fou : le découpage doit rendre EXACTEMENT le pot. Un résidu
+     d'arrondi va au joueur hors de position, jamais perdu, jamais créé. */
+  if (Math.abs(mort) > EPS) part[oop] = roundBb((part[oop] || 0) + mort);
+  for (const id of s.seats) s.players[id].stack = roundBb(s.players[id].stack + (part[id] || 0));
   s.pot = 0;
   s.pots = dist.pots;
-  s.ledger.push({ street: s.street, actor: null, kind: "award", amount: potFinal, winner, part: { ...part }, pots: dist.pots.map(p => ({ nom: p.nom, montant: p.montant })), potAfter: 0, heroStack: s.heroStack, villStack: s.villStack });
+  s.ledger.push({
+    street: s.street, actor: null, kind: "award", amount: potFinal, winner,
+    part: { ...part },
+    pots: dist.pots.map(p => ({ nom: p.nom, montant: p.montant })),
+    potAfter: 0,
+  });
   s.street = "done"; s.done = true; s.toAct = null;
+
   /* Résultat net du COUP COMPLET, préflop inclus : tapis final moins ce que le
      joueur avait avant de s'asseoir au flop, engagements préflop compris. */
-  const netHero = roundBb(s.heroStack - (s.startStacks.hero + s.committedBefore.hero));
-  const netVillain = roundBb(s.villStack - (s.startStacks.villain + s.committedBefore.villain));
+  const netBb = {};
+  for (const id of s.seats) {
+    const q = s.players[id];
+    netBb[id] = roundBb(q.stack - ((s.startStacks[id] ?? 0) + q.committedBefore));
+  }
+  netBb.hero = netBb[HERO] ?? 0;
+  netBb.villain = netBb[VILLAIN] ?? 0;
+  const payout = { ...part, hero: part[HERO] ?? 0, villain: part[VILLAIN] ?? 0 };
   s.result = {
     winner, reason, ...extra,
     potAwarded: potFinal,
-    payout: { ...part },
+    payout,
     pots: dist.pots.map(p => ({ nom: p.nom, montant: p.montant, disputePar: p.disputePar })),
-    netBb: { hero: netHero, villain: netVillain },
-    heroNetBb: netHero,
+    /* `sidePots` : combien de paliers ont RÉELLEMENT été joués. 1 = heads-up ou
+       tapis égaux ; au-delà, le coup s'est terminé avec des tapis inégaux et
+       chaque palier a trouvé son gagnant. */
+    sidePots: Math.max(0, dist.pots.length - 1),
+    /* Part du pot qui n'appartenait à aucun joueur assis (blindes mortes d'un
+       siège couché avant le flop, antes, pot reporté sans propriétaire). Elle
+       est versée avec le pot principal — la publier permet de vérifier que
+       « somme des paliers + argent mort = pot disputé » plutôt que de laisser
+       l'écart inexpliqué. */
+    argentMort: mortInitial,
+    /* Part rendue à son propriétaire parce que personne ne l'a suivie. Elle
+       traverse le pot sans jamais être disputée : ni palier, ni argent mort.
+       Trois catégories distinctes, dont la somme fait le pot. */
+    nonSuivi: dist.uncalled ? { joueur: dist.uncalled.joueur, montant: dist.uncalled.montant } : null,
+    netBb,
+    heroNetBb: netBb.hero,
   };
-  return s;
+  return sync(s);
 }
 
 /* ── CONTRÔLE DE CONSERVATION (testable, appelable en dev) ─────────────────
@@ -391,39 +562,41 @@ function finish(s, winner, reason, extra = {}) {
    des écarts ; vide = comptabilité juste. */
 export function auditLedger(state) {
   const problems = [];
-  const total = roundBb(state.heroStack + state.villStack + state.pot);
+  const total = roundBb(state.seats.reduce((a, id) => a + state.players[id].stack, 0) + state.pot);
   if (Math.abs(total - state.totalChips) > 0.001)
     problems.push({ code: "conservation", attendu: state.totalChips, obtenu: total });
-  if (state.heroStack < -1e-9) problems.push({ code: "tapis-hero-negatif", obtenu: state.heroStack });
-  if (state.villStack < -1e-9) problems.push({ code: "tapis-vilain-negatif", obtenu: state.villStack });
-  if (state.pot < -1e-9) problems.push({ code: "pot-negatif", obtenu: state.pot });
+  for (const id of state.seats)
+    if (state.players[id].stack < -EPS)
+      problems.push({ code: "tapis-negatif", joueur: id, obtenu: state.players[id].stack });
+  if (state.pot < -EPS) problems.push({ code: "pot-negatif", obtenu: state.pot });
   if (state.done && state.pot !== 0) problems.push({ code: "pot-orphelin", obtenu: state.pot });
   return problems;
 }
 
 function cloneState(s) {
+  const players = {};
+  for (const id of Object.keys(s.players)) players[id] = { ...s.players[id] };
   return {
     ...s,
+    players,
+    seats: [...s.seats],
     board: [...s.board],
-    contrib: { ...s.contrib },
-    acted: { ...s.acted },
     history: [...s.history],
     ledger: [...s.ledger],
-    committedBefore: { ...s.committedBefore },
     startStacks: { ...s.startStacks },
   };
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Politique Villain par défaut (raisonnable, non exploitante) — utilisée si
-   aucune politique n'est injectée. Décide selon la force relative de sa main.
-   `random` injectable pour la testabilité.
+   Politique par défaut d'un joueur non-Hero (raisonnable, non exploitante).
+   Décide selon la force relative de sa main. `random` injectable.
    ────────────────────────────────────────────────────────────────────────── */
-export function defaultVillainPolicy(state, { random = Math.random } = {}) {
-  const acts = legalActions(state, "villain");
+export function defaultVillainPolicy(state, { random = Math.random, actor = null } = {}) {
+  const id = actor || state.toAct;
+  const acts = legalActions(state, id);
   if (!acts.length) return null;
-  const strength = normalizedStrength(state.villHand, state.board);
-  const toCall = amountToCall(state, "villain");
+  const strength = normalizedStrength(state.players?.[id]?.hand, state.board);
+  const toCall = amountToCall(state, id);
   if (toCall > 0) {
     // Face à une mise : fold faible, call moyen, raise fort.
     if (strength < 0.28 && random() < 0.85) return { type: "FOLD" };
@@ -436,8 +609,8 @@ export function defaultVillainPolicy(state, { random = Math.random } = {}) {
   return { type: "CHECK" };
 }
 
-/* Force normalisée 0..1 de la main du villain sur ce board (heuristique via
-   l'évaluateur ; sert uniquement à piloter la politique par défaut).
+/* Force normalisée 0..1 d'une main sur ce board (heuristique via l'évaluateur ;
+   sert uniquement à piloter la politique par défaut).
 
    L'ancienne version DUPLIQUAIT les cartes du board (`[...board,...board]`)
    quand il en manquait — un board portant deux fois la même carte, impossible
@@ -452,9 +625,12 @@ export function normalizedStrength(hole, board) {
   return Math.min(1, cat / (HAND_CATEGORY_COUNT - 1) + 0.06);
 }
 
-/* Joue l'action du Villain courant via la politique, retourne le nouvel état. */
+/* Fait jouer le joueur dont c'est le tour, s'il n'est pas Hero. Vaut pour un
+   adversaire quelconque, pas seulement pour `villain`. */
 export function playVillain(state, policy = defaultVillainPolicy, ctx = {}) {
-  if (state.done || state.toAct !== "villain") return state;
-  const action = policy(state, ctx) || { type: amountToCall(state, "villain") > 0 ? "CALL" : "CHECK" };
-  return applyAction(state, "villain", action);
+  const id = state.toAct;
+  if (state.done || !id || id === HERO) return state;
+  const action = policy(state, { ...ctx, actor: id })
+    || { type: amountToCall(state, id) > 0 ? "CALL" : "CHECK" };
+  return applyAction(state, id, action);
 }

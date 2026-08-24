@@ -31,6 +31,21 @@ export function roundStep(v, step = TRAINER_BB_STEP) {
   const s = step > 0 ? step : TRAINER_BB_STEP;
   return Math.round(num(v) / s) * s;
 }
+/* ── UN PLAFOND NE S'ARRONDIT PAS VERS LE HAUT ─────────────────────────────
+   Une CAPACITÉ (ce qu'un joueur peut atteindre) passée par `roundStep` peut
+   grandir d'un demi-blind : le ledger dit 66.9bb, le bouton propose « Tapis
+   67bb ». Le joueur se voit alors offrir 0.1bb qu'il n'a pas.
+
+   Mesuré : 1 écart `I3-mise-hors-tapis` sur 40 mains en 4T — rare, parce qu'il
+   faut une capacité qui tombe juste au-dessus d'un demi-blind, mais faux à
+   chaque fois. Les capacités sont donc TRONQUÉES au pas de mise ; seules les
+   propositions (préréglages, minimum légal) restent arrondies. */
+export function floorStep(v, step = TRAINER_BB_STEP) {
+  const s = step > 0 ? step : TRAINER_BB_STEP;
+  /* La division flottante peut rendre 133.99999… pour 67/0.5 : on recale sur
+     la 6e décimale avant de tronquer, sinon on perd un pas entier. */
+  return Math.floor(Math.round((num(v) / s) * 1e6) / 1e6) * s;
+}
 export const fmtBbNum = v => {
   const n = roundStep(v);
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
@@ -58,7 +73,7 @@ export function sizingContext({
   const precedent = paliers.length > 1 ? paliers[1] : 0;
   const plancher = Math.max(minBet, TRAINER_BB_STEP);
   const increment = Math.max(roundStep(facing - precedent), plancher);
-  const remaining = Math.max(0, roundStep(num(heroRemaining)));
+  const remaining = Math.max(0, floorStep(num(heroRemaining)));
   /* ── LE PLAFOND N'EST PAS QUE LE TAPIS D'HERO (C7) ───────────────────────
      Une relance que PERSONNE ne peut égaler n'est pas une taille jouable : le
      surplus reviendrait immédiatement à son propriétaire. Le plafond est donc
@@ -66,9 +81,9 @@ export function sizingContext({
      le plus fourni peut couvrir sur cette street. Mesuré à l'audit : un 3-bet
      « to 8.5bb » proposé face à un adversaire qui ne pouvait atteindre que
      7.5bb. */
-  const capaciteHero = roundStep(heroCommitted + remaining);
+  const capaciteHero = floorStep(heroCommitted + remaining);
   const capaciteAdverse = opponentCapacity != null && num(opponentCapacity) > 0
-    ? roundStep(num(opponentCapacity)) : null;
+    ? floorStep(num(opponentCapacity)) : null;
   const maxTo = capaciteAdverse != null ? Math.min(capaciteHero, capaciteAdverse) : capaciteHero;
   /* Rien à payer et rien devant : c'est une OUVERTURE. Au préflop la mise en
      cours est la grosse blinde, donc l'ouverture minimale vaut 2bb — jamais
