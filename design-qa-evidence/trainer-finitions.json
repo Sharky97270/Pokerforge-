@@ -12,37 +12,37 @@
    "ellipse": {
     "sieges": 5,
     "rho": [
-     0.838,
-     0.937,
-     0.897,
-     0.897,
+     0.948,
+     0.946,
+     0.99,
+     0.917,
      0.99
     ],
     "detail": [
      {
       "pos": "UTG",
       "hero": false,
-      "rho": 0.838
+      "rho": 0.948
      },
      {
       "pos": "HJ",
-      "hero": false,
-      "rho": 0.937
-     },
-     {
-      "pos": "CO",
-      "hero": false,
-      "rho": 0.897
-     },
-     {
-      "pos": "BTN",
       "hero": true,
       "rho": 0.678
      },
      {
+      "pos": "CO",
+      "hero": false,
+      "rho": 0.946
+     },
+     {
+      "pos": "BTN",
+      "hero": false,
+      "rho": 0.99
+     },
+     {
       "pos": "SB",
       "hero": false,
-      "rho": 0.897
+      "rho": 0.917
      },
      {
       "pos": "BB",
@@ -54,10 +54,10 @@
     "rhoHero": [
      0.678
     ],
-    "min": 0.838,
+    "min": 0.917,
     "max": 0.99,
-    "moyenne": 0.912,
-    "ecartType": 0.05
+    "moyenne": 0.958,
+    "ecartType": 0.028
    },
    "hero": {
     "basBlocHero": 682,
@@ -79,10 +79,10 @@
     "tauxSurface": 42
    },
    "labels": {
-    "coeurDetecte": 5,
-    "mesures": 38,
+    "coeurDetecte": 4,
+    "mesures": 29,
     "chevauchements": 0,
-    "pastilles": 14
+    "pastilles": 5
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -94,10 +94,10 @@
     "sieges": 5,
     "rho": [
      0.93,
-     0.9,
      0.93,
      0.93,
-     0.93
+     0.93,
+     0.9
     ],
     "detail": [
      {
@@ -108,12 +108,12 @@
      {
       "pos": "HJ",
       "hero": false,
-      "rho": 0.9
+      "rho": 0.93
      },
      {
       "pos": "CO",
-      "hero": false,
-      "rho": 0.93
+      "hero": true,
+      "rho": 0.9
      },
      {
       "pos": "BTN",
@@ -122,13 +122,13 @@
      },
      {
       "pos": "SB",
-      "hero": true,
-      "rho": 0.9
+      "hero": false,
+      "rho": 0.93
      },
      {
       "pos": "BB",
       "hero": false,
-      "rho": 0.93
+      "rho": 0.9
      }
     ],
     "heroExclu": true,
@@ -141,8 +141,8 @@
     "ecartType": 0.012
    },
    "hero": {
-    "basBlocHero": 641,
-    "airSousHero": 83,
+    "basBlocHero": 627,
+    "airSousHero": 97,
     "premierElement": "mtr-actions",
     "reference": "premier élément rendu sous Hero"
    },
@@ -161,9 +161,9 @@
    },
    "labels": {
     "coeurDetecte": 8,
-    "mesures": 168,
+    "mesures": 166,
     "chevauchements": 0,
-    "pastilles": 72
+    "pastilles": 70
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -242,9 +242,9 @@
    },
    "labels": {
     "coeurDetecte": 12,
-    "mesures": 246,
+    "mesures": 258,
     "chevauchements": 0,
-    "pastilles": 102
+    "pastilles": 114
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -322,10 +322,10 @@
     "tauxSurface": 32
    },
    "labels": {
-    "coeurDetecte": 25,
-    "mesures": 343,
+    "coeurDetecte": 21,
+    "mesures": 344,
     "chevauchements": 0,
-    "pastilles": 151
+    "pastilles": 152
    },
    "mesuresManquantes": [],
    "conforme": true

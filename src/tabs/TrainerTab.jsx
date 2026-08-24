@@ -40,7 +40,7 @@ import { solvePostflopAsync } from "../solver/cfrPostflopClient.js";
 import { evaluatePostflopDecision } from "../postflopHeuristic.js";
 /* ── ÉTAT CANONIQUE DE L'ARGENT ET DES MONTANTS (C2/C4→C9) ────────────────
    Le rendu ne calcule plus de seconde vérité : il lit ces modules purs. */
-import { trainerHandLedger } from "../trainerHandLedger.js";
+import { trainerHandLedger, assignSeatStacks } from "../trainerHandLedger.js";
 import { sizingContext, sizingPresets, resolveTrainerAction, clampRaiseTo, stepRaiseTo,
   sizingSelectorVisible, roundStep, fmtBbNum, villainThreeBetTo, villainIsolateTo, villainBetTo,
   actionFamily, followsSizingSelector, TRAINER_BB_STEP } from "../trainerSizing.js";
@@ -48,6 +48,8 @@ import { trainerSeatStatuses } from "../trainerSeatStatus.js";
 import { jamThreshold, jamThresholdNote, JAM_PROVENANCE } from "../trainerJamThreshold.js";
 import { exploitAdjustment, EXPLOIT_MODE_LABEL, EXPLOIT_PANEL_LABEL } from "../trainerExploit.js";
 import { solvePreflopPushFold } from "../solver/api.js";
+import { potDistributionSupport } from "../potDistribution.js";
+import { dealVillainHand, villainHandStrength, handTilt, neutralStrength } from "../trainerVillainHand.js";
 import { TrainerReviewPanel, appendPlayedSpot, loadPlayedSpots, buildTrainerReview } from "./PracticedHands.jsx";
 
 const SEAT_DEFAULT_STATS={
@@ -1098,6 +1100,27 @@ function villainDecide(street,heroAct,vType,pot,mode="gto",platform="pokerstars"
   const isDeep=spr>15; // deep stack = sizing plus petit, plus de nuance
   const streetMod=street==="River"?1.12:street==="Turn"?1.05:1.0;
 
+  /* ── LE VILAIN REGARDE SES CARTES (C12 / G5) ─────────────────────────────
+     Sa main n'entrait dans AUCUNE des formules ci-dessous : la décision était
+     un tirage pondéré par le profil, la position, le SPR et le field. Elle le
+     reste — c'est ce qui porte le style du joueur — mais elle est désormais
+     INFLÉCHIE par la force réelle de sa main sur la street affichée.
+
+     `ctx.hand` vient du spot (`spot.villainHand`), tiré dans la range du
+     profil et cohérent avec les cartes connues. Sans main fournie, la force
+     vaut 0.5 et le comportement est exactement celui d'avant : aucun spot
+     ancien ne change de nature. */
+  const vHand=Array.isArray(ctx.hand)&&ctx.hand.length===2?ctx.hand:null;
+  const vBoard=Array.isArray(ctx.board)?ctx.board:[];
+  const force=vHand?villainHandStrength(vHand,vBoard).strength:0.5;
+  /* ── LA RÉFÉRENCE VIENT DE LA DISTRIBUTION, PAS D'UNE INTUITION ──────────
+     `handTilt` compare la main à un point neutre. Une première version fixait
+     0.22 au postflop alors que la médiane MESURÉE au flop vaut 0.075 : presque
+     toute main tombait « sous la moyenne », le Vilain se couchait à tout va, et
+     l'audit navigateur l'a vu immédiatement — 17 coups complets, 17 gagnés par
+     Hero. `neutralStrength` rend la médiane de la street. */
+  const neutre=neutralStrength(vBoard.length);
+
   // Agressivité effective = profil + platform + mode + contexte
   const gtoMod=mode==="gto"?1:0;
   let effAgg=profile.agg*.15 + platformMod.agg*(1-gtoMod) + fieldMod.agg;
@@ -1117,6 +1140,8 @@ function villainDecide(street,heroAct,vType,pot,mode="gto",platform="pokerstars"
       if(vType==="Nit") callP=Math.max(.10,callP-.18);
       if(vType==="Maniac") callP=Math.min(.75,callP+.16);
       if(isShort) callP=Math.min(.88,callP+.12); // short = call plus large
+      /* La main compte : un tapis se paie avec des cartes, pas avec un dé. */
+      callP=Math.max(0,Math.min(.95,callP*handTilt(force,{neutre,sens:+1})));
       return r<callP
         ?{action:"CALL",label:"Call all-in 📲",color:T.green}
         :{action:"FOLD",label:"Fold ✗",color:T.red};
@@ -1132,6 +1157,10 @@ function villainDecide(street,heroAct,vType,pot,mode="gto",platform="pokerstars"
       if(vType==="Fish"||vType==="Rec"){threeBetP*=0.6;foldPfP*=0.75;}
       if(isIP) threeBetP=Math.min(.22,threeBetP*1.15); // en position = 3-bet plus
       threeBetP*=(1+fieldMod.agg*1.5);foldPfP*=(1+fieldMod.fold); // field : soft = call plus, 3-bet moins
+      /* Une main forte 3-bet plus et se couche moins ; une main faible fait
+         l inverse. Les bornes du profil restent celles du profil. */
+      threeBetP*=handTilt(force,{neutre,sens:+1});
+      foldPfP*=handTilt(force,{neutre,sens:-1});
       threeBetP=Math.max(0,Math.min(.22,threeBetP));foldPfP=Math.max(.1,Math.min(.78,foldPfP));
       if(r<foldPfP) return{action:"FOLD",label:"Fold ✗",color:T.red};
       if(r<foldPfP+threeBetP){
@@ -1167,6 +1196,8 @@ function villainDecide(street,heroAct,vType,pot,mode="gto",platform="pokerstars"
     if(vType==="Calling Station") callProb=Math.min(.82,callProb+.18);
     if(vType==="Nit") callProb=Math.max(.12,callProb-.16);
     if(vType==="Maniac") callProb=Math.min(.75,callProb+.14);
+    /* Payer un tapis dépend d abord de ce qu on a en main. */
+    callProb*=handTilt(force,{neutre,sens:+1});
     callProb=Math.max(.08,Math.min(.9,callProb-fieldMod.fold*0.6)); // field soft = call all-in plus large
     return r<callProb
       ?{action:"CALL",label:"Call all-in 📲",color:T.green}
@@ -1186,7 +1217,10 @@ function villainDecide(street,heroAct,vType,pot,mode="gto",platform="pokerstars"
     if(vType==="Nit") betProb*=.65;
     if(vType==="Maniac"||vType==="LAG") betProb*=1.3;
     if(vType==="Calling Station") betProb*=.55;    // station = check/call
-    betProb=Math.min(.85,betProb);
+    /* Une main forte mise pour la valeur ; une main faible checke plus souvent.
+       Le bluff du profil survit : le multiplicateur est borné. */
+    betProb*=handTilt(force,{neutre,sens:+1,ampleur:0.45});
+    betProb=Math.min(.85,Math.max(.05,betProb));
 
     if(r<betProb){
       // Sizing adapté au contexte : river polarisé = gros ou petit, deep = sizing réduit
@@ -1239,6 +1273,13 @@ function villainDecide(street,heroAct,vType,pot,mode="gto",platform="pokerstars"
   }
 
   foldProb*=(1+fieldMod.fold);raiseProb*=(1+fieldMod.agg); // field : soft = fold moins (call station), tough = discipliné
+  /* ── FACE À L'AGRESSION D'HERO, LA MAIN DÉCIDE AUSSI (C12) ────────────────
+     C'était le cas le plus visible du défaut : le Vilain se couchait ou
+     relançait sans jamais regarder ses cartes. Le profil garde la main sur le
+     STYLE (un nit se couche plus, un maniac relance plus), la main de poker
+     décide du SENS. */
+  foldProb*=handTilt(force,{neutre,sens:-1});
+  raiseProb*=handTilt(force,{neutre,sens:+1});
   foldProb=Math.max(0,Math.min(.78,foldProb));
   raiseProb=Math.max(0,Math.min(.35,raiseProb));
 
@@ -2409,6 +2450,26 @@ function generateDynamicSpots(count=50,f={}){
         continue; // régénération automatique (la boucle réessaie)
       }
       spot.ctx=_val.ctx; // contexte (historique préflop + action affrontée) pour l'affichage
+      /* ── DES TAPIS INÉGAUX, COMME À UNE VRAIE TABLE ────────────────────────
+         Jusqu'ici tous les sièges partaient de la même profondeur : honnête,
+         mais faux. `spot.stack` reste le tapis EFFECTIF — le plus court des
+         tapis encore en jeu, c'est-à-dire ce que règle le filtre — et
+         `seatStacks` donne à chacun le sien au-dessus. Le tapis effectif
+         continue donc de valoir exactement ce qui a été demandé, mais il naît
+         maintenant d'une inégalité réelle au lieu d'une uniformité décrétée. */
+      const _positions=(spot.nplayers&&POSITIONS_BY_SIZE[spot.nplayers])||TRAINER_POS_ORDER;
+      /* ── LE VILAIN A DES CARTES (C12 / G5) ────────────────────────────────
+         Elles sont tirées DANS SA RANGE (le VPIP du profil sert de seuil) et
+         hors des cartes déjà connues — main d'Hero et board. Sans elles, sa
+         décision ne pouvait être qu'un tirage. */
+      spot.villainHand=dealVillainHand({
+        used:[...(spot.hand||[]),...(spot.board||[])],
+        vpip:(VILLAIN_PROFILES[spot.vtype]||{}).vpip||24,
+      }).hand;
+      spot.seatStacks=assignSeatStacks({
+        positions:_positions, effectiveBb:parseStackBb(spot.stack),
+        heroPos:spot.hpos, villainPos:spot.vpos,
+      });
       seen.add(spot.id);
       spots.push(spot);
     }catch(e){/* ignore */}
@@ -3443,6 +3504,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const[fhVilThink,setFhVilThink]=useState(false);
   const[fhResult,setFhResult]=useState(null);   // "win" | "lose" | "split"
   const[fhNet,setFhNet]=useState(null);         // résultat net en bb, dérivé du ledger
+  /* Configuration hors du domaine jouable du coup complet — affichée, pas subie. */
+  const[fhUnsupported,setFhUnsupported]=useState(null);
   // Feedback TEMPORAIRE de la décision de street courante (badge ✓/✗ + EV) — se
   // fade après ~1.5s et est nettoyé avant la carte suivante (§ cycle de feedback).
   const[fhFeedback,setFhFeedback]=useState(null); // {quality,evDelta,best,action,note,correct,street,id}
@@ -3636,7 +3699,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     setSolOpen(false); // ferme l'overlay solution mobile
     // Reset full-hand state quand le spot change
     setPlayingFull(false);setFhBoardRef([]);setFhStreet("flop");setFhPhase("hero");
-    setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);setFhNet(null);
+    setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);setFhNet(null);setFhUnsupported(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport par street (§ cycle)
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // reset moteur main complète au changement de spot
@@ -4059,7 +4122,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       const spr=handLedger.spr!=null?handLedger.spr:(seatRemainingStack(spot.hpos)/(currentPotRef.current||1.5));
       const boardLen=(spot.board||[]).length;
       let v=villainDecide(spot.street,a.id,spot.vtype,currentPotRef.current,trainerMode,platform,spr,seatRemainingStack(spot.vpos),spot.vpos,boardLen,field,
-        {openTo:heroCommit.amountBb,callers:trainerExtraPlayers(spot).length});
+        {openTo:heroCommit.amountBb,callers:trainerExtraPlayers(spot).length,
+         hand:spot.villainHand,board:spot.board||[]});
       // Mode Full Hand : si Hero a continué (open/raise, hors all-in), on GARANTIT
       // que la main va au flop — le Villain suit plutôt que fold/3bet/win. Le coup
       // complet est le but du mode ; sans ça il se résout trop souvent au préflop.
@@ -4132,7 +4196,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       {type:"VILLAIN_ACT",duration:0,perform:()=>{
         const spr=handLedger.spr!=null?handLedger.spr:(seatRemainingStack(spot.hpos)/(currentPotRef.current||1.5));
         const v2=villainDecide(spot.street,"RAISE",spot.vtype,currentPotRef.current,trainerMode,platform,spr,seatRemainingStack(spot.vpos),spot.vpos,(spot.board||[]).length,field,
-          {openTo:replyCommit.amountBb,callers:trainerExtraPlayers(spot).length});
+          {openTo:replyCommit.amountBb,callers:trainerExtraPlayers(spot).length,
+           hand:spot.villainHand,board:spot.board||[]});
         const v2Commit=commitTableAction({playerId:"villain",position:spot.vpos,action:v2,callAmount:v2.action==="CALL"?replyCommit.amountBb:undefined});
         setThinking(false);
         setTl(t=>[...t,{pos:spot.vpos,act:v2.action,lbl:v2.label,hero:false,amt:v2Commit.amountBb}]);
@@ -4210,9 +4275,37 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   }
 
   function startFullHand(){
+    /* ── UNE CONFIGURATION NON SUPPORTÉE SE DIT, ELLE NE SE SUBIT PAS (C8) ──
+       Le coup complet est heads-up : son moteur ne gère qu'un tour d'enchères
+       à deux. À trois joueurs encore en jeu, il faudrait des side pots dans le
+       DÉROULÉ, pas seulement à l'attribution — `potDistribution` sait les
+       calculer, le moteur de jeu ne sait pas les jouer.
+
+       L'ancien comportement était de « bloquer par construction », c'est-à-dire
+       de ne rien lancer et de ne rien expliquer. Le joueur voyait le coup
+       s'arrêter sans raison. On refuse explicitement, à l'écran. */
+    /* Qui est RÉELLEMENT dans le pot au moment où le coup complet démarre :
+       Hero, le vilain désigné, et les éventuels suiveurs déclarés du spot. Un
+       siège qui n'a pas encore parlé n'en fait PAS partie — le compter reviendrait
+       à refuser presque tous les coups (mesuré : un « BTN vs open du CO » compte
+       SB et BB comme vivants tant qu'ils n'ont pas parlé, donc 4 joueurs). */
+    const encoreEnJeu=[...new Set([spot.hpos,spot.vpos,...trainerExtraPlayers(spot).map(p=>p.pos)])]
+      .filter(p=>p&&!(handLedger.seats?.[p]||{}).folded);
+    const support=potDistributionSupport({players:encoreEnJeu,engine:"fullHand"});
+    if(!support.supported){
+      setFhUnsupported({raison:support.reason,joueurs:encoreEnJeu});
+      finishTable();
+      return;
+    }
+    setFhUnsupported(null);
     const heroHand=spot.hand||[];
-    const fullBoard=genBoard(heroHand);                               // 5 cartes (exclut la main Héro)
-    const villHand=genBoard([...heroHand,...fullBoard]).slice(0,2);   // 2 cartes (exclut Héro + board)
+    /* ── LE VILAIN GARDE LES CARTES QU'IL AVAIT AU PRÉFLOP (C12) ───────────
+       Le coup complet lui en tirait de NOUVELLES : ses décisions préflop et
+       postflop ne parlaient donc pas de la même main. On reprend celles du
+       spot quand elles existent, et on distribue le board en les excluant. */
+    const villHandSpot=Array.isArray(spot.villainHand)&&spot.villainHand.length===2?spot.villainHand:null;
+    const fullBoard=genBoard([...heroHand,...(villHandSpot||[])]);    // 5 cartes (exclut Héro + Vilain)
+    const villHand=villHandSpot||genBoard([...heroHand,...fullBoard]).slice(0,2);
     const startPot=roundBb(currentPotRef.current||spot.pot||15);
     const firstActor=trainerPostflopFirstActor(spot.hpos,spot.vpos);
     /* ── LES ENGAGEMENTS PRÉFLOP QUITTENT LES TAPIS (C3) ────────────────────
@@ -5077,14 +5170,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   <span style={{padding:"1px 8px",borderRadius:20,background:`${vact.color}18`,border:`1px solid ${vact.color}44`,fontSize:9,fontWeight:700,color:vact.color}}>{vact.label}</span>
                   {vact.amount>0&&<span style={{fontSize:9,color:"#9FB0CC",fontFamily:"'JetBrains Mono',monospace"}}>→ {vact.amount}bb</span>}
                   {/* ── DIRE CE QUE CETTE RÉACTION EST (C12) ────────────────────
-                      Hors coup complet, le Vilain décide par tirage pondéré :
-                      profil, position, SPR, field — mais JAMAIS ses cartes. Le
-                      résultat de la main n'est donc pas une information de
-                      poker, et rien à l'écran ne le disait. Le drill garde sa
-                      valeur (la décision d'Hero est notée sur le spot, pas sur
-                      l'issue) ; c'est l'issue qui doit s'annoncer pour ce
-                      qu'elle est. */}
-                  <span title="Le vilain décide selon son profil, sa position et le SPR — pas selon ses cartes. L'issue de la main n'évalue donc pas votre décision ; c'est le verdict du spot qui le fait."
+                      Le Vilain regarde désormais SES CARTES : sa décision est
+                      infléchie par la force réelle de sa main sur cette street,
+                      en plus du profil, de la position et du SPR. Ce n'est pas
+                      pour autant une stratégie résolue — c'est une décision
+                      cohérente, pas une décision d'équilibre. La réserve reste
+                      donc affichée, mais elle dit maintenant la bonne chose. */}
+                  <span title="Le vilain joue une vraie main, tirée dans la range de son profil : sa décision tient compte de ses cartes, de sa position et du SPR. Ce n'est pas une stratégie résolue — l'issue du coup n'évalue pas votre décision, c'est le verdict du spot qui le fait."
                     style={{marginLeft:"auto",fontFamily:T.stats,fontSize:8,fontWeight:700,color:T.text4,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.12)",borderRadius:20,padding:"2px 7px",whiteSpace:"nowrap"}}>
                     ≈ Simulation de ligne
                   </span>
@@ -5382,6 +5474,23 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     const fhAmt=playingFull?fhHeroAmounts():null;
     const renderFhActions=()=>(
       <>
+        {/* ── LE REFUS EST AFFICHÉ, AVEC SA RAISON (C8) ─────────────────────
+            « Bloquer par construction » revenait à ne rien lancer et à ne rien
+            dire : le joueur voyait le coup s'arrêter sans explication. Ici le
+            Trainer nomme la limite et ce qu'elle implique. */}
+        {fhUnsupported&&(
+          <div className="mtr-actions" style={{flexShrink:0,padding:fhPad,background:"linear-gradient(180deg,#2A1206,#1A0B04)",borderTop:"1px solid rgba(255,138,61,.35)"}}>
+            <div style={{fontFamily:T.brand,fontSize:fhHdrFs,color:"#FF8A3D",letterSpacing:".1em",marginBottom:fhGap+2,textAlign:"center"}}>
+              COUP COMPLET INDISPONIBLE
+            </div>
+            <div style={{fontFamily:T.stats,fontSize:fhC?8:9.5,color:T.text2,lineHeight:1.6,textAlign:"center"}}>
+              {fhUnsupported.raison}.<br/>
+              Il faudrait des <b>side pots</b> pendant le déroulé — le calcul existe,
+              le moteur de jeu ne les joue pas encore. Le spot reste noté ;
+              seule la suite du coup est indisponible.
+            </div>
+          </div>
+        )}
         {playingFull&&fhPhase==="hero"&&fhAmt&&(
           <div className="mtr-actions" style={{flexShrink:0,padding:fhPad,background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)"}}>
             <div style={{fontFamily:T.brand,fontSize:fhHdrFs,color:T.cyan,letterSpacing:".12em",marginBottom:fhGap+2,textAlign:"center"}}>{fhStreet.toUpperCase()} — ACTION HERO</div>
@@ -6689,7 +6798,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             {vact.amount&&<span style={{fontSize:8.5,color:T.text3,fontFamily:T.stats}}>→ Pot {fmt(currentPotBb)}</span>}
             {/* Même réserve qu'en 1T (C12) : hors coup complet, cette réaction
                 est un tirage pondéré, pas une décision de poker. */}
-            <span title="Le vilain décide selon son profil, sa position et le SPR — pas selon ses cartes."
+            <span title="Le vilain joue une vraie main, tirée dans la range de son profil — mais sa stratégie n'est pas résolue."
               style={{fontSize:7.5,color:T.text4,fontFamily:T.stats,fontWeight:700}}>≈ simulation</span>
           </div>
           {vact.action==="FOLD"&&(

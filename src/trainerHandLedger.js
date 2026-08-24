@@ -13,12 +13,13 @@
    consommé par la plaque du siège, le panneau d'informations, le tapis effectif
    et le SPR. Personne ne recalcule une seconde vérité.
 
-   ── CONVENTION DE PROFONDEUR, ÉCRITE PARCE QU'ELLE EST UNE HYPOTHÈSE ───────
-   Un spot du Trainer ne porte qu'UN tapis : `spot.stack`, le tapis effectif de
-   l'exercice (c'est ce que règle le filtre « STACK EFFECTIF »). Tous les sièges
-   démarrent donc à cette profondeur, puis sont débités de ce qu'ils ont engagé.
-   Ce n'est pas une constante d'affichage : la valeur descend du spot, elle suit
-   le filtre, le format et la profondeur demandée.
+   ── PROFONDEUR : UNE PAR SIÈGE, PAS UNE POUR TOUS ──────────────────────────
+   `spot.stack` est le tapis EFFECTIF de l'exercice — ce que règle le filtre
+   « STACK EFFECTIF » — c'est-à-dire le plus court des tapis encore en jeu.
+   `spot.seatStacks` porte, quand le générateur la produit, la profondeur de
+   CHAQUE siège : personne n'a le même tapis à une vraie table, et le tapis
+   effectif naît précisément de cette inégalité. Un spot sans `seatStacks`
+   retombe sur la profondeur commune — le comportement des spots anciens.
 
    ── LES STREETS PRÉCÉDENTES ────────────────────────────────────────────────
    Un spot postflop n'expose que son POT d'entrée, pas qui l'a alimenté. On
@@ -38,6 +39,20 @@ export const roundLedgerBb = v => Math.round(num(v) * 10) / 10;
 export function parseDepthBb(stack) {
   const n = parseFloat(stack);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/* ── PROFONDEUR D'UN SIÈGE ─────────────────────────────────────────────────
+   `spot.seatStacks` est une table { position: bb } produite par le générateur.
+   Elle est OPTIONNELLE : un spot qui n'en porte pas garde la profondeur
+   commune, et rien ne change pour lui. Une valeur illisible ou nulle retombe
+   aussi sur la profondeur commune plutôt que de mettre un siège à zéro. */
+export function seatDepth(spot, position, defautBb) {
+  const table = spot && spot.seatStacks;
+  if (table && position != null) {
+    const v = parseDepthBb(table[position]);
+    if (v > 0) return v;
+  }
+  return defautBb;
 }
 
 /* Engagements des streets ANTÉRIEURES, lus dans la ligne reconstruite. */
@@ -105,7 +120,7 @@ export function trainerHandLedger({
     for (const p of positions) {
       const estHero = p === hpos, estVil = p === vpos;
       const dansLeCoup = estHero || estVil;
-      const restant = estHero ? roundLedgerBb(fh.heroStack) : estVil ? roundLedgerBb(fh.villStack) : roundLedgerBb(depthBb);
+      const restant = estHero ? roundLedgerBb(fh.heroStack) : estVil ? roundLedgerBb(fh.villStack) : roundLedgerBb(seatDepth(spot, p, depthBb));
       const avant = estHero ? roundLedgerBb(fh.committedBefore?.hero || 0) : estVil ? roundLedgerBb(fh.committedBefore?.villain || 0) : 0;
       const rue = streetOf(p);
       seats[p] = {
@@ -145,12 +160,20 @@ export function trainerHandLedger({
     const c = roundLedgerBb(carried[p] || 0);
     const s = rue[p];
     const total = roundLedgerBb(c + s);
-    const remaining = Math.max(0, roundLedgerBb(depthBb - total));
+    /* ── CHAQUE SIÈGE PEUT AVOIR SA PROPRE PROFONDEUR ─────────────────────
+       Le modèle initial supposait UNE profondeur pour toute la table. C'était
+       honnête mais faux : à une vraie table, personne n'a le même tapis, et
+       le tapis effectif — celui qui décide du SPR — naît précisément de cette
+       inégalité. `spot.seatStacks` la porte quand le générateur la produit ;
+       à défaut on retombe sur la profondeur commune, qui reste le comportement
+       des spots anciens. */
+    const profondeurSiege = seatDepth(spot, p, depthBb);
+    const remaining = Math.max(0, roundLedgerBb(profondeurSiege - total));
     const etat = seatStates?.[p] || {};
     const couche = !!etat.folded;
     seats[p] = {
       position: p, isHero: p === hpos, isVillain: p === vpos,
-      initial: roundLedgerBb(depthBb),
+      initial: roundLedgerBb(profondeurSiege),
       carried: c, street: s, total, remaining,
       capacity: roundLedgerBb(s + remaining),
       folded: couche, allIn: !couche && total > 0 && remaining <= LEDGER_EPSILON,
@@ -220,5 +243,66 @@ export function auditHandLedger({ seats = {}, pot = 0, positions = null } = {}) 
   }
   if (Math.abs(somme - roundLedgerBb(pot)) > LEDGER_EPSILON)
     problems.push({ code: "pot-non-reconstructible", pot: roundLedgerBb(pot), sommeEngagements: somme });
+  return problems;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   assignSeatStacks — DES TAPIS INÉGAUX, SANS TRAHIR LE FILTRE
+
+   Le Trainer laisse choisir un « STACK EFFECTIF ». Ce réglage ne dit pas que
+   tout le monde a le même tapis : il dit que le tapis EFFECTIF de l'exercice
+   vaut cette valeur — c'est-à-dire le plus court des tapis encore en jeu.
+
+   La contrainte est donc précise, et c'est elle qu'on respecte :
+     • aucun siège en dessous de la profondeur demandée ;
+     • AU MOINS UN siège encore en jeu exactement à cette profondeur, sinon
+       le tapis effectif ne vaudrait plus ce que le joueur a réglé ;
+     • les autres au-dessus, dans une fourchette bornée.
+
+   `rng` est injectable : le tirage doit être rejouable en test.
+   ══════════════════════════════════════════════════════════════════════════ */
+export const SEAT_STACK_SPREAD = 1.6;   // au plus 2.6× la profondeur effective
+
+export function assignSeatStacks({
+  positions = [], effectiveBb = 0, heroPos = null, villainPos = null,
+  rng = Math.random, spread = SEAT_STACK_SPREAD, step = 0.5,
+} = {}) {
+  const base = parseDepthBb(effectiveBb);
+  if (!(base > 0) || !positions.length) return null;
+  const arrondi = v => Math.max(base, Math.round(v / step) * step);
+
+  /* Le siège « le plus court » est tiré parmi ceux qui portent l'exercice :
+     Hero ou le vilain désigné. Le mettre toujours sur Hero rendrait le tapis
+     effectif prévisible, ce qui n'apprend rien au joueur. */
+  const porteurs = [heroPos, villainPos].filter(p => p && positions.includes(p));
+  const court = porteurs.length ? porteurs[Math.floor(rng() * porteurs.length) % porteurs.length] : positions[0];
+
+  const out = {};
+  for (const p of positions) {
+    out[p] = p === court ? base : arrondi(base * (1 + rng() * spread));
+  }
+  /* Garantie explicite : le minimum vaut EXACTEMENT la profondeur demandée. */
+  out[court] = base;
+  return out;
+}
+
+/* Contrôle du contrat ci-dessus — utilisable en test et en dev. */
+export function auditSeatStacks(seatStacks, effectiveBb, livePositions = null) {
+  const problems = [];
+  if (!seatStacks) return problems;
+  const base = parseDepthBb(effectiveBb);
+  const cles = livePositions && livePositions.length
+    ? livePositions.filter(p => seatStacks[p] != null)
+    : Object.keys(seatStacks);
+  if (!cles.length) return problems;
+  for (const p of cles) {
+    if (parseDepthBb(seatStacks[p]) < base - LEDGER_EPSILON) {
+      problems.push({ code: "siege-sous-la-profondeur", position: p, tapis: seatStacks[p], profondeur: base });
+    }
+  }
+  const min = Math.min(...cles.map(p => parseDepthBb(seatStacks[p])));
+  if (Math.abs(min - base) > LEDGER_EPSILON) {
+    problems.push({ code: "tapis-effectif-trahi", minimum: min, profondeurDemandee: base });
+  }
   return problems;
 }

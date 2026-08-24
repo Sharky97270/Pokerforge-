@@ -6,7 +6,9 @@
    (évaluation de main via le solver), en remplacement de l'ancien comportement
    probabiliste (Math.random pour le résultat).
 
-   Modèle : heads-up (Héro vs Villain), No-Limit. Pas de side pots (2 joueurs).
+   Modèle : heads-up (Héro vs Villain), No-Limit. L'attribution du pot passe par
+   `potDistribution.js`, qui sait découper N paliers : en heads-up il n'y en a
+   qu'un, mais la règle n'est plus câblée pour deux joueurs.
    Le Villain joue via une politique injectable (`villainPolicy`) ; à défaut une
    politique par défaut raisonnable est utilisée.
 
@@ -14,6 +16,7 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { evalBestI, handCategoryOf, HAND_CATEGORY_COUNT } from "./solver/core/evaluator.js";
+import { distributePots } from "./potDistribution.js";
 
 const RANK_ORDER = "23456789TJQKA";
 const SUIT_ORDER = "♠♥♦♣"; // ♠♥♦♣ (identique côté trainer + générateur)
@@ -335,13 +338,38 @@ export function splitPot(pot, oopActor = "villain") {
 function finish(s, winner, reason, extra = {}) {
   returnUncalled(s);
   const potFinal = roundBb(s.pot);
-  let part = { hero: 0, villain: 0 };
-  if (winner === "split") part = splitPot(potFinal, s.firstToActPostflop || "villain");
-  else part[winner] = potFinal;
+  /* ── L'ATTRIBUTION PASSE PAR LE DÉCOUPAGE EN POTS (C8) ────────────────────
+     Le versement était écrit ici, pour deux joueurs : `part[winner] = pot`.
+     Il est maintenant délégué à `distributePots`, qui empile les engagements
+     par paliers et rend un pot principal plus autant de side pots que
+     nécessaire. En heads-up il n'y a qu'un palier, donc le résultat est
+     identique — mais la règle n'est plus câblée pour deux joueurs, elle est
+     énoncée pour N et testée comme telle.
+
+     Le jeton indivisible d'un partage va au joueur HORS DE POSITION : c'est
+     `firstToActPostflop`, la convention déjà retenue par le moteur. */
+  const oop = s.firstToActPostflop || "villain";
+  const totalEngage = { hero: roundBb(s.committedBefore.hero + s.contrib.hero), villain: roundBb(s.committedBefore.villain + s.contrib.villain) };
+  /* Le pot courant est la seule grandeur dont le versement dispose : on répartit
+     ce qu'il contient, en respectant les proportions engagées. */
+  const proportion = roundBb(totalEngage.hero + totalEngage.villain);
+  const contributions = proportion > 0
+    ? { hero: roundBb(potFinal * (totalEngage.hero / proportion)), villain: roundBb(potFinal - roundBb(potFinal * (totalEngage.hero / proportion))) }
+    : { hero: roundBb(potFinal / 2), villain: roundBb(potFinal - roundBb(potFinal / 2)) };
+  const classement = winner === "split"
+    ? { hero: 1, villain: 1 }
+    : winner === "hero" ? { hero: 1, villain: 0 } : { hero: 0, villain: 1 };
+  const dist = distributePots({ contributions, folded: [], ranking: classement, oddChipTo: oop });
+  const part = { hero: roundBb(dist.payouts.hero || 0), villain: roundBb(dist.payouts.villain || 0) };
+  /* Garde-fou : le découpage doit rendre EXACTEMENT le pot. Un écart d'arrondi
+     est corrigé au profit du joueur hors de position, jamais perdu. */
+  const ecart = roundBb(potFinal - (part.hero + part.villain));
+  if (Math.abs(ecart) > 1e-9) part[oop] = roundBb(part[oop] + ecart);
   s.heroStack = roundBb(s.heroStack + part.hero);
   s.villStack = roundBb(s.villStack + part.villain);
   s.pot = 0;
-  s.ledger.push({ street: s.street, actor: null, kind: "award", amount: potFinal, winner, part: { ...part }, potAfter: 0, heroStack: s.heroStack, villStack: s.villStack });
+  s.pots = dist.pots;
+  s.ledger.push({ street: s.street, actor: null, kind: "award", amount: potFinal, winner, part: { ...part }, pots: dist.pots.map(p => ({ nom: p.nom, montant: p.montant })), potAfter: 0, heroStack: s.heroStack, villStack: s.villStack });
   s.street = "done"; s.done = true; s.toAct = null;
   /* Résultat net du COUP COMPLET, préflop inclus : tapis final moins ce que le
      joueur avait avant de s'asseoir au flop, engagements préflop compris. */
@@ -351,6 +379,7 @@ function finish(s, winner, reason, extra = {}) {
     winner, reason, ...extra,
     potAwarded: potFinal,
     payout: { ...part },
+    pots: dist.pots.map(p => ({ nom: p.nom, montant: p.montant, disputePar: p.disputePar })),
     netBb: { hero: netHero, villain: netVillain },
     heroNetBb: netHero,
   };

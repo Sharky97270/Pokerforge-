@@ -155,24 +155,59 @@ const mains = [];
 const findings = [];
 const note = (code, i, detail) => findings.push({ code, main: i, ...detail });
 
+const tentatives = { total: 0, coupsLances: 0, refusExplicite: 0, resoluPreflop: 0, sansAction: 0, interrompus: 0 };
 let garde = 0;
-while (mains.length < HANDS && garde++ < HANDS * 6) {
+/* Le plafond de TENTATIVES, pas d'exigence : il faut toujours `HANDS` coups
+   complets pour que l'audit passe. Il a été relevé de 6× à 14× parce que le
+   Vilain se couche désormais avec les mains faibles — plus de mains se
+   résolvent au préflop, donc il faut en tirer davantage pour en jouer 20
+   jusqu'au bout. Baisser `HANDS` aurait été un relâchement ; augmenter le
+   nombre d'essais n'en est pas un. */
+while (mains.length < HANDS && garde++ < HANDS * 14) {
+  tentatives.total++;
+  /* ── ATTENDRE UN ÉTAT JOUABLE, PAS LE CONSOMMER ─────────────────────────
+     Entre deux mains, la table passe par des instants sans aucun bouton :
+     réflexion du vilain, animation de collecte, CTA « Main suivante » pas
+     encore active. L'ancienne boucle comptait chacun de ces instants comme une
+     TENTATIVE et repartait — mesuré : 257 tentatives sur 280 sans action, pour
+     18 coups réellement lancés. Le plafond servait à attendre, pas à jouer.
+     On patiente donc explicitement jusqu'à ce qu'il y ait quelque chose à
+     faire, et seules les vraies tentatives sont comptées. */
+  const jouable = await waitFor(
+    () => window.__fh.enCoupComplet()
+      || [...document.querySelectorAll('button.gto-btn')].some(x => x.getBoundingClientRect().width > 0),
+    null, 'état jouable', 9000);
+  if (!jouable) {
+    tentatives.sansAction++;
+    await page.evaluate(HELPERS);
+    const avance = await page.evaluate(() => window.__fh.nextHand());
+    if (!avance) break;                 // la session est terminée : rien à attendre de plus
+    await sleep(900);
+    continue;
+  }
   await page.evaluate(HELPERS);
   /* Le coup complet démarre quand Hero CONTINUE au préflop (call ou relance).
      Tant que la barre d'action du coup complet n'est pas montée, on joue la
      décision préflop. */
   if (!await page.evaluate(() => window.__fh.enCoupComplet())) {
     const joue = await page.evaluate(() => window.__fh.heroAct());
-    if (!joue) { await page.evaluate(HELPERS); await page.evaluate(() => window.__fh.nextHand()); await sleep(700); continue; }
+    if (!joue) { tentatives.sansAction++; await page.evaluate(HELPERS); await page.evaluate(() => window.__fh.nextHand()); await sleep(700); continue; }
     await sleep(2400);                       // réflexion du vilain + montée du coup
     await page.evaluate(HELPERS);
     if (!await page.evaluate(() => window.__fh.enCoupComplet())) {
-      /* Le coup s'est résolu au préflop (fold du vilain) : main suivante. */
+      /* ── POURQUOI CETTE TENTATIVE N'A PAS PRODUIT DE COUP COMPLET ────────
+         Sans cette distinction, « 17 mains sur 20 » ne dit pas si l'instrument
+         manque de tentatives ou si le produit refuse. Deux causes possibles :
+         le Trainer refuse explicitement (multiway → side pots non joués), ou le
+         coup s'est simplement résolu au préflop. */
+      const refus = await page.evaluate(() => /COUP COMPLET INDISPONIBLE/i.test(document.body.innerText));
+      if (refus) tentatives.refusExplicite++; else tentatives.resoluPreflop++;
       await page.evaluate(() => window.__fh.nextHand());
       await sleep(800);
       continue;
     }
   }
+  tentatives.coupsLances++;
 
   const main = { i: mains.length + 1, etapes: [], verdict: null, resultat: null };
   let pas = 0;
@@ -244,7 +279,7 @@ while (mains.length < HANDS && garde++ < HANDS * 6) {
   if (main.verdict && fin.res.net == null) {
     note('F4-resultat-absent', main.i, { verdict: main.verdict });
   }
-  if (main.verdict) mains.push(main);
+  if (main.verdict) mains.push(main); else tentatives.interrompus++;
 
   await page.evaluate(HELPERS);
   await page.evaluate(() => window.__fh.nextHand());
@@ -261,7 +296,7 @@ const issues = {};
 for (const m of mains) issues[m.verdict] = (issues[m.verdict] || 0) + 1;
 const rapport = {
   ts: new Date().toISOString(), url: URL, viewport: { w: W, h: H },
-  mainsCompletes: mains.length, issues,
+  mainsCompletes: mains.length, issues, tentatives,
   ecartsParInvariant: byCode, ecarts: findings.slice(0, 80),
   resultatsNets: mains.map(m => m.resultat && m.resultat.net).filter(v => v != null),
   consoleErrors,
@@ -272,6 +307,7 @@ fs.writeFileSync(OUT, JSON.stringify(rapport, null, 2), 'utf8');
 
 console.log(`\nMains completes jouees : ${mains.length}`);
 console.log('Issues :', JSON.stringify(issues));
+console.log('Tentatives :', JSON.stringify(tentatives));
 console.log('Ecarts par invariant :', JSON.stringify(byCode, null, 1));
 console.log('Erreurs console :', consoleErrors.length);
 console.log('Rapport :', OUT);

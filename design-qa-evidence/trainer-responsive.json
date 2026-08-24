@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T09:47:42.754Z",
+  "ts": "2026-08-24T12:08:12.868Z",
   "url": "http://localhost:7801",
   "mainsParConfig": 4,
   "configurations": [
@@ -12,7 +12,7 @@
       "tables": 1,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 475,
+      "feuillesMesurees": 473,
       "colonnes": [
         {
           "cls": "",
@@ -57,7 +57,7 @@
       "tables": 2,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 586,
+      "feuillesMesurees": 580,
       "colonnes": [
         {
           "cls": "",
@@ -102,7 +102,7 @@
       "tables": 3,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 661,
+      "feuillesMesurees": 694,
       "colonnes": [
         {
           "cls": "",
@@ -147,7 +147,7 @@
       "tables": 4,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 774,
+      "feuillesMesurees": 764,
       "colonnes": [
         {
           "cls": "",
@@ -192,36 +192,8 @@
       "tables": 1,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 483,
-      "colonnes": [
-        {
-          "cls": "",
-          "left": 414,
-          "right": 1046,
-          "w": 632,
-          "flex": "1 1 0%",
-          "minWidth": "0px",
-          "position": "static"
-        },
-        {
-          "cls": "pf-mt-panel-toggle",
-          "left": 1030,
-          "right": 1052,
-          "w": 22,
-          "flex": "0 1 auto",
-          "minWidth": "0px",
-          "position": "absolute"
-        },
-        {
-          "cls": "pf-mt-sharedcol",
-          "left": 1046,
-          "right": 1366,
-          "w": 320,
-          "flex": "0 0 320px",
-          "minWidth": "0px",
-          "position": "static"
-        }
-      ],
+      "feuillesMesurees": 0,
+      "colonnes": null,
       "panneauAutoReplie": false,
       "debordements": [],
       "chevauchements": [],
@@ -237,7 +209,7 @@
       "tables": 2,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 392,
+      "feuillesMesurees": 383,
       "colonnes": [
         {
           "cls": "",
@@ -282,7 +254,7 @@
       "tables": 1,
       "relevés": 4,
       "scrollHorizontal": false,
-      "feuillesMesurees": 267,
+      "feuillesMesurees": 287,
       "colonnes": [
         {
           "cls": "",

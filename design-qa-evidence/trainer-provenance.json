@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T09:34:52.776Z",
+  "ts": "2026-08-24T12:15:17.352Z",
   "url": "http://localhost:7801",
   "viewport": {
     "w": 1920,
@@ -10,314 +10,311 @@
   "summary": {
     "total": 100,
     "bySource": {
-      "heuristic": 96,
-      "solver": 4
+      "heuristic": 95,
+      "solver": 5
     },
     "byFallback": {
-      "street Turn — le moteur ne couvre que le préflop": 7,
-      "148bb > 25bb — hors profondeur résolue": 1,
-      "107bb > 25bb — hors profondeur résolue": 1,
-      "street Flop — le moteur ne couvre que le préflop": 19,
-      "92bb > 25bb — hors profondeur résolue": 2,
-      "street River — le moteur ne couvre que le préflop": 22,
-      "90bb > 25bb — hors profondeur résolue": 1,
-      "59bb > 25bb — hors profondeur résolue": 1,
-      "4 joueur(s) encore dans le coup (BTN, CO, SB, BB) — le moteur est heads-up": 1,
-      "PKO non modélisé — le moteur est chip-EV pur": 7,
-      "88bb > 25bb — hors profondeur résolue": 1,
-      "139bb > 25bb — hors profondeur résolue": 1,
+      "street Flop — le moteur ne couvre que le préflop": 14,
+      "street River — le moteur ne couvre que le préflop": 20,
+      "120bb > 25bb — hors profondeur résolue": 1,
+      "148bb > 25bb — hors profondeur résolue": 2,
       "ICM non modélisé — le moteur est chip-EV pur": 6,
-      "126bb > 25bb — hors profondeur résolue": 1,
-      "100bb > 25bb — hors profondeur résolue": 3,
-      "95bb > 25bb — hors profondeur résolue": 1,
-      "3 joueur(s) encore dans le coup (BB, CO, BTN) — le moteur est heads-up": 2,
-      "4 joueur(s) encore dans le coup (CO, BB, BTN, SB) — le moteur est heads-up": 2,
-      "119bb > 25bb — hors profondeur résolue": 1,
       "50bb > 25bb — hors profondeur résolue": 2,
-      "147bb > 25bb — hors profondeur résolue": 1,
-      "81bb > 25bb — hors profondeur résolue": 1,
-      "133bb > 25bb — hors profondeur résolue": 1,
-      "52bb > 25bb — hors profondeur résolue": 1,
+      "100bb > 25bb — hors profondeur résolue": 6,
+      "PKO non modélisé — le moteur est chip-EV pur": 7,
+      "street Turn — le moteur ne couvre que le préflop": 15,
+      "40bb > 25bb — hors profondeur résolue": 1,
+      "4 joueur(s) encore dans le coup (CO, BB, BTN, SB) — le moteur est heads-up": 1,
+      "106bb > 25bb — hors profondeur résolue": 1,
       "3 joueur(s) encore dans le coup (BTN, BB, SB) — le moteur est heads-up": 1,
-      "75bb > 25bb — hors profondeur résolue": 1,
-      "30bb > 25bb — hors profondeur résolue": 2,
-      "113bb > 25bb — hors profondeur résolue": 1,
-      "80bb > 25bb — hors profondeur résolue": 1,
-      "186bb > 25bb — hors profondeur résolue": 2,
-      "6 joueur(s) encore dans le coup (HJ, UTG, CO, BTN, SB, BB) — le moteur est heads-up": 1,
-      "136bb > 25bb — hors profondeur résolue": 1
+      "105bb > 25bb — hors profondeur résolue": 1,
+      "80bb > 25bb — hors profondeur résolue": 2,
+      "30bb > 25bb — hors profondeur résolue": 3,
+      "128bb > 25bb — hors profondeur résolue": 1,
+      "4 joueur(s) encore dans le coup (BTN, CO, SB, BB) — le moteur est heads-up": 2,
+      "89bb > 25bb — hors profondeur résolue": 2,
+      "119bb > 25bb — hors profondeur résolue": 1,
+      "53bb > 25bb — hors profondeur résolue": 1,
+      "51bb > 25bb — hors profondeur résolue": 1,
+      "131bb > 25bb — hors profondeur résolue": 1,
+      "86bb > 25bb — hors profondeur résolue": 1,
+      "147bb > 25bb — hors profondeur résolue": 1,
+      "116bb > 25bb — hors profondeur résolue": 1
     },
     "byScope": {
-      "turn·2j·ICM": 1,
-      "preflop·3j·chipEV": 16,
-      "preflop·2j·chipEV": 11,
-      "flop·2j·ICM": 3,
-      "river·2j·chipEV": 13,
       "flop·2j·chipEV": 13,
-      "river·2j·ICM": 6,
-      "preflop·5j·chipEV": 1,
-      "preflop·4j·chipEV": 6,
-      "preflop·3j·PKO": 6,
-      "flop·2j·PKO": 3,
-      "turn·2j·chipEV": 6,
-      "preflop·3j·ICM": 4,
+      "river·2j·chipEV": 17,
+      "preflop·2j·chipEV": 13,
       "preflop·4j·ICM": 2,
-      "preflop·2j·ICM": 2,
-      "river·2j·PKO": 3,
+      "preflop·3j·chipEV": 12,
+      "preflop·2j·ICM": 4,
+      "preflop·2j·PKO": 4,
+      "turn·2j·chipEV": 15,
+      "preflop·4j·chipEV": 4,
+      "preflop·5j·chipEV": 3,
+      "river·2j·PKO": 1,
+      "preflop·3j·PKO": 3,
       "preflop·6j·ICM": 1,
-      "preflop·4j·PKO": 1,
-      "preflop·2j·PKO": 1,
-      "preflop·6j·chipEV": 1
+      "preflop·3j·ICM": 2,
+      "flop·2j·ICM": 1,
+      "preflop·6j·PKO": 3,
+      "river·2j·ICM": 2
     }
   },
   "violations": [],
   "engineBySpotType": {
-    "turn · 2j · ICM · 100bb": {
+    "flop · 2j · chipEV · 89bb": {
       "heuristic": 1
     },
-    "preflop · 3j · chipEV · 148bb": {
+    "river · 2j · chipEV · 55bb": {
       "heuristic": 1
     },
-    "preflop · 3j · chipEV · 107bb": {
+    "preflop · 2j · chipEV · 120bb": {
       "heuristic": 1
     },
-    "preflop · 2j · chipEV · 20bb": {
-      "solver": 3
-    },
-    "flop · 2j · ICM · 20bb": {
+    "preflop · 2j · chipEV · 148bb": {
       "heuristic": 1
-    },
-    "preflop · 2j · chipEV · 92bb": {
-      "heuristic": 2
-    },
-    "river · 2j · chipEV · 80bb": {
-      "heuristic": 2
-    },
-    "preflop · 3j · chipEV · 90bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 122bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 103bb": {
-      "heuristic": 1
-    },
-    "river · 2j · ICM · 80bb": {
-      "heuristic": 2
-    },
-    "preflop · 5j · chipEV · 59bb": {
-      "heuristic": 1
-    },
-    "preflop · 4j · chipEV · 25bb": {
-      "heuristic": 1
-    },
-    "river · 2j · chipEV · 64bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · PKO · 15bb": {
-      "heuristic": 2
-    },
-    "flop · 2j · chipEV · 85bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 76bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · PKO · 40bb": {
-      "heuristic": 2
-    },
-    "preflop · 3j · chipEV · 88bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · chipEV · 139bb": {
-      "heuristic": 1
-    },
-    "turn · 2j · chipEV · 65bb": {
-      "heuristic": 1
-    },
-    "river · 2j · chipEV · 100bb": {
-      "heuristic": 2
-    },
-    "preflop · 3j · ICM · 25bb": {
-      "heuristic": 2
-    },
-    "preflop · 2j · chipEV · 126bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · chipEV · 100bb": {
-      "heuristic": 3
-    },
-    "preflop · 3j · chipEV · 95bb": {
-      "heuristic": 1
-    },
-    "river · 2j · ICM · 60bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · ICM · 15bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 145bb": {
-      "heuristic": 1
-    },
-    "river · 2j · chipEV · 68bb": {
-      "heuristic": 1
-    },
-    "turn · 2j · chipEV · 87bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 105bb": {
-      "heuristic": 1
-    },
-    "river · 2j · ICM · 40bb": {
-      "heuristic": 2
-    },
-    "preflop · 3j · chipEV · 20bb": {
-      "heuristic": 2
-    },
-    "flop · 2j · PKO · 60bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 64bb": {
-      "heuristic": 2
     },
     "preflop · 4j · ICM · 12bb": {
       "heuristic": 1
     },
-    "preflop · 4j · chipEV · 20bb": {
+    "preflop · 3j · chipEV · 50bb": {
       "heuristic": 2
     },
-    "preflop · 2j · chipEV · 119bb": {
+    "river · 2j · chipEV · 68bb": {
       "heuristic": 1
     },
-    "river · 2j · chipEV · 69bb": {
+    "preflop · 2j · ICM · 100bb": {
       "heuristic": 1
     },
-    "preflop · 3j · PKO · 20bb": {
+    "flop · 2j · chipEV · 86bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · PKO · 20bb": {
+      "heuristic": 1
+    },
+    "turn · 2j · chipEV · 78bb": {
+      "heuristic": 2
+    },
+    "turn · 2j · chipEV · 100bb": {
       "heuristic": 3
     },
-    "preflop · 2j · ICM · 50bb": {
+    "turn · 2j · chipEV · 79bb": {
       "heuristic": 1
     },
-    "river · 2j · PKO · 25bb": {
+    "preflop · 2j · chipEV · 40bb": {
       "heuristic": 1
     },
-    "river · 2j · chipEV · 52bb": {
-      "heuristic": 1
-    },
-    "preflop · 2j · chipEV · 147bb": {
-      "heuristic": 1
-    },
-    "river · 2j · chipEV · 57bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 68bb": {
-      "heuristic": 1
-    },
-    "flop · 2j · chipEV · 84bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · chipEV · 81bb": {
-      "heuristic": 1
-    },
-    "turn · 2j · chipEV · 88bb": {
-      "heuristic": 1
-    },
-    "river · 2j · PKO · 80bb": {
+    "preflop · 3j · chipEV · 100bb": {
       "heuristic": 2
     },
-    "preflop · 2j · ICM · 12bb": {
+    "river · 2j · chipEV · 42bb": {
+      "heuristic": 2
+    },
+    "turn · 2j · chipEV · 97bb": {
       "heuristic": 1
     },
-    "turn · 2j · chipEV · 56bb": {
+    "preflop · 4j · chipEV · 12bb": {
+      "heuristic": 2
+    },
+    "turn · 2j · chipEV · 51bb": {
       "heuristic": 1
     },
-    "flop · 2j · chipEV · 90bb": {
+    "preflop · 5j · chipEV · 106bb": {
       "heuristic": 1
     },
-    "preflop · 2j · chipEV · 50bb": {
+    "river · 2j · PKO · 60bb": {
       "heuristic": 1
     },
-    "turn · 2j · chipEV · 25bb": {
+    "flop · 2j · chipEV · 150bb": {
       "heuristic": 1
     },
-    "preflop · 3j · chipEV · 133bb": {
+    "turn · 2j · chipEV · 80bb": {
       "heuristic": 1
     },
-    "preflop · 6j · ICM · 12bb": {
+    "preflop · 3j · PKO · 15bb": {
       "heuristic": 1
     },
-    "preflop · 4j · ICM · 52bb": {
+    "flop · 2j · chipEV · 85bb": {
       "heuristic": 1
     },
-    "turn · 2j · chipEV · 66bb": {
+    "preflop · 2j · chipEV · 12bb": {
+      "solver": 2
+    },
+    "flop · 2j · chipEV · 64bb": {
       "heuristic": 1
     },
-    "preflop · 4j · PKO · 20bb": {
+    "preflop · 3j · chipEV · 15bb": {
       "heuristic": 1
     },
-    "flop · 2j · chipEV · 80bb": {
+    "preflop · 6j · ICM · 15bb": {
+      "heuristic": 1
+    },
+    "preflop · 3j · chipEV · 105bb": {
+      "heuristic": 1
+    },
+    "preflop · 3j · ICM · 20bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 25bb": {
+      "heuristic": 2
+    },
+    "preflop · 4j · chipEV · 148bb": {
       "heuristic": 1
     },
     "flop · 2j · ICM · 40bb": {
-      "heuristic": 2
-    },
-    "preflop · 3j · chipEV · 25bb": {
-      "heuristic": 1
-    },
-    "river · 2j · chipEV · 41bb": {
-      "heuristic": 1
-    },
-    "preflop · 2j · chipEV · 75bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · PKO · 25bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · ICM · 30bb": {
-      "heuristic": 1
-    },
-    "preflop · 3j · chipEV · 113bb": {
-      "heuristic": 1
-    },
-    "river · 2j · chipEV · 72bb": {
       "heuristic": 1
     },
     "preflop · 2j · chipEV · 11bb": {
       "solver": 1
     },
-    "river · 2j · ICM · 25bb": {
+    "turn · 2j · chipEV · 25bb": {
+      "heuristic": 1
+    },
+    "turn · 2j · chipEV · 68bb": {
+      "heuristic": 1
+    },
+    "flop · 2j · chipEV · 106bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 48bb": {
       "heuristic": 1
     },
     "preflop · 3j · chipEV · 80bb": {
       "heuristic": 1
     },
-    "preflop · 2j · PKO · 186bb": {
+    "preflop · 3j · chipEV · 30bb": {
       "heuristic": 1
     },
-    "preflop · 4j · chipEV · 30bb": {
+    "flop · 2j · chipEV · 25bb": {
       "heuristic": 1
     },
-    "river · 2j · chipEV · 58bb": {
+    "preflop · 2j · chipEV · 128bb": {
       "heuristic": 1
     },
-    "preflop · 6j · chipEV · 15bb": {
+    "river · 2j · chipEV · 100bb": {
       "heuristic": 1
     },
-    "preflop · 4j · chipEV · 186bb": {
+    "preflop · 6j · PKO · 12bb": {
+      "heuristic": 2
+    },
+    "river · 2j · chipEV · 80bb": {
       "heuristic": 1
     },
-    "flop · 2j · chipEV · 83bb": {
+    "flop · 2j · chipEV · 97bb": {
       "heuristic": 1
     },
-    "river · 2j · chipEV · 25bb": {
+    "preflop · 2j · chipEV · 100bb": {
       "heuristic": 1
     },
-    "preflop · 4j · chipEV · 136bb": {
+    "preflop · 3j · ICM · 25bb": {
+      "heuristic": 1
+    },
+    "preflop · 3j · chipEV · 89bb": {
+      "heuristic": 2
+    },
+    "turn · 2j · chipEV · 66bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · chipEV · 119bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · chipEV · 15bb": {
+      "solver": 2
+    },
+    "preflop · 2j · chipEV · 30bb": {
+      "heuristic": 1
+    },
+    "flop · 2j · chipEV · 95bb": {
+      "heuristic": 1
+    },
+    "turn · 2j · chipEV · 52bb": {
+      "heuristic": 1
+    },
+    "preflop · 5j · chipEV · 53bb": {
+      "heuristic": 1
+    },
+    "flop · 2j · chipEV · 60bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 47bb": {
+      "heuristic": 3
+    },
+    "preflop · 4j · chipEV · 10bb": {
+      "heuristic": 1
+    },
+    "turn · 2j · chipEV · 77bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · chipEV · 80bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 43bb": {
+      "heuristic": 1
+    },
+    "river · 2j · ICM · 60bb": {
+      "heuristic": 1
+    },
+    "flop · 2j · chipEV · 114bb": {
+      "heuristic": 1
+    },
+    "flop · 2j · chipEV · 120bb": {
+      "heuristic": 1
+    },
+    "preflop · 4j · ICM · 30bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · ICM · 51bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 74bb": {
+      "heuristic": 2
+    },
+    "preflop · 3j · chipEV · 131bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · ICM · 12bb": {
+      "heuristic": 1
+    },
+    "turn · 2j · chipEV · 87bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 71bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · ICM · 25bb": {
+      "heuristic": 1
+    },
+    "preflop · 5j · chipEV · 86bb": {
+      "heuristic": 1
+    },
+    "preflop · 6j · PKO · 147bb": {
+      "heuristic": 1
+    },
+    "river · 2j · ICM · 80bb": {
+      "heuristic": 1
+    },
+    "preflop · 3j · PKO · 20bb": {
+      "heuristic": 2
+    },
+    "flop · 2j · chipEV · 90bb": {
+      "heuristic": 1
+    },
+    "preflop · 3j · chipEV · 116bb": {
+      "heuristic": 1
+    },
+    "river · 2j · chipEV · 60bb": {
+      "heuristic": 1
+    },
+    "preflop · 2j · PKO · 100bb": {
+      "heuristic": 2
+    },
+    "preflop · 2j · PKO · 12bb": {
       "heuristic": 1
     }
   },
   "consoleErrors": [],
-  "solverCount": 4,
+  "solverCount": 5,
   "echantillonUnilateral": false,
   "avertissement": null,
   "verdict": "OK — aucune provenance surévaluée"

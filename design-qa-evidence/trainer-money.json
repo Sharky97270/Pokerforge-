@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T09:43:13.767Z",
+  "ts": "2026-08-24T11:57:04.869Z",
   "url": "http://localhost:7801",
   "viewport": {
     "w": 1920,
@@ -10,18 +10,12 @@
   "mainsRelevees": 60,
   "ecartsParInvariant": {},
   "tapisAdverses": {
-    "valeursDistinctes": 92,
-    "profondeursDistinctes": 32
+    "valeursDistinctes": 158,
+    "profondeursDistinctes": 31
   },
   "ecarts": [],
   "experienceSelecteurDeSizing": {
-    "boutonAvant": "Tapis 47bb",
-    "sizingAvant": "47bb",
-    "sizingApresAllIn": "47bb",
-    "potAvant": 43.2,
-    "potApres": 90.2,
-    "deltaPot": 47,
-    "montantAnnonceParLeSelecteur": "47bb"
+    "erreur": "TypeError: Cannot read properties of null (reading 'textContent')"
   },
   "consoleErrors": [],
   "verdict": "OK — aucune incoherence arithmetique relevee"

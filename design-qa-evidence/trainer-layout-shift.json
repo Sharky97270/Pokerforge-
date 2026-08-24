@@ -8,14 +8,13 @@
  "rapport": [
   {
    "mode": "2T",
-   "releves": 25,
+   "releves": 29,
    "ecarts": [],
    "couverture": {
-    "action": 4,
+    "action": 8,
     "resultat": 7,
     "verdictDecision": 7,
-    "solutionOuverte": 3,
-    "raccourciLot": 5
+    "solutionOuverte": 3
    },
    "ref": [
     {
@@ -38,14 +37,14 @@
   },
   {
    "mode": "3T",
-   "releves": 34,
+   "releves": 30,
    "ecarts": [],
    "couverture": {
-    "action": 9,
+    "action": 8,
     "resultat": 7,
     "verdictDecision": 7,
     "solutionOuverte": 3,
-    "raccourciLot": 4
+    "raccourciLot": 3
    },
    "ref": [
     {
@@ -75,14 +74,15 @@
   },
   {
    "mode": "4T",
-   "releves": 31,
+   "releves": 28,
    "ecarts": [],
    "couverture": {
-    "action": 9,
+    "action": 6,
     "resultat": 7,
     "verdictDecision": 7,
     "solutionOuverte": 3,
-    "raccourciLot": 3
+    "coupComplet": 1,
+    "raccourciLot": 5
    },
    "ref": [
     {

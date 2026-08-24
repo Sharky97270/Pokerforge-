@@ -14,7 +14,8 @@
      ⑤ le tapis adverse SUIT le spot (profondeur, filtre, engagement).
    ══════════════════════════════════════════════════════════════════════════ */
 import assert from "node:assert/strict";
-import { trainerHandLedger, auditHandLedger, parseDepthBb, LEDGER_EPSILON } from "./src/trainerHandLedger.js";
+import { trainerHandLedger, auditHandLedger, parseDepthBb, seatDepth,
+  assignSeatStacks, auditSeatStacks, LEDGER_EPSILON } from "./src/trainerHandLedger.js";
 
 let passed = 0;
 const ok = (c, m) => { assert.ok(c, m); passed++; };
@@ -199,6 +200,67 @@ function conserve(l, m) {
   ok(impossibles === 2, `${impossibles} combinaison(s) impossible(s) détectée(s) et signalée(s)`);
   eq(ecarts, 0, "0 écart de conservation, de tapis négatif ou de SPR sur les 20 combinaisons");
   ok(tapisDistincts.size > 20, `${tapisDistincts.size} valeurs de tapis distinctes — plus aucune constante`);
+}
+
+
+/* ── 9. TAPIS INÉGAUX PAR SIÈGE ─────────────────────────────────────────── */
+{
+  /* Le modèle supposait UNE profondeur pour toute la table. À une vraie table,
+     personne n a le même tapis — et le tapis effectif, celui qui décide du SPR,
+     naît précisément de cette inégalité. */
+  const seatStacks = { UTG: 120, HJ: 95, CO: 60, BTN: 40, SB: 75, BB: 40 };
+  const spot = { hpos: "BTN", vpos: "CO", street: "Preflop", stack: "40bb", pot: 4, toCall: 2.5, nplayers: 6, seatStacks };
+  const l = trainerHandLedger({
+    spot, ctx: { preActions: [] }, seatOrder: SEATS6,
+    streetContributions: { SB: 0.5, BB: 1, CO: 2.5 }, pot: 4, seatStates: {}, toCall: 2.5,
+  });
+  near(l.seats.UTG.initial, 120, "UTG part de son propre tapis");
+  near(l.seats.BTN.initial, 40, "Hero part du sien");
+  near(l.seats.CO.initial, 60, "le vilain aussi");
+  near(l.seats.CO.remaining, 57.5, "le vilain qui a ouvert à 2.5bb : 60 − 2.5");
+  near(l.seats.BB.remaining, 39, "la BB : 40 − 1");
+  eq(new Set(SEATS6.map(p => l.seats[p].initial)).size >= 4, true, "les profondeurs initiales DIFFÈRENT d un siège à l autre");
+  conserve(l, "conservation avec des tapis inégaux");
+  /* Le tapis effectif est le plus court des RESTANTS, pas la profondeur d Hero. */
+  near(l.effectiveStack, Math.min(...SEATS6.map(p => l.seats[p].remaining)), "tapis effectif = plus court restant");
+  ok(l.effectiveStack <= 40, "il ne peut pas dépasser le plus petit tapis initial");
+
+  /* Un spot SANS seatStacks garde le comportement d avant : profondeur commune. */
+  const ancien = trainerHandLedger({
+    spot: { ...spot, seatStacks: undefined }, ctx: { preActions: [] }, seatOrder: SEATS6,
+    streetContributions: { SB: 0.5, BB: 1, CO: 2.5 }, pot: 4, seatStates: {}, toCall: 2.5,
+  });
+  eq(new Set(SEATS6.map(p => ancien.seats[p].initial)).size, 1, "sans seatStacks : une seule profondeur, comme avant");
+  eq(seatDepth({ seatStacks }, "CO", 999), 60, "seatDepth lit la table quand elle existe");
+  eq(seatDepth({}, "CO", 999), 999, "et retombe sur la profondeur commune sinon");
+  eq(seatDepth({ seatStacks: { CO: 0 } }, "CO", 999), 999, "une valeur nulle ne met pas un siège à zéro");
+}
+
+/* ── 10. Le filtre « stack effectif » reste tenu ────────────────────────── */
+{
+  /* Contrat : personne sous la profondeur demandée, et AU MOINS UN siège en jeu
+     exactement dessus — sinon le tapis effectif ne vaudrait plus le réglage. */
+  let seed = 424242 >>> 0;
+  const rng = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
+  let tirages = 0, ecarts = 0, inegaux = 0;
+  for (const base of [10, 20, 40, 100, 200]) {
+    for (let t = 0; t < 200; t++) {
+      const s = assignSeatStacks({ positions: SEATS6, effectiveBb: base, heroPos: "BTN", villainPos: "BB", rng });
+      tirages++;
+      if (auditSeatStacks(s, base).length) ecarts++;
+      const vals = SEATS6.map(p => s[p]);
+      if (Math.min(...vals) !== base) ecarts++;
+      if (new Set(vals).size > 1) inegaux++;
+      for (const v of vals) if (v < base) ecarts++;
+    }
+  }
+  eq(tirages, 1000, "1 000 tirages sur 5 profondeurs");
+  eq(ecarts, 0, "0 écart : jamais sous la profondeur, minimum toujours égal au réglage");
+  ok(inegaux > 950, inegaux + " tirages sur 1 000 produisent des tapis RÉELLEMENT inégaux");
+  /* Le garde-fou attrape bien une table qui trahirait le réglage. */
+  ok(auditSeatStacks({ BTN: 55, BB: 60 }, 40).length > 0, "une table dont le minimum dépasse le réglage est refusée");
+  ok(auditSeatStacks({ BTN: 30, BB: 40 }, 40).length > 0, "un siège sous la profondeur est refusé");
+  eq(auditSeatStacks({ BTN: 40, BB: 90 }, 40), [], "une table conforme passe");
 }
 
 console.log(`✅ ledger de main du Trainer (C2) — ${passed} assertions OK`);

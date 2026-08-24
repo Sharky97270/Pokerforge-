@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T09:37:07.936Z",
+  "ts": "2026-08-24T12:15:19.760Z",
   "url": "http://localhost:7801",
   "viewport": {
     "w": 1920,
@@ -14,24 +14,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "BB",
-            "stack": "48",
+            "pos": "HJ",
+            "stack": "111.5",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
           "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "BB",
-            "stack": "48"
+            "pos": "HJ",
+            "stack": "111.5"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "BB",
-            "stack": "48",
+            "pos": "HJ",
+            "stack": "111.5",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -40,13 +40,13 @@
             {
               "t": 1,
               "id": {
-                "pos": "BB",
-                "stack": "48"
+                "pos": "HJ",
+                "stack": "111.5"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Check Réf. 70% Best Move",
+                "meilleure": "Cbet 33% Réf. 60% Impréc",
                 "montreFreq": false,
                 "ditMasquee": false
               }
@@ -54,8 +54,8 @@
             {
               "t": 2,
               "id": {
-                "pos": "CO",
-                "stack": "79.5"
+                "pos": "BTN",
+                "stack": "23"
               },
               "sol": {
                 "repondue": false,
@@ -79,24 +79,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "SB",
-            "stack": "135",
+            "pos": "CO",
+            "stack": "15",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
           "joue": "FoldNe pas jouer",
           "identiteT1": {
-            "pos": "SB",
-            "stack": "135"
+            "pos": "CO",
+            "stack": "15"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "SB",
-            "stack": "135",
+            "pos": "CO",
+            "stack": "15",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -105,13 +105,13 @@
             {
               "t": 1,
               "id": {
-                "pos": "SB",
-                "stack": "135"
+                "pos": "CO",
+                "stack": "15"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Fold Réf. 70% Best Move",
+                "meilleure": "Call Réf. 68% Imprécisio",
                 "montreFreq": false,
                 "ditMasquee": false
               }
@@ -119,8 +119,8 @@
             {
               "t": 2,
               "id": {
-                "pos": "CO",
-                "stack": "62.5"
+                "pos": "BTN",
+                "stack": "25"
               },
               "sol": {
                 "repondue": false,
@@ -133,8 +133,8 @@
             {
               "t": 3,
               "id": {
-                "pos": "BTN",
-                "stack": "84"
+                "pos": "CO",
+                "stack": "20"
               },
               "sol": {
                 "repondue": false,
@@ -158,24 +158,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "HJ",
-            "stack": "100",
+            "pos": "CO",
+            "stack": "125.5",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "FoldNe pas jouer",
+          "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "HJ",
-            "stack": "100"
+            "pos": "CO",
+            "stack": "125.5"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "HJ",
-            "stack": "100",
+            "pos": "CO",
+            "stack": "125.5",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -184,13 +184,13 @@
             {
               "t": 1,
               "id": {
-                "pos": "HJ",
-                "stack": "100"
+                "pos": "CO",
+                "stack": "125.5"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "3-bet 9bb Réf. 75% Erreu",
+                "meilleure": "Cbet 33% Réf. 60% Impréc",
                 "montreFreq": false,
                 "ditMasquee": false
               }
@@ -198,8 +198,8 @@
             {
               "t": 2,
               "id": {
-                "pos": "BB",
-                "stack": "29"
+                "pos": "CO",
+                "stack": "30"
               },
               "sol": {
                 "repondue": false,
@@ -213,7 +213,7 @@
               "t": 3,
               "id": {
                 "pos": "BTN",
-                "stack": "15"
+                "stack": "91.5"
               },
               "sol": {
                 "repondue": false,
@@ -226,8 +226,8 @@
             {
               "t": 4,
               "id": {
-                "pos": "CO",
-                "stack": "12"
+                "pos": "BTN",
+                "stack": "15"
               },
               "sol": {
                 "repondue": false,
