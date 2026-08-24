@@ -8,68 +8,143 @@
  "rapport": [
   {
    "mode": "1T",
-   "ellipseNonApplicable": "ancrage 1T : pas de .pf-seat-avatar-slot",
+   "ancrageEllipse": ".pf-avatar-premium",
    "ellipse": {
-    "sieges": 0,
-    "rho": [],
-    "min": null,
-    "max": null,
-    "moyenne": 0,
-    "ecartType": 0
+    "sieges": 5,
+    "rho": [
+     0.838,
+     0.937,
+     0.897,
+     0.897,
+     0.99
+    ],
+    "detail": [
+     {
+      "pos": "UTG",
+      "hero": false,
+      "rho": 0.838
+     },
+     {
+      "pos": "HJ",
+      "hero": false,
+      "rho": 0.937
+     },
+     {
+      "pos": "CO",
+      "hero": false,
+      "rho": 0.897
+     },
+     {
+      "pos": "BTN",
+      "hero": true,
+      "rho": 0.723
+     },
+     {
+      "pos": "SB",
+      "hero": false,
+      "rho": 0.897
+     },
+     {
+      "pos": "BB",
+      "hero": false,
+      "rho": 0.99
+     }
+    ],
+    "heroExclu": true,
+    "rhoHero": [
+     0.723
+    ],
+    "min": 0.838,
+    "max": 0.99,
+    "moyenne": 0.912,
+    "ecartType": 0.05
    },
-   "heroNonApplicable": "aucun element rendu sous le bloc Hero",
    "hero": {
     "basBlocHero": 673,
-    "airSousHero": null,
-    "premierElement": null
-   },
-   "labels": {
-    "coeurDetecte": 6,
-    "mesures": 40,
-    "chevauchements": 0,
-    "pastilles": 16
+    "airSousHero": 32,
+    "premierElement": "t1-table-area",
+    "reference": "bas de la zone de table (le bandeau d'action est en colonne)"
    },
    "surface": {
     "cellule": {
-     "w": 0,
-     "h": 0
+     "w": 866,
+     "h": 811
     },
     "feutre": {
      "w": 710,
      "h": 418
     },
-    "tauxLargeur": null,
-    "tauxHauteur": null,
-    "tauxSurface": null
-   }
+    "tauxLargeur": 82,
+    "tauxHauteur": 52,
+    "tauxSurface": 42
+   },
+   "labels": {
+    "coeurDetecte": 6,
+    "mesures": 37,
+    "chevauchements": 0,
+    "pastilles": 13
+   },
+   "mesuresManquantes": [],
+   "conforme": true
   },
   {
    "mode": "2T",
+   "ancrageEllipse": ".pf-seat-avatar-slot",
    "ellipse": {
-    "sieges": 6,
+    "sieges": 5,
     "rho": [
      0.93,
      0.93,
      0.9,
      0.93,
-     0.93,
+     0.93
+    ],
+    "detail": [
+     {
+      "pos": "UTG",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "HJ",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "CO",
+      "hero": false,
+      "rho": 0.9
+     },
+     {
+      "pos": "BTN",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "SB",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "BB",
+      "hero": true,
+      "rho": 0.9
+     }
+    ],
+    "heroExclu": true,
+    "rhoHero": [
      0.9
     ],
     "min": 0.9,
     "max": 0.93,
-    "moyenne": 0.92,
-    "ecartType": 0.014
+    "moyenne": 0.924,
+    "ecartType": 0.012
    },
    "hero": {
-    "basBlocHero": 639,
-    "airSousHero": 98,
-    "premierElement": "mtr-actions"
-   },
-   "labels": {
-    "coeurDetecte": 10,
-    "mesures": 176,
-    "chevauchements": 0,
-    "pastilles": 80
+    "basBlocHero": 641,
+    "airSousHero": 83,
+    "premierElement": "mtr-actions",
+    "reference": "premier élément rendu sous Hero"
    },
    "surface": {
     "cellule": {
@@ -83,35 +158,74 @@
     "tauxLargeur": 94,
     "tauxHauteur": 30,
     "tauxSurface": 28
-   }
+   },
+   "labels": {
+    "coeurDetecte": 8,
+    "mesures": 164,
+    "chevauchements": 0,
+    "pastilles": 68
+   },
+   "mesuresManquantes": [],
+   "conforme": true
   },
   {
    "mode": "3T",
+   "ancrageEllipse": ".pf-seat-avatar-slot",
    "ellipse": {
-    "sieges": 6,
+    "sieges": 5,
     "rho": [
-     0.93,
-     0.93,
      0.9,
      0.93,
      0.93,
+     0.93,
+     0.93
+    ],
+    "detail": [
+     {
+      "pos": "UTG",
+      "hero": false,
+      "rho": 0.9
+     },
+     {
+      "pos": "HJ",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "CO",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "BTN",
+      "hero": true,
+      "rho": 0.9
+     },
+     {
+      "pos": "SB",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "BB",
+      "hero": false,
+      "rho": 0.93
+     }
+    ],
+    "heroExclu": true,
+    "rhoHero": [
      0.9
     ],
     "min": 0.9,
     "max": 0.93,
-    "moyenne": 0.92,
-    "ecartType": 0.014
+    "moyenne": 0.924,
+    "ecartType": 0.012
    },
    "hero": {
-    "basBlocHero": 408,
-    "airSousHero": 11,
-    "premierElement": "mtr-actions"
-   },
-   "labels": {
-    "coeurDetecte": 18,
-    "mesures": 264,
-    "chevauchements": 0,
-    "pastilles": 120
+    "basBlocHero": 410,
+    "airSousHero": 10,
+    "premierElement": "mtr-actions",
+    "reference": "premier élément rendu sous Hero"
    },
    "surface": {
     "cellule": {
@@ -125,35 +239,74 @@
     "tauxLargeur": 73,
     "tauxHauteur": 46,
     "tauxSurface": 34
-   }
+   },
+   "labels": {
+    "coeurDetecte": 12,
+    "mesures": 262,
+    "chevauchements": 0,
+    "pastilles": 118
+   },
+   "mesuresManquantes": [],
+   "conforme": true
   },
   {
    "mode": "4T",
+   "ancrageEllipse": ".pf-seat-avatar-slot",
    "ellipse": {
-    "sieges": 6,
+    "sieges": 5,
     "rho": [
-     0.9,
      0.93,
      0.93,
      0.9,
      0.93,
      0.93
     ],
+    "detail": [
+     {
+      "pos": "UTG",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "HJ",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "CO",
+      "hero": false,
+      "rho": 0.9
+     },
+     {
+      "pos": "BTN",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "SB",
+      "hero": false,
+      "rho": 0.93
+     },
+     {
+      "pos": "BB",
+      "hero": true,
+      "rho": 0.9
+     }
+    ],
+    "heroExclu": true,
+    "rhoHero": [
+     0.9
+    ],
     "min": 0.9,
     "max": 0.93,
-    "moyenne": 0.92,
-    "ecartType": 0.014
+    "moyenne": 0.924,
+    "ecartType": 0.012
    },
    "hero": {
-    "basBlocHero": 402,
-    "airSousHero": 18,
-    "premierElement": "mtr-actions"
-   },
-   "labels": {
-    "coeurDetecte": 27,
-    "mesures": 352,
-    "chevauchements": 0,
-    "pastilles": 160
+    "basBlocHero": 404,
+    "airSousHero": 17,
+    "premierElement": "mtr-actions",
+    "reference": "premier élément rendu sous Hero"
    },
    "surface": {
     "cellule": {
@@ -167,7 +320,15 @@
     "tauxLargeur": 70,
     "tauxHauteur": 46,
     "tauxSurface": 32
-   }
+   },
+   "labels": {
+    "coeurDetecte": 16,
+    "mesures": 314,
+    "chevauchements": 0,
+    "pastilles": 122
+   },
+   "mesuresManquantes": [],
+   "conforme": true
   }
  ]
 }

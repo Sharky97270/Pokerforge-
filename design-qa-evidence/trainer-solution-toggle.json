@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-21T02:07:23.580Z",
+  "ts": "2026-08-24T23:02:42.448Z",
   "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
@@ -14,24 +14,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "CO",
-            "stack": "130",
+            "pos": "BB",
+            "stack": "47.9",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "Check0bbPasser",
+          "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "CO",
-            "stack": "130"
+            "pos": "BB",
+            "stack": "47.9"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "CO",
-            "stack": "130",
+            "pos": "BB",
+            "stack": "47.9",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -40,14 +40,14 @@
             {
               "t": 1,
               "id": {
-                "pos": "CO",
-                "stack": "130"
+                "pos": "BB",
+                "stack": "47.9"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Check GTO 65% Exploit 65",
-                "montreFreq": true,
+                "meilleure": "Check Réf. 70% Best Move",
+                "montreFreq": false,
                 "ditMasquee": false
               }
             },
@@ -55,7 +55,7 @@
               "t": 2,
               "id": {
                 "pos": "BB",
-                "stack": "74"
+                "stack": "184"
               },
               "sol": {
                 "repondue": false,
@@ -79,24 +79,24 @@
           "etape": "solution masquée, table 1 répondue",
           "etat": "masquee",
           "panneau": {
-            "pos": "BTN",
-            "stack": "65",
+            "pos": "CO",
+            "stack": "54.9",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "Check0bbPasser",
+          "joue": "CheckPasser sans",
           "identiteT1": {
-            "pos": "BTN",
-            "stack": "65"
+            "pos": "CO",
+            "stack": "54.9"
           }
         },
         {
           "etape": "solution affichée",
           "etat": "affichee",
           "panneau": {
-            "pos": "BTN",
-            "stack": "65",
+            "pos": "CO",
+            "stack": "54.9",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -105,14 +105,14 @@
             {
               "t": 1,
               "id": {
-                "pos": "BTN",
-                "stack": "65"
+                "pos": "CO",
+                "stack": "54.9"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Bet PSB GTO 75% Exploit",
-                "montreFreq": true,
+                "meilleure": "Check Réf. 60% Best Move",
+                "montreFreq": false,
                 "ditMasquee": false
               }
             },
@@ -120,7 +120,7 @@
               "t": 2,
               "id": {
                 "pos": "BB",
-                "stack": "90"
+                "stack": "19"
               },
               "sol": {
                 "repondue": false,
@@ -134,7 +134,7 @@
               "t": 3,
               "id": {
                 "pos": "BTN",
-                "stack": "10"
+                "stack": "100"
               },
               "sol": {
                 "repondue": false,
@@ -159,15 +159,15 @@
           "etat": "masquee",
           "panneau": {
             "pos": "BTN",
-            "stack": "80",
+            "stack": "11",
             "verrouille": true,
             "montreFreq": false,
             "montreEvOptimale": false
           },
-          "joue": "Check0bbPasser",
+          "joue": "FoldNe pas jouer",
           "identiteT1": {
             "pos": "BTN",
-            "stack": "80"
+            "stack": "11"
           }
         },
         {
@@ -175,7 +175,7 @@
           "etat": "affichee",
           "panneau": {
             "pos": "BTN",
-            "stack": "80",
+            "stack": "11",
             "verrouille": false,
             "montreFreq": true,
             "montreEvOptimale": true
@@ -185,21 +185,21 @@
               "t": 1,
               "id": {
                 "pos": "BTN",
-                "stack": "80"
+                "stack": "11"
               },
               "sol": {
                 "repondue": true,
                 "montreMeilleure": true,
-                "meilleure": "Bet 50% GTO 35% Exploit",
-                "montreFreq": true,
+                "meilleure": "Shove 11bb Réf. 90% Blun",
+                "montreFreq": false,
                 "ditMasquee": false
               }
             },
             {
               "t": 2,
               "id": {
-                "pos": "UTG",
-                "stack": "100"
+                "pos": "BTN",
+                "stack": "54.4"
               },
               "sol": {
                 "repondue": false,
@@ -212,8 +212,8 @@
             {
               "t": 3,
               "id": {
-                "pos": "BB",
-                "stack": "110"
+                "pos": "BTN",
+                "stack": "75"
               },
               "sol": {
                 "repondue": false,
@@ -226,8 +226,8 @@
             {
               "t": 4,
               "id": {
-                "pos": "CO",
-                "stack": "15"
+                "pos": "BTN",
+                "stack": "79"
               },
               "sol": {
                 "repondue": false,

@@ -156,7 +156,16 @@ export function pushFoldDomain(spot) {
 
   // Heads-up STRICT : exactement deux joueurs encore susceptibles d'engager des jetons.
   if (live.length !== 2) {
-    reasons.push(`${live.length} joueur(s) encore dans le coup (${live.join(", ") || "—"}) — le moteur est heads-up`);
+    /* « le moteur est heads-up » était devenu ambigu : depuis que le moteur de
+       COUP COMPLET joue N joueurs, la phrase se lisait comme une contre-vérité.
+       Le modèle push/fold, lui, reste heads-up.
+
+       ⚠ Cette phrase est AFFICHÉE : elle passe par `assertNoOverclaim`, qui
+       interdit « nash », « gto », « équilibre », « solveur » et « exact » hors
+       du domaine certifié. Écrire « le solveur push/fold » ici faisait échouer
+       le garde-fou — à raison : la raison d'un refus ne doit pas revendiquer
+       ce qu'elle refuse justement de fournir. */
+    reasons.push(`${live.length} joueur(s) encore dans le coup (${live.join(", ") || "—"}) — ce modèle ne couvre que le heads-up`);
   } else if (!(live.includes("SB") && live.includes("BB"))) {
     // Deux joueurs mais pas la structure de blindes du modèle (ex. BTN vs BB après
     // fold de SB : Hero n'a rien posté, le risque de jam n'est pas −0.5bb).

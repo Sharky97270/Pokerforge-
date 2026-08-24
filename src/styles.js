@@ -841,11 +841,36 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .pf-p2-irow .k{font-family:'Inter',sans-serif;font-size:12px;color:#8090a5;}
 .pf-p2-irow .v{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:700;}
 /* Timeline */
+/* ── PIED DE PANNEAU : INFORMATIONS + TIMELINE, ÉPINGLÉS ENSEMBLE (C14) ─────
+   La TIMELINE portait seule le « sticky bottom ». Quand le panneau débordait —
+   systématiquement à 1366×768 — elle restait en bas pendant que le bloc
+   INFORMATIONS glissait DESSOUS : 3 chevauchements mesurés et « Pot Odds »,
+   « SPR », « Difficulté » sous le bord de la fenêtre.
+
+   Les deux blocs forment maintenant un seul pied. Ce sont les sections hautes
+   qui défilent — l'ordre de priorité de lecture, pas l'inverse. */
+.pf-p2-footer{
+  margin-top:auto;position:sticky;bottom:0;z-index:5;flex-shrink:0;
+  display:flex;flex-direction:column;gap:12px;
+  padding-top:10px;
+  background:linear-gradient(180deg,rgba(3,13,42,.72),#030D2A 26%);
+  border-top:1px solid rgba(18,48,76,.8);
+}
 .pf-p2-tl{
-  margin-top:auto;gap:8px;position:sticky;bottom:0;z-index:5;
+  gap:8px;
   padding-top:10px!important;padding-bottom:8px!important;
-  background:linear-gradient(180deg,rgba(3,13,42,.72),#030D2A 38%);
   border-top:1px solid rgba(18,48,76,.8)!important;
+}
+/* Écran court : le bloc INFORMATIONS passe en deux colonnes. Sept lignes
+   empilées coûtent 184 px de haut ; en grille elles en coûtent la moitié, et
+   Stack Hero / Tapis effectif / Pot / Pot Odds / SPR restent tous lisibles
+   sans défilement. */
+@media (max-height:860px){
+  .pf-p2-footer{gap:8px;padding-top:7px;}
+  .pf-p2-info{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;}
+  .pf-p2-footer .pf-p2-sec{gap:5px;padding-bottom:7px;}
+  .pf-p2-irow .k{font-size:11px;}
+  .pf-p2-irow .v{font-size:11.5px;}
 }
 .pf-p2-tl-track{height:6px;border-radius:20px;background:#0b2238;overflow:hidden;}
 .pf-p2-tl-track i{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,#0878FF,#00D9FF);box-shadow:0 0 8px rgba(0,217,255,.4);}
@@ -978,6 +1003,16 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 .t1-left .pf-player-seat .pf-multiway-chip{
   position:absolute;bottom:-11px;left:50%;transform:translateX(-50%);
   margin-top:0!important;white-space:nowrap;z-index:3;
+}
+/* ── LE BADGE D'UN SIÈGE HAUT S'ÉLOIGNE DU CENTRE (C14) ─────────────────────
+   Ancré sous le siège, il pointe vers le pot. Pour les sièges du haut de
+   l'anneau — ceux que la classe « pf-seat-inverted » désigne déjà — cela le
+   pousse DANS la lecture du pot dès que la fenêtre est courte : mesuré à
+   1366×768, « Fold » recouvrait « POT » sur 19×2 px. Il passe au-dessus du
+   siège, du côté opposé au feutre. Aucune géométrie de table n'est touchée. */
+.t1-left .pf-player-seat.pf-seat-inverted .pf-fold-chip,
+.t1-left .pf-player-seat.pf-seat-inverted .pf-multiway-chip{
+  bottom:auto;top:-11px;
 }
 /* Trainer 1T — PLAQUE SUR UNE LIGNE pour les sièges NON-Hero (desktop).
    Le budget vertical de l'anneau des mises est saturé, structurellement : la
@@ -2844,7 +2879,18 @@ body::before{
   filter:drop-shadow(0 9px 22px rgba(0,0,0,.72)) drop-shadow(0 0 18px rgba(31,139,255,.18));
 }
 .pf-pot-chip-stack{position:relative;width:64px;height:38px;margin-bottom:-3px;}
-.pf-pot-chip-stack span{
+/* ── UNE RÈGLE HÉRITÉE NE DOIT PAS CAPTURER LE NOUVEAU RENDU (C15) ──────────
+   Ce sélecteur visait les jetons du PREMIER rendu du pot, de simples <span>
+   enfants directs. Le rendu actuel (PotChipDisplay) place à cet endroit un
+   <span class="pf-pot-chip-cluster"> : il matchait donc lui aussi, héritait de
+   « position:absolute » et de « width:25px », et sortait du flux. Conséquence
+   mesurée à toutes les résolutions : le conteneur du pot tombait à 0 px de
+   large et la pile de jetons se peignait PAR-DESSUS le libellé « POT »
+   (14×12 px à 1366, 6×9 px sur mobile, plus un jeton de fold sur la valeur).
+
+   On restreint la règle héritée à ce qu'elle visait : les jetons du rendu
+   legacy, à l'exclusion du conteneur v2. */
+.pf-pot-chip-stack:not(.pf-pot-chip-stack-v2)>span:not(.pf-pot-chip-cluster){
   position:absolute;bottom:calc(var(--i)*3px);left:calc(50% - 12px + (var(--i) - 3)*4px);
   width:25px;height:25px;border-radius:50%;
   background:
@@ -5825,8 +5871,12 @@ export const CSS_TABLE=`
   .pf-player-seat[data-mode="1T"] .seat-card-stack{font-size:8px!important;}
   .pf-player-seat[data-mode="1T"] .seat-card-stats{display:none!important;}
   .pf-player-seat[data-mode="1T"] .pf-seat-hero-chip{font-size:7.5px!important;padding:1px 5px!important;margin-top:-5px!important;margin-bottom:1px!important;}
+  /* Le badge d'un siège couché descendait jusqu'au bord du bloc « POT » : la
+     mesure donnait 0,5 px de marge, c'est-à-dire un recouvrement dès que le
+     tirage change. Il est purement informatif — on lui rend sa place plutôt
+     que de déplacer la lecture du pot, qui, elle, est de la géométrie validée. */
   .pf-player-seat[data-mode="1T"] .pf-fold-chip,
-  .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:7.5px!important;padding:1px 5px!important;margin-top:1px!important;}
+  .pf-player-seat[data-mode="1T"] .pf-multiway-chip{font-size:7px!important;padding:0 4px!important;margin-top:0!important;line-height:1.5!important;}
 
   /* Cartes HERO agrandies ~+50% (26×36 → 40×56) : lisibles, dominantes vs board/villains (§3). */
   .card-1t-hero-mobile{width:40px!important;height:56px!important;border-radius:6px!important;}

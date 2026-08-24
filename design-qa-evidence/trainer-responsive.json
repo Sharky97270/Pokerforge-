@@ -1,0 +1,306 @@
+{
+  "ts": "2026-08-24T23:07:37.682Z",
+  "url": "http://localhost:7799",
+  "mainsParConfig": 3,
+  "configurations": [
+    {
+      "config": "1920x1080-1T",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "tables": 1,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 466,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 414,
+          "right": 1600,
+          "w": 1186,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        },
+        {
+          "cls": "pf-mt-panel-toggle",
+          "left": 1584,
+          "right": 1606,
+          "w": 22,
+          "flex": "0 1 auto",
+          "minWidth": "0px",
+          "position": "absolute"
+        },
+        {
+          "cls": "pf-mt-sharedcol",
+          "left": 1600,
+          "right": 1920,
+          "w": 320,
+          "flex": "0 0 320px",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": false,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    },
+    {
+      "config": "1920x1080-2T",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "tables": 2,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 590,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 414,
+          "right": 1600,
+          "w": 1186,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        },
+        {
+          "cls": "pf-mt-panel-toggle",
+          "left": 1584,
+          "right": 1606,
+          "w": 22,
+          "flex": "0 1 auto",
+          "minWidth": "0px",
+          "position": "absolute"
+        },
+        {
+          "cls": "pf-mt-sharedcol",
+          "left": 1600,
+          "right": 1920,
+          "w": 320,
+          "flex": "0 0 320px",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": false,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    },
+    {
+      "config": "1920x1080-3T",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "tables": 3,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 655,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 414,
+          "right": 1600,
+          "w": 1186,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        },
+        {
+          "cls": "pf-mt-panel-toggle",
+          "left": 1584,
+          "right": 1606,
+          "w": 22,
+          "flex": "0 1 auto",
+          "minWidth": "0px",
+          "position": "absolute"
+        },
+        {
+          "cls": "pf-mt-sharedcol",
+          "left": 1600,
+          "right": 1920,
+          "w": 320,
+          "flex": "0 0 320px",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": false,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    },
+    {
+      "config": "1920x1080-4T",
+      "viewport": {
+        "w": 1920,
+        "h": 1080
+      },
+      "tables": 4,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 779,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 414,
+          "right": 1600,
+          "w": 1186,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        },
+        {
+          "cls": "pf-mt-panel-toggle",
+          "left": 1584,
+          "right": 1606,
+          "w": 22,
+          "flex": "0 1 auto",
+          "minWidth": "0px",
+          "position": "absolute"
+        },
+        {
+          "cls": "pf-mt-sharedcol",
+          "left": 1600,
+          "right": 1920,
+          "w": 320,
+          "flex": "0 0 320px",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": false,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    },
+    {
+      "config": "1366x768-1T",
+      "viewport": {
+        "w": 1366,
+        "h": 768
+      },
+      "tables": 1,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 483,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 414,
+          "right": 1046,
+          "w": 632,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        },
+        {
+          "cls": "pf-mt-panel-toggle",
+          "left": 1030,
+          "right": 1052,
+          "w": 22,
+          "flex": "0 1 auto",
+          "minWidth": "0px",
+          "position": "absolute"
+        },
+        {
+          "cls": "pf-mt-sharedcol",
+          "left": 1046,
+          "right": 1366,
+          "w": 320,
+          "flex": "0 0 320px",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": false,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    },
+    {
+      "config": "1366x768-2T",
+      "viewport": {
+        "w": 1366,
+        "h": 768
+      },
+      "tables": 2,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 373,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 244,
+          "right": 1046,
+          "w": 802,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        },
+        {
+          "cls": "pf-mt-panel-toggle",
+          "left": 1030,
+          "right": 1052,
+          "w": 22,
+          "flex": "0 1 auto",
+          "minWidth": "0px",
+          "position": "absolute"
+        },
+        {
+          "cls": "pf-mt-sharedcol",
+          "left": 1046,
+          "right": 1366,
+          "w": 320,
+          "flex": "0 0 320px",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": true,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    },
+    {
+      "config": "390x844-mobile-1T",
+      "viewport": {
+        "w": 390,
+        "h": 844
+      },
+      "tables": 1,
+      "relevés": 3,
+      "scrollHorizontal": false,
+      "feuillesMesurees": 285,
+      "colonnes": [
+        {
+          "cls": "",
+          "left": 0,
+          "right": 390,
+          "w": 390,
+          "flex": "1 1 0%",
+          "minWidth": "0px",
+          "position": "static"
+        }
+      ],
+      "panneauAutoReplie": false,
+      "debordements": [],
+      "chevauchements": [],
+      "lignesRognees": [],
+      "conforme": true
+    }
+  ],
+  "consoleErrors": [],
+  "verdict": "OK — aucun debordement, aucun chevauchement, aucune ligne rognee"
+}

@@ -1,0 +1,28 @@
+{
+  "ts": "2026-08-24T22:45:54.177Z",
+  "url": "http://localhost:7799",
+  "viewport": {
+    "w": 1366,
+    "h": 768
+  },
+  "tables": 1,
+  "stackFiltre": "(par defaut)",
+  "mainsRelevees": 25,
+  "ecartsParInvariant": {},
+  "tapisAdverses": {
+    "valeursDistinctes": 83,
+    "profondeursDistinctes": 20
+  },
+  "ecarts": [],
+  "experienceSelecteurDeSizing": {
+    "boutonAvant": "3-Bet 6bb",
+    "sizingAvant": "6bb",
+    "sizingApresAllIn": "81bb",
+    "potAvant": 4.5,
+    "potApres": 84.5,
+    "deltaPot": 80,
+    "montantAnnonceParLeSelecteur": "81bb"
+  },
+  "consoleErrors": [],
+  "verdict": "OK — aucune incoherence arithmetique relevee"
+}

@@ -114,3 +114,88 @@ export function assertPotConsistency({
   }
   return problems;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   carriedLineForPostflopSpot — LE POT REPORTÉ DEVIENT UNE SOMME CONNUE
+
+   Un spot postflop n'exposait que son POT d'entrée, tiré au hasard et sans
+   rapport avec une séquence jouable. Le ledger devait donc RÉPARTIR ce pot
+   entre les joueurs — à parts égales faute de mieux. La somme était exacte,
+   l'attribution était une hypothèse.
+
+   Ici on fait l'inverse : on construit d'abord la SÉQUENCE qui a produit le
+   pot, et le pot en découle. On sait alors, sans rien supposer, combien chaque
+   siège a engagé.
+
+   Le modèle est celui que le Trainer joue : heads-up à l'arrivée, les autres
+   sièges ayant abandonné avant. Leurs blindes restent dans le pot — c'est la
+   part « morte », la seule qu'on ne peut rattacher à personne, et c'est
+   précisément elle que la répartition à parts égales faisait disparaître.
+
+       pot = blindesMortes + 2 × engagementParJoueur
+
+   `targetPot` est une CIBLE, pas une contrainte : le pot rendu est celui que
+   la séquence produit réellement, au demi-blind près.
+   ══════════════════════════════════════════════════════════════════════════ */
+export const CARRIED_STEP = 0.5;
+const roundStepPot = v => Math.round((num(v) / CARRIED_STEP)) * CARRIED_STEP;
+
+export function carriedLineForPostflopSpot({
+  street = "Flop", hpos = null, vpos = null, seats = [],
+  targetPot = 0, blinds = { SB: 0.5, BB: 1 }, openTo = 2.5,
+} = {}) {
+  if (!hpos || !vpos || hpos === vpos) return null;
+  const cible = Math.max(0, num(targetPot));
+
+  /* Blindes des sièges qui ne sont plus dans le coup : mortes, mais dans le pot. */
+  const morts = {};
+  let dead = 0;
+  for (const p of seats) {
+    if (p === hpos || p === vpos) continue;
+    const b = num(blinds[p]);
+    if (b > 0) { morts[p] = roundPot(b); dead = roundPot(dead + b); }
+  }
+
+  /* Engagement de CHAQUE joueur encore en jeu. Il ne peut pas descendre sous
+     l'ouverture préflop : sans ça, la séquence ne serait pas jouable. */
+  const brut = (cible - dead) / 2;
+  const parJoueur = Math.max(roundStepPot(openTo), roundStepPot(brut));
+  const pot = roundPot(dead + 2 * parJoueur);
+
+  /* Répartition sur les streets antérieures : le préflop porte l'ouverture, le
+     reste se répartit sur les streets déjà jouées. Chacune est SUIVIE — c'est
+     ce qui permet au coup d'arriver jusqu'ici. */
+  const rang = { flop: 1, turn: 2, river: 3 };
+  const nStreets = rang[String(street).toLowerCase()] || 1;   // streets d'action AVANT celle-ci
+  const preflop = Math.min(parJoueur, roundStepPot(openTo));
+  const reste = roundStepPot(parJoueur - preflop);
+  const parStreet = [];
+  let distribue = 0;
+  for (let i = 0; i < nStreets; i++) {
+    const part = i === nStreets - 1 ? roundPot(reste - distribue) : roundStepPot(reste / nStreets);
+    parStreet.push(Math.max(0, part));
+    distribue = roundPot(distribue + Math.max(0, part));
+  }
+
+  const NOMS = ["Préflop", "Flop", "Turn"];
+  const actions = [];
+  const pousse = (position, actionType, amountBb, s) =>
+    actions.push({ position, actionType, amountBb: roundPot(amountBb), street: s });
+  for (const p of Object.keys(morts)) pousse(p, "FOLD", 0, "Préflop");
+  pousse(vpos, "RAISE", preflop, "Préflop");
+  pousse(hpos, "CALL", preflop, "Préflop");
+  parStreet.forEach((m, i) => {
+    if (!(m > 0)) return;
+    const nom = NOMS[i + 1] || NOMS[NOMS.length - 1];
+    pousse(vpos, "BET", m, nom);
+    pousse(hpos, "CALL", m, nom);
+  });
+
+  const committed = { [hpos]: parJoueur, [vpos]: parJoueur, ...morts };
+  return {
+    pot, dead, parJoueur, committed, actions,
+    parStreet, preflop,
+    /* Contrôle interne : la somme des engagements EST le pot. */
+    coherent: Math.abs(roundPot(Object.values(committed).reduce((a, v) => a + v, 0)) - pot) <= POT_EPSILON,
+  };
+}

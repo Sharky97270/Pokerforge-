@@ -47,3 +47,51 @@ export function eval7i(cards){
   }
   return best;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   evalBestI — MEILLEURE MAIN DE 5 PARMI 5, 6 OU 7 CARTES (abstraction unique)
+
+   POURQUOI CETTE FONCTION EXISTE
+   `eval7i` boucle sur les indices 0..6 et retire deux cartes. Appelée avec 5
+   cartes (flop) ou 6 (turn), les indices manquants valent `undefined` ; or
+   `undefined>>2 === 0` et `undefined&3 === 0` : CHAQUE CARTE ABSENTE DEVIENT
+   UN 2♠. Le Vilain du Full Hand évaluait ainsi sa main plus deux 2 de pique
+   imaginaires — 95,7 % des flops et 39,8 % des turns mesurés étaient faussés,
+   avec des couleurs à pique et des paires de 2 qui n'existent pas.
+
+   La règle est donc : une seule porte d'entrée, qui REFUSE explicitement toute
+   longueur invalide au lieu de la tolérer. Un board incomplet est un bug
+   d'appelant, pas une main plus faible.
+   ══════════════════════════════════════════════════════════════════════════ */
+export const EVAL_MIN_CARDS = 5;
+export const EVAL_MAX_CARDS = 7;
+
+export function evalBestI(cards){
+  if(!Array.isArray(cards))throw new TypeError("evalBestI : tableau de cartes attendu");
+  const n=cards.length;
+  if(n<EVAL_MIN_CARDS||n>EVAL_MAX_CARDS)
+    throw new RangeError(`evalBestI : ${n} carte(s) — seules 5, 6 ou 7 sont évaluables`);
+  for(let i=0;i<n;i++){
+    const c=cards[i];
+    if(!Number.isInteger(c)||c<0||c>51)
+      throw new RangeError(`evalBestI : carte ${i} invalide (${String(c)}) — entier 0..51 attendu`);
+  }
+  if(n===5)return eval5i(cards);
+  if(n===7)return eval7i(cards);
+  /* 6 cartes : meilleure des 6 combinaisons de 5. */
+  let best=-1;
+  for(let skip=0;skip<n;skip++){
+    const five=[];
+    for(let k=0;k<n;k++)if(k!==skip)five.push(cards[k]);
+    const s=eval5i(five);
+    if(s>best)best=s;
+  }
+  return best;
+}
+
+/* Catégorie de main (0 = hauteur … 8 = quinte flush) déduite d'un score. */
+export const HAND_CATEGORY_COUNT = 9;
+export function handCategoryOf(score){
+  if(!Number.isFinite(score)||score<0)return -1;
+  return Math.floor(score/Math.pow(15,5));
+}
