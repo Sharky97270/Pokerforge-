@@ -102,20 +102,47 @@ try {
       const fx = F.x + F.width / 2, fy = F.y + F.height / 2;
 
       /* ① ρ par siège — centre du MÉDAILLON, pas du bloc.
-         `.pf-seat-avatar-slot` n'existe qu'en mosaïque (ancrage par le centre
-         de l'avatar, §7). En 1T on le DIT plutôt que de faire semblant. */
-      const slots = [...table.querySelectorAll('.pf-seat-avatar-slot')].filter(vis);
-      if (!slots.length) o.ellipseNonApplicable = 'ancrage 1T : pas de .pf-seat-avatar-slot';
-      const rhos = slots.map(e => {
+         `.pf-seat-avatar-slot` n'existe qu'en mosaïque. Le 1T pose bien des
+         médaillons, sous une autre classe : `.pf-avatar-premium`. L'ancienne
+         version déclarait « non mesurable » et validait — alors que la mesure
+         était possible, juste sous un autre sélecteur. On nomme l'ancrage
+         utilisé au lieu de renoncer. */
+      let ancrage = '.pf-seat-avatar-slot';
+      let slots = [...table.querySelectorAll('.pf-seat-avatar-slot')].filter(vis);
+      if (!slots.length) {
+        ancrage = '.pf-avatar-premium';
+        slots = [...table.querySelectorAll('.pf-avatar-premium')].filter(vis);
+      }
+      o.ancrageEllipse = ancrage;
+      if (!slots.length) o.ellipseNonMesuree = 'aucun médaillon trouvé (ni .pf-seat-avatar-slot ni .pf-avatar-premium)';
+      /* Chaque médaillon porte sa position et son rôle : sans eux, un ρ isolé
+         ne dit pas s'il s'agit d'un siège de l'anneau ou du Hero, qui n'obéit
+         pas à la même règle. */
+      const mesuresRho = slots.map(e => {
         const r = e.getBoundingClientRect();
         const dx = (r.x + r.width / 2 - fx) / (F.width / 2);
         const dy = (r.y + r.height / 2 - fy) / (F.height / 2);
-        return Math.round(Math.hypot(dx, dy) * 1000) / 1000;
+        const siege = e.closest('.pf-player-seat, .pf-mt-seat');
+        const pos = siege ? (siege.getAttribute('data-seat') || '?') : '?';
+        const estHero = /\bhero\b/.test(e.className || '')
+          || !!(siege && siege.querySelector('.pf-seat-hero-chip'));
+        return { pos, hero: estHero, rho: Math.round(Math.hypot(dx, dy) * 1000) / 1000 };
       });
+      /* ── LA RÈGLE DE L'ELLIPSE NE GOUVERNE PAS LE HERO ────────────────────
+         §7 dit que les avatars se posent sur UNE MÊME ellipse. Le bloc Hero,
+         lui, est volontairement tiré vers l'intérieur en 1T : ses cartes et sa
+         plaque doivent tenir SOUS lui (`translate(-50%,-58%)` du siège bas).
+         Le mesurer avec les autres produirait un écart-type qui décrit une
+         décision de mise en page, pas un défaut d'alignement.
+         L'exclusion est NOMMÉE et son ρ reste publié — pas escamoté. */
+      const anneau = mesuresRho.filter(m => !m.hero);
+      const heroRho = mesuresRho.filter(m => m.hero).map(m => m.rho);
+      const rhos = (anneau.length >= 2 ? anneau : mesuresRho).map(m => m.rho);
       const moy = rhos.reduce((a, b) => a + b, 0) / (rhos.length || 1);
       const et = Math.sqrt(rhos.reduce((a, b) => a + (b - moy) ** 2, 0) / (rhos.length || 1));
       o.ellipse = {
-        sieges: rhos.length, rho: rhos,
+        sieges: rhos.length, rho: rhos, detail: mesuresRho,
+        heroExclu: anneau.length >= 2, rhoHero: heroRho,
         min: Math.min(...rhos), max: Math.max(...rhos),
         moyenne: Math.round(moy * 1000) / 1000, ecartType: Math.round(et * 1000) / 1000,
       };
@@ -133,12 +160,51 @@ try {
           .map(e => ({ px: Math.round(e.getBoundingClientRect().top - bas),
                        quoi: (e.className || '').toString().split(' ')[0] }))
           .sort((a, b) => a.px - b.px);
-        /* Aucun element sous Hero = rien a mesurer (le bandeau de decision
-           disparait en 1T une fois la main jouee). On le DIT. */
-        if (!sous.length) o.heroNonApplicable = 'aucun element rendu sous le bloc Hero';
-        o.hero = { basBlocHero: Math.round(bas),
-                   airSousHero: sous.length ? sous[0].px : null,
-                   premierElement: sous.length ? sous[0].quoi : null };
+        /* ── UNE MESURE ABSENTE N'EST PAS UNE MESURE RÉUSSIE ──────────────
+           En 1T le bandeau de décision vit dans la COLONNE DE DROITE, pas
+           sous la table : aucun de ces sélecteurs n'est sous le bloc Hero, et
+           l'audit concluait « non mesurable » puis validait. Or la question
+           posée — « le bloc Hero garde-t-il de l'air ? » — a bien une réponse
+           en 1T : c'est la distance au BAS DE LA ZONE DE TABLE. On mesure
+           donc cette référence-là, et on dit laquelle on a prise. */
+        let reference = 'premier élément rendu sous Hero';
+        let air = sous.length ? sous[0].px : null;
+        let quoi = sous.length ? sous[0].quoi : null;
+        if (air == null) {
+          const zone = table.querySelector('.t1-table-area') || table;
+          const Z = zone.getBoundingClientRect();
+          if (Z.height > 1) {
+            reference = 'bas de la zone de table (le bandeau d\'action est en colonne)';
+            air = Math.round(Z.bottom - bas);
+            quoi = (zone.className || '').toString().split(' ')[0];
+          }
+        }
+        if (air == null) o.heroNonMesuree = 'ni élément sous Hero, ni zone de table mesurable';
+        o.hero = { basBlocHero: Math.round(bas), airSousHero: air, premierElement: quoi, reference };
+      } else {
+        o.heroNonMesuree = 'bloc Hero introuvable';
+      }
+
+      /* ── ③ SURFACE : MESURÉE AVANT LE BALAYAGE, PAS APRÈS ────────────────
+         Elle était calculée à la FIN, après quatre tours de clics : `table`
+         était alors un nœud DÉTACHÉ du document, dont `getBoundingClientRect()`
+         rend des zéros. Le rapport divisait par zéro, sérialisait `Infinity`
+         en `null`, et imprimait « feutre ?% » — sur les quatre modes, pas
+         seulement en 1T. La mesure se prend maintenant sur des nœuds vivants. */
+      {
+        const cellule = table.closest('.mt-slot') || table;
+        const S = cellule.getBoundingClientRect();
+        if (S.width > 1 && S.height > 1) {
+          o.surface = {
+            cellule: { w: Math.round(S.width), h: Math.round(S.height) },
+            feutre: { w: Math.round(F.width), h: Math.round(F.height) },
+            tauxLargeur: Math.round((F.width / S.width) * 100),
+            tauxHauteur: Math.round((F.height / S.height) * 100),
+            tauxSurface: Math.round(((F.width * F.height) / (S.width * S.height)) * 100),
+          };
+        } else {
+          o.surfaceNonMesuree = 'cellule de largeur/hauteur nulle (nœud détaché ?)';
+        }
       }
 
       /* ④ §8 — AUCUN LABEL DE SIÈGE SUR LE CŒUR DE LA TABLE.
@@ -178,42 +244,47 @@ try {
       }
       o.labels = { coeurDetecte: coeurVus, mesures, chevauchements, pastilles: avecPastille };
 
-      /* ③ Surface de cellule réellement occupée par le feutre. */
-      const slot = table.closest('.mt-slot') || table;
-      if (slot) {
-        const S = slot.getBoundingClientRect();
-        o.surface = {
-          cellule: { w: Math.round(S.width), h: Math.round(S.height) },
-          feutre: { w: Math.round(F.width), h: Math.round(F.height) },
-          tauxLargeur: Math.round((F.width / S.width) * 100),
-          tauxHauteur: Math.round((F.height / S.height) * 100),
-          tauxSurface: Math.round(((F.width * F.height) / (S.width * S.height)) * 100),
-        };
-      }
+      /* ③ est mesurée plus haut, sur des nœuds encore attachés au document. */
       return o;
     }, mode);
 
     rapport.push(res);
     const el = res.ellipse || {};
-    /* Rien de mesuré = ÉCHEC, jamais un vert muet — sauf quand le mode ne
-       PEUT pas porter la mesure : on le dit alors explicitement. */
-    const okEllipse = !res.err && (res.ellipseNonApplicable
-      || (el.sieges > 0 && el.ecartType != null && el.ecartType <= RHO_MAX));
-    const okHero = !res.err && (res.heroNonApplicable
-      || (res.hero?.airSousHero != null && res.hero.airSousHero >= HERO_MIN));
+    /* ── UN INSTRUMENT QUI NE MESURE PAS NE VALIDE PAS (V4) ─────────────────
+       L'ancienne version acceptait `ellipseNonApplicable` / `heroNonApplicable`
+       comme des succès : le 1T sortait ✅ avec deux mesures sur quatre absentes
+       et une troisième imprimée « ?% ». Une mesure manquante est désormais un
+       ÉCHEC, au même titre qu'une mesure hors seuil — et le rapport dit laquelle
+       manque. Il n'y a plus d'échappatoire « non applicable ». */
+    const manquantes = [];
+    if (res.ellipseNonMesuree) manquantes.push('① ellipse : ' + res.ellipseNonMesuree);
+    if (res.heroNonMesuree) manquantes.push('② Hero : ' + res.heroNonMesuree);
+    if (res.surfaceNonMesuree) manquantes.push('③ surface : ' + res.surfaceNonMesuree);
+    if (!(res.labels?.mesures > 0)) manquantes.push('④ labels : aucune mesure');
+    res.mesuresManquantes = manquantes;
+
+    const okEllipse = !res.err && !res.ellipseNonMesuree
+      && el.sieges > 0 && el.ecartType != null && el.ecartType <= RHO_MAX;
+    const okHero = !res.err && !res.heroNonMesuree
+      && res.hero?.airSousHero != null && res.hero.airSousHero >= HERO_MIN;
+    const okSurface = !res.err && !res.surfaceNonMesuree && res.surface?.tauxLargeur != null;
     /* §8 : un label sur le board est un defaut, et zero label mesure aussi. */
     const okLabels = !res.err && res.labels?.mesures > 0 && res.labels.chevauchements === 0;
-    if (!okEllipse || !okHero || !okLabels) failed++;
+    const conforme = okEllipse && okHero && okSurface && okLabels;
+    res.conforme = conforme;
+    if (!conforme) failed++;
     if (res.err) { console.log(`❌ ${res.mode} — ${res.err}`); continue; }
-    console.log(`${okEllipse && okHero && okLabels ? '✅' : '❌'} ${res.mode}`);
-    console.log(res.ellipseNonApplicable
-      ? `   ① ellipse : non mesurable ici — ${res.ellipseNonApplicable}`
-      : `   ① ellipse : ${el.sieges} sièges · ρ ${el.min}→${el.max} · écart-type ${el.ecartType} (seuil ${RHO_MAX})`);
-    console.log(res.heroNonApplicable
-      ? `   ② Hero    : non mesurable ici — ${res.heroNonApplicable}`
-      : `   ② Hero    : ${res.hero?.airSousHero ?? '—'}px d'air, puis « ${res.hero?.premierElement ?? '?'} » (seuil ${HERO_MIN})`);
+    console.log(`${conforme ? '✅' : '❌'} ${res.mode}${manquantes.length ? `  — ${manquantes.length} mesure(s) MANQUANTE(S)` : ''}`);
+    console.log(res.ellipseNonMesuree
+      ? `   ① ellipse : ❌ NON MESURÉE — ${res.ellipseNonMesuree}`
+      : `   ① ellipse : ${el.sieges} sièges d'anneau (${res.ancrageEllipse}) · ρ ${el.min}→${el.max} · écart-type ${el.ecartType} (seuil ${RHO_MAX})${el.heroExclu ? ` · Hero exclu (ρ ${el.rhoHero.join(', ')}) — tiré vers l'intérieur par construction` : ''}`);
+    console.log(res.heroNonMesuree
+      ? `   ② Hero    : ❌ NON MESURÉE — ${res.heroNonMesuree}`
+      : `   ② Hero    : ${res.hero?.airSousHero}px d'air jusqu'à « ${res.hero?.premierElement ?? '?'} » — référence : ${res.hero?.reference} (seuil ${HERO_MIN})`);
     console.log(`   ④ labels  : ${res.labels?.mesures ?? 0} mesures dont ${res.labels?.pastilles ?? 0} pastilles · ${res.labels?.chevauchements ?? '?'} sur le board/pot (attendu 0)`);
-    console.log(`   ③ surface : feutre ${res.surface?.tauxLargeur ?? '?'}% de la largeur · ${res.surface?.tauxHauteur ?? '?'}% de la hauteur`);
+    console.log(res.surfaceNonMesuree
+      ? `   ③ surface : ❌ NON MESURÉE — ${res.surfaceNonMesuree}`
+      : `   ③ surface : feutre ${res.surface.tauxLargeur}% de la largeur · ${res.surface.tauxHauteur}% de la hauteur · ${res.surface.tauxSurface}% de la cellule`);
   }
 
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
