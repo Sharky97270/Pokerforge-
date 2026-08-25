@@ -55,7 +55,9 @@ export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
      des classes de mains entières. `maxCombos:0` = range non plafonnée. */
   const iters=opts.iters||400,maxCombos=opts.maxCombos!=null?opts.maxCombos:200;
   // Signature complète du solve (ranges réelles incluses) → seed + SolveID déterministes.
-  const sig=_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+(board||[]).join(",")+"#"+potBb+"#"+betFrac+"#"+iters+"#"+maxCombos;
+  /* Même correction qu'en multi-rue : `runouts` et `raiseMult` changent le
+     résultat et doivent donc changer la clé (§63). */
+  const sig=_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+(board||[]).join(",")+"#"+potBb+"#"+betFrac+"#"+iters+"#"+maxCombos+"#ro:"+(opts.runouts??60)+"#rm:"+(opts.raiseMult??3);
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   // §16 : solution déjà en bibliothèque → chargement IMMÉDIAT (provenance PRESOLVED_LIBRARY).
@@ -106,7 +108,29 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
   const icmUtility=tourneyUtility;
   // Le contexte ICM entre dans la SIGNATURE : mêmes ranges + mêmes stacks de
   // tournoi différents = solves différents, ils ne doivent pas partager de clé.
-  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.pko?"pko:"+JSON.stringify(opts.pko):opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
+  /* ── LA SIGNATURE DOIT DÉCRIRE L'ARBRE, PAS SEULEMENT LES RANGES ─────────
+     Version antérieure : ni `effStack`, ni `maxRaisesPerStreet`, ni `ipProbe`,
+     ni `raiseMult` n'entraient dans la clé. Deux solves d'un même board et de
+     mêmes ranges à des TAPIS DIFFÉRENTS partageaient donc le même solveId : le
+     second était servi depuis la bibliothèque avec la stratégie du premier.
+     C'est exactement la collision que §63 du cahier des charges interdit, et
+     elle bloquait l'Adaptive Sizing Engine (dont tout le principe est de solver
+     le MÊME spot avec des arbres différents).
+     Tout ce qui change la FORME de l'arbre entre désormais dans la clé. ── */
+  const _treeSig=[
+    opts.betFrac!=null?"bf:"+opts.betFrac:"",
+    opts.betSizes?"bs:"+JSON.stringify(opts.betSizes):"",
+    opts.betSizesByPlayer?"bp:"+JSON.stringify(opts.betSizesByPlayer):"",
+    opts.raiseSizes?"rs:"+JSON.stringify(opts.raiseSizes):"",
+    "rm:"+(opts.raiseMult??3),
+    "mr:"+(opts.maxRaisesPerStreet??1),
+    "es:"+(opts.effStack==null?"inf":opts.effStack),
+    "ip:"+(opts.ipProbe!==false?1:0),
+    opts.allowJam?"jam:1":"",
+    opts.minBet!=null?"mb:"+opts.minBet:"",
+    opts.bb!=null?"bb:"+opts.bb:"",
+  ].filter(Boolean).join("|");
+  const sig="ms2|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+_treeSig+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.pko?"pko:"+JSON.stringify(opts.pko):opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   if(!opts.force){

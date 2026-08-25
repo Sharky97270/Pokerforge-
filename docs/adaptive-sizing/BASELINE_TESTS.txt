@@ -1,0 +1,568 @@
+
+> pokerforge@6.2.0 test
+> node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs && node test-mental-diagnostic.mjs && npm run test:refonte && npm run test:certify
+
+trainer round engine tests passed
+verdict : une seule définition, 8 bornes vérifiées
+
+======================================================================
+ROOM: 888 | detectSite: 888
+  site: 888 | game: cash  | bb: 1 | seats: 4
+  heroPos: BB | heroCards: K♥ K♠ | showdown: false
+  potByStreet: {"preflop":20.5,"flop":44.5,"turn":74.5,"river":74.5} | finalPot: 74.5 bb
+  heroResult: -52 bb
+  timeline steps: 9 | board: 8♣ 5♦ 3♥ 2♣
+  SCORE: 100 (A/Excellent) conf: medium
+  keyDecision: {"street":"turn","streetFr":"Turn","heroAction":"Bet 30bb","facing":"Aucune mise à affronter","potBb":74.5}
+  mistakes: —
+  leakTags: —
+  recos: Continue ton review régulier
+  warnings: —
+
+======================================================================
+ROOM: PokerStars | detectSite: PokerStars
+  site: PokerStars | game: cash  | bb: 1 | seats: 6
+  heroPos: CO | heroCards: A♥ K♦ | showdown: false
+  potByStreet: {"preflop":7.5,"flop":15.5,"turn":33.5,"river":53.5} | finalPot: 33.5 bb
+  heroResult: 16.5 bb
+  timeline steps: 15 | board: K♠ 7♥ 2♣ 9♦ 3♠
+  SCORE: 100 (A/Excellent) conf: medium
+  keyDecision: {"street":"river","streetFr":"River","heroAction":"Bet 20bb","facing":"Aucune mise à affronter","potBb":53.5}
+  mistakes: —
+  leakTags: —
+  recos: Continue ton review régulier
+  warnings: —
+
+======================================================================
+ROOM: Winamax | detectSite: Winamax
+  site: Winamax | game: cash  | bb: 0.1 | seats: 5
+  heroPos: BTN | heroCards: Q♥ Q♠ | showdown: false
+  potByStreet: {"preflop":11.5,"flop":25.5,"turn":40.5,"river":40.5} | finalPot: 40.5 bb
+  heroResult: -1.5 bb
+  timeline steps: 12 | board: J♣ 5♦ 2♥ 8♠
+  SCORE: 100 (A/Excellent) conf: medium
+  keyDecision: {"street":"turn","streetFr":"Turn","heroAction":"Bet 15bb","facing":"Aucune mise à affronter","potBb":40.5}
+  mistakes: —
+  leakTags: sizing:open-large
+  recos: Sizing d'ouverture
+  warnings: —
+
+======================================================================
+ROOM: GGPoker | detectSite: GGPoker
+  site: GGPoker | game: cash  | bb: 2 | seats: 6
+  heroPos: BTN | heroCards: A♠ A♦ | showdown: true
+  potByStreet: {"preflop":19.5,"flop":39.5,"turn":39.5,"river":99.5} | finalPot: 99.5 bb
+  heroResult: 49 bb
+  timeline steps: 14 | board: T♣ 6♥ 2♠ K♦ 4♣
+  SCORE: 92 (A/Excellent) conf: high
+  keyDecision: {"street":"river","streetFr":"River","heroAction":"Call 30bb","facing":"CO Bet 30bb","potBb":99.5}
+  mistakes: river:big-call
+  leakTags: river:hero-call
+  recos: Décisions river (bluff-catch)
+  warnings: —
+
+======================================================================
+ROOM: PartyPoker | detectSite: PartyPoker
+  site: PartyPoker | game: cash  | bb: 2 | seats: 4
+  heroPos: SB | heroCards: J♠ J♥ | showdown: false
+  potByStreet: {"preflop":6.5,"flop":14.5,"turn":23.5,"river":23.5} | finalPot: 23.5 bb
+  heroResult: -16 bb
+  timeline steps: 10 | board: 7♣ 4♦ 2♠ 9♥
+  SCORE: 100 (A/Excellent) conf: medium
+  keyDecision: {"street":"turn","streetFr":"Turn","heroAction":"Bet 9bb","facing":"Aucune mise à affronter","potBb":23.5}
+  mistakes: —
+  leakTags: —
+  recos: Continue ton review régulier
+  warnings: —
+
+======================================================================
+ROOM: iPokerXML | detectSite: iPoker
+  site: iPoker | game: cash  | bb: 10 | seats: 3
+  heroPos: BTN | heroCards: 7♦ 7♣ | showdown: true
+  potByStreet: {"preflop":3,"flop":5,"turn":5,"river":5} | finalPot: 5 bb
+  heroResult: 3 bb
+  timeline steps: 6 | board: 7♥ 2♠ 3♦
+  SCORE: 100 (A/Excellent) conf: high
+  keyDecision: {"street":"flop","streetFr":"Flop","heroAction":"Raise 2bb","facing":"Aucune mise à affronter","potBb":5}
+  mistakes: —
+  leakTags: —
+  recos: Continue ton review régulier
+  warnings: —
+
+======================================================================
+ROOM: Partial | detectSite: Inconnu
+  ok=false → Main non reconnue : format inconnu ou incomplet.
+  warnings: Big blind introuvable — valeurs supposées déjà en bb. | Aucun siège détecté (format non reconnu ?). | Cartes du Hero non trouvées — analyse limitée (complète-les manuellement). | Bouton non détecté — positions estimées. | Aucune action détectée.
+  ✓ fallback propre (attendu)
+
+======================================================================
+SESSION multi: 2 mains parsées, 0 erreurs | site: Inconnu
+
+======================================================================
+RÉSULTAT : 8 OK / 0 KO
+
+======================================================================
+CASH GG — station + field low + mental ON
+  Agents actifs : Hand Analyst, GTO Analyst, Exploit Advisor, Leak Detective, Training Builder, Mental Coach, Career Coach
+  Agents en veille : ICM / PKO Expert
+  handSummary.heroAction: Call 30bb
+  gtoInsight.bestAction: Action à corriger | sizing: River → choisis entre value (66–100% pot) et bluff polarisé ; sinon check.
+  exploitInsight: Value-bet plus fin (3 streets de value avec tes mains moyennes-fortes). / Coupe les bluffs : ce profil paie trop. / Field exploitable : value épaisse, peu de bluffs, peu de hero-folds.
+  icmInsight: (veille)
+  leakInsight: River — bluff-catch (Moyen, prio 74, Déjà vu 2× )
+  mentalInsight: Hero call forcé / ego call, Risque de tilt / envie de se refaire
+  trainerHandoff: 20 spots — Décisions river (bluff-catch)
+  careerUpdates: Career : résoudre « River — bluff-catch » (objectif maîtrise 80%).
+  actions: 8/8 actives
+
+======================================================================
+CASH GG — sans options
+  Agents actifs : Hand Analyst, GTO Analyst, Leak Detective, Training Builder, Mental Coach, Career Coach
+  Agents en veille : Exploit Advisor, ICM / PKO Expert
+  handSummary.heroAction: Call 30bb
+  gtoInsight.bestAction: Action à corriger | sizing: River → choisis entre value (66–100% pot) et bluff polarisé ; sinon check.
+  exploitInsight: (veille)
+  icmInsight: (veille)
+  leakInsight: River — bluff-catch (Moyen, prio 50, 1ʳᵉ occurrence)
+  mentalInsight: Hero call forcé / ego call, Risque de tilt / envie de se refaire
+  trainerHandoff: 20 spots — Décisions river (bluff-catch)
+  careerUpdates: Career : résoudre « River — bluff-catch » (objectif maîtrise 80%).
+  actions: 8/8 actives
+
+======================================================================
+MTT Winamax short-stack — ICM
+  Agents actifs : Hand Analyst, GTO Analyst, ICM / PKO Expert, Mental Coach, Career Coach
+  Agents en veille : Exploit Advisor, Leak Detective, Training Builder
+  handSummary.heroAction: All-in 21bb
+  gtoInsight.bestAction: All-in 21bb défendable | sizing: Open 2–2.3bb (MTT), 3-bet 3x IP / 4x OOP.
+  exploitInsight: (veille)
+  icmInsight: short (resteal / shove large) | Contexte ICM tendu (bulle/FT/short) : resserre les call-offs marginaux, privilégie la survie aux jetons.
+  leakInsight: (aucun)
+  mentalInsight: Pression ICM — survie vs jetons
+  trainerHandoff: (aucun)
+  careerUpdates: Career : enchaîner 3 sessions de review propres.
+  actions: 7/8 actives
+
+======================================================================
+MTT — bounty hunter
+  Agents actifs : Hand Analyst, GTO Analyst, Exploit Advisor, ICM / PKO Expert, Mental Coach, Career Coach
+  Agents en veille : Leak Detective, Training Builder
+  handSummary.heroAction: All-in 21bb
+  gtoInsight.bestAction: All-in 21bb défendable | sizing: Open 2–2.3bb (MTT), 3-bet 3x IP / 4x OOP.
+  exploitInsight: Value-bet plus fin (3 streets de value avec tes mains moyennes-fortes). / Coupe les bluffs : ce profil paie trop. / Il paie large pour la prime → value épaisse, bluffs réduits, attention aux call-offs.
+  icmInsight: short (resteal / shove large) | Contexte ICM tendu (bulle/FT/short) : resserre les call-offs marginaux, privilégie la survie aux jetons.
+  leakInsight: (aucun)
+  mentalInsight: Pression ICM — survie vs jetons
+  trainerHandoff: (aucun)
+  careerUpdates: Career : enchaîner 3 sessions de review propres.
+  actions: 7/8 actives
+
+======================================================================
+RÉSULTAT : 4 OK / 0 KO
+mental diagnostic tests passed
+
+> pokerforge@6.2.0 test:refonte
+> node test-preflop-line.mjs && node test-training-config.mjs && node test-constraint-engine.mjs && node test-spot-schema.mjs && node test-spot-recovery.mjs && node test-immersion-engine.mjs && node test-ai-orchestrator.mjs && node test-full-hand-engine.mjs && node test-spot-similarity.mjs && node test-trainer-matrix.mjs && node test-immersion-amounts.mjs && node test-next-hand.mjs && node test-chip-display.mjs && node test-strategy-provider.mjs && node test-replayer-state-engine.mjs && node test-replayer-decision-analysis.mjs && node test-range-color-theme.mjs && node test-replayer-formats.mjs && node test-replayer-anchors.mjs && node test-postflop-heuristic.mjs && node test-trainer-postflop-solver.mjs && node test-preflop-charts.mjs && node test-trainer-multitable.mjs && node test-trainer-density.mjs && node test-trainer-table-geometry.mjs && node test-trainer-cinematics.mjs && node test-replayer-ai-analysis.mjs && node test-supabase-config.mjs && node test-replayer-cfr.mjs && node test-replayer-poker-state.mjs && node test-format-numbers.mjs && node test-trainer-solution-scope.mjs && node test-trainer-pause-policy.mjs && node test-evaluator-card-count.mjs && node test-full-hand-rules.mjs && node test-full-hand-multiway.mjs && node test-trainer-hand-ledger.mjs && node test-trainer-sizing.mjs && node test-trainer-seat-status.mjs && node test-trainer-honesty.mjs && node test-pot-distribution.mjs && node test-trainer-villain-hand.mjs && node test-trainer-extra-callers.mjs
+
+✅ ligne préflop (§3/§24/§37) — 1111 assertions OK
+   Le pot préflop est une somme reconstructible depuis la table,
+   pour les trois fabriques de spots et toutes les positions.
+✅ trainingConfig — 70 assertions OK
+✅ constraintEngine — 79 assertions OK
+✅ spotSchema — 46 assertions OK
+✅ spotRecovery — 21 assertions OK
+✅ immersionEngine — 30 assertions OK
+✅ aiTrainingOrchestrator — 37 assertions OK
+✅ fullHandEngine — 37 assertions OK
+✅ spotSimilarityEngine — 67 assertions OK
+✅ trainer-matrix (§67) — 119 assertions OK
+✅ immersion-amounts (§68) — 31 assertions OK
+✅ next-hand (§69) — 23 assertions OK
+✅ chipDisplayResolver (§33) — 45 assertions OK
+✅ trainerStrategyProvider (§28) — 37 assertions OK
+
+── Parsing
+
+── Conservation des jetons (Σ stack + Σ committed + potMain = Σ stackStart)
+
+── Blinds absorbées dans le pot au flop
+
+── Visibilité des cartes
+
+── Pot croissant
+
+── Déterminisme des snapshots
+
+── Session multi-mains
+
+── Déduplication
+
+── Découpage en lots (limite maxPerLot)
+
+✅ Replayer State Engine : 41 ok, 0 échec(s)
+
+── Mapping des actions
+
+── Barème EV Loss → classification
+
+── Détection des décisions Hero
+
+── EV Loss / note
+
+── Analyser toute la main
+
+── Aucune référence disponible
+
+── Push/fold préflop HU — solveur exact
+
+✅ Replayer Decision Analysis : 60 ok, 0 échec(s)
+
+── Palette par défaut
+
+── Presets
+
+── Couleur par action & persistance
+
+── Réinitialisation
+
+── Synchronisation inter-modules
+
+── Ranges mixées
+
+── Légende dynamique
+
+── Compat clés legacy
+
+── Abonnement
+
+✅ Range Color Theme : 38 ok, 0 échec(s)
+
+── 888
+
+── PokerStars
+
+── Winamax
+
+── GGPoker
+
+── PartyPoker
+
+── Déduplication par contenu
+
+✅ Replayer Formats : 35 ok, 0 échec(s)
+
+── Appartenance des jetons — le propriétaire est le siège le plus proche
+
+── Géométrie — mise posée entre le joueur et le centre
+
+── Isotropie — même distance réelle en haut/bas et à gauche/droite
+
+── Collisions — aucune mise ne recouvre une zone protégée
+
+── Les jetons restent sur le feutre
+
+── Bouton dealer — associé au BTN, sans conflit avec sa mise
+
+── Déterminisme — même état, même position
+
+── Responsive — le système suit la table, pas la page
+
+── Toutes les structures supportées (2 à 9 joueurs)
+
+── Primitives géométriques
+
+✓ ancrage Replayer : 131 ok, 0 échec(s)
+✅ postflopHeuristic (§60) — 26 assertions OK
+  AA sur A♠K♦7♣ : {"X":33.4,"B0":51,"B1":15.7}  (actions X,B0,B1)  6849ms  NashConv=null
+  86s sur A♠K♦7♣ : {"X":84.5,"B0":9.6,"B1":5.8}  2ms
+  AA rivière A♠K♦7♣2♥9♠ : {"X":2.4,"B0":5.9,"B1":91.8}  2237ms  NashConv=0.1106
+  AA face à 10bb (river) : {"F":0,"C":0,"R":100}  NashConv=0.0897
+  54s face à 10bb (river) : {"F":99.1,"C":0,"R":0.9}
+  largeur range Héros — SRP 9177 vs 3BP 1541
+
+✅ trainerPostflopSolver — 50 assertions OK
+
+✅ preflopCharts — 37 assertions OK
+✅ trainer-multitable — 414 assertions OK
+✅ test-trainer-density — 460 assertions OK
+✅ trainer-table-geometry (mission mises) — 742 assertions OK
+✅ trainer-cinematics (§12/§13/§27/§28) — 64 assertions OK
+
+── §6 — HandState normalisé
+
+── §23 — Validation stricte du HandState
+
+── §7/§8 — Package solveur et provenance
+
+── §16 — Badges : donnée calculée ≠ interprétation IA
+
+── Décision ciblée (curseur)
+
+── Encodage des cartes (moteur d'équité)
+
+── §20 — Clé de cache et versions
+
+── Cache : HIT / MISS / historique
+
+── §10 — Schéma de réponse
+
+── §9 — Aucun chiffre stratégique dans le contrat de sortie
+
+── §18 — Gestion des erreurs
+
+── §22 — Authentification obligatoire côté client
+
+── Appel backend : chemin nominal et cache
+
+── Réponse invalide et erreurs réseau
+
+── §13 — Observations de CETTE main
+
+── §14 — Leaks récurrents et seuil d'échantillon
+
+── §30/§32 — Contexte structuré Replayer → Trainer / Coach
+
+── §2/§33 — Absence totale de clé API côté frontend
+
+✅ 144 assertions OK, 0 échec(s)
+
+── URL de projet correcte — inchangée
+
+── URLs d'API du dashboard — ramenées à l'origine
+
+── Valeurs absentes ou invalides — repli sur le fallback
+
+── Chemins reconstruits par l'application
+
+── Le module de configuration porte bien le garde-fou
+
+✅ config Supabase : 25 assertions OK, 0 échec(s)
+
+── Périmètre : ce qui est dans le modèle résolu
+
+── Périmètre : ce qui en est EXCLU (refusé, jamais approximé)
+
+── Requête worker
+
+── Étapes résolubles de la main
+
+── Résultat worker → bloc (aucune EV fabriquée)
+
+── Priorité CFR > heuristique dans analyzeDecision
+
+── Barème d'écart de fréquence
+
+── Remontée dans le package solveur et niveau de confiance
+
+── Cohérence des versions client / serveur
+
+✅ Replayer CFR : 74 assertions OK, 0 échec(s)
+
+── Taxonomie sémantique
+
+── §10 — Les 13 spots
+
+── Non-régression : « ouvrir à 2.1bb » en BB face à un open
+
+── §4 — Validateur de cohérence
+
+── §5 — Aucun nombre inventé
+
+── §7 — Validation de la sortie structurée
+
+── §11 — Cohérence de bout en bout
+
+── Cas limites
+
+── Montants postflop (reset de `committed` par street)
+
+── §5 — Sizing de re-relance : calculé, jamais inventé
+
+── Équité attachée à la street de la décision
+
+── Mode main complète : actions nommées pour chaque décision
+
+── Audit — main foldée préflop, le coup continue sans Hero
+
+✅ Replayer PokerState : 309 ok, 0 échec(s)
+
+── Zéros inutiles supprimés
+
+── Décimales significatives conservées
+
+── Ordre arrondi → nettoyage
+
+── Pas de « -0 »
+
+── SPR
+
+── Entrées invalides
+
+── Compatibilité roundBb
+
+✅ format des nombres — 28 assertions OK, 0 échec(s)
+✅ trainerSolutionScope (Lot 3 — périmètre de validité) — 45 assertions OK
+✅ trainerPausePolicy (Lot 4 bis — Pause après) — 58 assertions OK
+✅ évaluateur 5/6/7 cartes (C1) — 37 assertions OK
+✅ Full Hand — règles No-Limit et comptabilité (C3/C7/C8) — 76 assertions OK
+✅ Full Hand multiway — side pots joués, ordre de parole, conservation — 78 assertions OK
+✅ ledger de main du Trainer (C2) — 202 assertions OK
+✅ tailles de mise du Trainer (C4→C8/C12) — 95 assertions OK
+✅ statuts de siège du Trainer (C9) — 48 assertions OK
+✅ honnêteté du Trainer — Nash / Exploit / provenance (C10/C11) — 175 assertions OK
+✅ distribution du pot — side pots et jeton indivisible (C8) — 82 assertions OK
+✅ Vilain — décision infléchie par sa main (C12/G5) — 102 assertions OK
+✅ suiveur supplémentaire — le tour préflop se ferme (C12) — 44 assertions OK
+
+> pokerforge@6.2.0 test:certify
+> node test-solver-trust-badge.mjs && node test-solver-evaluator.mjs && node test-solver-equity-exact.mjs && node test-solver-equity-invariants.mjs && node test-solver-equity-mc.mjs && node test-solver-equity-differential.mjs && node test-solver-reduced-games.mjs && node test-solver-properties.mjs && node test-solver-pushfold.mjs && node test-solver-equilibrium-scope.mjs && node test-solver-icm-pko.mjs
+
+
+✅ certification/fondations — 51 assertions OK
+[1] Différentiel EXHAUSTIF 5 cartes — C(52,5) = 2 598 960 mains
+    2 598 960 mains · 12088 ms · 9/9 catégories · séparation stricte vérifiée
+[2] Accord d'ordre production ↔ référence (paires aléatoires seedées)
+    200 000 paires · seed 20260806 · 0 divergence(s)
+[3] Différentiel 7 cartes (échantillonné, seed fixe)
+    60 000 paires · seed 20271281 · 0 divergence(s)
+[4] Cas construits
+[5] Invariants
+[6] eval7i = max des 21 sous-mains
+
+✅ évaluateur — 53 assertions OK
+   PÉRIMÈTRE : 2 598 960 mains de 5 cartes (exhaustif) · 200 000 paires 5c ·
+   60 000 paires 7c · 45 000 invariants · seed 20260806 — 0 divergence.
+[1] Board complet — issue déterministe
+[2] Turn et flop — différentiel contre énumération indépendante
+    6 spots · écart max avec la référence < 1e-6 pt
+[3] Ranges pondérées
+[4] Card removal
+
+✅ équité (exacte) — 21 assertions OK
+[1] Symétrie Hero/Vilain
+[2] Bornes
+[3] Structures identiques → partage
+[4] Dominations et hiérarchie
+[5] Nuts et boards verrouillés
+[6] Invariance par permutation des couleurs
+[7] Monotonie
+[8] Entrées vides
+
+✅ équité (invariants) — 19 assertions OK
+[1] Reproductibilité (seed fixe)
+[2] Convergence vers la valeur exhaustive
+    exhaustif 34.091 % · n=200:3.409 · n=2000:0.091 · n=20000:0.041 · n=100000:0.157
+[3] Décroissance de l'erreur standard en 1/√n
+    SE à p=50 % : n=2 500 → ±1.000 pt · n=120 000 → ±0.144 pt (1 SE)
+[4] Dispersion inter-seeds vs théorie
+    24 seeds à n=4000 · moyenne 91.641 % · écart-type 0.418 pt (théorie 0.438)
+[5] API directe monteCarloEquity
+[6] Générateur pseudo-aléatoire
+[7] Intervalles de confiance (§4)
+    largeur IC95 : n=500 → 8.737 pt · n=5000 → 2.763 pt · n=50000 → 0.874 pt
+    cible 1,0 pt atteinte en 38500 tirages (largeur 0.995 pt)
+
+✅ équité (Monte-Carlo) — 38 assertions OK
+[1] Différentiel exhaustif ↔ Monte-Carlo — écart jugé en erreurs standard
+    spot                                exact      n=2000            n=20000
+    AA vs KK · flop sec                 91.62%  0.216pt (0.3σ)    0.251pt (1.3σ)
+    AA vs KK · turn                     95.45%  0.145pt (0.3σ)    0.300pt (2.0σ)
+    tirage couleur vs paire             54.14%  0.059pt (0.1σ)    0.064pt (0.2σ)
+    tirage couleur · turn               34.09%  0.091pt (0.1σ)    0.589pt (1.8σ)
+    quinte faite vs surcartes           52.22%  0.428pt (0.4σ)    0.342pt (1.0σ)
+    tirage combiné vs AA                36.87%  0.331pt (0.3σ)    0.491pt (1.4σ)
+    domination extrême                   1.92%  0.094pt (0.3σ)    0.054pt (0.6σ)
+    brelan vs brelan (cooler)           95.66%  0.043pt (0.1σ)    0.308pt (2.1σ)
+    mains jumelles (≈50 %)              50.00%  0.000pt (0.0σ)    0.000pt (0.0σ)
+    tirage quinte double ventre         37.17%  0.178pt (0.2σ)    0.252pt (0.7σ)
+
+    ÉCART MAXIMAL : 0.308 pt = 2.14 erreurs standard — brelan vs brelan (cooler) (n=20000)
+
+[2] Pourquoi une tolérance forfaitaire ne convient pas
+    n=   200 · 1 SE = ±3.536 pt · un seuil fixe de ±1,7 pt vaut 0.5 SE
+    n=  2500 · 1 SE = ±1.000 pt · un seuil fixe de ±1,7 pt vaut 1.7 SE
+    n= 20000 · 1 SE = ±0.354 pt · un seuil fixe de ±1,7 pt vaut 4.8 SE
+    n=120000 · 1 SE = ±0.144 pt · un seuil fixe de ±1,7 pt vaut 11.8 SE
+
+✅ équité (différentiel) — 33 assertions OK
+═══ NIVEAU A — chemin de PRODUCTION (solveTree) ═══
+[A1] Jeu de clairvoyance — fréquences analytiques
+    mise ½ pot       bluff/mise 25.0% (théorie 25.0%) · call 67.7% (théorie 66.7%)
+    mise pot         bluff/mise 33.1% (théorie 33.3%) · call 50.7% (théorie 50.0%)
+    surmise 2× pot   bluff/mise 40.0% (théorie 40.0%) · call 32.2% (théorie 33.3%)
+[A2] Discrimination par force de main — au nœud face à la mise du Vilain
+    Vilain face à la mise : monstre continue 100.00% (couche 0.00%) · bluffcatcher couche 41.4%
+[A3] NashConv sur board complet (exact)
+    400 it → NashConv 0.06100 bb · 2000 it → NashConv 0.01770 bb
+
+═══ NIVEAU B — RÈGLE CFR+ seule (Kuhn) — NE certifie PAS le solveur ═══
+[B1] Kuhn poker — valeur du jeu et structure de l'équilibre
+    valeur J1 -0.05691 (théorie -0.05556) · 30 000 itérations · 134 ms
+    J1 mise : J 25.1% · Q 0.2% · K 75.1%
+    rapport K/J = 3.00 (théorie 3,00)
+[B2] Convergence : plus d'itérations ⇒ plus proche de la valeur théorique
+    2000 it → écart 0.00502 · 30000 it → écart 0.00135
+
+✅ jeux réduits — 28 assertions OK
+   NIVEAU A (production) : clairvoyance 3 sizings · sizing dominé · NashConv exact
+   NIVEAU B (algorithme) : Kuhn — valeur −1/18 retrouvée. NE certifie PAS l'arbre de production.
+[1] Propriétés de l'équité
+    ✓ équité toujours dans [0,100]
+    ✓ symétrie : eq(A,B) + eq(B,A) = 100
+    ✓ board complet ⇒ équité ∈ {0, 50, 100}
+    ✓ l'équité sur board complet suit l'évaluateur
+[2] Invariance par permutation des couleurs
+    ✓ l'évaluateur est invariant par permutation des couleurs
+    ✓ l'équité est invariante par permutation des couleurs
+[3] Propriétés de l'évaluateur
+    ✓ l'ordre est antisymétrique et transitif sur les triplets
+    ✓ eval7i ≥ le meilleur eval5i de ses sous-mains… et lui est égal
+    ✓ le score est indépendant de l'ordre des cartes
+[4] Propriétés des stratégies CFR (chemin de production)
+    ✓ chaque stratégie est une distribution de probabilité valide
+[5] Entrées dégénérées
+[6] Combos bloqués par le board
+    ✓ un combo dont une carte est au board est exclu de la matrice d'affrontement
+[7] Tendance de convergence
+    EV |racine| : 100 it → 3.7530 · 400 it → 3.6320 · 1600 it → 3.5940
+
+✅ propriétés — 17 propriétés/assertions OK (seed 20260806, rejouable)
+[1] Card removal — pondération recalculée indépendamment
+[2] Condition d'équilibre — exploitabilité mesurée indépendamment
+     8bb · exploitabilité indépendante SB 0.00022 / BB 0.00060 · moteur SB 0.00022 / BB 0.00060
+    12bb · exploitabilité indépendante SB 0.00023 / BB 0.00107 · moteur SB 0.00023 / BB 0.00107
+    15bb · exploitabilité indépendante SB 0.00028 / BB 0.00148 · moteur SB 0.00028 / BB 0.00148
+    20bb · exploitabilité indépendante SB 0.00030 / BB 0.00242 · moteur SB 0.00030 / BB 0.00242
+[3] Structure de seuil — cohérence main par main
+[4] Ancrages qualitatifs
+[5] Monotonie : tapis court ⇒ range de jam plus large
+    6bb: jam 68.7% / call 54.1% · 10bb: jam 58.2% / call 37.5% · 15bb: jam 44.8% / call 28.4% · 20bb: jam 39.0% / call 21.8% · 25bb: jam 35.6% / call 17.5%
+[6] Déterminisme et conversion de format
+
+✅ push/fold — 49 assertions OK
+   Certifie la LOGIQUE DE RÉSOLUTION (gains, card removal, équilibre).
+   NE certifie PAS la matrice d'équité preflopEquity.js (bruit ±0,26 pt documenté).
+[1] Cadre théorique attaché aux solves
+    heads-up chip-EV : NashConv 0.00090 bb · revendication autorisée
+[2] Board incomplet — mesure absente, revendication refusée
+[3] Multijoueur sous ICM — cadre non à somme nulle
+    4 joueurs ICM : non_zero_sum · revendication refusée
+[4] ICM heads-up — la somme nulle est préservée
+    2 joueurs ICM : model_dependent · cadre favorable
+[5] Cohérence systématique du verrou
+[6] Rétro-compatibilité
+
+✅ cadre théorique — 26 assertions OK
+[1] Probabilités de place (Malmuth-Harville)
+[2] Équité ICM — conservation du prizepool
+[3] Prime de risque
+    tapis égaux, 50 jetons en jeu : équité neutre 56.5% (prime 6.5 pt) · gain 4.5 / perte 5.8333
+[4] Utilités terminales
+[5] PKO
+    pot 20bb, équité 50 % : sans prime EV 10 · prime 10 → EV 12.5 (dont prime 2.5, remise d'équité 20 pt)
+[6] Provenance honnête
+
+✅ ICM / PKO — 54 assertions OK
+   ICM : exact DANS son modèle (sortie proportionnelle au tapis) — pas dans la réalité.
+   PKO : prime propre non modélisée → statut bêta assumé.
+EXIT=0
