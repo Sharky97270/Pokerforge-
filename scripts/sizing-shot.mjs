@@ -42,7 +42,15 @@ const executablePath = CHROMES.find(p => fs.existsSync(p));
 if (!executablePath) { console.error('Aucun Chrome/Edge trouvé.'); process.exit(2); }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const browser = await puppeteer.launch({ executablePath, headless: 'new', args: ['--hide-scrollbars'], defaultViewport: { width: W, height: H } });
+const browser = await puppeteer.launch({
+  /* Délai de PROTOCOLE, distinct du délai métier. Sur une machine chargée, la
+     saisie d'un board coûte ~160 s de travail synchrone dans l'onglet — un coût
+     qui préexiste au moteur de sizing (mesuré identique avec et sans lui). Au
+     délai par défaut de 180 s, un `page.evaluate` parfaitement normal échouait
+     donc en « Runtime.callFunctionOn timed out », et l'échec ressemblait à un
+     blocage applicatif. On laisse le temps de finir ; ce qui est lent doit être
+     rapporté comme lent, pas comme cassé. */
+  protocolTimeout: 600000, executablePath, headless: 'new', args: ['--hide-scrollbars'], defaultViewport: { width: W, height: H } });
 const out = { ok: false, steps: [], errors: [], console: [] };
 
 try {
@@ -146,6 +154,41 @@ try {
     };
   });
 
+  /* ── §7/§56/§77 — LE BANDEAU DE CAPACITÉS ──────────────────────────────
+     Le moteur savait déclarer ce qu'il sait faire, capacité par capacité, mais
+     aucun écran ne l'affichait : `capabilities.js` n'était même pas dans le
+     bundle, éliminé par tree-shaking faute d'appelant côté interface. Une
+     capacité livrée et testée mais invisible ne sert personne — ce contrôle
+     échoue si elle redevient invisible. */
+  out.capabilities = await page.evaluate(() => {
+    const c = document.querySelector('[data-pfase="capabilities"]');
+    if (!c) return { present: false };
+    return {
+      present: true,
+      pot: c.getAttribute('data-pfase-cap-pot'),
+      strategie: c.getAttribute('data-pfase-cap-strategy'),
+      horizon: c.getAttribute('data-pfase-cap-valuation'),
+      evaluation: c.getAttribute('data-pfase-cap-evaluation'),
+      global: c.getAttribute('data-pfase-cap-overall'),
+      /* Chaque niveau doit être accompagné d'un MOTIF : un badge sans raison
+         n'apprend rien à qui le lit. */
+      motifs: c.innerText.split('\n').filter(l => l.length > 25).length,
+    };
+  });
+  {
+    const c = out.capabilities;
+    const niveaux = ['EXACT', 'SUPPORTED', 'PARTIAL', 'UNSUPPORTED'];
+    const ok = !!(c.present && niveaux.includes(c.pot) && niveaux.includes(c.strategie)
+      && niveaux.includes(c.horizon) && niveaux.includes(c.evaluation) && c.motifs >= 4);
+    out.steps.push({ step: '§7/§77 — les capacités sont déclarées à l\'écran', ok, ...c });
+    /* Sur un heads-up postflop ordinaire, deux réponses sont connues d'avance.
+       Les vérifier évite qu'un bandeau s'affiche en disant n'importe quoi. */
+    out.steps.push({
+      step: '§7 — comptabilité du pot EXACTE, résolution stratégique SUPPORTED en heads-up',
+      ok: c.pot === 'EXACT' && c.strategie === 'SUPPORTED',
+      pot: c.pot, strategie: c.strategie,
+    });
+  }
   /* §26 — le Tree Editor : présent, navigable, et son édition invalide le résultat. */
   out.treeEditor = await page.evaluate(() => {
     const ed = document.querySelector('[data-pfase="tree-editor"]');
@@ -204,6 +247,10 @@ try {
   out.screenshot = OUT;
   out.ok = done && out.errors.length === 0
     && !!(out.treeEditor && out.treeEditor.present)
+    /* Le bandeau de capacités fait partie du contrat : une capacité déclarée par
+       le moteur mais absente de l écran ne sert personne. */
+    && !!(out.capabilities && out.capabilities.present
+      && out.capabilities.pot === "EXACT" && out.capabilities.strategie === "SUPPORTED")
     && !!(out.invalidation && out.invalidation.banniere && out.invalidation.badgePerime);
 } catch (e) {
   out.errors.push(String((e && e.message) || e));

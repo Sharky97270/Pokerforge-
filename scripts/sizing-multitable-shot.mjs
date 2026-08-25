@@ -43,7 +43,15 @@ const exe = CHROMES.find(p => fs.existsSync(p));
 if (!exe) { console.error("Aucun Chrome/Edge trouvé."); process.exit(2); }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const browser = await puppeteer.launch({ executablePath: exe, headless: "new", args: ["--hide-scrollbars"], defaultViewport: { width: W, height: H } });
+const browser = await puppeteer.launch({
+  /* Délai de PROTOCOLE, distinct du délai métier. Sur une machine chargée, la
+     saisie d'un board coûte ~160 s de travail synchrone dans l'onglet — un coût
+     qui préexiste au moteur de sizing (mesuré identique avec et sans lui). Au
+     délai par défaut de 180 s, un `page.evaluate` parfaitement normal échouait
+     donc en « Runtime.callFunctionOn timed out », et l'échec ressemblait à un
+     blocage applicatif. On laisse le temps de finir ; ce qui est lent doit être
+     rapporté comme lent, pas comme cassé. */
+  protocolTimeout: 600000, executablePath: exe, headless: "new", args: ["--hide-scrollbars"], defaultViewport: { width: W, height: H } });
 const out = { ok: false, steps: [], errors: [], console: [], tables: [] };
 
 try {
