@@ -241,4 +241,40 @@ console.log("\n── FORMAT TOURNOI (§77) : ce qui est su, et ce qui ne l'est 
     "le PKO reste PARTIAL : la capture de prime est paramétrée, pas modélisée");
 }
 
+console.log("\n── UN ARRONDI N'EST PAS UNE ANOMALIE");
+{
+  /* Le module de répartition quantifie au demi-blind ; PFASE travaille plus fin.
+     Sur un heads-up parfaitement ordinaire — pot 1.5 bb, donc 0.75 par joueur —
+     les 0.75 deviennent 1.0 chacun et l'écart vaut 0.5 bb. Rien n'est perdu.
+
+     Signaler cela comme une anomalie faisait afficher « comptabilité du pot :
+     PARTIAL » sur le spot le plus banal qui soit. Un avertissement qui se
+     déclenche toujours n'avertit de rien — et finit par masquer le cas où il
+     compte vraiment. */
+  const ordinaire = etat([
+    J("a", "BB", 99, 0.75, { isHero: true }),
+    J("b", "BTN", 99, 0.75),
+  ]).state;
+  eq(ordinaire.potStructure.quantized, true, "l'écart est reconnu comme un arrondi");
+  eq(ordinaire.potStructure.anomaly, undefined, "et n'est donc PAS traité comme une anomalie");
+  ok(/quantification au demi-blind/.test(ordinaire.potStructure.quantizationNote || ""),
+    "la note dit d'où vient l'écart");
+  eq(describeCapabilities(ordinaire).potAccounting.level, CapabilityLevel.EXACT,
+    "la capacité reste EXACT : deux précisions se rencontrent, aucun jeton ne manque");
+  ok(/quantification/.test(describeCapabilities(ordinaire).potAccounting.reason),
+    "et l'écran peut le mentionner sans crier au défaut");
+
+  /* Un écart trop grand pour un arrondi, lui, DOIT dégrader. Sans ce second
+     volet, la correction précédente reviendrait à ne plus rien signaler. */
+  const casse = etat([J("a", "BB", 99, 10, { isHero: true }), J("b", "BTN", 99, 10)]).state;
+  const faux = {
+    ...casse,
+    potStructure: { ...casse.potStructure, conserve: false, quantized: false, anomaly: "20 engagés contre 14 répartis (écart de 6 bb, trop grand pour un arrondi)" },
+  };
+  eq(describeCapabilities(faux).potAccounting.level, CapabilityLevel.PARTIAL,
+    "une incohérence réelle dégrade bien la capacité");
+  ok(/NON CONSERVÉE/.test(describeCapabilities(faux).potAccounting.reason),
+    "avec un motif qui ne se confond pas avec un arrondi");
+}
+
 console.log(`\n✅ PFASE pot multiway, side pots et capacités (§7/§77) — ${passed} assertions OK\n`);

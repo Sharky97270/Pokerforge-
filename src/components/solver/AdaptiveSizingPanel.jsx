@@ -28,6 +28,8 @@ import {
 import { CANDIDATE_PROFILES } from "../../sizing/candidateGenerator.js";
 import { solveAsync, isWorkerAvailable } from "../../sizing/pfaseClient.js";
 import { EXPLOIT_PROFILES } from "../../solver/core/exploitProfiles.js";
+import { normalizeGameState } from "../../sizing/gameState.js";
+import { describeCapabilities, CapabilityLevel } from "../../sizing/capabilities.js";
 import { describeSolution } from "../../sizing/pfase.js";
 
 /* ── §27 — PRÉRÉGLAGES POKERFORGE ─────────────────────────────────────────
@@ -60,6 +62,16 @@ const chip = (on, col = T.purple) => ({
   color: on ? col : T.text3, whiteSpace: "nowrap",
 });
 
+/* Une couleur par NIVEAU de capacité. `EXACT` et `SUPPORTED` ne se confondent
+   pas : le premier dit que le calcul est exact au sens arithmétique, le second
+   qu'il est fait avec la précision annoncée par ailleurs. */
+const capColor = (lvl) => (
+  lvl === CapabilityLevel.EXACT ? T.green
+    : lvl === CapabilityLevel.SUPPORTED ? T.cyan
+      : lvl === CapabilityLevel.PARTIAL ? T.amber
+        : T.red
+);
+
 export default function AdaptiveSizingPanel({
   /* Tout vient de l'appelant : le panneau ne calcule aucun état de jeu. */
   stateInput, heroRange, villainRange, disabled, disabledReason,
@@ -72,6 +84,25 @@ export default function AdaptiveSizingPanel({
   onTrainMany,
 }) {
   const enabled = adaptiveSizingEnabled();
+
+  /* ── LES CAPACITÉS SE LISENT SUR L'ÉTAT, PAS SUR L'INTENTION ─────────────
+     Le panneau ne calcule aucun état de jeu — il en reçoit un. Mais pour dire
+     ce que le moteur saura en faire, il faut le NORMALISER : les capacités se
+     déduisent de grandeurs dérivées (nombre de joueurs encore en jeu, structure
+     de pot, rues restantes), pas de la saisie brute.
+
+     Recalculé à chaque changement d'état, jamais mémorisé : une capacité qui
+     traînerait d'un spot au suivant serait pire que pas de capacité du tout. */
+  const caps = useMemo(() => {
+    if (!stateInput) return null;
+    try {
+      const n = normalizeGameState(stateInput);
+      if (!n.ok) return { ok: false, reason: (n.errors || []).join(" · ") || "état invalide" };
+      return describeCapabilities(n.state);
+    } catch (e) {
+      return { ok: false, reason: String((e && e.message) || e) };
+    }
+  }, [stateInput]);
 
   const [preset, setPreset] = useState("pf_auto");
   const [mode, setMode] = useState("AUTOMATIC");
@@ -311,6 +342,57 @@ export default function AdaptiveSizingPanel({
           ))}
         </div>
       </div>
+
+      {/* ── CE QUE LE MOTEUR SAIT FAIRE DE CET ÉTAT (§7 · §56 · §77) ──────────
+          Le panneau n'annonçait jusqu'ici que son incapacité, et d'une seule
+          phrase : « saisis un board ». Sur un spot que le moteur ne sait pas
+          résoudre, l'utilisateur n'apprenait donc rien de ce qui, lui,
+          fonctionne — alors que la comptabilité du pot, side pots compris, est
+          exacte même à trois joueurs.
+
+          Quatre capacités, quatre réponses, chacune avec son motif. Aucune n'est
+          choisie : toutes sont DÉRIVÉES de l'état. */}
+      {caps && caps.ok && (
+        <div data-pfase="capabilities"
+          data-pfase-cap-pot={caps.potAccounting.level}
+          data-pfase-cap-strategy={caps.strategicSolving.level}
+          data-pfase-cap-valuation={caps.valuation.level}
+          data-pfase-cap-evaluation={caps.evaluation.level}
+          data-pfase-cap-overall={caps.overall}
+          style={{ ...box, borderColor: capColor(caps.overall) + "55", background: capColor(caps.overall) + "0D" }}>
+          <div style={label}>Ce que le moteur sait faire de cet état</div>
+          <div style={{ display: "grid", gridTemplateColumns: "auto auto 1fr", gap: "3px 8px", marginTop: 5, alignItems: "baseline" }}>
+            {[
+              ["Comptabilité du pot", caps.potAccounting],
+              ["Résolution stratégique", caps.strategicSolving],
+              ["Horizon de valeur", caps.valuation],
+              ["Modèle d'évaluation", caps.evaluation],
+            ].map(([nom, c]) => (
+              <React.Fragment key={nom}>
+                <span style={{ fontSize: 9.5, color: T.text3, fontFamily: T.stats, whiteSpace: "nowrap" }}>{nom}</span>
+                <span style={{
+                  fontSize: 8.5, fontWeight: 800, fontFamily: T.stats, padding: "1px 6px", borderRadius: 4,
+                  whiteSpace: "nowrap", color: capColor(c.level),
+                  background: capColor(c.level) + "1A", border: `1px solid ${capColor(c.level)}44`,
+                }}>{c.level}</span>
+                <span style={{ fontSize: 9, color: T.text4, fontFamily: T.stats, lineHeight: 1.4 }}>{c.reason}</span>
+              </React.Fragment>
+            ))}
+          </div>
+          {caps.potAccounting.sidePots > 0 && (
+            <div style={{ fontSize: 9, color: T.amber, fontFamily: T.stats, marginTop: 5 }}>
+              {caps.potAccounting.sidePots} side pot(s) sur cet état — le pot est réglé exactement, la STRATÉGIE multiway ne l'est pas.
+            </div>
+          )}
+        </div>
+      )}
+      {caps && !caps.ok && (
+        <div data-pfase="capabilities" data-pfase-cap-overall="INVALID"
+          style={{ ...box, borderColor: T.red + "55", background: T.redDim }}>
+          <div style={label}>État de jeu illisible</div>
+          <div style={{ fontSize: 9.5, color: T.text3, fontFamily: T.stats, marginTop: 3 }}>{caps.reason}</div>
+        </div>
+      )}
 
       {/* ── Lancement ── */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

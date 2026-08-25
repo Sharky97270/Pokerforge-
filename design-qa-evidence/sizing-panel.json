@@ -25,7 +25,24 @@
     {
       "step": "résultat affiché",
       "ok": true,
-      "ms": 47585
+      "ms": 58937
+    },
+    {
+      "step": "§7/§77 — les capacités sont déclarées à l'écran",
+      "ok": true,
+      "present": true,
+      "pot": "EXACT",
+      "strategie": "SUPPORTED",
+      "horizon": "SUPPORTED",
+      "evaluation": "SUPPORTED",
+      "global": "SUPPORTED",
+      "motifs": 4
+    },
+    {
+      "step": "§7 — comptabilité du pot EXACTE, résolution stratégique SUPPORTED en heads-up",
+      "ok": true,
+      "pot": "EXACT",
+      "strategie": "SUPPORTED"
     },
     {
       "step": "§26 — Tree Editor présent et navigable",
@@ -80,6 +97,15 @@
       "PF Full"
     ]
   },
+  "capabilities": {
+    "present": true,
+    "pot": "EXACT",
+    "strategie": "SUPPORTED",
+    "horizon": "SUPPORTED",
+    "evaluation": "SUPPORTED",
+    "global": "SUPPORTED",
+    "motifs": 4
+  },
   "treeEditor": {
     "present": true,
     "filAriane": true,
@@ -98,7 +124,7 @@
     "x": 438,
     "y": 194.875,
     "width": 846,
-    "height": 1111.28125
+    "height": 1200
   },
   "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-panel.png"
 }

@@ -17,7 +17,7 @@
     {
       "step": "solution produite",
       "ok": true,
-      "ms": 55802
+      "ms": 53651
     },
     {
       "step": "solution enregistrée en mémoire",
@@ -76,11 +76,11 @@
       "status": {
         "persistent": true,
         "hydrated": true,
-        "loaded": 0,
+        "loaded": 1,
         "written": 1,
         "skipped": 0,
         "rejected": 0,
-        "staleDropped": 1,
+        "staleDropped": 0,
         "lastError": null
       }
     },
@@ -191,7 +191,7 @@
       ],
       "classes": 169
     },
-    "instanceId": "pfase-xh9e3qps"
+    "instanceId": "pfase-iy9t8vtl"
   },
   "comparaison": {
     "memeId": true,

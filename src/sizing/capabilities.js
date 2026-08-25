@@ -70,7 +70,11 @@ export function describeCapabilities(state) {
   /* Une anomalie relevée par l état DÉGRADE la capacité. Sans ce lien, on
      annoncerait EXACT au-dessus d une structure dont l état dit lui-même
      qu elle ne se conserve pas — c est le genre de badge que le §18 interdit. */
+  /* Seule une incohérence RÉELLE dégrade. Un écart d'arrondi entre deux
+     précisions est mentionné, pas sanctionné : voir `quantized` dans gameState. */
   const anomalie = state.potStructure && state.potStructure.anomaly;
+  const arrondi = state.potStructure && state.potStructure.quantized
+    ? state.potStructure.quantizationNote : null;
   const potAccounting = anomalie
     ? { level: CapabilityLevel.PARTIAL,
         reason: `structure de pot calculée mais NON CONSERVÉE : ${anomalie}. Le plus souvent, l écart vient de la quantification au demi-blind du module de répartition, plus grossière que la précision de PFASE.`,
@@ -78,7 +82,7 @@ export function describeCapabilities(state) {
         sidePots: state.potStructure ? Math.max(0, (state.potStructure.pots || []).length - 1) : 0 }
     : {
         level: CapabilityLevel.EXACT,
-        reason: `paliers de contribution, pot principal et side pots calculés pour ${nSeats} siège(s) — conservation des jetons vérifiée`,
+        reason: `paliers de contribution, pot principal et side pots calculés pour ${nSeats} siège(s) — conservation des jetons vérifiée` + (arrondi ? ` (${arrondi})` : ""),
         module: "potDistribution.js",
         sidePots: state.potStructure ? Math.max(0, (state.potStructure.pots || []).length - 1) : 0,
       };

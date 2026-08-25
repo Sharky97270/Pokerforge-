@@ -20,7 +20,7 @@
 
 import { EPS, EvaluationModel, TableFormat, DEFAULT_BET_STEP_BB } from "./config.js";
 import { roundAmount, roundTo } from "./sizingSpec.js";
-import { buildPots } from "../potDistribution.js";
+import { buildPots, CHIP_UNIT } from "../potDistribution.js";
 
 /* ── TYPES D'ACTION STRICTS (§37) ──────────────────────────────────────────
    « Ne jamais qualifier un CALL de BET. » Le type et le montant sont deux
@@ -253,8 +253,30 @@ export function normalizeGameState(input = {}) {
        n'a qu'un pot et n'en dépend pas. L'anomalie est donc SIGNALÉE — elle
        voyage avec la structure, et `describeCapabilities` la dégrade — mais elle
        n'empêche jamais de résoudre ce qui est par ailleurs résoluble. */
+    /* ── UN ARRONDI N'EST PAS UNE ANOMALIE ────────────────────────────────
+       Le module de répartition quantifie au demi-blind ; PFASE travaille plus
+       fin. Sur un heads-up ordinaire — pot 1.5 bb, donc 0.75 par joueur — les
+       0.75 deviennent 1.0 chacun et l'écart vaut 0.5 bb. Rien n'est perdu : deux
+       précisions se rencontrent.
+
+       Signaler cela comme une anomalie faisait afficher « comptabilité du pot :
+       PARTIAL » sur le spot le plus banal qui soit. Un avertissement qui se
+       déclenche toujours n'avertit de rien, et finit par masquer le cas où il
+       compte vraiment.
+
+       L'écart est donc CLASSÉ. Chaque contribution peut bouger d'au plus un
+       demi-pas ; au-delà de ce que la quantification peut expliquer, c'est une
+       vraie incohérence — et elle, elle dégrade la capacité. */
+    const contributeurs = Object.keys(contributions).length;
+    const explicableParArrondi = contributeurs * (CHIP_UNIT / 2) + EPS.amount;
+    const ecart = Math.abs(potStructure.engage - potStructure.repartition);
     if (!potStructure.conserve) {
-      potStructure.anomaly = `${potStructure.engage} engagés contre ${potStructure.repartition} répartis`;
+      if (ecart <= explicableParArrondi) {
+        potStructure.quantized = true;
+        potStructure.quantizationNote = `écart de ${roundAmount(ecart)} bb dû à la quantification au demi-blind du module de répartition — aucun jeton perdu`;
+      } else {
+        potStructure.anomaly = `${potStructure.engage} engagés contre ${potStructure.repartition} répartis (écart de ${roundAmount(ecart)} bb, trop grand pour un arrondi)`;
+      }
     }
   } catch (e) {
     potStructure = { pots: [], uncalled: null, niveaux: 0, sidePots: 0, conserve: false,
