@@ -168,6 +168,9 @@ export function gameStateHash({ state, heroRange, villainRanges, treeSpec, solve
     "b", (state?.boardKeys || []).join(""),                 // ordre du board conservé (il est donné)
     "bl", qa(state?.blinds?.sb), qa(state?.blinds?.bb), qa(state?.ante),
     "rk", qf(state?.rake?.pct), state?.rake?.cap == null ? "∅" : qa(state.rake.cap), state?.rake?.applied ? "1" : "0",
+    /* La variante « pots non disputés non rakés » change les valeurs terminales :
+       deux états qui ne diffèrent que par elle sont deux jeux différents. */
+    state?.rake?.rakeUncontested === false ? "ru0" : "ru1",
     "p", qa(state?.pot), qa(state?.deadPot),
     /* Les joueurs sont triés par position pour que deux constructions du même
        état (ordre de sièges différent) rendent la même clé. Le rôle (hero/acteur)

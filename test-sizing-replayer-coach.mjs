@@ -199,7 +199,7 @@ console.log("\n── §37 — un CALL n'est pas un BET, même à montant égal"
   });
   const r = cmp.rows[0];
   ok(!r.inTree, "aucun CALL à ce nœud (Hero ouvre)");
-  ok(/n'existe pas à ce nœud/.test(r.evNote || ""), "et c'est le TYPE qui est en cause, pas le montant");
+  ok(/n'existe pas à ce nœud/.test(r.reason || ""), "et c'est le TYPE qui est en cause, pas le montant");
 }
 
 console.log("\n── §51 — le type de solution reste attaché au verdict");

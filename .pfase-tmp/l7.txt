@@ -1,0 +1,47 @@
+## L7 — La perte d'une simplification est souvent sous le plancher de mesure · **ATTÉNUÉE**
+
+| | |
+|---|---|
+| **Constat initial** | Sur les 10 spots du banc d'essai, **aucun** niveau simplifié n'affichait une perte d'EV distinguable du bruit aux budgets par défaut. |
+| **Est-ce un défaut ?** | Non, et la distinction est importante. Deux choses sont mesurées séparément : (a) le **classement** des sizings — mesurable, avec des écarts de 0.23 à 1.44 bb ; (b) la **perte du meilleur sizing face à l'arbre complet** — effectivement très petite. Un Single Size bien choisi coûte moins que ce que cette précision permet de mesurer. |
+| **Les 2 spots restants** | SPR 0.42 et 0.5 : tous les candidats s'écrasent sur le même montant (le tapis). Le classement n'y est pas mesurable parce qu'il n'y a **rien à classer**. Le moteur le dit au lieu de départager des actions identiques. |
+| **Comportement actuel** | `distinguishable` et `guaranteed` sont rapportés séparément (ci-dessous). Jamais un chiffre présenté comme plus précis qu'il ne l'est. |
+
+**Ce qui a changé — deux corrections qui abaissent réellement le plancher :**
+
+**1. On ne mesurait pas l'EV de la stratégie qu'on sert.** `solveTree.ev` est la
+moyenne, *sur les itérations*, de la valeur de la stratégie **courante** de chaque
+itération. La stratégie **stockée, affichée et jouée** est la stratégie *moyenne* —
+et sa valeur converge bien plus vite :
+
+| itérations | `sol.ev` (moyenne des itérations) | EV de la stratégie moyenne | NashConv |
+|---:|---:|---:|---:|
+| 100 | 0.837 | 1.074 | 0.580 |
+| 800 | 1.167 | 1.243 | 0.093 |
+| 1600 | 1.217 | 1.267 | 0.041 |
+| 3200 | 1.243 | 1.270 | 0.019 |
+
+Entre 1600 et 3200 itérations, l'ancienne mesure bougeait encore de 0.026 bb quand
+la nouvelle ne bouge que de 0.003 : **près de dix fois plus stable**. L'essentiel
+de la « dérive de convergence » qu'on prenait pour de l'imprécision était l'inertie
+d'une moyenne qui traîne ses premières itérations. `strategyEV()` calcule la bonne
+grandeur, et c'est elle que PFASE compare désormais.
+
+**2. « Mesurable » et « garanti » ne sont pas la même question**, et n'en donner
+qu'une réponse trompe dans un sens ou dans l'autre :
+
+* le **plancher mesuré** — dérive observée entre N et 2N itérations, majorée d'un
+  facteur de sécurité, plus le bruit d'échantillonnage. C'est ce que l'on constate ;
+* le **plancher garanti** — `NashConv(référence) + NashConv(sous-arbre)`. Dans un
+  jeu à somme nulle, l'écart entre la valeur d'un profil et celle du jeu est borné
+  par son exploitabilité. C'est rigoureux, mais lâche : sur le river de référence,
+  la borne annonçait 0.041 bb là où l'erreur réelle valait 0.003 — un facteur 13.
+
+N'utiliser que la borne rigoureuse déclarerait presque tout indistinguable et
+masquerait des écarts réels ; n'utiliser que la dérive surestimerait la précision.
+La solution rapporte donc `distinguishable` (mesuré) **et** `guaranteed` (borné),
+avec les deux planchers, et l'interface dit lequel est franchi.
+
+**Ce qui reste à faire.** Une abstraction de board abaisserait encore le plancher
+sur les flops. L'arbitrage temps/précision reste exposé (`convergenceTarget`,
+`maxIterationsCeiling`, `timeBudgetMs`).

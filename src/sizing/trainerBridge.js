@@ -239,7 +239,20 @@ export function trainerVerdict({ solution, path = [], handClass = null, heroActi
     nearestStudied: cmp.nearestStudied || null,
     verdict: cmp.verdict,
     /* §36 — « uniquement lorsque ces informations sont disponibles ». */
+    /* §36/§49 — EV jouée · EV la meilleure · écart. Absentes tant que
+       `evAvailable` est faux : aucun consommateur ne doit fabriquer un nombre. */
     evAvailable: cmp.evAvailable,
+    evPlayedBb: cmp.evPlayedBb ?? null,
+    evBestBb: cmp.evBestBb ?? null,
+    evLossBb: cmp.evLossBb ?? null,
+    evBestLabel: cmp.evBestSpecLabel || cmp.evBestLabel || null,
+    evExact: cmp.evExact ?? null,
+    evSource: cmp.evSource || null,
+    evIsRangeWide: !!cmp.evIsRangeWide,
+    /* L'écart tient-il dans le résidu d'indifférence du nœud ? Si oui, ce
+       n'est PAS une erreur : à l'équilibre les actions mixées se valent. */
+    evEquilibriumResidualBb: cmp.evEquilibriumResidualBb ?? null,
+    evLossBelowNoise: cmp.evLossBelowNoise ?? null,
     evNote: cmp.evNote || cmp.reason || null,
     /* §15 — l'écart d'EV entre SIZINGS, lui, est mesuré et disponible. */
     sizingRanking: ranking,

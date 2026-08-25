@@ -184,15 +184,28 @@ export function normalizeGameState(input = {}) {
 
   const spr = pot > EPS.amount ? roundTo(effectiveStack / pot, 4) : null;
 
-  /* ── Rake (§78) — structure DÉCLARÉE, jamais inventée ── */
+  /* ── Rake (§78) — DÉCLARÉ, et désormais APPLIQUÉ ─────────────────────────
+     Le moteur retire maintenant le rake de l'utilité terminale (voir
+     `makeRakeModel` dans multistreet.js). `applied` n'est donc plus figé à
+     `false` : il vaut vrai dès qu'un pourcentage strictement positif est
+     fourni, et l'état le transporte tel quel.
+
+     Deux choses restent vraies et doivent le rester :
+       · `applied` n'est jamais mis à vrai avec un pct nul — un rake de 0 %
+         appliqué et un rake absent décrivent le même jeu, mais pas la même
+         annonce, et l'écran ne doit pas prétendre modéliser une taxe nulle ;
+       · le drapeau entre dans le hash d'état (canonicalHash), donc une solution
+         rakée et une solution non rakée du même spot ne peuvent pas se
+         confondre en cache — ce serait le pire des mélanges. */
+  const rakePct = input.rake ? Math.max(0, num(input.rake.pct) || 0) : 0;
   const rake = input.rake ? {
-    pct: Math.max(0, num(input.rake.pct) || 0),
+    pct: rakePct,
     cap: input.rake.cap == null ? null : Math.max(0, num(input.rake.cap) || 0),
-    /* Le moteur CFR actuel ne retire pas le rake de l'utilité terminale : le
-       déclarer sans l'appliquer serait mentir. On le transporte pour le hash et
-       l'affichage, et `applied:false` dit la vérité. */
-    applied: false,
-  } : { pct: 0, cap: null, applied: false };
+    /* Une salle qui ne rake pas les pots emportés sans abattage : la variante
+       est déclarée ici et suivie jusqu'à l'utilité terminale. */
+    rakeUncontested: input.rake.rakeUncontested !== false,
+    applied: rakePct > 0 && input.rake.applied !== false,
+  } : { pct: 0, cap: null, rakeUncontested: true, applied: false };
 
   /* ── Modèle d'évaluation (§55) ── */
   const evaluationModel = input.evaluationModel || EvaluationModel.CHIP_EV;

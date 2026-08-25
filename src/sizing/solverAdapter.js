@@ -20,6 +20,7 @@
 
 import { solveMultiStreet } from "../solver/api.js";
 import { treeStats, buildPostflopTree } from "../solver/core/gametree.js";
+import { strategyEV } from "../solver/core/multistreet.js";
 import { EQ_RANKVAL, EQ_SUITIDX, rangeComboList } from "../solver/core/combos.js";
 import {
   SolveStatus, EvaluationModel, DEFAULT_EVALUATION_CONFIG, DEFAULT_MEMORY_GUARD,
@@ -64,6 +65,20 @@ function throwIfAborted(signal) {
 export function solveTreeSpec({
   state, heroRange, villainRange, treeSpec = {}, config, optimizeFor = 0, signal,
 } = {}) {
+  /* ── INCOMPATIBILITÉ DÉCLARÉE AVANT TOUT CALCUL (§78, §99) ────────────────
+     Le rake et l'ICM décrivent deux comptabilités qui ne se composent pas : l'ICM
+     convertit un transfert de jetons entre joueurs en équité de tournoi, le rake
+     fait sortir des jetons de la table. Il n'existe pas de convention publiée
+     pour les combiner, et en fabriquer une reviendrait à produire un chiffre que
+     rien ne fonde. On refuse ici, avant de dépenser un solve, pour que le motif
+     arrive à l'écran plutôt qu'une exception. */
+  {
+    const rk = state && state.rake;
+    if (rk && rk.applied && state.evaluationModel && state.evaluationModel !== "CHIP_EV") {
+      return { ok: false, reason: "rake et ICM/PKO ne se combinent pas : l'utilité ICM transforme un TRANSFERT de jetons entre deux joueurs, or le rake en fait sortir une part de la table. Aucune convention publiée ne fonde ce mélange — résoudre en chip-EV, ou sans rake." };
+    }
+  }
+
   const t0 = now();
   const cfg = withDefaults(DEFAULT_EVALUATION_CONFIG, config);
   try {
@@ -150,6 +165,12 @@ export function solveTreeSpec({
       ...(treeSpec.nodeOverrides && Object.keys(treeSpec.nodeOverrides).length ? { nodeOverrides: treeSpec.nodeOverrides } : {}),
       /* §21/§55 — le modèle d'évaluation entre dans le SOLVE, pas seulement dans
          l'affichage. Une solution ChipEV ne peut pas être re-badgée ICM (§55). */
+      /* §78 — le rake descend jusqu'à l'utilité terminale. Transmis SEULEMENT
+         quand il est déclaré appliqué : sans ce filtre, un état porteur d'un
+         rake « pour l'affichage » modifierait silencieusement les EV. */
+      ...(state.rake && state.rake.applied
+        ? { rake: state.rake, rakeUncontested: state.rake.rakeUncontested !== false }
+        : {}),
       ...(state.evaluationModel === EvaluationModel.ICM && state.icmParams ? { icm: state.icmParams } : {}),
       ...(state.evaluationModel === EvaluationModel.PKO && state.pkoParams ? { pko: state.pkoParams } : {}),
     };
@@ -162,7 +183,33 @@ export function solveTreeSpec({
     if (!out || !out.result || !out.result.tree) return failure(out && out.source === "NO_SOLUTION" ? "aucune solution (ranges vides ou board invalide)" : "solve sans résultat", t0);
 
     const sol = out.result;
-    const ev = evForPlayer(sol, optimizeFor);
+    /* ── QUELLE EV ? CELLE DE LA STRATÉGIE QU'ON SERT ────────────────────────
+       `solveTree.ev` est la moyenne, SUR LES ITÉRATIONS, de la valeur de la
+       stratégie courante de chaque itération. Ce n'est pas la valeur de la
+       stratégie MOYENNE — celle qui est stockée, affichée et jouée.
+
+       L'écart n'est pas cosmétique. Mesuré sur un river à ranges réduites :
+
+         itérations   sol.ev    EV(stratégie moyenne)   NashConv
+             100       0.837           1.074             0.580
+             800       1.167           1.243             0.093
+            3200       1.243           1.270             0.019
+
+       Entre 1600 et 3200 itérations, `sol.ev` bouge encore de 0.026 bb quand
+       l'EV de la stratégie moyenne ne bouge que de 0.003 — près de dix fois plus
+       stable. La « dérive de convergence » qu'on mesurait était donc en grande
+       partie l'inertie d'une moyenne qui traîne ses premières itérations, pas
+       une imprécision de la stratégie.
+
+       PFASE mesure donc l'EV de la stratégie moyenne : c'est celle qui décrit ce
+       que le joueur va réellement jouer, et son plancher de mesure est bien plus
+       bas. `useAverageStrategyEV:false` restitue le comportement historique. */
+    const avgEv = cfg.useAverageStrategyEV === false ? null
+      : strategyEV(sol, { samples: cfg.strategyEvSamples || undefined });
+    const zeroSum = !sol.utility || sol.utility.zeroSum !== false;
+    const ev = avgEv
+      ? (optimizeFor === 0 ? avgEv.ev : (zeroSum ? -avgEv.ev : null))
+      : evForPlayer(sol, optimizeFor);
     if (ev == null) {
       return failure(
         optimizeFor === 1
@@ -188,6 +235,10 @@ export function solveTreeSpec({
       status: partialReasons.length ? SolveStatus.PARTIAL : SolveStatus.COMPLETE,
       partialReasons,
       ev: roundEv(ev),
+      /* D'où vient ce nombre — l'UI et le Coach doivent pouvoir le dire (§21). */
+      evSource: avgEv ? "average-strategy" : "iterate-mean",
+      evIterateMean: roundEv(evForPlayer(sol, optimizeFor) ?? 0),
+      evExact: avgEv ? avgEv.exact : !sol.sampled,
       optimizeFor,
       solution: sol,
       solveId: out.solveId,

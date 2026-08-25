@@ -85,8 +85,26 @@ export function compareReplayDecision({
       inTree: cmp.inTree,
       matched: cmp.matched || null,
       verdict: cmp.verdict,
+      /* POURQUOI l'action n'est pas dans l'arbre — distinct de `evNote`, qui dit
+         pourquoi l'EV manque. Les confondre revenait à perdre l'un des deux :
+         depuis que l'EV est calculée, `evNote' est toujours renseignée et
+         écrasait le motif structurel. */
+      reason: cmp.reason || null,
       /* §50 — jamais l'EV du voisin. */
+      /* §36/§49 — EV jouée · EV la meilleure · écart. Absentes tant que
+         `evAvailable` est faux : aucun consommateur ne doit fabriquer un nombre. */
       evAvailable: cmp.evAvailable,
+      evPlayedBb: cmp.evPlayedBb ?? null,
+      evBestBb: cmp.evBestBb ?? null,
+      evLossBb: cmp.evLossBb ?? null,
+      evBestLabel: cmp.evBestSpecLabel || cmp.evBestLabel || null,
+      evExact: cmp.evExact ?? null,
+      evSource: cmp.evSource || null,
+      evIsRangeWide: !!cmp.evIsRangeWide,
+      /* L'écart tient-il dans le résidu d'indifférence du nœud ? Si oui, ce
+         n'est PAS une erreur : à l'équilibre les actions mixées se valent. */
+      evEquilibriumResidualBb: cmp.evEquilibriumResidualBb ?? null,
+      evLossBelowNoise: cmp.evLossBelowNoise ?? null,
       evNote: cmp.evNote || cmp.reason || null,
       nearestStudied: cmp.nearestStudied || null,
       /* §15 — l'écart d'EV entre sizings, lui, est mesuré. */
@@ -132,9 +150,24 @@ export function formatReplayComparison(cmp) {
     const actions = r.actions.map(a => a.specLabel || a.actionType).join(" / ");
     out.push(`${r.complexity} : ${actions}`);
   }
+  /* ── LES TROIS LIGNES DU §49 ────────────────────────────────────────────
+     « EV played · EV best · EV difference ». Elles n'apparaissent que si l'EV a
+     réellement été calculée pour ce nœud ; sinon on dit pourquoi, et l'on cite
+     au mieux le sizing étudié voisin — sans lui emprunter son chiffre. */
   const withEv = cmp.rows.find(r => r.available && r.evAvailable);
-  if (!withEv) {
-    out.push("EV exacte indisponible — l'EV par action n'est pas conservée dans les solutions stockées.");
+  if (withEv) {
+    const u = withEv.evExact ? "" : " (moyenne sur runouts échantillonnés)";
+    out.push(`EV jouée : ${withEv.evPlayedBb} bb${u}`);
+    out.push(`EV de la meilleure action : ${withEv.evBestBb} bb${withEv.evBestLabel ? ` (${withEv.evBestLabel})` : ""}`);
+    out.push(withEv.evLossBelowNoise
+      ? `Écart d'EV : ${withEv.evLossBb} bb — dans le résidu d'indifférence du nœud (${withEv.evEquilibriumResidualBb} bb) : les deux actions se valent à l'équilibre, ce n'est pas une erreur.`
+      : `Écart d'EV : ${withEv.evLossBb} bb`);
+    if (withEv.evIsRangeWide) out.push("Attention : EV calculée sur la range entière, pas sur cette main précise.");
+  } else {
+    const ctx = cmp.rows.find(r => r.available && r.evBestBb != null);
+    out.push(ctx
+      ? `EV de l'action jouée indisponible — ${ctx.evNote}`
+      : "EV exacte indisponible — l'EV par action n'a pas été calculée pour ce nœud.");
     const near = cmp.rows.find(r => r.available && r.nearestStudied);
     if (near) out.push(`Sizing étudié le plus proche : ${near.nearestStudied.specLabel || near.nearestStudied.toBb + "bb"} (comparaison approximative — sa fréquence ne s'applique pas au sizing joué).`);
   }

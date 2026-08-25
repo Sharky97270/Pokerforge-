@@ -40,14 +40,14 @@ n'est masquée.
 | 11 | CombinationPlanner (limites, cache, dédup, pruning justifié, budget, instrumentation) | **PASS** | `combinationPlanner.js` ; `pruned[]` ; `combinatorialSize` montre 23 244 solves évités |
 | 12 | Évaluation à profondeur limitée, config explicite | **PASS** | `SizingEvaluationConfig` voyage avec le résultat ; `depthLimited` dans `partialReasons` |
 | 13 | Solve final séparé | **PASS** | arbre reconstruit et re-résolu ; clés `EVAL:` distinctes ; `noStore` sur les micro-solves |
-| 14 | Métrique de perte d'EV, sans ratio trompeur | **PASS** | `retainedEV` refusé sur référence ≤ 0 ; `evLossPotPct` toujours défini ; plancher de mesure |
+| 14 | Métrique de perte d'EV, sans ratio trompeur | **PASS** | `retainedEV` refusé sur référence ≤ 0 ; `evLossPotPct` toujours défini ; **deux** planchers rapportés — `distinguishable` (mesuré) et `guaranteed` (borné par NashConv), voir L7 |
 | 15 | Écart d'EV entre actions | **PASS** | `actionRanking` mesuré à l'étage 1 ; affiché en barres dans le panneau |
 | 16 | `maxAcceptableEVLoss` + complexité minimale | **PASS** | `selectUnderTolerance` ; tolérance non tenue → **dite**, pas masquée |
 | 17 | Solution store versionné, tous les champs | **PASS** | `solutionSchema.js` ; 30 champs vérifiés un par un par test |
 | 18 | SolutionProvenance + badges | **PASS** | provenance **dérivée** ; `APPROXIMATION.gtoClaim === false` |
 | 19 | Hash canonique | **PASS** | clés triées, nombres quantifiés, `-0` normalisé ; 5 000 chaînes voisines → 5 000 hashs |
 | 20 | Cache à plusieurs niveaux, invalidation | **PASS** | 3 étages ; `EVAL:` ≠ solution ; 2ᵉ passage = 0 solve |
-| 21 | Convergence réelle, jamais fabriquée | **PASS** | NashConv exact sur board complet ; `null` + motif sinon |
+| 21 | Convergence réelle, jamais fabriquée | **PASS** | NashConv exact sur board complet ; `null` + motif sinon — y compris sous rake, où la somme nulle tombe et où l'exploitabilité cesse d'être définie |
 | 22 | États du solve, PARTIAL annoncé | **PASS** | `SolveStatus` ; `partialReasons` remontent jusqu'à l'écran |
 
 ## §23 — §28 · SharkSolver
@@ -72,7 +72,7 @@ n'est masquée.
 | 33 | Full → toutes les actions de la solution | **PASS** | `acts.length === node.actions.length` |
 | 34 | Aucune conversion implicite de sizing | **PASS** | 68 % → « sizing non étudié » ; jamais arrondi vers 75 % |
 | 35 | Architecture prête pour les mises libres | **PASS** | `compareAction` traite n'importe quel montant : hors arbre, EV indisponible, voisin cité comme approximatif |
-| 36 | Retour : action, sizing, fréquence, EV… si disponibles | **PASS** | EV par action déclarée indisponible (L4) plutôt qu'inventée |
+| 36 | Retour : action, sizing, fréquence, EV… si disponibles | **PASS** | **EV par action désormais CALCULÉE** (`nodeActionEVs`) : `evPlayedBb`, `evBestBb`, `evLossBb`, avec la source (main ou range) et l'exactitude. Un sizing non résolu reste sans EV (§50). L4 levée |
 | 37 | Ne jamais confondre action et sizing | **PASS** | `ActionType` strict ; un CALL de 9bb ≠ un BET de 9bb |
 | 38 | Full Hand suit préflop → river | **PARTIAL** | postflop vérifié rue par rue (turn 9bb → river 34bb) ; **préflop hors périmètre PFASE** → L1 |
 | 39 | Recalcul à chaque rue | **PASS** | `coversStreetsAhead:false` force la re-résolution |
@@ -90,7 +90,7 @@ n'est masquée.
 |---|---|:--:|---|
 | 47 | Le Coach reçoit la solution, le nœud, l'action… | **PASS** | `buildCoachPayload` + liste des **interdits** dans la charge utile |
 | 48 | Explication structurée en 7 rubriques | **PASS** | chaque rubrique porte `supported` et son motif d'indisponibilité |
-| 49 | Replayer : joué vs Single/Simple/Full | **PASS** | `compareReplayDecision` ; les trois niveaux confrontés |
+| 49 | Replayer : joué vs Single/Simple/Full | **PASS** | `compareReplayDecision` ; les trois niveaux confrontés — et `formatReplayComparison` rend enfin les trois lignes « EV jouée / EV la meilleure / écart », avec la mention explicite quand l'écart tient dans le résidu d'indifférence du nœud |
 | 50 | Sizing joué absent de l'arbre | **PASS** | aucune EV attribuée ; voisin cité et **étiqueté approximatif** |
 | 51 | Analyse HH : niveau demandé, type conservé | **PASS** | `verdictSource` ; dénominateur partiel annoncé |
 | 52 | Couche de données pour rapports agrégés | **PASS** | `aggregateSolutions` par texture, SPR, type de pot, complexité |
@@ -129,7 +129,7 @@ n'est masquée.
 | 75 | Tapis courts 5→30bb | **PASS** | testé |
 | 76 | Tapis profonds 50→200bb | **PASS** | testé, aucun débordement |
 | 77 | Format tournoi | **PARTIAL** | antes, tapis symétriques et asymétriques, HU testés ; **MTT/ICM** limité par L6 |
-| 78 | Format cash (rake, cap, straddle) | **PARTIAL** | rake et cap transportés, dans le hash, **déclarés non appliqués** (L5) ; straddle non modélisé |
+| 78 | Format cash (rake, cap, straddle) | **PARTIAL** | **rake et cap APPLIQUÉS** à l'utilité terminale (`makeRakeModel`), variante « pots non disputés » comprise ; le sizing retenu en change (75 % → 33 % à 5 %/cap 3bb). Somme nulle levée → NashConv `null`, ICM+rake refusé. L5 levée. **Straddle toujours non modélisé** |
 | 79 | API claire | **PASS** | `pfase.js` — 8 fonctions publiques ; aucun doublon de service existant |
 | 80 | Versionnage | **PASS** | 3 versions, dans le hash **et** vérifiées à la lecture |
 | 81 | Feature flag | **PASS** | `adaptiveSizingEngine` ; complet derrière le drapeau |
@@ -182,8 +182,8 @@ n'est masquée.
 | Le préflop n'a pas de constructeur d'arbre | §38, §54, §66 | L1 |
 | Le moteur est heads-up | §7 (all-in partiel), §77 | L2 |
 | Mémoire du flop à 3 rues | (aucun PARTIAL : dégradé et annoncé) | L3 |
-| EV par action non conservée | (aucun PARTIAL : §36 l'autorise explicitement) | L4 |
-| Rake non appliqué | §78 | L5 |
+| ~~EV par action non conservée~~ | **levé** — §36 et §49 passent en PASS calculé | ~~L4~~ |
+| ~~Rake non appliqué~~ | **levé** — §78 reste PARTIAL pour le seul straddle | ~~L5~~ |
 | PFASE ne produit pas encore de solution d'exploit | §45, §46, §64 | — |
 | Pas de pipeline d'import externe | §84 | — |
 | QA visuelle et rejeu manuel limités au 1T | §65, §69, §104, §108 | — |

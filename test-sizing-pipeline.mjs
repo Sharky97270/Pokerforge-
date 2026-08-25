@@ -23,6 +23,11 @@ import { prepareTrainerSpot, solutionActsForSpot } from "./src/sizing/trainerBri
 import { potSizing, geometricSizing, jamSizing, previousBetSizing } from "./src/sizing/sizingSpec.js";
 import { SolveStatus, statusYieldsStrategy } from "./src/sizing/config.js";
 import { mayClaimSolved } from "./src/sizing/solutionSchema.js";
+import { strategyEV, nodeActionEVs } from "./src/solver/core/multistreet.js";
+import { solveTreeSpec } from "./src/sizing/solverAdapter.js";
+import { normalizeGameState } from "./src/sizing/gameState.js";
+import { gameStateHash } from "./src/sizing/canonicalHash.js";
+import { extractStreetStrategy } from "./src/sizing/strategyExtract.js";
 
 let passed = 0;
 const ok = (c, m) => { assert.ok(c, m); passed++; };
@@ -314,6 +319,194 @@ console.log("\n══ §110 — la famille FULL → SINGLE, avec ce qu'elle coû
   for (const d of f.family) {
     console.log(`   ${d.complexity.padEnd(9)}  ${String(d.selected).padEnd(24)}  ${String(d.evLossBb).padStart(8)}   ${d.distinguishable}`);
   }
+}
+
+console.log("\n══ CASE I — L'EV PAR ACTION EST VRAIE, pas plausible (§36/§49) ══");
+{
+  /* Trois contrôles INDÉPENDANTS. Une EV par action a ceci de traître qu'elle a
+     toujours l'air raisonnable : il faut donc la confronter à des grandeurs dont
+     la valeur est connue par ailleurs, sans quoi « ça semble cohérent » tient
+     lieu de preuve. */
+  clearStore();
+  const st = normalizeGameState(stateInput()).state;
+  const r = solveTreeSpec({
+    state: st, heroRange: HERO, villainRange: VILL,
+    treeSpec: { betSpecs: [potSizing(0.33), potSizing(0.75), jamSizing()], raiseSpecs: [], allowJam: true },
+    config: { maxIterations: 1200, maxCombos: 0, seed: 5 },
+  });
+  ok(r.ok, "le solve de contrôle aboutit");
+  const sol = r.solution;
+
+  /* ── 1. UNE VALEUR CONNUE D'AVANCE ────────────────────────────────────────
+     Sur un pot mort de 12 bb, Hero qui FOLD face à une mise abandonne sa moitié :
+     exactement −6 bb, pour toutes les mains, sans exception. C'est le seul nombre
+     du tableau dont la réponse ne dépend d'aucun calcul — et c'est précisément
+     pour cela qu'il est le meilleur test. Il a d'ailleurs servi : la première
+     implémentation rendait −5.93, en comptant au dénominateur des combinaisons
+     adverses bloquées que le numérateur écartait. Un pour cent d'erreur, sur la
+     seule case dont on connaissait la réponse — le reste était faux d'autant. */
+  const ex = extractStreetStrategy(sol);
+  const faceMise = ex.nodes["X|B0"];
+  ok(faceMise && faceMise.ev && faceMise.ev.available, "le nœud « Hero face à une mise » est chiffré");
+  eq(faceMise.ev.byAction.F, -6, "FOLD vaut EXACTEMENT −6 bb : la moitié d'un pot mort de 12 bb");
+  ok(Object.values(faceMise.ev.byClass).every(c => c.F === -6),
+    "et cela vaut pour CHAQUE classe de main — un fold ne dépend pas de la main");
+
+  /* ── 2. UN INVARIANT INTERNE ──────────────────────────────────────────────
+     Mélanger, par combo, les EV par action selon les fréquences de la stratégie
+     doit redonner l'EV de la stratégie elle-même. Le mélange se fait main par
+     main : agréger d'abord et mélanger ensuite donne un autre nombre.
+
+     ATTENTION à la référence : c'est `strategyEV` (l'EV de la stratégie MOYENNE)
+     et non `solveTree.ev`, qui est la moyenne des EV des stratégies COURANTES sur
+     toutes les itérations. Ces deux-là diffèrent encore de 0.086 bb à 600
+     itérations — les confondre fait chercher un bug inexistant. */
+  const racine = nodeActionEVs(sol, []);
+  const sev = strategyEV(sol);
+  ok(racine.available && sev, "les deux mesures sont disponibles");
+  ok(Math.abs(racine.mixedEV - sev.ev) < 0.001,
+    "EV mélangée " + racine.mixedEV + " = EV de la stratégie moyenne " + sev.ev
+    + " (écart " + Math.abs(racine.mixedEV - sev.ev).toFixed(6) + ")");
+
+  /* ── 3. UNE PROPRIÉTÉ DE L'ÉQUILIBRE ──────────────────────────────────────
+     À l'équilibre, les actions qu'une main joue réellement lui sont indifférentes.
+     Le déficit résiduel, PONDÉRÉ par la fréquence de l'action et par le poids de
+     la classe dans la range, doit tenir dans l'exploitabilité mesurée — c'est le
+     lien entre les EV par action et NashConv, deux calculs entièrement séparés.
+     Sans la pondération on compare des grandeurs sans rapport : un écart brut de
+     0.26 bb sur une classe jouée 9 % du temps et pesant un sixième de la range ne
+     pèse que 0.004 bb, soit l'ordre de grandeur de NashConv. */
+  const root = ex.nodes[""];
+  const classes = Object.keys(root.byClass);
+  let deficitPondere = 0;
+  for (const cls of classes) {
+    const f = root.byClass[cls], e = root.ev.byClass[cls];
+    const meilleure = Math.max(...Object.values(e));
+    for (const a of Object.keys(f)) deficitPondere += (f[a] || 0) * Math.max(0, meilleure - e[a]) / classes.length;
+  }
+  const nashConv = r.convergence.nashConv;
+  ok(nashConv != null, "l'exploitabilité est mesurée indépendamment");
+  ok(deficitPondere <= Math.max(0.05, nashConv * 6),
+    "déficit d'indifférence pondéré " + deficitPondere.toFixed(4) + " bb, compatible avec NashConv " + nashConv);
+
+  /* ── ET LE VERDICT QUI EN DÉCOULE ────────────────────────────────────────── */
+  const s2 = solve({ mode: "FIXED", userBetSpecs: [potSizing(0.33), potSizing(0.75)] });
+  ok(s2.ok, "une solution complète est produite");
+  const noeud = getTrainingNode(s2.solution, [], { handClass: "AA" });
+  eq(noeud.evAvailable, true, "§36 — l'EV par action est désormais DISPONIBLE au Trainer");
+  eq(noeud.evSource, "hand-class", "et elle porte sur la main, pas sur la range");
+  eq(noeud.evExact, true, "board complet : elle est exacte");
+  ok(noeud.actions.every(a => typeof a.evBb === "number"), "chaque action affichable porte son EV");
+
+  const check = compareAction({ solution: s2.solution, path: [], handClass: "AA", actionType: "CHECK" });
+  eq(check.evAvailable, true, "§49 — EV jouée / EV la meilleure / écart sont rendus");
+  ok(check.evLossBb > 0.5, "checker AA coûte " + check.evLossBb + " bb — un écart réel, loin au-dessus du résidu");
+  eq(check.evLossBelowNoise, false, "et il est déclaré au-dessus du bruit : c'est bien une erreur");
+
+  const horsArbre = compareAction({ solution: s2.solution, path: [], handClass: "AA", actionType: "BET", sizeBb: 7.77 });
+  eq(horsArbre.evAvailable, false, "§50 — un sizing non résolu n'a toujours PAS d'EV");
+  eq(horsArbre.evPlayedBb, null, "aucun nombre n'est fabriqué pour lui");
+  ok(horsArbre.evBestBb != null, "mais l'EV de la meilleure action ÉTUDIÉE reste publiée");
+  ok(/extrapolation/.test(horsArbre.evNote), "avec l'interdiction explicite de la lui attribuer");
+
+  console.log("   fold = " + faceMise.ev.byAction.F + " bb (attendu −6) · mélange " + racine.mixedEV
+    + " vs stratégie " + sev.ev + " · déficit pondéré " + deficitPondere.toFixed(4) + " vs NashConv " + nashConv);
+}
+
+console.log("\n══ CASE J — LE RAKE EST APPLIQUÉ, pas seulement déclaré (§78) ══");
+{
+  clearStore();
+  const spot = (rake) => ({ ...stateInput(), rake });
+  const ts = { betSpecs: [potSizing(0.33), potSizing(0.75), jamSizing()], raiseSpecs: [], allowJam: true };
+  const resous = (rake) => {
+    const st = normalizeGameState(spot(rake)).state;
+    return {
+      st,
+      r: solveTreeSpec({
+        state: st, heroRange: HERO, villainRange: VILL, treeSpec: ts,
+        config: { maxIterations: 600, maxCombos: 0, seed: 5 },
+      }),
+    };
+  };
+
+  const sans = resous(null);
+  const cap3 = resous({ pct: 0.05, cap: 3 });
+  const sansCap = resous({ pct: 0.05, cap: null });
+  const disputes = resous({ pct: 0.05, cap: null, rakeUncontested: false });
+  ok(sans.r.ok && cap3.r.ok && sansCap.r.ok && disputes.r.ok, "les quatre variantes se résolvent");
+
+  /* ── 1. LE RAKE COÛTE, ET IL COÛTE DANS LE BON SENS ─────────────────────── */
+  ok(cap3.r.ev < sans.r.ev, "un pot raké rapporte moins qu'un pot non raké (" + cap3.r.ev + " < " + sans.r.ev + ")");
+  ok(sansCap.r.ev <= cap3.r.ev, "et un rake sans plafond coûte au moins autant qu'un rake plafonné");
+  ok(disputes.r.ev > sansCap.r.ev,
+    "ne pas raker les pots emportés sans abattage rend de l'EV (" + disputes.r.ev + " > " + sansCap.r.ev + ")");
+
+  /* ── 2. LA SOMME NULLE TOMBE, ET LES MESURES QUI EN DÉPENDENT AUSSI ──────
+     C'est le point qu'on ne peut pas contourner : NashConv est défini comme la
+     somme des deux valeurs de meilleure réponse, laquelle vaut zéro À L'ÉQUILIBRE
+     d'un jeu à somme nulle. Le rake y injecte un biais constant qu'aucun écran ne
+     saurait distinguer d'une divergence. On rend `null` plutôt qu'un nombre. */
+  eq(sans.r.solution.zeroSum, true, "sans rake, le jeu reste à somme nulle");
+  eq(cap3.r.solution.zeroSum, false, "avec rake, il ne l'est plus — et la solution le dit");
+  ok(sans.r.convergence.nashConv != null, "sans rake, l'exploitabilité est mesurable");
+  eq(cap3.r.convergence.nashConv, null, "avec rake, elle ne l'est pas : `null`, jamais un nombre approché");
+
+  /* ── 3. UNE VALEUR TERMINALE CONNUE D'AVANCE, ENCORE ─────────────────────
+     Hero qui SE COUCHE ne paie pas le rake : c'est le gagnant qui le paie. Son
+     EV de fold doit donc rester exactement −6 bb, rake ou pas. Si elle bougeait,
+     c'est que le rake serait prélevé du mauvais côté — l'erreur la plus facile à
+     commettre et la plus difficile à voir dans une EV agrégée. */
+  const exRake = extractStreetStrategy(cap3.r.solution);
+  const faceMise = exRake.nodes["X|B0"];
+  ok(faceMise && faceMise.ev && faceMise.ev.available, "le nœud « Hero face à une mise » est chiffré même avec rake");
+  eq(faceMise.ev.byAction.F, -6, "se coucher coûte toujours EXACTEMENT −6 bb : le rake est payé par celui qui encaisse");
+
+  /* ── 4. DEUX JEUX DIFFÉRENTS, DEUX HASHS DIFFÉRENTS ──────────────────────
+     Sans cela, une solution rakée et une solution non rakée du même spot se
+     confondraient en cache — le pire des mélanges, puisqu'elles n'ont ni les
+     mêmes EV ni, comme on va le voir, les mêmes sizings. */
+  const h = (st) => gameStateHash({ state: st, heroRange: HERO, villainRanges: [VILL], treeSpec: ts, solverConfig: { maxIterations: 600, seed: 5 } }).hash;
+  const hashs = new Set([h(sans.st), h(cap3.st), h(sansCap.st), h(disputes.st)]);
+  eq(hashs.size, 4, "les quatre variantes ont quatre hashs d'état distincts");
+
+  /* ── 5. ET LE RAKE CHANGE LE SIZING RETENU ───────────────────────────────
+     C'est la raison d'être de tout ce qui précède. Tant que le rake n'était que
+     transporté, le moteur recommandait le même sizing avec et sans taxe — ce qui
+     est faux : le rake renchérit les gros pots, donc déplace l'optimum vers le
+     bas. Le test ne fige pas QUEL sizing sort (cela dépend du spot) : il vérifie
+     que la comparaison d'EV entre sizings n'est plus indifférente au rake. */
+  const opti = (rake) => solveOptimizedTree({
+    stateInput: spot(rake), heroRange: HERO, villainRange: VILL, mode: "SINGLE",
+    userBetSpecs: [potSizing(0.33), potSizing(0.75), potSizing(1.5)], userRaiseSpecs: [],
+    evaluationConfig: { maxIterations: 300, maxCombos: 0, seed: 5, convergenceTarget: 0.02, maxIterationsCeiling: 1200 },
+    finalSolveConfig: { maxIterations: 800, maxCombos: 0, seed: 5 }, persist: false,
+  });
+  const oSans = opti(null), oRake = opti({ pct: 0.05, cap: 3 });
+  ok(oSans.ok && oRake.ok, "les deux optimisations aboutissent");
+  const clSans = JSON.stringify(oSans.solution.actionRanking.actions.map(a => a.label + ":" + a.delta));
+  const clRake = JSON.stringify(oRake.solution.actionRanking.actions.map(a => a.label + ":" + a.delta));
+  ok(clSans !== clRake, "le classement des sizings CHANGE avec le rake — il n'est plus décoratif");
+
+  /* ── 6. CE QUE L'ON REFUSE DE CALCULER ───────────────────────────────────
+     Le rake fait sortir des jetons de la table ; l'ICM convertit un transfert
+     ENTRE joueurs. Les composer demanderait une convention qui n'existe pas. */
+  const stIcm = normalizeGameState({
+    ...spot({ pct: 0.05, cap: 3 }), gameType: "MTT",
+    evaluationModel: "ICM", icmParams: { stacks: [40, 40], payouts: [0.6, 0.4] },
+  }).state;
+  const refus = solveTreeSpec({ state: stIcm, heroRange: HERO, villainRange: VILL, treeSpec: ts, config: { maxIterations: 100, maxCombos: 0, seed: 5 } });
+  eq(refus.ok, false, "§99 — la combinaison rake + ICM est REFUSÉE, pas approximée");
+  ok(/ne se combinent pas/.test(refus.reason), "avec un motif qui explique pourquoi, et non une exception opaque");
+
+  /* ── 7. NON-RÉGRESSION : sans rake déclaré, rien ne bouge ────────────────— */
+  const zero = resous({ pct: 0, cap: null });
+  eq(zero.st.rake.applied, false, "un rake de 0 % n'est jamais déclaré appliqué");
+  eq(zero.r.ev, sans.r.ev, "et le résultat est identique à celui d'un état sans rake du tout");
+
+  console.log("   EV : sans " + sans.r.ev + " · cap 3bb " + cap3.r.ev + " · sans cap " + sansCap.r.ev
+    + " · pots disputés seulement " + disputes.r.ev);
+  console.log("   sizings : sans rake " + oSans.solution.selectedSizes.bets.map(b => b.label).join(",")
+    + " · avec rake " + oRake.solution.selectedSizes.bets.map(b => b.label).join(","));
 }
 
 console.log(`\n✅ PFASE pipeline complet — CASE A→H + §110 (${Math.round((Date.now() - t0) / 1000)} s) — ${passed} assertions OK\n`);

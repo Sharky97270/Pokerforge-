@@ -26,7 +26,8 @@
    lire un champ absent et de se rabattre sur autre chose.
    ══════════════════════════════════════════════════════════════════════════ */
 
-import { EPS } from "./config.js";
+import { EPS, DEFAULT_EVALUATION_CONFIG } from "./config.js";
+import { nodeActionEVs } from "../solver/core/multistreet.js";
 import { roundTo, roundAmount, specKey, specLabel } from "./sizingSpec.js";
 import { checkStrategyNormalization } from "./metrics.js";
 
@@ -77,10 +78,33 @@ export const pathKey = (path) => (path || []).join("|");
      classes:[…]     // classes de mains présentes dans la range du joueur
    }
    ══════════════════════════════════════════════════════════════════════════ */
-export function extractStreetStrategy(solution, { includeByClass = true, maxClasses = 200 } = {}) {
+export function extractStreetStrategy(solution, {
+  includeByClass = true, maxClasses = 200,
+  /* ── EV PAR ACTION (§36, §49) ─────────────────────────────────────────────
+     « Après décision : Action Hero · Action GTO · Sizing · Fréquence · EV · EV
+     loss » (§36) et « EV played · EV best · EV difference » (§49). Ces colonnes
+     réclament une EV PAR ACTION, que le solve ne conserve pas : `nodeActionEVs`
+     la recalcule depuis la stratégie moyenne.
+
+     Elle coûte une traversée d'arbre par action et par runout. Sur un board
+     COMPLET (river) il n'y a qu'un runout : c'est exact et négligeable. Sur un
+     board incomplet il en faut plusieurs dizaines, et le coût se multiplie par
+     le nombre de nœuds — d'où deux garde-fous : un budget de runouts et un
+     plafond de nœuds, les nœuds les plus proches de la racine étant servis en
+     premier (ce sont ceux qu'un joueur regarde).
+
+     `includeEV:false` coupe tout : les consommateurs testent `node.ev` et
+     n'inventent jamais de nombre en son absence (§0). */
+  includeEV = true,
+  evSamples = DEFAULT_EVALUATION_CONFIG.strategyEvSamples || 60,
+  maxEVNodes = 24,
+} = {}) {
   if (!solution || !solution.tree || typeof solution.avgOf !== "function") return null;
   const nodes = {};
   const seenClasses = new Set();
+  const boardComplete = (solution.board ? solution.board.length : solution.initLen || 0) >= 5;
+  let evBudget = includeEV ? maxEVNodes : 0;
+  let evSkipped = 0;
 
   /* Index des combos par classe de main, une fois pour chaque camp. */
   const classIndex = (list) => {
@@ -175,8 +199,25 @@ export function extractStreetStrategy(solution, { includeByClass = true, maxClas
       };
     }
 
+    /* EV par action à CE nœud. Jamais fabriquée : si le budget est épuisé ou
+       si le calcul n'est pas disponible, le champ porte le motif, pas un nombre. */
+    let ev = null;
+    if (includeEV) {
+      if (evBudget <= 0) { evSkipped++; ev = { available: false, reason: `budget de ${maxEVNodes} nœuds épuisé — nœud trop profond pour être chiffré` }; }
+      else {
+        evBudget--;
+        const r = nodeActionEVs(solution, path, { samples: boardComplete ? 1 : evSamples });
+        ev = r && r.available
+          ? { available: true, exact: !!r.exact, samples: r.samples, note: r.note,
+              byAction: r.byAction, byClass: includeByClass ? r.byClass : null,
+              mixedEV: r.mixedEV, reachShare: r.reachShare }
+          : { available: false, reason: (r && r.reason) || "indisponible" };
+      }
+    }
+
     nodes[pathKey(path)] = {
       path: path.slice(),
+      ev,
       nodeId: node.id,
       player: node.player,
       actions: node.actions.slice(),
@@ -193,6 +234,10 @@ export function extractStreetStrategy(solution, { includeByClass = true, maxClas
   })(solution.tree, []);
 
   return {
+    /* Ce que vaut l'EV rapportée ici, en un mot — l'UI n'a pas à le deviner. */
+    evAvailable: includeEV,
+    evExact: includeEV ? boardComplete : null,
+    evNodesSkipped: evSkipped,
     coversStreetsAhead: false,
     coversStreetsNote: "Stratégie de la rue courante uniquement. Les rues suivantes se re-résolvent au nouvel état (pot, tapis et SPR changent) — voir §38/§39.",
     nodes,
@@ -207,11 +252,35 @@ export function extractStreetStrategy(solution, { includeByClass = true, maxClas
 export function nodeStrategyFor(strategy, path, handClass) {
   const node = strategy && strategy.nodes ? strategy.nodes[pathKey(path)] : null;
   if (!node) return null;
+  const ev = node.ev && node.ev.available ? node.ev : null;
+
+  /* ── L'EV SUIT LA MÊME SOURCE QUE LA FRÉQUENCE ────────────────────────────
+     Si l'on lit les fréquences de la classe de main, on lit AUSSI son EV. Les
+     mélanger — la fréquence d'AKs et l'EV de la range — donnerait un couple qui
+     ne décrit aucune situation réelle.
+
+     Et la nuance compte : l'EV agrégée répond à « que vaudrait cette action si
+     TOUTE la range la prenait », ce qui n'est pas ce que fait la stratégie. La
+     grandeur qu'un joueur peut lire est celle de SA main. `evSource` le dit,
+     et `evIsRangeWide` permet à l'écran de le nuancer plutôt que de le taire. */
   if (handClass && node.byClass && node.byClass[handClass]) {
-    return { freqs: node.byClass[handClass], source: "hand-class", node };
+    const evs = ev && ev.byClass && ev.byClass[handClass] ? ev.byClass[handClass] : null;
+    return {
+      freqs: node.byClass[handClass], source: "hand-class", node,
+      evs, evSource: evs ? "hand-class" : null,
+      evExact: evs ? !!ev.exact : null,
+      evNote: evs ? null : (node.ev ? node.ev.reason || "l'EV par action n'a pas été calculée pour cette classe de main." : "l'EV par action n'a pas été calculée pour ce nœud : cette solution ne porte pas de bloc d'EV."),
+    };
   }
+  const evs = ev ? ev.byAction : null;
   return {
     freqs: node.aggregate, source: "range-aggregate", node,
+    evs, evSource: evs ? "range-aggregate" : null,
+    evExact: evs ? !!ev.exact : null,
+    evIsRangeWide: !!evs,
+    evNote: evs
+      ? "EV calculée sur la RANGE ENTIÈRE : « que vaudrait cette action si toute la range la prenait ». Ce n'est pas l'EV d'une main précise."
+      : (node.ev ? node.ev.reason || "l'EV par action n'a pas été calculée pour ce nœud." : "l'EV par action n'a pas été calculée pour ce nœud : cette solution ne porte pas de bloc d'EV."),
     note: handClass ? `${handClass} absente de la range solvée — fréquences de la range entière` : null,
   };
 }
@@ -219,9 +288,12 @@ export function nodeStrategyFor(strategy, path, handClass) {
 /* Les actions LÉGALES d'un nœud, prêtes pour des boutons (§71).
    Rien n'est ajouté qui n'existe pas dans la solution : c'est la règle §71
    (« Ils ne doivent jamais contenir des options absentes de la solution active »). */
-export function legalActionsFromNode(node) {
+export function legalActionsFromNode(node, evs = null) {
   if (!node) return [];
   return node.actions.map(lbl => ({
+    /* `null` quand l'EV n'a pas été calculée — jamais 0, qui se lirait comme
+       une valeur (§0). */
+    evBb: evs && Number.isFinite(evs[lbl]) ? evs[lbl] : null,
     label: lbl,
     actionType: node.actionTypes[lbl],
     additionalBb: node.sizings[lbl].additionalBb,

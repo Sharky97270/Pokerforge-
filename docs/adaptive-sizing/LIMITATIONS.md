@@ -45,27 +45,71 @@
 
 ---
 
-## L4 — L'EV par action à un nœud n'est pas conservée
+## ~~L4 — L'EV par action à un nœud n'est pas conservée~~ · **LEVÉE**
 
 | | |
 |---|---|
 | **Capacité visée** | §36/§49 : afficher « EV played / EV best / EV difference » pour une décision. |
-| **Cause technique** | `solveTree` ne conserve pas les valeurs contrefactuelles par action après convergence : seules la stratégie moyenne et l'EV racine survivent. |
-| **Ce qui est livré** | L'**écart d'EV entre SIZINGS** (§15), lui, est mesuré et conservé (`actionRanking`) : c'est l'EV du joueur s'il se limitait à ce seul sizing. Il répond exactement à « 33 % est proche, 150 % sacrifie davantage ». |
-| **Ce qui reste à faire** | Conserver les valeurs contrefactuelles de la dernière itération dans `solveTree`, ou ajouter une passe de meilleure réponse par action. |
-| **Comportement actuel** | `compareAction` rend `evAvailable: false` avec la note explicite. Aucun nombre n'est fabriqué pour combler le trou. |
+| **Ce qui bloquait** | `solveTree` ne conserve pas les valeurs contrefactuelles par action après convergence. |
+| **Comment c'est levé** | `nodeActionEVs()` les **recalcule** exactement à partir de la stratégie moyenne déjà stockée — une traversée d'arbre par action. Sur board complet c'est exact ; sur board incomplet, la moyenne porte sur des runouts rejoués avec la graine du solve, et `exact:false` le dit. `extractStreetStrategy` attache le résultat à chaque nœud (budget : 24 nœuds, les plus proches de la racine d'abord) ; `compareAction` en tire `evPlayedBb`, `evBestBb`, `evLossBb`. |
+| **Ce qui reste vrai** | Un sizing **non résolu** n'a toujours pas d'EV : `compareAction` rend `evAvailable:false` et publie seulement l'EV de la meilleure action **étudiée**, étiquetée comme telle (§50). Les rues à venir restent hors périmètre (L8). |
+
+**Trois pièges rencontrés, et comment ils ont été attrapés** — parce qu'une EV par
+action a toujours l'air raisonnable, et qu'aucun ne se voyait à la lecture :
+
+1. **Le dénominateur comptait des combinaisons impossibles.** Une main adverse qui
+   partage une carte avec la nôtre est écartée du numérateur ; la compter au
+   dénominateur écrasait toutes les EV du rapport des combos bloqués. Symptôme :
+   sur un pot mort de 12 bb, un FOLD rendait −5.93 bb au lieu de −6 bb exactement.
+   Un pour cent — sur la seule case dont la réponse était connue d'avance.
+2. **La référence de l'auto-contrôle était fausse.** L'EV mélangée à la racine ne
+   doit PAS égaler `solveTree.ev` : celui-ci est la moyenne, sur les itérations,
+   de la valeur de la stratégie **courante** de chaque itération, quand la mesure
+   porte sur la stratégie **moyenne**. Écart mesuré : 0.086 bb à 600 itérations.
+   Confondre les deux fait chercher un bug inexistant pendant longtemps.
+3. **L'indifférence se vérifie PONDÉRÉE.** À l'équilibre, les actions qu'une main
+   joue réellement se valent — mais l'écart brut résiduel (0.26 bb) semble
+   contredire un NashConv de 0.004. Pondéré par la fréquence de l'action et par le
+   poids de la classe dans la range, il retombe à 0.003 : les deux mesures, qui ne
+   partagent aucun code, concordent.
+
+Verrouillé par `test-sizing-pipeline.mjs` **CASE I** (les trois contrôles sur le
+vrai solveur) et par `test-sizing-trainer.mjs` (l'arithmétique du verdict, dont le
+piège « la plus fréquente n'est pas la mieux valorisée »).
 
 ---
 
-## L5 — Le rake est transporté mais pas appliqué
+## ~~L5 — Le rake est transporté mais pas appliqué~~ · **LEVÉE**
 
 | | |
 |---|---|
 | **Capacité visée** | §78 : rake, rake cap. |
-| **Cause technique** | `terminalUtility` ne retire aucun rake du pot. |
-| **Ce qui est livré** | `state.rake = { pct, cap, applied:false }` — transporté, entrant dans le hash canonique (deux configurations de rake ne partagent donc pas de cache), et **déclaré non appliqué**. |
-| **Ce qui reste à faire** | Retrancher le rake dans `terminalUtility` pour les issues non-fold. |
-| **Comportement actuel** | `applied: false` visible dans la solution. Aucune solution ne prétend tenir compte du rake. |
+| **Comment c'est levé** | `makeRakeModel()` retranche `min(pct × pot final, cap)` de l'utilité terminale, **du côté de celui qui encaisse** — et à parts égales sur un pot partagé. `state.rake.applied` vaut désormais vrai dès qu'un pourcentage strictement positif est fourni, et le drapeau descend jusqu'au solveur. |
+| **Variante modélisée** | Convention « no flop, no drop » : ces arbres sont postflop, le pot est donc raké même emporté sans abattage. `rakeUncontested:false` restitue les salles qui ne rakent que les pots disputés — et entre dans le hash, puisque c'est un autre jeu. |
+
+**Ce que cela change vraiment.** Tant que le rake n'était que transporté, le moteur
+recommandait le même sizing avec et sans taxe. Mesuré sur le river de référence,
+à 5 % plafonné à 3 bb : le sizing retenu passe de **75 % à 33 %**, et l'EV de Hero
+de 1.29 à 0.60 bb. Le rake renchérit les gros pots ; l'ignorer ne décalait pas
+seulement un chiffre, cela donnait un mauvais conseil.
+
+**Deux conséquences qu'on ne peut pas contourner :**
+
+* **La somme nulle tombe.** Ce que Hero gagne n'est plus l'opposé de ce que le
+  Vilain perd : une part quitte la table. `nashConv` rend donc `null` — pas une
+  valeur approchée — et la solution porte `zeroSum:false`. Toutes les mesures
+  bâties sur la somme nulle deviennent illégitimes au-dessus d'un solve raké, à
+  commencer par l'exploitabilité.
+* **L'ICM et le PKO sont refusés avec le rake.** Ces utilités transforment un
+  *transfert* de jetons entre deux joueurs ; le rake en fait *sortir* une part.
+  Aucune convention publiée ne compose les deux, et en inventer une produirait un
+  chiffre que rien ne fonde (§0, §99). `solveTreeSpec` refuse **avant** de dépenser
+  un solve, avec le motif — plutôt qu'une exception opaque.
+
+Verrouillé par `test-sizing-pipeline.mjs` **CASE J**, qui vérifie notamment que le
+FOLD de Hero vaut **toujours exactement −6 bb** sous rake : c'est le gagnant qui
+paie, et prélever du mauvais côté est l'erreur la plus facile à commettre et la
+plus difficile à voir dans une EV agrégée.
 
 ---
 
@@ -81,15 +125,53 @@
 
 ---
 
-## L7 — La perte d'une simplification est souvent sous le plancher de mesure
+## L7 — La perte d'une simplification est souvent sous le plancher de mesure · **ATTÉNUÉE**
 
 | | |
 |---|---|
-| **Constat** | Sur les 10 spots du banc d'essai, **aucun** niveau simplifié n'affiche une perte d'EV distinguable du bruit aux budgets par défaut. |
-| **Est-ce un défaut ?** | Non, et la distinction est importante. Deux choses sont mesurées séparément : (a) le **classement** des sizings — mesurable sur 4 spots river sur 6, avec des écarts de 0.23 à 1.44 bb contre un plancher de 0.06 ; (b) la **perte du meilleur sizing face à l'arbre complet** — effectivement très petite. Un Single Size bien choisi coûte moins que ce que cette précision permet de mesurer. |
+| **Constat initial** | Sur les 10 spots du banc d'essai, **aucun** niveau simplifié n'affichait une perte d'EV distinguable du bruit aux budgets par défaut. |
+| **Est-ce un défaut ?** | Non, et la distinction est importante. Deux choses sont mesurées séparément : (a) le **classement** des sizings — mesurable, avec des écarts de 0.23 à 1.44 bb ; (b) la **perte du meilleur sizing face à l'arbre complet** — effectivement très petite. Un Single Size bien choisi coûte moins que ce que cette précision permet de mesurer. |
 | **Les 2 spots restants** | SPR 0.42 et 0.5 : tous les candidats s'écrasent sur le même montant (le tapis). Le classement n'y est pas mesurable parce qu'il n'y a **rien à classer**. Le moteur le dit au lieu de départager des actions identiques. |
-| **Ce qui reste à faire** | Plus d'itérations et une abstraction de board abaisseraient le plancher. C'est un arbitrage temps/précision, exposé à l'utilisateur (`convergenceTarget`, `maxIterationsCeiling`, `timeBudgetMs`). |
-| **Comportement actuel** | `distinguishable: false` et l'avertissement à l'écran. Jamais un chiffre présenté comme précis. |
+| **Comportement actuel** | `distinguishable` et `guaranteed` sont rapportés séparément (ci-dessous). Jamais un chiffre présenté comme plus précis qu'il ne l'est. |
+
+**Ce qui a changé — deux corrections qui abaissent réellement le plancher :**
+
+**1. On ne mesurait pas l'EV de la stratégie qu'on sert.** `solveTree.ev` est la
+moyenne, *sur les itérations*, de la valeur de la stratégie **courante** de chaque
+itération. La stratégie **stockée, affichée et jouée** est la stratégie *moyenne* —
+et sa valeur converge bien plus vite :
+
+| itérations | `sol.ev` (moyenne des itérations) | EV de la stratégie moyenne | NashConv |
+|---:|---:|---:|---:|
+| 100 | 0.837 | 1.074 | 0.580 |
+| 800 | 1.167 | 1.243 | 0.093 |
+| 1600 | 1.217 | 1.267 | 0.041 |
+| 3200 | 1.243 | 1.270 | 0.019 |
+
+Entre 1600 et 3200 itérations, l'ancienne mesure bougeait encore de 0.026 bb quand
+la nouvelle ne bouge que de 0.003 : **près de dix fois plus stable**. L'essentiel
+de la « dérive de convergence » qu'on prenait pour de l'imprécision était l'inertie
+d'une moyenne qui traîne ses premières itérations. `strategyEV()` calcule la bonne
+grandeur, et c'est elle que PFASE compare désormais.
+
+**2. « Mesurable » et « garanti » ne sont pas la même question**, et n'en donner
+qu'une réponse trompe dans un sens ou dans l'autre :
+
+* le **plancher mesuré** — dérive observée entre N et 2N itérations, majorée d'un
+  facteur de sécurité, plus le bruit d'échantillonnage. C'est ce que l'on constate ;
+* le **plancher garanti** — `NashConv(référence) + NashConv(sous-arbre)`. Dans un
+  jeu à somme nulle, l'écart entre la valeur d'un profil et celle du jeu est borné
+  par son exploitabilité. C'est rigoureux, mais lâche : sur le river de référence,
+  la borne annonçait 0.041 bb là où l'erreur réelle valait 0.003 — un facteur 13.
+
+N'utiliser que la borne rigoureuse déclarerait presque tout indistinguable et
+masquerait des écarts réels ; n'utiliser que la dérive surestimerait la précision.
+La solution rapporte donc `distinguishable` (mesuré) **et** `guaranteed` (borné),
+avec les deux planchers, et l'interface dit lequel est franchi.
+
+**Ce qui reste à faire.** Une abstraction de board abaisserait encore le plancher
+sur les flops. L'arbitrage temps/précision reste exposé (`convergenceTarget`,
+`maxIterationsCeiling`, `timeBudgetMs`).
 
 ---
 

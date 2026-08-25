@@ -96,6 +96,10 @@ function seedSolution(spot, ledger, complexity, sizings, over = {}) {
           byClass: { AKs: Object.fromEntries(labels.map((l, i) => [l, freqs[i]])) },
           potBb: 12, toCallBb: 0,
           normalization: { ok: true, sum: 1, problems: [] },
+          /* EV par action — absente par défaut (une solution peut très bien ne
+             pas l'avoir : budget épuisé, extraction sans EV). `over.ev` la
+             fournit pour les tests qui portent sur le verdict d'EV. */
+          ev: over.ev || null,
         },
       },
     },
@@ -207,9 +211,81 @@ console.log("\n── §36 — on n'annonce que ce qui est disponible");
   ok(v.solutionAction, "l'action de la solution est fournie");
   ok(typeof v.matched.frequency === "number", "la fréquence l'est aussi");
   eq(v.evAvailable, false, "l'EV par action ne l'est pas — et on le dit plutôt que d'en inventer une");
-  ok(/n'est pas conservée/.test(v.evNote), "avec l'explication");
+  ok(/n'a pas été calculée/.test(v.evNote), "avec l'explication");
+  eq(v.evPlayedBb, null, "aucun nombre n'est fabriqué à la place");
+  eq(v.evBestBb, null, "ni pour la meilleure action");
+  eq(v.evLossBb, null, "ni pour l'écart");
   ok(v.sizingRanking && v.sizingRanking.actions.length, "§15 — mais l'écart d'EV entre SIZINGS, lui, est disponible");
   near(v.evLossOfSolution, 0.06, "et la perte d'EV de la simplification aussi");
+}
+
+console.log("\n── §36/§49 — EV jouée · EV la meilleure · écart, quand elles EXISTENT");
+{
+  clearStore();
+  /* Fixture d'EV construite pour piéger la confusion « meilleure action » :
+     la fixture joue X à 80 % et B à 20 % — X est donc la PLUS FRÉQUENTE. Mais
+     c'est B qui VAUT le plus (2.5 contre 2.0). Un moteur qui mesurerait l'écart
+     d'EV contre l'action majoritaire trouverait 0 ; il doit trouver 0.5. */
+  const ev = {
+    available: true, exact: true, samples: 1,
+    byAction: { X: 2.0, B: 2.5 },
+    byClass: { AKs: { X: 2.0, B: 2.5 }, AA: { X: 0.4, B: 3.9 } },
+    mixedEV: 2.1, reachShare: 1,
+  };
+  const { sol } = seedSolution(SPOT(), LEDGER(), "SINGLE", [potSizing(0.33)], { ev });
+
+  /* Hero CHECK : l'action majoritaire… et pourtant la moins bonne. */
+  const v = trainerVerdict({ solution: sol, handClass: "AKs", heroAction: { actionType: "CHECK" } });
+  eq(v.evAvailable, true, "l'EV est annoncée disponible");
+  eq(v.evPlayedBb, 2, "EV jouée");
+  eq(v.evBestBb, 2.5, "EV de la meilleure action — celle qui VAUT le plus");
+  eq(v.evLossBb, 0.5, "écart = meilleure − jouée");
+  eq(v.evBestLabel, "33%", "et la meilleure action est désignée par son sizing");
+  eq(v.evSource, "hand-class", "l'EV vient de la classe de main, comme la fréquence");
+  eq(v.evExact, true, "et elle est exacte (board complet)");
+
+  /* La distinction qui compte : la plus fréquente n'est PAS la mieux valorisée. */
+  const node = getTrainingNode(sol, [], { handClass: "AKs" });
+  const plusFrequente = node.actions.reduce((m, a) => (a.frequency > m.frequency ? a : m));
+  eq(plusFrequente.label, "X", "l'action la plus FRÉQUENTE est le check");
+  eq(v.evLossBb, 0.5, "or l'écart vaut 0.5 : il a bien été mesuré contre la MIEUX VALORISÉE, pas contre la majoritaire");
+
+  /* Jouer la mise : c'est l'optimum, l'écart est nul. */
+  const vb = trainerVerdict({ solution: sol, handClass: "AKs", heroAction: { actionType: "BET", toBb: 3.96 } });
+  eq(vb.evPlayedBb, 2.5, "EV jouée quand on prend la meilleure action");
+  eq(vb.evLossBb, 0, "et l'écart est nul");
+
+  /* Une classe absente de byClass retombe sur l'agrégat de range — et le DIT. */
+  const v2 = trainerVerdict({ solution: sol, handClass: "72o", heroAction: { actionType: "BET", toBb: 3.96 } });
+  eq(v2.evAvailable, true, "l'EV de range reste disponible");
+  eq(v2.evSource, "range-aggregate", "mais sa source est annoncée comme celle de la RANGE");
+  eq(v2.evIsRangeWide, true, "et le drapeau le dit explicitement");
+  ok(/RANGE ENTIÈRE/.test(v2.evNote), "avec la mise en garde : ce n'est pas l'EV de cette main");
+
+  /* Un sizing non étudié : pas d'EV jouée, mais le contexte reste chiffré. */
+  const v3 = trainerVerdict({ solution: sol, handClass: "AKs", heroAction: { actionType: "BET", toBb: 7.77 } });
+  eq(v3.evAvailable, false, "§50 — le sizing joué n'a pas d'EV : on ne lui en prête pas");
+  eq(v3.evPlayedBb, null, "aucune EV jouée");
+  eq(v3.evBestBb, 2.5, "l'EV de la meilleure action ÉTUDIÉE reste publiée");
+  ok(/extrapolation/.test(v3.evNote), "et la note interdit explicitement de la reporter sur le sizing joué");
+}
+
+console.log("\n── §14/§21 — un écart d'EV sous le résidu d'indifférence n'est PAS une faute");
+{
+  clearStore();
+  /* Deux actions mixées 50/50 dont les EV diffèrent de 0.03 : c'est du résidu de
+     convergence, pas une erreur de jeu. Le verdict doit le dire. */
+  const ev = {
+    available: true, exact: true, samples: 1,
+    byAction: { X: 2.53, B0: 2.5, B1: 2.5 },
+    byClass: { AKs: { X: 2.53, B0: 2.5, B1: 2.5 } },
+    mixedEV: 2.51, reachShare: 1,
+  };
+  const { sol } = seedSolution(SPOT(), LEDGER(), "SIMPLE", [potSizing(0.33), potSizing(0.75)], { ev });
+  const v = trainerVerdict({ solution: sol, handClass: "AKs", heroAction: { actionType: "BET", toBb: 3.96 } });
+  eq(v.evLossBb, 0.03, "l'écart est mesuré et publié tel quel");
+  ok(v.evEquilibriumResidualBb >= 0.03, "le résidu d'indifférence du nœud est au moins aussi grand");
+  eq(v.evLossBelowNoise, true, "donc l'écart est déclaré sous le bruit — ce n'est pas une erreur de jeu");
 }
 
 console.log("\n── §43/§68 — le Vilain échantillonne, et la séquence est rejouable");

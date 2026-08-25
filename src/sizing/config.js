@@ -153,6 +153,14 @@ export const DEFAULT_EVALUATION_CONFIG = Object.freeze({
      et l'annonce en PARTIAL avec le nombre de sous-arbres non évalués — jamais
      en prétendant avoir tout comparé. */
   timeBudgetMs: 45000,
+  /* EV mesurée sur la STRATÉGIE MOYENNE plutôt que sur la moyenne des
+     itérations (voir solverAdapter). `false` restitue l'historique. */
+  useAverageStrategyEV: true,
+  /* Runouts utilisés pour cette mesure quand le board est incomplet. 60 suffit :
+     tous les sous-arbres partagent la même graine, donc les mêmes runouts, et la
+     comparaison reste appariée. */
+  strategyEvSamples: 60,
+
   /* ── NOMBRES ALÉATOIRES COMMUNS (CRN) ─────────────────────────────────
      TOUS les sous-arbres d'une même optimisation sont résolus avec CETTE
      graine. Ce n'est pas un détail d'implémentation : sur board incomplet, les
