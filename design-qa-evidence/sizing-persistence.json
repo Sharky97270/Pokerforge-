@@ -1,0 +1,294 @@
+{
+  "ok": true,
+  "steps": [
+    {
+      "step": "onglet SharkSolver",
+      "ok": true
+    },
+    {
+      "step": "board saisi",
+      "ok": true,
+      "board": "As7d2c9hKs"
+    },
+    {
+      "step": "solve lancé",
+      "ok": true
+    },
+    {
+      "step": "solution produite",
+      "ok": true,
+      "ms": 55802
+    },
+    {
+      "step": "solution enregistrée en mémoire",
+      "ok": true,
+      "id": "PFS-23C6AD4C3061A8EE#SINGLE"
+    },
+    {
+      "step": "application rechargée",
+      "ok": true
+    },
+    {
+      "step": "§88 — la solution survit au rechargement",
+      "ok": true,
+      "store": {
+        "solutions": 1,
+        "states": 3,
+        "byComplexity": {
+          "SINGLE": 1
+        },
+        "status": {
+          "persistent": true,
+          "hydrated": true,
+          "loaded": 1,
+          "written": 0,
+          "skipped": 0,
+          "rejected": 0,
+          "staleDropped": 0,
+          "lastError": null
+        }
+      }
+    },
+    {
+      "step": "§88 — le résultat rechargé est IDENTIQUE",
+      "ok": true,
+      "memeId": true,
+      "memesSizings": true,
+      "memePerte": true,
+      "memePlancher": true,
+      "memeExploitabilite": true,
+      "memesNoeuds": true,
+      "memesClasses": true
+    }
+  ],
+  "errors": [],
+  "avant": {
+    "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+    "selected": "67%",
+    "evloss": "0.0013",
+    "floor": "0.007",
+    "store": {
+      "solutions": 1,
+      "states": 3,
+      "byComplexity": {
+        "SINGLE": 1
+      },
+      "status": {
+        "persistent": true,
+        "hydrated": true,
+        "loaded": 0,
+        "written": 1,
+        "skipped": 0,
+        "rejected": 0,
+        "staleDropped": 1,
+        "lastError": null
+      }
+    },
+    "detail": {
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
+      "isStale": false,
+      "stale": null,
+      "sizingMode": "SINGLE",
+      "complexity": "SINGLE",
+      "status": "PARTIAL",
+      "partialReasons": [
+        "range abstraite (classes de mains supprimées par le plafond de combos)",
+        "sélection : range abstraite (classes de mains supprimées par le plafond de combos)"
+      ],
+      "provenance": "POKERFORGE_DATABASE",
+      "candidates": [
+        "67%",
+        "167%",
+        "JAM"
+      ],
+      "selectedSizes": [
+        "67%"
+      ],
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
+      "accuracy": {
+        "exact": true,
+        "metric": "NashConv (bb)",
+        "value": 0.0216,
+        "note": null,
+        "iterations": 400,
+        "sampled": false
+      },
+      "nodes": [
+        "",
+        "X",
+        "X|B0",
+        "X|B0|J",
+        "X|J",
+        "B0",
+        "B0|J",
+        "J"
+      ],
+      "classes": 169
+    }
+  },
+  "apres": {
+    "store": {
+      "solutions": 1,
+      "states": 3,
+      "byComplexity": {
+        "SINGLE": 1
+      },
+      "status": {
+        "persistent": true,
+        "hydrated": true,
+        "loaded": 1,
+        "written": 0,
+        "skipped": 0,
+        "rejected": 0,
+        "staleDropped": 0,
+        "lastError": null
+      }
+    },
+    "detail": {
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
+      "isStale": false,
+      "stale": null,
+      "sizingMode": "SINGLE",
+      "complexity": "SINGLE",
+      "status": "PARTIAL",
+      "partialReasons": [
+        "range abstraite (classes de mains supprimées par le plafond de combos)",
+        "sélection : range abstraite (classes de mains supprimées par le plafond de combos)"
+      ],
+      "provenance": "POKERFORGE_DATABASE",
+      "candidates": [
+        "67%",
+        "167%",
+        "JAM"
+      ],
+      "selectedSizes": [
+        "67%"
+      ],
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
+      "accuracy": {
+        "exact": true,
+        "metric": "NashConv (bb)",
+        "value": 0.0216,
+        "note": null,
+        "iterations": 400,
+        "sampled": false
+      },
+      "nodes": [
+        "",
+        "X",
+        "X|B0",
+        "X|B0|J",
+        "X|J",
+        "B0",
+        "B0|J",
+        "J"
+      ],
+      "classes": 169
+    },
+    "instanceId": "pfase-xh9e3qps"
+  },
+  "comparaison": {
+    "memeId": true,
+    "memesSizings": true,
+    "memePerte": true,
+    "memePlancher": true,
+    "memeExploitabilite": true,
+    "memesNoeuds": true,
+    "memesClasses": true,
+    "avant": {
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
+      "isStale": false,
+      "stale": null,
+      "sizingMode": "SINGLE",
+      "complexity": "SINGLE",
+      "status": "PARTIAL",
+      "partialReasons": [
+        "range abstraite (classes de mains supprimées par le plafond de combos)",
+        "sélection : range abstraite (classes de mains supprimées par le plafond de combos)"
+      ],
+      "provenance": "POKERFORGE_DATABASE",
+      "candidates": [
+        "67%",
+        "167%",
+        "JAM"
+      ],
+      "selectedSizes": [
+        "67%"
+      ],
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
+      "accuracy": {
+        "exact": true,
+        "metric": "NashConv (bb)",
+        "value": 0.0216,
+        "note": null,
+        "iterations": 400,
+        "sampled": false
+      },
+      "nodes": [
+        "",
+        "X",
+        "X|B0",
+        "X|B0|J",
+        "X|J",
+        "B0",
+        "B0|J",
+        "J"
+      ],
+      "classes": 169
+    },
+    "apres": {
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
+      "isStale": false,
+      "stale": null,
+      "sizingMode": "SINGLE",
+      "complexity": "SINGLE",
+      "status": "PARTIAL",
+      "partialReasons": [
+        "range abstraite (classes de mains supprimées par le plafond de combos)",
+        "sélection : range abstraite (classes de mains supprimées par le plafond de combos)"
+      ],
+      "provenance": "POKERFORGE_DATABASE",
+      "candidates": [
+        "67%",
+        "167%",
+        "JAM"
+      ],
+      "selectedSizes": [
+        "67%"
+      ],
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
+      "accuracy": {
+        "exact": true,
+        "metric": "NashConv (bb)",
+        "value": 0.0216,
+        "note": null,
+        "iterations": 400,
+        "sampled": false
+      },
+      "nodes": [
+        "",
+        "X",
+        "X|B0",
+        "X|B0|J",
+        "X|J",
+        "B0",
+        "B0|J",
+        "J"
+      ],
+      "classes": 169
+    }
+  },
+  "identique": true
+}

@@ -36,6 +36,14 @@ import { PAUSE_AFTER, PAUSE_AFTER_OPTIONS, PAUSE_AFTER_DEFAULT, PAUSE_AFTER_HELP
   shouldPauseAfter, classFromSpotVerdict, classFromPostflopQuality, isEvaluableSpot,
   decisionId as pauseDecisionId, pauseKey, pausedCountLabel } from "../trainerPausePolicy.js";
 import { isSolvablePostflop, buildPostflopSolveRequest, mapWorkerResultToStrategy } from "../trainerPostflopSolver.js";
+/* ⚖️ Adaptive Sizing Engine (§29/§87) — le Trainer CONSOMME une solution ; il
+   n'en choisit jamais les sizings. Import de la seule API publique de PFASE. */
+import { spotsFromSolutions, spotFromSolution } from "../sizing/trainerBridge.js";
+import { hydrateStore, storeStatus as pfaseStoreStatus } from "../sizing/solutionStore.js";
+/* `getSolutionById` prend un solutionId ; `getSolution` prend (hash, complexité).
+   Confondre les deux rendait systématiquement null — la solution existait bien,
+   mais on la cherchait avec la mauvaise clé. */
+import { getSolutionById as getPfaseSolution } from "../sizing/solutionStore.js";
 import { solvePostflopAsync } from "../solver/cfrPostflopClient.js";
 import { evaluatePostflopDecision } from "../postflopHeuristic.js";
 /* ── ÉTAT CANONIQUE DE L'ARGENT ET DES MONTANTS (C2/C4→C9) ────────────────
@@ -3906,6 +3914,26 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   useEffect(()=>{
     if(!spot||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
     if(spot.strategyProvenance==="cfr-experimental"){ setCfrSolving(false); return; } // déjà solvé
+    /* ── UNE SOLUTION PFASE NE SE FAIT PAS ÉCRASER (§0/§18/§29) ───────────────
+       Ce pré-solve améliore un spot heuristique en le résolvant en arrière-plan.
+       Appliqué à un spot issu du moteur de sizing, il fait exactement l'inverse :
+
+         · il REMPLACE une stratégie calculée sur les ranges réelles du solveur
+           par une stratégie calculée sur des ranges HEURISTIQUES ;
+         · il remplace des sizings SÉLECTIONNÉS par comparaison d'EV, dont le coût
+           de simplification a été mesuré, par ceux de son propre arbre ;
+         · et il réécrit `strategyProvenance`, de sorte que l'écran annonce
+           « SOLUTION CFR POSTFLOP — expérimental » sur une solution qui n'en est
+           pas une. C'est le §18 pris à revers : la provenance affichée désigne un
+           moteur qui n'a pas produit ce qui est joué.
+
+       Le défaut était invisible parce qu'il est ASYNCHRONE : le spot s'affiche
+       correctement, puis bascule quelques secondes plus tard. La QA navigateur le
+       manquait en lisant le badge trop tôt — elle gagnait la course. Elle attend
+       désormais que la provenance cesse de bouger, et c'est ce qui l'a révélé.
+
+       Règle : le spot qui porte une solution PFASE la garde. */
+    if(spot.strategyProvenance==="pfase"||spot.pfase){ setCfrSolving(false); return; }
     const built=buildPostflopSolveRequest(spot);
     if(!built){ setCfrSolving(false); return; }
     const mySpot=spot; cfrSpotRef.current=mySpot;
@@ -4096,15 +4124,25 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     // ou heuristique (template). Honnêteté : ne jamais présenter une heuristique
     // comme un résultat GTO calculé.
     const cfrExp=spot.strategyProvenance==="cfr-experimental";
+    /* ⚖️ Adaptive Sizing : provenance PROPRE (§18). La confondre avec « Solveur »
+       priverait l'utilisateur de l'information qui compte ici — quel NIVEAU de
+       simplification il affronte, et ce que cette simplification coûte. */
+    const pfase=spot.strategyProvenance==="pfase";
     const isChart=spot.strategySource==="chart";
-    const solved=spot.strategySource==="solver";
-    const badgeCol=isChart?"#FFB020":cfrExp?"#20CFFF":solved?"#10D87A":T.text4;
+    const solved=spot.strategySource==="solver"&&!pfase;
+    const badgeCol=isChart?"#FFB020":pfase?"#9B5CFF":cfrExp?"#20CFFF":solved?"#10D87A":T.text4;
     const provBadge=spot.strategySource?(
       <span title={spot.strategyNote||(solved?"Solution calculée par le solveur":"Solution heuristique (template)")}
         style={{fontFamily:T.stats,fontSize:8,fontWeight:800,letterSpacing:".04em",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",
-          color:badgeCol,background:isChart?"rgba(255,176,32,.12)":cfrExp?"rgba(32,207,255,.12)":solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
-          border:`1px solid ${isChart?"rgba(255,176,32,.35)":cfrExp?"rgba(32,207,255,.35)":solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-        {isChart?"📊 Chart":cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
+          color:badgeCol,background:isChart?"rgba(255,176,32,.12)":pfase?"rgba(155,92,255,.14)":cfrExp?"rgba(32,207,255,.12)":solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+          border:`1px solid ${isChart?"rgba(255,176,32,.35)":pfase?"rgba(155,92,255,.4)":cfrExp?"rgba(32,207,255,.35)":solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+        {isChart?"📊 Chart"
+          :pfase?(spot.pfase?.strategyKind==="EXPLOIT"
+            /* Une exploitation ne porte JAMAIS le symbole de l'équilibre : contre
+               qui elle a été calculée fait partie de ce qu'elle est (§0/§45). */
+            ? `🎯 vs ${spot.pfase?.exploitLabel||"profil"}`
+            : `⚖️ ${spot.pfase?.complexity||"Adaptive"}`)
+          :cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
       </span>
     ):null;
     return(
@@ -5120,15 +5158,46 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                 <div className="pf-solfull-title">💡 SOLUTION</div>
                 {/* Provenance (§2/§28) : d'où vient la solution ? */}
                 {spot.strategySource&&(()=>{
-                  const cfrExp=spot.strategyProvenance==="cfr-experimental", sv=spot.strategySource==="solver";
+                  const cfrExp=spot.strategyProvenance==="cfr-experimental";
+                  const pf=spot.strategyProvenance==="pfase";
+                  const sv=spot.strategySource==="solver"&&!pf;
                   const ch=spot.strategySource==="chart";
-                  const col=ch?"#FFB020":cfrExp?"#20CFFF":sv?"#10D87A":T.text4;
+                  const col=ch?"#FFB020":pf?"#9B5CFF":cfrExp?"#20CFFF":sv?"#10D87A":T.text4;
                   return(
+                  <>
                   <span title={spot.strategyNote||""} style={{fontFamily:T.stats,fontSize:7.5,fontWeight:800,letterSpacing:".03em",padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
-                    color:col,background:ch?"rgba(255,176,32,.12)":cfrExp?"rgba(32,207,255,.12)":sv?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
-                    border:`1px solid ${ch?"rgba(255,176,32,.35)":cfrExp?"rgba(32,207,255,.35)":sv?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-                    {ch?"📊 Chart":cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
-                  </span>);
+                    color:col,background:ch?"rgba(255,176,32,.12)":pf?"rgba(155,92,255,.14)":cfrExp?"rgba(32,207,255,.12)":sv?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
+                    border:`1px solid ${ch?"rgba(255,176,32,.35)":pf?"rgba(155,92,255,.4)":cfrExp?"rgba(32,207,255,.35)":sv?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
+                    {ch?"📊 Chart"
+                      :pf?(spot.pfase?.strategyKind==="EXPLOIT"
+                        ? `🎯 Exploit · vs ${spot.pfase?.exploitLabel||"profil"}`
+                        : `⚖️ Adaptive Sizing · ${spot.pfase?.complexity||""}`)
+                      :cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
+                  </span>
+                  {/* §14/§110 — ce que la simplification coûte, AVEC son plancher
+                      de mesure. Un « 0.00 bb » sans plancher laisserait croire à
+                      une gratuité démontrée. */}
+                  {pf&&spot.pfase?.strategyKind==="EXPLOIT"&&(
+                    /* Sans cette ligne, un joueur pourrait travailler des heures
+                       une stratégie d'exploitation en croyant apprendre l'équilibre.
+                       Le modèle exploité est une ESTIMATION : c'est dit ici, pas
+                       enterré dans une infobulle. */
+                    <span title={spot.pfase.exploitModelNote||""}
+                      style={{marginLeft:6,padding:"1px 6px",borderRadius:4,fontSize:9,fontWeight:800,
+                        color:"#FFC247",background:"rgba(255,194,71,.12)",border:"1px solid rgba(255,194,71,.35)"}}>
+                      exploitation — pas un équilibre
+                    </span>
+                  )}
+                  {pf&&spot.pfase&&spot.pfase.evLossBb!=null&&(
+                    <span title={`Sizings retenus : ${(spot.pfase.selected||[]).join(" · ")} — comparés à ${(spot.pfase.reference||[]).join(" · ")}`}
+                      style={{fontFamily:T.stats,fontSize:7.5,fontWeight:700,padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
+                        color:spot.pfase.distinguishable?"#FFC247":T.text4,background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.12)"}}>
+                      {spot.pfase.distinguishable
+                        ? `perte ${spot.pfase.evLossBb} bb`
+                        : `perte non mesurable (< ${spot.pfase.measurementFloorBb} bb)`}
+                    </span>
+                  )}
+                  </>);
                 })()}
               </div>
               <div style={{fontFamily:"'Inter',sans-serif",fontSize:9,color:"#6F81A8",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{spot.desc}</div>
@@ -7712,6 +7781,10 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   });
   const[smode,setSmode]=useState(20);
   const[ntables,setNtables]=useState(1);
+  /* §90 — quand une solution PFASE demandée n'est pas chargeable, on l'affiche.
+     Un repli silencieux vers un spot générique ferait croire à l'utilisateur
+     qu'il s'entraîne contre sa solution alors qu'il joue un template. */
+  const[pfaseNotice,setPfaseNotice]=useState(null);
   const[mobSidebar,setMobSidebar]=useState(false);
   // ── Mode GTO / Exploit ──
   const[trainerMode,setTrainerMode]=useState("gto"); // "gto" | "exploit"
@@ -8334,6 +8407,103 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
   function replaySpot(entry){ startErrorDrill({cat:entry.cat,hp:entry.hero}); }
   // ── Handoff entrant : un spot envoyé depuis le Replayer ou Coach AI configure et lance un drill ──
   function applyTrainerSeed(sd){
+    /* ══ §87 — S'ENTRAÎNER CONTRE UNE SOLUTION PRODUITE DANS SHARKSOLVER ══
+       « Le Trainer est terminé uniquement si une solution produite dans
+       SharkSolver peut être immédiatement saved / loaded / opened / trained
+       against SANS RECOPIER MANUELLEMENT SES SIZINGS. »
+
+       Le sens du flux compte : on ne cherche pas une solution qui ressemblerait
+       au spot courant, on CONSTRUIT le spot à partir de la solution. Board, pot,
+       tapis, positions, actions et fréquences en sortent tous — donc le spot
+       joué est exactement celui qui a été résolu. */
+    /* ── §67/§69 — PLUSIEURS SOLUTIONS, PLUSIEURS TABLES ────────────────────
+       `pfaseSolutionIds` (au pluriel) ouvre une table par solution : quatre
+       spots résolus séparément, ou les quatre NIVEAUX du même état joués côte à
+       côte. Le second cas est le plus parlant — c'est la seule façon de SENTIR
+       ce qu'une simplification coûte, plutôt que de lire une perte d'EV que le
+       plancher de mesure déclare indistinguable. */
+    if(sd&&Array.isArray(sd.pfaseSolutionIds)&&sd.pfaseSolutionIds.length){
+      const sols=sd.pfaseSolutionIds.map(id=>getPfaseSolution(id)).filter(Boolean);
+      if(!sols.length){
+        /* Même raison qu'au singulier : un magasin non encore hydraté n'est pas
+           un magasin vide. */
+        if(!pfaseStoreStatus.hydrated){
+          setPfaseNotice("Lecture des solutions enregistrées…");
+          hydrateStore().then(()=>applyTrainerSeed(sd))
+            .catch(()=>setPfaseNotice("Lecture des solutions enregistrées impossible sur cet appareil."));
+          return;
+        }
+        setPfaseNotice("Aucune des solutions demandées n'a été retrouvée — relance le solve dans SharkSolver.");
+        return;
+      }
+      const built=spotsFromSolutions(sols,{handClass:sd.handClass||null});
+      if(!built.ok){setPfaseNotice("Solutions inexploitables pour l'entraînement : "+built.reason);return;}
+      const valides=[];
+      for(const sp of built.spots){
+        const v=validateTrainerSpot(sp);
+        if(v.valid)valides.push({...sp,ctx:v.ctx});
+      }
+      if(!valides.length){setPfaseNotice("Spots issus des solutions refusés par le validateur.");return;}
+      const q=finalizeTrainingSpots(valides,{config:trainingConfig,meta:{}});
+      setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
+      setSmode(valides.length);setNtables(Math.min(4,valides.length));
+      setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
+      setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
+      setPfaseNotice(
+        valides.length<sd.pfaseSolutionIds.length
+          /* Ce qui manque est DIT. Ouvrir trois tables au lieu de quatre sans
+             rien signaler laisserait croire à une solution en moins. */
+          ?`${valides.length} table(s) ouverte(s) sur ${sd.pfaseSolutionIds.length} solution(s) demandée(s) — les autres n'étaient pas exploitables.`
+          :null);
+      vibrate(VIB.next);
+      return;
+    }
+    if(sd&&sd.pfaseSolutionId){
+      const sol=getPfaseSolution(sd.pfaseSolutionId);
+      if(!sol){
+        /* ── LE MAGASIN N'EST PEUT-ÊTRE PAS ENCORE RELU ────────────────────
+           Les solutions vivent dans IndexedDB ; après un rechargement de page,
+           le magasin en mémoire est VIDE tant que l'hydratation n'a pas eu lieu.
+           Conclure « introuvable » à cet instant est faux : la solution existe,
+           on ne l'a simplement pas encore lue.
+
+           Le défaut était masqué par la QA elle-même, qui appelait `hydrateStore()`
+           avant de vérifier — elle faisait le travail de l'application, et
+           prouvait donc quelque chose que l'application ne faisait pas. */
+        if(!pfaseStoreStatus.hydrated){
+          setPfaseNotice("Lecture des solutions enregistrées…");
+          hydrateStore().then(()=>{
+            const relu=getPfaseSolution(sd.pfaseSolutionId);
+            if(relu)applyTrainerSeed(sd);
+            else setPfaseNotice("Solution introuvable ou produite par un moteur périmé — relance le solve dans SharkSolver.");
+          }).catch(()=>setPfaseNotice("Lecture des solutions enregistrées impossible sur cet appareil."));
+          return;
+        }
+        /* §90 — pas de repli silencieux vers un spot générique : on le dit. */
+        setPfaseNotice("Solution introuvable ou produite par un moteur périmé — relance le solve dans SharkSolver.");
+        return;
+      }
+      const built=spotFromSolution(sol,{handClass:sd.handClass||null});
+      if(!built.ok){
+        setPfaseNotice("Solution inexploitable pour l'entraînement : "+built.reason);
+        return;
+      }
+      const v=validateTrainerSpot(built.spot);
+      if(!v.valid){
+        setPfaseNotice("Spot issu de la solution refusé par le validateur : "+(v.errors||[]).join(" · "));
+        return;
+      }
+      /* PAS de stampStrategy ici : la solution EST la stratégie. La repasser au
+         provider heuristique écraserait des fréquences calculées par des
+         fréquences de template — exactement ce que §29 interdit. */
+      const q=finalizeTrainingSpots([{...built.spot,ctx:v.ctx}],{config:trainingConfig,meta:{}});
+      setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
+      setSmode(1);setNtables(1);setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
+      setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
+      setPfaseNotice(null);
+      vibrate(VIB.next);
+      return;
+    }
     if(!sd||typeof sd!=="object")return;
     // ── §51/§52 : « Générer des spots similaires » / « Créer une session depuis
     // cette main » → variantes pédagogiques d'une vraie main, transformées en
@@ -8663,27 +8833,43 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                   postflop EXPÉRIMENTAL (ranges heuristiques) · ou heuristique template. */}
               {s.strategySource&&(()=>{
                 const cfr=s.strategyProvenance==="cfr-experimental";
+                /* ⚖️ Adaptive Sizing — provenance PROPRE. Sans cette branche, une
+                   solution PFASE tombait dans le cas « solver » et s'affichait
+                   « SOLVEUR PUSH/FOLD — heads-up chip-EV » : un modèle qui n'a rien
+                   à voir avec elle. C'est précisément le défaut que le commentaire
+                   ci-dessus décrit (« le mot exact sans domaine »), reproduit une
+                   rue plus loin. */
+                const pf=s.strategyProvenance==="pfase";
                 const chart=s.strategySource==="chart";
-                const solver=s.strategySource==="solver";
-                const col=chart?"#FFB020":cfr?"#20CFFF":solver?"#10D87A":T.text3;
-                const dim=chart?"rgba(255,176,32,.1)":cfr?"rgba(32,207,255,.1)":solver?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)";
-                const bd=chart?"rgba(255,176,32,.3)":cfr?"rgba(32,207,255,.3)":solver?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)";
+                const solver=s.strategySource==="solver"&&!pf;
+                const col=chart?"#FFB020":pf?"#9B5CFF":cfr?"#20CFFF":solver?"#10D87A":T.text3;
+                const dim=chart?"rgba(255,176,32,.1)":pf?"rgba(155,92,255,.12)":cfr?"rgba(32,207,255,.1)":solver?"rgba(16,216,122,.1)":"rgba(255,255,255,.04)";
+                const bd=chart?"rgba(255,176,32,.3)":pf?"rgba(155,92,255,.35)":cfr?"rgba(32,207,255,.3)":solver?"rgba(16,216,122,.3)":"rgba(255,255,255,.1)";
                 /* Le libellé DÉCRIT LE MODÈLE APPLIQUÉ, il ne se contente pas de dire
                    « exact ». Le mot « exact » sans domaine est ce qui a permis à un
                    BTN de Cash 6-max de porter le badge du solveur heads-up. Le
                    périmètre voyage maintenant avec le spot (strategyScope), et la
                    raison du repli avec lui (strategyLimits). */
                 const sc=s.strategyScope||null;
+                const pfSel=(s.pfase?.selected||[]).join(" · ");
                 const label=chart?"CHART PRÉFLOP — fréquences lues (non calculées ici)"
+                  :pf?`ADAPTIVE SIZING — ${s.pfase?.complexity||"?"} · sizings retenus ${pfSel||"—"}`
                   :cfr?"SOLUTION CFR POSTFLOP — expérimental (ranges heuristiques)"
                   :solver?`SOLVEUR PUSH/FOLD — heads-up chip-EV${sc?.depthBb?` · ${sc.depthBb}bb`:""}`
                   :"ESTIMATION HEURISTIQUE — non résolue en interne";
-                const why=!solver&&!chart&&!cfr?(s.strategyLimits||[])[0]:null;
+                /* §14/§110 — ce que la simplification coûte, TOUJOURS accompagné de
+                   son plancher de mesure. */
+                const pfCost=pf&&s.pfase&&s.pfase.evLossBb!=null
+                  ? (s.pfase.distinguishable
+                      ? `perte ${s.pfase.evLossBb} bb face à l'arbre complet (${(s.pfase.reference||[]).join(" · ")})`
+                      : `perte ${s.pfase.evLossBb} bb — non mesurable : sous le plancher de ${s.pfase.measurementFloorBb} bb`)
+                  : null;
+                const why=pf?pfCost:(!solver&&!chart&&!cfr?(s.strategyLimits||[])[0]:null);
                 const tip=[s.strategyNote||"",...(s.strategyLimits||[]).map(l=>"· "+l)].filter(Boolean).join("\n");
                 return(
                   <div title={tip} style={{margin:"4px 0 2px",padding:"4px 8px",borderRadius:6,background:dim,border:`1px solid ${bd}`}}>
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <span style={{fontSize:11}}>{chart?"📊":solver?"🦈":"≈"}</span>
+                      <span style={{fontSize:11}}>{chart?"📊":pf?"⚖️":solver?"🦈":"≈"}</span>
                       <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:800,letterSpacing:".03em",color:col}}>{label}</span>
                     </div>
                     {why&&<div style={{fontFamily:T.stats,fontSize:8,color:T.text4,lineHeight:1.5,marginTop:2,paddingLeft:17}}>{why}</div>}
@@ -9349,6 +9535,16 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:420,gap:16,textAlign:"center",padding:36}}>
             <div style={{width:60,height:60,borderRadius:"50%",background:T.violetDim,border:`2px solid ${T.violet}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.mono,fontSize:24,color:T.violet,boxShadow:`0 0 30px ${T.violet}30`}}>♠</div>
             <div style={{fontFamily:T.mono,fontSize:17,color:T.text,letterSpacing:3,textShadow:`0 0 20px ${T.accent}40`}}>POKERFORGE TRAINER</div>
+            {pfaseNotice&&(
+              <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,background:"rgba(255,69,96,.08)",border:"1px solid rgba(255,69,96,.35)",maxWidth:430,width:"100%"}}>
+                <span style={{fontSize:18,flexShrink:0}}>⚖️</span>
+                <div style={{flex:1,textAlign:"left",minWidth:0}}>
+                  <div style={{fontFamily:T.stats,fontSize:11,fontWeight:700,color:T.text}}>Adaptive Sizing — aucune solution vérifiée</div>
+                  <div style={{fontFamily:T.stats,fontSize:9,color:T.text3}}>{pfaseNotice}</div>
+                </div>
+                <button className="btn" style={{fontSize:10,padding:"7px 13px",flexShrink:0}} onClick={()=>setPfaseNotice(null)}>OK</button>
+              </div>
+            )}
             {/* ── Reprise de session auto-sauvegardée ── */}
             {resume&&(
               <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,background:"rgba(31,139,255,.08)",border:"1px solid rgba(31,139,255,.35)",maxWidth:430,width:"100%",boxShadow:"0 4px 18px rgba(31,139,255,.12)"}}>

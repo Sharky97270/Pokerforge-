@@ -21,13 +21,79 @@
 ════════════════════════════════════════════════════════════════════════════ */
 import { buildPostflopTree, terminalUtility } from "./gametree.js";
 import { CHIP_UTILITY, makeIcmUtility, makePkoUtility } from "./icm.js";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LE RAKE (mission §78) — pourquoi il ne peut pas être un simple coefficient
+
+   Jusqu'ici PokerForge TRANSPORTAIT le rake (il entre dans le hash d'état, il
+   voyage dans la solution) sans jamais le RETIRER du pot. La solution le
+   déclarait, ce qui était honnête, mais laissait le sizing inchangé — or le rake
+   change réellement le jeu : il taxe les pots gagnés, donc renchérit les gros
+   pots et décourage les bluffs marginaux.
+
+   ── CE QUI EMPÊCHE UN RACCOURCI ────────────────────────────────────────────
+   1. LA SOMME NULLE TOMBE. Un pot raké rend moins que ce qu'il a reçu : ce que
+      Hero gagne n'est plus l'opposé de ce que le Vilain perd. Toutes les mesures
+      qui présupposent la somme nulle deviennent invalides — au premier rang
+      NashConv, dont la définition même repose sur v + (−v) = 0. On ne la
+      « corrige » pas : on la rend `null`, et l'écran dit pourquoi.
+
+   2. L'ICM N'EST PAS COMPATIBLE. Les utilités ICM/PKO transforment un TRANSFERT
+      de jetons entre deux joueurs. Avec le rake, il n'y a plus de transfert :
+      une part quitte la table. Écrire `U.h(d − R)` et `U.v(d + R)` reviendrait à
+      inventer une convention ICM du rake que rien ne fonde. On refuse la
+      combinaison plutôt que de produire un nombre indéfendable (§0, §99).
+
+   ── LA RÈGLE APPLIQUÉE ─────────────────────────────────────────────────────
+   Rake = min(pct × pot final, cap), prélevé sur le pot AVANT attribution, donc
+   payé par celui qui l'encaisse — et partagé à parts égales sur un pot partagé.
+   Convention « no flop, no drop » : ces arbres sont postflop, le flop est vu,
+   le pot est donc raké même s'il est emporté sans abattage. `rakeUncontested:
+   false` restitue la variante des salles qui ne rakent pas les pots non disputés.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function makeRakeModel(startPot, rake, { rakeUncontested = true } = {}) {
+  if (!rake || rake.applied !== true) return null;
+  const pct = Math.max(0, +rake.pct || 0);
+  if (!(pct > 0)) return null;
+  const cap = rake.cap == null ? Infinity : Math.max(0, +rake.cap || 0);
+
+  /* Part du rake supportée par HERO à ce nœud terminal, selon l'issue.
+     `sd` : 1 Hero gagne l'abattage, 0 il le perd, 0.5 partage. */
+  const shareH = (node, sd) => {
+    const uncontested = node.result === "foldV" || node.result === "foldH";
+    if (uncontested && !rakeUncontested) return 0;
+    const total = startPot + node.betsH + node.betsV;
+    const R = Math.min(total * pct, cap);
+    if (!(R > 0)) return 0;
+    /* L'ordre compte : à un nœud de fold, `sd` décrit l'abattage qui N'A PAS eu
+       lieu. Tester `sd` avant `result` raketterait le mauvais joueur. */
+    if (node.result === "foldV") return R;
+    if (node.result === "foldH") return 0;
+    if (sd >= 1) return R;
+    if (sd <= 0) return 0;
+    return R / 2;
+  };
+  /* Part du VILAIN : le complément, calculé sur le même pot. */
+  const shareV = (node, sd) => {
+    const uncontested = node.result === "foldV" || node.result === "foldH";
+    if (uncontested && !rakeUncontested) return 0;
+    const total = startPot + node.betsH + node.betsV;
+    const R = Math.min(total * pct, cap);
+    if (!(R > 0)) return 0;
+    return R - shareH(node, sd);
+  };
+  return { shareH, shareV, pct, cap, rakeUncontested };
+}
+
 import { eval7i } from "./evaluator.js";
 import { mulberry32 } from "./equity.js";
 
 /* Résout l'arbre postflop pour un board de 3 à 5 cartes. */
 export function solveTree(heroList,villList,board,opts={}){
   const iters=opts.iters||600;
-  const startPot=opts.startPot||6;
+  /* `??` et non `||` : un arbre PRÉFLOP sans antes a un pot mort de ZÉRO, et
+     `0 || 6` vaut 6. L écart passerait pour une EV, pas pour un défaut. */
+  const startPot=opts.startPot??6;
   const initLen=board.length;
   const need=5-initLen;                       // cartes de board à tirer (0..2)
   const rng=mulberry32((opts.seed??123457)>>>0);
@@ -35,7 +101,25 @@ export function solveTree(heroList,villList,board,opts={}){
      ou utilité ICM en $EQ via makeIcmUtility (§21 stratégique) — auquel cas le jeu
      n'est PAS à somme nulle et NashConv devient ininterprétable (cf. nashConv). */
   const U=opts.utility||CHIP_UTILITY;
-  const tree=buildPostflopTree({...opts,startPot,streets:opts.streets||1,ipProbe:opts.ipProbe!==false});
+  /* Rake : actif seulement s'il est explicitement DÉCLARÉ appliqué. Sans cela le
+     chemin de code est rigoureusement celui d'avant — le rake n'est pas une
+     option qu'on active « au cas où ». */
+  const rakeModel=makeRakeModel(startPot,opts.rake,{rakeUncontested:opts.rakeUncontested!==false});
+  if(rakeModel&&(opts.icm||opts.pko)){
+    /* Refus net plutôt qu'un nombre inventé (voir l'en-tête de makeRakeModel).
+       On LÈVE : renvoyer un objet `{ok:false}` là où les appelants attendent une
+       solution produisait un « Cannot read properties of undefined » quelques
+       lignes plus loin — un message qui masque complètement la vraie cause. */
+    throw new Error("rake et ICM/PKO ne se combinent pas : l'utilité ICM transforme un TRANSFERT de jetons entre deux joueurs, or le rake en fait sortir une part de la table. Aucune convention publiée ne fonde ce mélange — résoudre en chip-EV, ou sans rake.");
+  }
+  /* ── UN ARBRE DÉJÀ CONSTRUIT PEUT ÊTRE FOURNI ────────────────────────────
+     Le solveur construisait toujours son arbre lui-même, ce qui l enfermait
+     dans la forme postflop. Un arbre PRÉFLOP a une racine à contributions
+     inégales et un calendrier de cartes différent : il ne peut pas naître ici.
+     Il est donc construit ailleurs (`preflopTree.js`) et passé tel quel — le
+     reste du solveur ne fait aucune hypothèse sur la façon dont l arbre est né,
+     seulement sur les champs que portent ses nœuds. */
+  const tree=opts.tree||buildPostflopTree({...opts,startPot,streets:opts.streets||1,ipProbe:opts.ipProbe!==false});
   const nH=heroList.length,nV=villList.length;
   const wH=heroList.map(e=>e.w??1),wV=villList.map(e=>e.w??1);
 
@@ -56,11 +140,51 @@ export function solveTree(heroList,villList,board,opts={}){
       }}
   };
   const used=new Uint8Array(52);
-  const sampleBoard=()=>{
+  const tirerBoard=()=>{
     used.fill(0);for(const c of board)used[c]=1;
     const b=board.slice();
     while(b.length<5){const c=(rng()*52)|0;if(!used[c]){used[c]=1;b.push(c);}}
     return b;
+  };
+  /* ── ÉCHANTILLON DE BOARDS BORNÉ (abstraction déclarée) ───────────────────
+     Les tables de regret sont indexées par le CONTEXTE de runout — les cartes
+     tombées depuis le début de l'arbre. Sur un solve postflop ce contexte est
+     borné : le board de départ est fixé, seules la turn et la river varient.
+
+     Depuis le PRÉFLOP il ne l'est plus. Chaque itération tire un flop neuf,
+     donc un contexte neuf, donc de nouvelles tables — indéfiniment. Mesuré : un
+     arbre préflop à 20 bb avec trois rues de continuation épuise 4 Go de tas en
+     une cinquantaine de secondes. Ce n'est pas une fuite : c'est la taille du
+     problème.
+
+     `boardPool` fixe un ensemble de K boards, tiré une fois avec la graine du
+     solve et réutilisé à chaque itération. Le contexte redevient borné, et le
+     coût mémoire avec lui. C'est une ABSTRACTION DE BOARDS : la stratégie
+     obtenue est celle du jeu restreint à ces K runouts, pas celle du jeu
+     complet. La solution doit le déclarer — voir `boardAbstraction` dans le
+     résultat — et rien ne doit présenter le résultat comme exact. */
+  const poolSize=Math.max(0,Math.round(opts.boardPool||0));
+  const pool=[];
+  /* ── LE TIRAGE DES BOARDS A SA PROPRE GRAINE ─────────────────────────────
+     Sans cela, comparer deux solves à graines différentes compare deux
+     SOUS-JEUX différents, et le bruit mesuré (2.07 bb sur un préflop à 20
+     runouts) écrase tout écart réel entre sizings.
+
+     `boardSeed` fixe l ensemble des runouts ; `seed` ne fait plus varier que
+     l ordre d échantillonnage du CFR. On peut alors mesurer séparément :
+     le bruit de CONVERGENCE (même sous-jeu, graines différentes) et le bruit
+     d ÉCHANTILLON DE BOARDS (sous-jeux différents). Ce sont deux incertitudes
+     distinctes, et les additionner en une seule les rend toutes deux inutiles. */
+  if(poolSize>0&&need>0){
+    const brng=mulberry32(((opts.boardSeed??opts.seed??123457)>>>0));
+    const tirerAvec=(r)=>{used.fill(0);for(const c of board)used[c]=1;const b=board.slice();
+      while(b.length<5){const c=(r()*52)|0;if(!used[c]){used[c]=1;b.push(c);}}return b;};
+    for(let i=0;i<poolSize;i++)pool.push(tirerAvec(brng));
+  }
+  let poolIdx=0;
+  const sampleBoard=()=>{
+    if(!pool.length)return tirerBoard();
+    const b=pool[poolIdx%pool.length];poolIdx++;return b;
   };
   let curB=board.slice();
   if(need===0){curB=board.slice();computeE(curB);}
@@ -84,6 +208,42 @@ export function solveTree(heroList,villList,board,opts={}){
     for(let k=0;k<arr.length;k++)arr[k]/=s;
     return arr;
   };
+  /* ── VERROUS PAR MAIN (§84) ────────────────────────────────────────────────
+     Un verrou ordinaire impose UNE distribution à toute la range du nœud. C'est
+     ce qu'il faut pour un modèle de joueur (« ce type se couche 62 % du temps »),
+     et c'est insuffisant pour VÉRIFIER une stratégie importée.
+
+     La raison est mesurable, pas théorique : une stratégie où chaque main joue
+     sa propre fréquence, aplatie en une fréquence de range, devient bien plus
+     exploitable qu'elle ne l'est réellement — on rejetterait des imports
+     parfaitement corrects en leur reprochant une exploitabilité qu'on vient
+     soi-même de créer en les aplatissant.
+
+     `L.byClass` accepte donc { "AKs": {X:0.1, B0:0.9}, … } et `L.freqs` reste
+     le repli pour les classes absentes. La distribution est résolue combo par
+     combo à l'installation du verrou, pas à chaque itération. */
+  const lockByClassFor = (n, L, list) => {
+    const fallback = L.freqs ? lockArrFor(n, L.freqs) : null;
+    const cache = new Map();
+    const rows = new Array(list.length);
+    let anyDefined = false;
+    for (let c = 0; c < list.length; c++) {
+      const key = list[c].key;
+      const src = key && L.byClass && L.byClass[key] ? L.byClass[key] : null;
+      if (!src) { rows[c] = fallback; if (fallback) anyDefined = true; continue; }
+      if (!cache.has(key)) cache.set(key, lockArrFor(n, src));
+      rows[c] = cache.get(key) || fallback;
+      if (rows[c]) anyDefined = true;
+    }
+    if (!anyDefined) return null;
+    /* Une main sans distribution imposée ET sans repli garderait la stratégie du
+       CFR : on refuse ce mélange, qui produirait une « stratégie importée » à
+       moitié inventée par le solveur (§0). */
+    for (const r of rows) if (!r) return null;
+    rows.perCombo = true;
+    return rows;
+  };
+
   if(opts.locks)for(const L of opts.locks){
     if(L.match){
       // Verrou par MOTIF : tous les nœuds de décision correspondants (profils §20).
@@ -93,7 +253,7 @@ export function solveTree(heroList,villList,board,opts={}){
         const isVill=n.player===1;
         const hit=(L.match==="villFacingBet"&&isVill&&n.actions[0]==="F")
                 ||(L.match==="villAfterCheck"&&isVill&&n.actions[0]==="X");
-        if(hit){const arr=lockArrFor(n,L.freqs);if(arr)locks[n.id]=arr;}
+        if(hit){const arr=L.byClass?lockByClassFor(n,L,n.player===0?heroList:villList):lockArrFor(n,L.freqs);if(arr)locks[n.id]=arr;}
         for(const a of n.actions)walk(n.children[a]);
       })(tree);
       continue;
@@ -106,7 +266,7 @@ export function solveTree(heroList,villList,board,opts={}){
     }
     while(n&&n.kind==="chance")n=n.next;
     if(!okPath||!n||n.kind!=="decision")continue;
-    const arr=lockArrFor(n,L.freqs);
+    const arr=L.byClass?lockByClassFor(n,L,n.player===0?heroList:villList):lockArrFor(n,L.freqs);
     if(arr)locks[n.id]=arr;
   }
 
@@ -121,7 +281,14 @@ export function solveTree(heroList,villList,board,opts={}){
   // Clé de contexte d'un nœud : cartes du board visibles à sa street, au-delà du
   // board initial. La street 0 de l'arbre = le board initial (flop OU turn OU river),
   // donc visibles à la street s = initLen + s.
-  const keyFor=(node)=>{const vis=initLen+node.street;return vis<=initLen?"":curB.slice(initLen,Math.min(5,vis)).join(",");};
+  /* ── LE CONTEXTE D'UN NŒUD, C'EST CE QUI EST TOMBÉ DEPUIS LE DÉBUT ────────
+     `node.cardsVisible` est le nombre de cartes de board visibles AU nœud,
+     compté depuis le début de l'arbre. Un arbre postflop le fait valoir
+     `street` (une carte par rue) et l'on retrouve exactement l'ancien calcul ;
+     un arbre préflop le fait valoir 0 puis 3 puis 4 puis 5, parce que le flop
+     tombe en une fois. Le repli sur `street` préserve les arbres anciens. */
+  const visOf=(node)=>initLen+(node.cardsVisible!=null?node.cardsVisible:node.street);
+  const keyFor=(node)=>{const vis=visOf(node);return vis<=initLen?"":curB.slice(initLen,Math.min(5,vis)).join(",");};
   const getTbl=(store,node,key,nc,na)=>{
     const m=store[node.id];let t=m.get(key);
     if(!t){t=Array.from({length:nc},()=>new Float64Array(na));m.set(key,t);}
@@ -142,19 +309,36 @@ export function solveTree(heroList,villList,board,opts={}){
          (les jetons transférés déplacent aussi l'équité des joueurs hors du coup),
          donc chaque camp a sa propre utilité. En chip-EV, U vaut CHIP_UTILITY et
          on retrouve exactement le comportement historique. */
-      for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=reachV[j]*U.h(terminalUtility(node,startPot,e));}vH[i]=acc;}
-      for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=reachH[i]*U.v(terminalUtility(node,startPot,e));}vV[j]=acc;}
+      if(!rakeModel){
+        for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=reachV[j]*U.h(terminalUtility(node,startPot,e));}vH[i]=acc;}
+        for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=reachH[i]*U.v(terminalUtility(node,startPot,e));}vV[j]=acc;}
+        return{vH,vV};
+      }
+      /* Avec rake, chaque camp paie SA part : les deux valeurs ne sont plus
+         opposées, et c'est précisément ce qui rend le jeu non à somme nulle. */
+      for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=reachV[j]*U.h(terminalUtility(node,startPot,e)-rakeModel.shareH(node,e));}vH[i]=acc;}
+      for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=reachH[i]*U.v(terminalUtility(node,startPot,e)+rakeModel.shareV(node,e));}vV[j]=acc;}
       return{vH,vV};
     }
     if(node.kind==="chance"){
-      const ci=initLen+node.street;            // index de la carte révélée pour street+1
-      if(ci>=initLen&&ci<5){
-        // Carte échantillonnée : les combos qui la contiennent n'existent pas sur ce runout.
-        const c=curB[ci];
-        const rh=Float64Array.from(reachH),rv=Float64Array.from(reachV);
-        for(let i=0;i<nH;i++){const h=heroList[i].cards;if(h[0]===c||h[1]===c)rh[i]=0;}
-        for(let j=0;j<nV;j++){const v=villList[j].cards;if(v[0]===c||v[1]===c)rv[j]=0;}
-        return traverse(node.next,rh,rv,tw);
+      /* ── UNE TRANSITION PEUT RÉVÉLER PLUSIEURS CARTES ─────────────────────
+         Turn et river en découvrent une ; **le flop en découvre trois**. Le
+         code ne lisait qu'un seul indice (`initLen + street`), ce qui suffisait
+         tant que le moteur ne partait jamais d'avant le flop.
+
+         Le nœud de chance porte maintenant l'intervalle qu'il révèle. Sur un
+         arbre postflop il vaut [street, street+1[ et le comportement est
+         identique au précédent, carte pour carte. Le repli est explicite pour
+         que les arbres construits sans ces champs continuent de fonctionner. */
+      const from=initLen+(node.cardsBefore!=null?node.cardsBefore:node.street);
+      const to=Math.min(5,initLen+(node.cardsAfter!=null?node.cardsAfter:node.street+1));
+      if(to>from){
+        // Cartes échantillonnées : les combos qui les contiennent n'existent pas sur ce runout.
+        const rh=Float64Array.from(reachH),rv=Float64Array.from(reachV);
+        for(let k=from;k<to;k++){const c=curB[k];
+          for(let i=0;i<nH;i++){const h=heroList[i].cards;if(h[0]===c||h[1]===c)rh[i]=0;}
+          for(let j=0;j<nV;j++){const v=villList[j].cards;if(v[0]===c||v[1]===c)rv[j]=0;}}
+        return traverse(node.next,rh,rv,tw);
       }
       return traverse(node.next,reachH,reachV,tw);
     }
@@ -163,7 +347,7 @@ export function solveTree(heroList,villList,board,opts={}){
     const vH=new Float64Array(nH),vV=new Float64Array(nV);
     if(node.player===0){                                   // Hero agit
       const regT=getTbl(reg,node,key,nH,na),stT=getTbl(strat,node,key,nH,na);
-      const S=[];for(let i=0;i<nH;i++)S[i]=lock||stratFromReg(regT[i]);
+      const S=[];for(let i=0;i<nH;i++)S[i]=lock?(lock.perCombo?lock[i]:lock):stratFromReg(regT[i]);
       const child=[];
       for(let a=0;a<na;a++){const cr=new Float64Array(nH);for(let i=0;i<nH;i++)cr[i]=reachH[i]*S[i][a];child[a]=traverse(node.children[node.actions[a]],cr,reachV,tw);}
       for(let i=0;i<nH;i++){
@@ -174,7 +358,7 @@ export function solveTree(heroList,villList,board,opts={}){
       for(let j=0;j<nV;j++){let acc=0;for(let a=0;a<na;a++)acc+=child[a].vV[j];vV[j]=acc;}
     }else{                                                 // Villain agit
       const regT=getTbl(reg,node,key,nV,na),stT=getTbl(strat,node,key,nV,na);
-      const S=[];for(let j=0;j<nV;j++)S[j]=lock||stratFromReg(regT[j]);
+      const S=[];for(let j=0;j<nV;j++)S[j]=lock?(lock.perCombo?lock[j]:lock):stratFromReg(regT[j]);
       const child=[];
       for(let a=0;a<na;a++){const cr=new Float64Array(nV);for(let j=0;j<nV;j++)cr[j]=reachV[j]*S[j][a];child[a]=traverse(node.children[node.actions[a]],reachH,cr,tw);}
       for(let j=0;j<nV;j++){
@@ -210,9 +394,43 @@ export function solveTree(heroList,villList,board,opts={}){
     utilityKind:opts.pko?"pko":opts.icm?"icm":"chip",
     icmParams:opts.icm||null,
     pkoParams:opts.pko||null,
+    /* Sérialisable, et suffisant pour reconstruire le modèle à la relecture. */
+    rakeParams:rakeModel?{pct:rakeModel.pct,cap:rakeModel.cap===Infinity?null:rakeModel.cap,applied:true,rakeUncontested:rakeModel.rakeUncontested}:null,
+    /* La conséquence, portée par la solution elle-même : plus aucune mesure
+       fondée sur la somme nulle n'est légitime au-dessus de ce résultat. */
+    zeroSum:!rakeModel&&(U.zeroSum!==false),
     ev:Math.round(ev*1000)/1000,
     iters,sampled:need>0,boardCards:initLen,
+    /* Board et graine CONSERVÉS : `nodeActionEVs` en a besoin pour rejouer
+       exactement les mêmes runouts que le solve (§36/§49 — l'EV par action). */
+    board:board.slice(),seed:(opts.seed??123457)>>>0,
+    /* ── COMBIEN DE RUES DE MISE CE SOLVE A-T-IL RÉELLEMENT VALORISÉES ? ──────
+       Ce n'est pas une métadonnée d'affichage : c'est ce qui décide si la valeur
+       d'une décision de flop tient compte de la turn et de la river, ou seulement
+       du flop. Mesuré sur un même flop, mêmes ranges, mêmes sizings :
+
+         profondeur 1  →  EV 1.3275 bb  ·  check 57.0 %
+         profondeur 2  →  EV 3.2938 bb  ·  check 21.3 %
+         profondeur 3  →  EV 3.7401 bb  ·  check 18.1 %
+
+       L'EV triple et la stratégie s'inverse. Une solution qui ne transporte pas
+       cette information laisse ses consommateurs supposer l'un ou l'autre. */
+    streetsSolved:Math.max(1,opts.streets||1),
+    /* ── L'ABSTRACTION EST DÉCLARÉE, PAS DEVINÉE ─────────────────────────────
+       `null` quand le solve a tiré ses runouts librement. Un objet quand il a
+       été restreint à un échantillon fixe : la stratégie décrit alors le jeu
+       restreint à ces boards, et aucun affichage ne doit la présenter autrement. */
+    boardAbstraction:pool.length?{kind:"BOARD_SAMPLE",boards:pool.length,seed:(opts.seed??123457)>>>0,
+      note:`continuation résolue sur un échantillon FIXE de ${pool.length} runouts, tiré avec la graine du solve. La stratégie est exacte sur ce sous-jeu, approchée sur le jeu complet.`}:null,
+    /* VERROUS (§19/§45) : une solution verrouillée n'est pas un équilibre. Elle
+       doit le porter, sans quoi rien n'empêche un écran de l'appeler « GTO ». */
+    lockedNodeCount:Object.keys(locks).length,
+    lockSpec:opts.locks?JSON.parse(JSON.stringify(opts.locks)):null,
   };
+  /* Le modèle vivant, pour les mesures faites au-dessus de CETTE solution
+     (bestResponseEV, nodeActionEVs, strategyEV) : il porte des fonctions et ne
+     survit pas au clone, d'où sa reconstruction depuis rakeParams à la relecture. */
+  base.rakeModel=rakeModel;
   attachStrategyAccessors(base);
   const heroCheck=base.aggAt(tree,0);
   base.heroCheck=Math.round(heroCheck*1000)/10;
@@ -273,6 +491,9 @@ export function rehydrateTreeSolution(plain){
   }else{
     plain.utility=CHIP_UTILITY;
   }
+  /* Le rake se reconstruit à l'identique : sans lui, une solution rechargée
+     rendrait des EV plus optimistes que celle qui l'a produite. */
+  if(plain.rakeParams)plain.rakeModel=makeRakeModel(plain.startPot,plain.rakeParams,{rakeUncontested:plain.rakeParams.rakeUncontested!==false});
   return attachStrategyAccessors(plain);
 }
 /* Alias rétro-compat : le board complet (5 cartes) est le cas exact. */
@@ -290,8 +511,9 @@ export function bestResponseEV(sol,brPlayer){
   function walk(node,oppReach){
     if(node.kind==="terminal"){
       const v=new Float64Array(nBr);
-      if(brPlayer===0){for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=oppReach[j]*U.h(terminalUtility(node,startPot,e));}v[i]=acc;}}
-      else{for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=oppReach[i]*U.v(terminalUtility(node,startPot,e));}v[j]=acc;}}
+      const rm=sol.rakeModel||null;
+      if(brPlayer===0){for(let i=0;i<nH;i++){let acc=0;for(let j=0;j<nV;j++){const e=E[i][j];if(e<0)continue;acc+=oppReach[j]*U.h(terminalUtility(node,startPot,e)-(rm?rm.shareH(node,e):0));}v[i]=acc;}}
+      else{for(let j=0;j<nV;j++){let acc=0;for(let i=0;i<nH;i++){const e=E[i][j];if(e<0)continue;acc+=oppReach[i]*U.v(terminalUtility(node,startPot,e)+(rm?rm.shareV(node,e):0));}v[j]=acc;}}
       return v;
     }
     if(node.kind==="chance")return walk(node.next,oppReach);
@@ -318,7 +540,19 @@ export function bestResponseEV(sol,brPlayer){
   const myW=brPlayer===0?wH:wV;
   const v=walk(tree,oppW);
   let num=0;for(let c=0;c<nBr;c++)num+=myW[c]*v[c];
-  const den=wH.reduce((a,b)=>a+b,0)*wV.reduce((a,b)=>a+b,0);
+  /* ── LE DÉNOMINATEUR NE COMPTE QUE LES AFFRONTEMENTS POSSIBLES ────────────
+     wH·wV compterait aussi les paires (main Hero, main Vilain) qui partagent une
+     carte : elles sont écartées du numérateur, jamais du dénominateur, et toutes
+     les valeurs s'en trouvaient minorées du taux de blocage.
+
+     Ce n'était pas visible tant que la seule consommation était NashConv, où le
+     biais s'applique aux deux termes. Il l'est devenu en comparant cette valeur
+     à , qui normalise correctement : l'écart « meilleure réponse −
+     stratégie » ressortait NÉGATIF de 0.26 à 0.58 bb — une meilleure réponse
+     pire que la stratégie qu'elle est censée battre, ce qui est impossible.
+     Deux conventions de normalisation, pas un défaut de calcul. */
+  let den=0;
+  for(let i=0;i<nH;i++)for(let j=0;j<nV;j++)if(E[i][j]>=0)den+=wH[i]*wV[j];
   return den?num/den:0;
 }
 /* NashConv (bb) : somme des gains de meilleure réponse. ≈0 ⟺ équilibre. */
@@ -331,7 +565,425 @@ export function nashConv(sol){
      d'apparence rigoureuse mais faux (§2). On renvoie null : l'UI sait déjà
      traiter « exploitabilité indisponible ». */
   if(sol&&sol.utility&&sol.utility.zeroSum===false)return null;
+  /* Le rake casse la somme nulle aussi sûrement que l'ICM : NashConv = BR(0) +
+     BR(1) suppose que la somme des deux valeurs d'équilibre est nulle. Avec un
+     pot taxé elle vaut −rake, et l'« exploitabilité » lue serait décalée d'un
+     biais constant qu'aucun affichage ne pourrait distinguer d'une divergence. */
+  if(sol&&(sol.rakeModel||sol.rakeParams))return null;
+  /* ── UN SOLVE VERROUILLÉ N'A PAS D'ÉQUILIBRE À MESURER ────────────────────
+     NashConv suppose que les DEUX camps peuvent dévier. Sous nodelock, un camp
+     ne le peut pas : sa meilleure réponse est calculée mais lui est interdite,
+     donc le terme correspondant reste grand pour toujours. La somme ne tendrait
+     jamais vers zéro, et l'écran lirait « ça ne converge pas » alors que la
+     stratégie d'exploit, elle, converge parfaitement.
+     La bonne mesure d'un solve verrouillé est `lockedPlayerGap` : l'écart entre
+     ce que le joueur LIBRE obtient et sa meilleure réponse au modèle. */
+  if(sol&&sol.lockedNodeCount>0)return null;
   const h=bestResponseEV(sol,0),v=bestResponseEV(sol,1);
   if(h==null||v==null)return null;
   return Math.round((h+v)*10000)/10000;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   nodeActionEVs — L'EV DE CHAQUE ACTION À UN NŒUD (mission §36, §49)
+
+   « Après décision : afficher Action Hero · Action GTO · Sizing · Fréquence ·
+     EV · EV loss » (§36) et « EV played · EV best · EV difference » (§49).
+
+   Jusqu'ici PokerForge répondait « EV indisponible » : `solveTree` ne conserve
+   pas les valeurs contrefactuelles après convergence. Cette fonction les
+   RECALCULE, exactement, à partir de la stratégie moyenne déjà stockée.
+
+   ── CE QUI EST CALCULÉ, PRÉCISÉMENT ────────────────────────────────────────
+   Pour l'action a au nœud N, du point de vue du joueur qui y parle :
+
+       EV(a) = Σᵢ rp[i]·v_a[i]  /  ( Σᵢ rp[i] · Σⱼ ro[j] )
+
+   où rp est le reach du joueur jusqu'à N (ses propres probabilités d'action le
+   long du chemin, pondérées par sa range), ro celui de l'adversaire, et v_a la
+   valeur du sous-arbre atteint par a, les DEUX camps jouant ensuite leur
+   stratégie moyenne.
+
+   C'est donc une EV CONDITIONNELLE : « sachant que nous sommes ici, que vaut
+   cette action ». C'est la grandeur qu'un joueur lit, et elle est comparable
+   entre actions du même nœud. Elle n'est PAS comparable à `sol.ev`, qui est
+   l'EV de la racine — deux questions différentes.
+
+   ── PÉRIMÈTRE ──────────────────────────────────────────────────────────────
+   Nœuds de la RUE COURANTE (street 0), ceux que `extractStreetStrategy`
+   expose. Au-delà, la stratégie dépend de la carte tombée et la solution ne la
+   couvre pas (voir LIMITATIONS L8) : on rend `available:false` avec le motif,
+   jamais un nombre.
+
+   Board complet → exact. Board incomplet → moyenne sur les runouts
+   ré-échantillonnés avec LA MÊME GRAINE que le solve, donc reproductible ;
+   `exact:false` le dit.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function nodeActionEVs(sol, path = [], { samples = null } = {}) {
+  if (!sol || !sol.tree || typeof sol.avgOf !== "function") {
+    return { available: false, reason: "solution inexploitable" };
+  }
+  const { tree, heroList, villList, wH, wV, startPot, initLen } = sol;
+  const U = sol.utility || CHIP_UTILITY;
+  const RM = sol.rakeModel || null;      // le pot vu par le joueur est le pot NET
+  const nH = heroList.length, nV = villList.length;
+  const board = sol.board || [];
+  const need = 5 - (board.length || initLen);
+
+  /* 1. Localiser le nœud cible en suivant le chemin d'actions. */
+  let node = tree;
+  for (const step of path) {
+    if (!node || node.kind !== "decision" || !node.children[step]) {
+      return { available: false, reason: `chemin « ${path.join("|")} » absent de l'arbre` };
+    }
+    node = node.children[step];
+    if (node && node.kind === "chance") {
+      return { available: false, reason: "le chemin traverse une carte à venir — la solution ne couvre que la rue courante (LIMITATIONS L8)" };
+    }
+  }
+  if (!node || node.kind !== "decision") return { available: false, reason: "le chemin ne mène pas à un nœud de décision" };
+  if (node.street !== 0) return { available: false, reason: "nœud hors de la rue courante" };
+
+  const p = node.player;                        // joueur qui parle au nœud cible
+  const nP = p === 0 ? nH : nV, nO = p === 0 ? nV : nH;
+  const wP = p === 0 ? wH : wV, wO = p === 0 ? wV : wH;
+
+  /* 2. Reaches jusqu'au nœud : chacun ne multiplie que SES propres probabilités. */
+  const rp = Float64Array.from(wP), ro = Float64Array.from(wO);
+  {
+    let cur = tree;
+    for (const step of path) {
+      const k = cur.actions.indexOf(step);
+      const mine = cur.player === p;
+      const tgt = mine ? rp : ro;
+      const n = mine ? nP : nO;
+      for (let c = 0; c < n; c++) tgt[c] *= sol.avgOf(cur, c, "")[k];
+      cur = cur.children[step];
+    }
+  }
+  const sumP = rp.reduce((a, b) => a + b, 0);
+  const sumO = ro.reduce((a, b) => a + b, 0);
+  if (!(sumP > 0) || !(sumO > 0)) {
+    return { available: false, reason: "nœud jamais atteint par les ranges solvées" };
+  }
+
+  /* 3. Valeur d'un sous-arbre, les deux camps jouant leur stratégie moyenne. */
+  const E = Array.from({ length: nH }, () => new Float32Array(nV));
+  const sH = new Float64Array(nH), sV = new Float64Array(nV);
+  const computeE = (b) => {
+    for (let i = 0; i < nH; i++) { const h = heroList[i].cards;
+      sH[i] = (b.includes(h[0]) || b.includes(h[1])) ? -1 : eval7i([h[0], h[1], b[0], b[1], b[2], b[3], b[4]]); }
+    for (let j = 0; j < nV; j++) { const v = villList[j].cards;
+      sV[j] = (b.includes(v[0]) || b.includes(v[1])) ? -1 : eval7i([v[0], v[1], b[0], b[1], b[2], b[3], b[4]]); }
+    for (let i = 0; i < nH; i++) { const h = heroList[i].cards; const row = E[i]; const hs = sH[i];
+      for (let j = 0; j < nV; j++) { const v = villList[j].cards;
+        if (hs < 0 || sV[j] < 0 || h[0] === v[0] || h[0] === v[1] || h[1] === v[0] || h[1] === v[1]) { row[j] = -1; continue; }
+        row[j] = hs > sV[j] ? 1 : hs === sV[j] ? 0.5 : 0;
+      } }
+  };
+  let curB = board.slice();
+  /* Même règle que dans `traverse` : la position du nœud sur le board, avec
+     repli sur `street` pour les arbres qui ne la portent pas. */
+  const keyFor = (n) => { const vis = initLen + (n.cardsVisible != null ? n.cardsVisible : n.street); return vis <= initLen ? "" : curB.slice(initLen, Math.min(5, vis)).join(","); };
+
+  function walk(n, oppReach) {
+    if (n.kind === "terminal") {
+      const v = new Float64Array(nP);
+      for (let i = 0; i < nP; i++) {
+        let acc = 0;
+        for (let j = 0; j < nO; j++) {
+          const e = p === 0 ? E[i][j] : E[j][i];
+          if (e < 0) continue;
+          acc += oppReach[j] * (p === 0
+            ? U.h(terminalUtility(n, startPot, e) - (RM ? RM.shareH(n, e) : 0))
+            : U.v(terminalUtility(n, startPot, e) + (RM ? RM.shareV(n, e) : 0)));
+        }
+        v[i] = acc;
+      }
+      return v;
+    }
+    if (n.kind === "chance") {
+      const from = initLen + (n.cardsBefore != null ? n.cardsBefore : n.street);
+      const to = Math.min(5, initLen + (n.cardsAfter != null ? n.cardsAfter : n.street + 1));
+      if (to > from) {
+        const list = p === 0 ? villList : heroList;
+        const r = Float64Array.from(oppReach);
+        for (let k = from; k < to; k++) { const c = curB[k];
+          for (let j = 0; j < nO; j++) { const cc = list[j].cards; if (cc[0] === c || cc[1] === c) r[j] = 0; } }
+        return walk(n.next, r);
+      }
+      return walk(n.next, oppReach);
+    }
+    const na = n.actions.length, key = keyFor(n);
+    if (n.player === p) {
+      /* Notre joueur : on MÉLANGE selon sa stratégie moyenne (on n'optimise pas —
+         ce n'est pas une meilleure réponse, c'est la valeur de la stratégie). */
+      const childs = n.actions.map(a => walk(n.children[a], oppReach));
+      const v = new Float64Array(nP);
+      for (let c = 0; c < nP; c++) {
+        const d = sol.avgOf(n, c, key);
+        let acc = 0;
+        for (let a = 0; a < na; a++) acc += d[a] * childs[a][c];
+        v[c] = acc;
+      }
+      return v;
+    }
+    /* L'adversaire : on scinde SON reach par action et on somme. */
+    const v = new Float64Array(nP);
+    for (let a = 0; a < na; a++) {
+      const cr = new Float64Array(nO);
+      for (let c = 0; c < nO; c++) cr[c] = oppReach[c] * sol.avgOf(n, c, key)[a];
+      const cv = walk(n.children[n.actions[a]], cr);
+      for (let c = 0; c < nP; c++) v[c] += cv[c];
+    }
+    return v;
+  }
+
+  /* 4. Une valeur par action, moyennée sur les runouts si le board est incomplet. */
+  const nRuns = need > 0 ? Math.max(1, samples || Math.min(sol.iters || 200, 200)) : 1;
+  const rng = mulberry32((sol.seed ?? 123457) >>> 0);
+  const used = new Uint8Array(52);
+  const sampleBoard = () => {
+    used.fill(0); for (const c of board) used[c] = 1;
+    const b = board.slice();
+    while (b.length < 5) { const c = (rng() * 52) | 0; if (!used[c]) { used[c] = 1; b.push(c); } }
+    return b;
+  };
+  const acc = node.actions.map(() => new Float64Array(nP));
+  /* ── LE DÉNOMINATEUR EST PAR COMBO, PAS GLOBAL ────────────────────────────
+     Une main de l'adversaire qui partage une carte avec la nôtre n'existe pas :
+     elle est écartée du numérateur. La compter au dénominateur écrase l'EV du
+     rapport des combinaisons bloquées — et le symptôme est net : sur un river à
+     pot mort de 12 bb, un FOLD doit valoir exactement −6 bb, or on lisait
+     −5.93 bb. Un pour cent d'erreur, mais sur la seule valeur du tableau dont on
+     connaît la réponse d'avance : le reste était faux dans les mêmes proportions.
+     On accumule donc, par combo, la masse d'adversaire RÉELLEMENT rencontrée. */
+  const mass = new Float64Array(nP);
+  for (let t = 0; t < nRuns; t++) {
+    if (need > 0) { curB = sampleBoard(); }
+    computeE(curB);
+    for (let i = 0; i < nP; i++) {
+      let m = 0;
+      for (let j = 0; j < nO; j++) { const e = p === 0 ? E[i][j] : E[j][i]; if (e >= 0) m += ro[j]; }
+      mass[i] += m;
+    }
+    node.actions.forEach((a, k) => {
+      const v = walk(node.children[a], ro);
+      for (let i = 0; i < nP; i++) acc[k][i] += v[i];
+    });
+  }
+  const inv = 1 / nRuns;
+
+  /* 5. Agrégation : sur toute la range, puis par classe de main. */
+  /* Masse totale rencontrée par la range du joueur — le dénominateur agrégé. */
+  let den = 0;
+  for (let i = 0; i < nP; i++) den += rp[i] * mass[i] * inv;
+  if (!(den > 0)) return { available: false, reason: "aucune confrontation possible : les ranges se bloquent entièrement" };
+  const byAction = {}, byClass = {};
+  const list = p === 0 ? heroList : villList;
+  const classIdx = new Map();
+  for (let i = 0; i < list.length; i++) {
+    const k = list[i].key; if (!k) continue;
+    if (!classIdx.has(k)) classIdx.set(k, []);
+    classIdx.get(k).push(i);
+  }
+  node.actions.forEach((a, k) => {
+    let num = 0;
+    for (let i = 0; i < nP; i++) num += rp[i] * acc[k][i] * inv;
+    byAction[a] = Math.round((num / den) * 10000) / 10000;
+  });
+
+  /* ── AUTO-CONTRÔLE : L'EV MÉLANGÉE ────────────────────────────────────────
+     Le mélange se fait PAR COMBO — chaque main a ses propres fréquences. Mélanger
+     les fréquences agrégées de la range avec les EV agrégées donnerait un autre
+     nombre (la moyenne d'un produit n'est pas le produit des moyennes) ; c'est une
+     erreur facile, et `mixedEV` sert à la rendre visible.
+
+     CONTRE QUOI LE VÉRIFIER — et surtout contre quoi NE PAS le vérifier. À la
+     racine, `mixedEV` doit valoir `strategyEV(sol).ev`, l'EV de la stratégie
+     MOYENNE. Il ne vaut PAS `sol.ev`, qui est la moyenne des EV des stratégies
+     COURANTES sur toutes les itérations : deux grandeurs différentes, dont l'écart
+     mesuré valait encore 0.086 bb à 600 itérations. Confondre les deux fait
+     chercher un bug là où il n'y en a pas.
+
+     Vérifié : écart de 2·10⁻⁵ contre `strategyEV` à 1200 itérations — l'arrondi
+     à quatre décimales, rien d'autre. */
+  let mixNum = 0;
+  for (let i = 0; i < nP; i++) {
+    const d = sol.avgOf(node, i, "");
+    let vi = 0;
+    for (let k = 0; k < node.actions.length; k++) vi += d[k] * acc[k][i] * inv;
+    mixNum += rp[i] * vi;
+  }
+  const mixedEV = Math.round((mixNum / den) * 10000) / 10000;
+  for (const [cls, idxs] of classIdx) {
+    let dp = 0; for (const i of idxs) dp += rp[i];
+    if (!(dp > 0)) continue;
+    const row = {};
+    let dm = 0; for (const i of idxs) dm += rp[i] * mass[i] * inv;
+    if (!(dm > 0)) continue;
+    node.actions.forEach((a, k) => {
+      let num = 0;
+      for (const i of idxs) num += rp[i] * acc[k][i] * inv;
+      row[a] = Math.round((num / dm) * 10000) / 10000;
+    });
+    byClass[cls] = row;
+  }
+
+  return {
+    available: true,
+    exact: need === 0,
+    samples: nRuns,
+    note: need === 0
+      ? "board complet — EV par action exacte"
+      : `board incomplet — moyenne sur ${nRuns} runouts ré-échantillonnés avec la graine du solve (reproductible, non exacte)`,
+    byAction, byClass,
+    /* EV de la stratégie AU NŒUD, mélangée par combo. À la racine, elle vaut
+       `strategyEV(sol).ev` — voir l'auto-contrôle ci-dessus. */
+    mixedEV,
+    reachShare: Math.round((sumP / wP.reduce((a, b) => a + b, 0)) * 10000) / 10000,
+  };
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   strategyEV — L'EV DE LA STRATÉGIE MOYENNE (celle qui est réellement servie)
+
+   `solveTree` renvoie `ev` = moyenne, SUR LES ITÉRATIONS, de la valeur de la
+   stratégie COURANTE de chaque itération. Ce n'est pas la même chose que la
+   valeur de la stratégie MOYENNE — celle qui est stockée, affichée au Trainer
+   et jouée. Deux conséquences :
+
+     · la moyenne des itérations inclut les premières, très loin de l'équilibre,
+       et met donc longtemps à s'en détacher : c'est l'essentiel de la « dérive »
+       qu'on observait en doublant les itérations ;
+     · l'EV annoncée ne décrivait pas la stratégie livrée.
+
+   Cette fonction calcule la seconde. Une seule traversée par runout.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function strategyEV(sol, { samples = null } = {}) {
+  if (!sol || !sol.tree || typeof sol.avgOf !== "function") return null;
+  const { tree, heroList, villList, wH, wV, startPot, initLen } = sol;
+  const U = sol.utility || CHIP_UTILITY;
+  const RM = sol.rakeModel || null;      // le pot vu par le joueur est le pot NET
+  const nH = heroList.length, nV = villList.length;
+  const board = sol.board || [];
+  const need = 5 - (board.length || initLen);
+
+  const E = Array.from({ length: nH }, () => new Float32Array(nV));
+  const sH = new Float64Array(nH), sV = new Float64Array(nV);
+  const computeE = (b) => {
+    for (let i = 0; i < nH; i++) { const h = heroList[i].cards;
+      sH[i] = (b.includes(h[0]) || b.includes(h[1])) ? -1 : eval7i([h[0], h[1], b[0], b[1], b[2], b[3], b[4]]); }
+    for (let j = 0; j < nV; j++) { const v = villList[j].cards;
+      sV[j] = (b.includes(v[0]) || b.includes(v[1])) ? -1 : eval7i([v[0], v[1], b[0], b[1], b[2], b[3], b[4]]); }
+    for (let i = 0; i < nH; i++) { const h = heroList[i].cards; const row = E[i]; const hs = sH[i];
+      for (let j = 0; j < nV; j++) { const v = villList[j].cards;
+        if (hs < 0 || sV[j] < 0 || h[0] === v[0] || h[0] === v[1] || h[1] === v[0] || h[1] === v[1]) { row[j] = -1; continue; }
+        row[j] = hs > sV[j] ? 1 : hs === sV[j] ? 0.5 : 0;
+      } }
+  };
+  let curB = board.slice();
+  /* Même règle que dans `traverse` : la position du nœud sur le board, avec
+     repli sur `street` pour les arbres qui ne la portent pas. */
+  const keyFor = (n) => { const vis = initLen + (n.cardsVisible != null ? n.cardsVisible : n.street); return vis <= initLen ? "" : curB.slice(initLen, Math.min(5, vis)).join(","); };
+
+  /* Valeur pour le joueur 0, les deux camps jouant leur stratégie moyenne. */
+  function walk(n, reachV) {
+    if (n.kind === "terminal") {
+      const v = new Float64Array(nH);
+      for (let i = 0; i < nH; i++) { let acc = 0;
+        for (let j = 0; j < nV; j++) { const e = E[i][j]; if (e < 0) continue;
+          acc += reachV[j] * U.h(terminalUtility(n, startPot, e) - (RM ? RM.shareH(n, e) : 0)); }
+        v[i] = acc; }
+      return v;
+    }
+    if (n.kind === "chance") {
+      const from = initLen + (n.cardsBefore != null ? n.cardsBefore : n.street);
+      const to = Math.min(5, initLen + (n.cardsAfter != null ? n.cardsAfter : n.street + 1));
+      if (to > from) {
+        const r = Float64Array.from(reachV);
+        for (let k = from; k < to; k++) { const c = curB[k];
+          for (let j = 0; j < nV; j++) { const cc = villList[j].cards; if (cc[0] === c || cc[1] === c) r[j] = 0; } }
+        return walk(n.next, r);
+      }
+      return walk(n.next, reachV);
+    }
+    const na = n.actions.length, key = keyFor(n);
+    if (n.player === 0) {
+      const childs = n.actions.map(a => walk(n.children[a], reachV));
+      const v = new Float64Array(nH);
+      for (let i = 0; i < nH; i++) { const d = sol.avgOf(n, i, key); let acc = 0;
+        for (let a = 0; a < na; a++) acc += d[a] * childs[a][i]; v[i] = acc; }
+      return v;
+    }
+    const v = new Float64Array(nH);
+    for (let a = 0; a < na; a++) {
+      const cr = new Float64Array(nV);
+      for (let j = 0; j < nV; j++) cr[j] = reachV[j] * sol.avgOf(n, j, key)[a];
+      const cv = walk(n.children[n.actions[a]], cr);
+      for (let i = 0; i < nH; i++) v[i] += cv[i];
+    }
+    return v;
+  }
+
+  const nRuns = need > 0 ? Math.max(1, samples || Math.min(sol.iters || 200, 200)) : 1;
+  const rng = mulberry32((sol.seed ?? 123457) >>> 0);
+  const used = new Uint8Array(52);
+  const sampleBoard = () => {
+    used.fill(0); for (const c of board) used[c] = 1;
+    const b = board.slice();
+    while (b.length < 5) { const c = (rng() * 52) | 0; if (!used[c]) { used[c] = 1; b.push(c); } }
+    return b;
+  };
+  /* Dénominateur : la masse d'affrontements RÉELLEMENT possibles (cf. la même
+     correction dans `nodeActionEVs`). `solveTree.ev` divise, lui, par
+     `sumWH·sumWV` — donc par des paires bloquées qui n'ont jamais lieu — et
+     sous-estime l'EV du rapport des combinaisons impossibles. C'est un écart de
+     l'ordre du pour cent ici, davantage sur des ranges larges et un board chargé.
+     Les deux conventions ne sont donc pas interchangeables ; celle-ci est la
+     bonne, et c'est elle que PFASE rapporte. */
+  let total = 0, totalMass = 0;
+  for (let t = 0; t < nRuns; t++) {
+    if (need > 0) curB = sampleBoard();
+    computeE(curB);
+    const v = walk(tree, Float64Array.from(wV));
+    let num = 0, m = 0;
+    for (let i = 0; i < nH; i++) {
+      num += wH[i] * v[i];
+      let mi = 0; for (let j = 0; j < nV; j++) if (E[i][j] >= 0) mi += wV[j];
+      m += wH[i] * mi;
+    }
+    total += num; totalMass += m;
+  }
+  if (!(totalMass > 0)) return null;
+  return { ev: Math.round((total / totalMass) * 100000) / 100000, exact: need === 0, samples: nRuns };
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   lockedPlayerGap — LA CONVERGENCE D'UN SOLVE VERROUILLÉ (§45)
+
+   Sous nodelock, NashConv est inutilisable : le camp verrouillé ne peut pas
+   dévier, donc son terme de meilleure réponse ne décroît jamais et la somme
+   reste grande même à convergence parfaite. Lire « ça ne converge pas » là où
+   la stratégie d'exploit est optimale serait un contresens complet.
+
+   Ce qui se mesure vraiment ici, c'est autre chose : le joueur LIBRE joue-t-il
+   sa meilleure réponse au modèle d'adversaire ? L'écart
+
+       gap = EV(meilleure réponse du joueur libre) − EV(sa stratégie moyenne)
+
+   tend vers 0 quand l'exploitation est aboutie. C'est un critère de convergence
+   propre, et il n'a rien à voir avec un équilibre — ce qu'aucun affichage ne
+   doit laisser croire.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function lockedPlayerGap(sol, freePlayer = 0) {
+  if (!sol || sol.sampled) return null;             // exact sur board complet seulement
+  const br = bestResponseEV(sol, freePlayer);
+  const se = strategyEV(sol);
+  if (br == null || !se) return null;
+  const mine = freePlayer === 0 ? se.ev : -se.ev;   // strategyEV est du point de vue de 0
+  return Math.round((br - mine) * 10000) / 10000;
 }

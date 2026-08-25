@@ -55,7 +55,9 @@ export function solveSubgame(heroFreqs,villFreqs,board,potBb,betFrac,opts={}){
      des classes de mains entières. `maxCombos:0` = range non plafonnée. */
   const iters=opts.iters||400,maxCombos=opts.maxCombos!=null?opts.maxCombos:200;
   // Signature complète du solve (ranges réelles incluses) → seed + SolveID déterministes.
-  const sig=_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+(board||[]).join(",")+"#"+potBb+"#"+betFrac+"#"+iters+"#"+maxCombos;
+  /* Même correction qu'en multi-rue : `runouts` et `raiseMult` changent le
+     résultat et doivent donc changer la clé (§63). */
+  const sig=_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+(board||[]).join(",")+"#"+potBb+"#"+betFrac+"#"+iters+"#"+maxCombos+"#ro:"+(opts.runouts??60)+"#rm:"+(opts.raiseMult??3);
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   // §16 : solution déjà en bibliothèque → chargement IMMÉDIAT (provenance PRESOLVED_LIBRARY).
@@ -106,7 +108,30 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
   const icmUtility=tourneyUtility;
   // Le contexte ICM entre dans la SIGNATURE : mêmes ranges + mêmes stacks de
   // tournoi différents = solves différents, ils ne doivent pas partager de clé.
-  const sig="ms1|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+(opts.betFrac||opts.betSizes||0.66)+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.pko?"pko:"+JSON.stringify(opts.pko):opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
+  /* ── LA SIGNATURE DOIT DÉCRIRE L'ARBRE, PAS SEULEMENT LES RANGES ─────────
+     Version antérieure : ni `effStack`, ni `maxRaisesPerStreet`, ni `ipProbe`,
+     ni `raiseMult` n'entraient dans la clé. Deux solves d'un même board et de
+     mêmes ranges à des TAPIS DIFFÉRENTS partageaient donc le même solveId : le
+     second était servi depuis la bibliothèque avec la stratégie du premier.
+     C'est exactement la collision que §63 du cahier des charges interdit, et
+     elle bloquait l'Adaptive Sizing Engine (dont tout le principe est de solver
+     le MÊME spot avec des arbres différents).
+     Tout ce qui change la FORME de l'arbre entre désormais dans la clé. ── */
+  const _treeSig=[
+    opts.betFrac!=null?"bf:"+opts.betFrac:"",
+    opts.betSizes?"bs:"+JSON.stringify(opts.betSizes):"",
+    opts.betSizesByPlayer?"bp:"+JSON.stringify(opts.betSizesByPlayer):"",
+    opts.raiseSizes?"rs:"+JSON.stringify(opts.raiseSizes):"",
+    "rm:"+(opts.raiseMult??3),
+    "mr:"+(opts.maxRaisesPerStreet??1),
+    "es:"+(opts.effStack==null?"inf":opts.effStack),
+    "ip:"+(opts.ipProbe!==false?1:0),
+    opts.allowJam?"jam:1":"",
+    opts.nodeOverrides?"no:"+JSON.stringify(opts.nodeOverrides):"",
+    opts.minBet!=null?"mb:"+opts.minBet:"",
+    opts.bb!=null?"bb:"+opts.bb:"",
+  ].filter(Boolean).join("|");
+  const sig="ms2|"+_freqSig(heroFreqs)+"#"+_freqSig(villFreqs)+"#"+board.join(",")+"#"+(opts.startPot||6)+"#"+_treeSig+"#"+(opts.iters||200)+"#"+maxCombos+"#"+nStreets+"#"+(opts.locks?JSON.stringify(opts.locks):"")+"#"+(opts.pko?"pko:"+JSON.stringify(opts.pko):opts.icm?"icm:"+JSON.stringify(opts.icm):"chip");
   const seed=opts.seed!=null?opts.seed:_hashSeed(sig);
   const solveId=makeSolveId(sig+"#"+seed);
   if(!opts.force){
@@ -171,7 +196,16 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
     },
     solveId,seed,
   };
-  storeSolution(solveId,out);
+  /* ── `noStore` : NE PAS entrer en bibliothèque ────────────────────────────
+     La Solution Library garde jusqu'à 500 solutions COMPLÈTES en mémoire, tables
+     de stratégie comprises. C'est un bon compromis pour des solves d'analyse,
+     que l'on relit. Ce n'en est pas un pour les micro-solves d'évaluation de
+     l'Adaptive Sizing Engine : il en enchaîne dix à quarante par spot, dont
+     aucun n'est une solution (§13 — « ne pas considérer les micro-solves de
+     sélection comme équivalents à la solution finale »). Les conserver a fait
+     tomber le banc d'essai à court de tas dès le dixième spot.
+     L'appelant qui produit du jetable le déclare. */
+  if(!opts.noStore)storeSolution(solveId,out);
   return out;
 }
 
@@ -188,16 +222,11 @@ export function solveNodeLocked(heroFreqs,villFreqs,board,locks,opts={}){
    Les profils sont des MODÈLES DE JOUEUR (tendances estimées → HEURISTIC) ; la
    stratégie d'exploit, elle, est réellement RE-SOLVÉE par CFR contre ces verrous.
    Tendances : réponse face à une mise (F/C/R) + comportement après check (X/B). ── */
-export const EXPLOIT_PROFILES={
-  nit:            {label:"Nit",             vsBet:{F:0.62,C:0.33,R:0.05}, afterCheck:{X:0.75,B:0.25}},
-  tag:            {label:"TAG",             vsBet:{F:0.45,C:0.45,R:0.10}, afterCheck:{X:0.55,B:0.45}},
-  lag:            {label:"LAG",             vsBet:{F:0.30,C:0.50,R:0.20}, afterCheck:{X:0.40,B:0.60}},
-  calling_station:{label:"Calling Station", vsBet:{F:0.12,C:0.83,R:0.05}, afterCheck:{X:0.60,B:0.40}},
-  fish:           {label:"Fish",            vsBet:{F:0.20,C:0.75,R:0.05}, afterCheck:{X:0.65,B:0.35}},
-  aggro_reg:      {label:"Aggro Reg",       vsBet:{F:0.35,C:0.45,R:0.20}, afterCheck:{X:0.45,B:0.55}},
-  maniac:         {label:"Maniac",          vsBet:{F:0.25,C:0.35,R:0.40}, afterCheck:{X:0.30,B:0.70}},
-  reg:            {label:"Reg",             vsBet:{F:0.42,C:0.48,R:0.10}, afterCheck:{X:0.50,B:0.50}},
-};
+/* Les profils vivent désormais dans core/exploitProfiles.js — PFASE et son
+   Web Worker doivent les lire sans embarquer la bibliothèque de solutions.
+   Ré-export : une seule source de vérité, aucun appelant à changer. */
+export { EXPLOIT_PROFILES, locksForProfile, validateProfile } from "./core/exploitProfiles.js";
+import { EXPLOIT_PROFILES } from "./core/exploitProfiles.js";
 export function solveExploit(profileId,heroFreqs,villFreqs,board,opts={}){
   const prof=EXPLOIT_PROFILES[profileId];
   if(!prof)return{source:ResultSource.NO_SOLUTION,result:null,convergence:null,solveId:null,experimental:true};

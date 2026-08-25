@@ -1,0 +1,110 @@
+{
+  "ok": true,
+  "steps": [
+    {
+      "step": "onglet SharkSolver",
+      "ok": true
+    },
+    {
+      "step": "board saisi",
+      "ok": true,
+      "board": "As7d2c9hKs"
+    },
+    {
+      "step": "mode Single Size",
+      "ok": true
+    },
+    {
+      "step": "solve lancé",
+      "ok": true
+    },
+    {
+      "step": "solution affichée",
+      "ok": true,
+      "ms": 53868
+    },
+    {
+      "step": "sizings annoncés par le solveur",
+      "ok": true,
+      "selected": "67%",
+      "complexity": "SINGLE",
+      "badge": "PF SOLVED",
+      "status": "PARTIAL"
+    },
+    {
+      "step": "bouton « S'entraîner contre cette solution »",
+      "ok": true
+    },
+    {
+      "step": "Trainer rendu",
+      "ok": true,
+      "boutons": [
+        "CheckPasser sans payer",
+        "Bet 1bb1bb67% du pot",
+        "Tapis 99bb99bbtapis · 99bb à engager"
+      ]
+    },
+    {
+      "step": "§87 — les sizings du solveur sont ceux du Trainer",
+      "ok": true,
+      "manquants": []
+    },
+    {
+      "step": "action Hero jouée",
+      "ok": true,
+      "action": "CheckPasser sans pay"
+    },
+    {
+      "step": "solution révélée",
+      "ok": true
+    },
+    {
+      "step": "§18 — provenance Adaptive Sizing visible",
+      "ok": true,
+      "badge": true,
+      "badgeTexte": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
+      "heuristiqueAffichee": false,
+      "perteAffichee": true,
+      "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb",
+      "solutionRevelee": false,
+      "extrait": "Entraîneur\nBB\n$\n⚡ 0 XP\n🥉 Bronze Lv 1\n🎮\nDashboard\nEntraîneur\nSharkSolver\nBiblio\nMains\nReplayer\nCoach AI\nCommunauté\nParamètres\nLegal\n◀\n🔒\nSession active — filtres verrouillés\n🤖 COACH IA — DÉCRIS TA SESSION\n✨ Configurer depuis ma demande\nSESSION\nSprint\n20 spots\n20\nStandard\n50 spots\n50\nMarathon\n100 spots\n100\nIllimite\nspots\n∞\nMULTITABLING\n1T\n2T\n3T\n4T\nProgression\n0/1\nMODE D'ENTRAÎNEMENT\n🎯 GTO\n🦈 Exp"
+    }
+  ],
+  "errors": [],
+  "console": [],
+  "solver": {
+    "selected": "67%",
+    "complexity": "SINGLE",
+    "badge": "PF SOLVED",
+    "status": "PARTIAL"
+  },
+  "trainer": {
+    "onTrainer": true,
+    "actionButtons": [
+      "CheckPasser sans payer",
+      "Bet 1bb1bb67% du pot",
+      "Tapis 99bb99bbtapis · 99bb à engager"
+    ],
+    "notice": null,
+    "badgeVisible": false
+  },
+  "match": {
+    "selected": [
+      "67%"
+    ],
+    "boutons": "CheckPasser sans payer | Bet 1bb1bb67% du pot | Tapis 99bb99bbtapis · 99bb à engager",
+    "manquants": [],
+    "ok": true
+  },
+  "provenanceStabilisee": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
+  "provenance": {
+    "badge": true,
+    "badgeTexte": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
+    "heuristiqueAffichee": false,
+    "perteAffichee": true,
+    "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb",
+    "solutionRevelee": false,
+    "extrait": "Entraîneur\nBB\n$\n⚡ 0 XP\n🥉 Bronze Lv 1\n🎮\nDashboard\nEntraîneur\nSharkSolver\nBiblio\nMains\nReplayer\nCoach AI\nCommunauté\nParamètres\nLegal\n◀\n🔒\nSession active — filtres verrouillés\n🤖 COACH IA — DÉCRIS TA SESSION\n✨ Configurer depuis ma demande\nSESSION\nSprint\n20 spots\n20\nStandard\n50 spots\n50\nMarathon\n100 spots\n100\nIllimite\nspots\n∞\nMULTITABLING\n1T\n2T\n3T\n4T\nProgression\n0/1\nMODE D'ENTRAÎNEMENT\n🎯 GTO\n🦈 Exp"
+  },
+  "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-trainer.png"
+}
