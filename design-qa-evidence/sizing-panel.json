@@ -25,7 +25,7 @@
     {
       "step": "résultat affiché",
       "ok": true,
-      "ms": 43625
+      "ms": 42540
     },
     {
       "step": "§26 — Tree Editor présent et navigable",
@@ -50,8 +50,8 @@
     "complexity": "SINGLE",
     "retenu": "67%",
     "compares": "JAM,67%,167%",
-    "perteEv": "-0.001",
-    "plancher": "0.0132",
+    "perteEv": "0.0013",
+    "plancher": "0.007",
     "distinguable": "false",
     "famille": null,
     "aucuneSolution": false,
@@ -59,7 +59,7 @@
     "partiel": true,
     "avertissementBruit": true,
     "ecartSizings": true,
-    "exploitabilite": "Exploitabilité 0.0183 bb (NashConv exact)",
+    "exploitabilite": "Exploitabilité 0.0216 bb (NashConv exact)",
     "modes": [
       "Automatic",
       "Dynamic",
@@ -98,7 +98,7 @@
     "x": 438,
     "y": 194.875,
     "width": 846,
-    "height": 1072.28125
+    "height": 1111.28125
   },
   "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-panel.png"
 }

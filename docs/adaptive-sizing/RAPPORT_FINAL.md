@@ -373,7 +373,7 @@ de 1.34 à 8.17 bb. Deux dimensions distinctes en découlent : la *provenance* d
 comment le nombre a été obtenu, `strategyKind` dit ce qu'il décrit — une
 exploitation est parfaitement « PF SOLVED » et n'est **pas** un équilibre.
 
-## Trois défauts trouvés en cherchant des grandeurs connues d'avance
+## Quatre défauts trouvés en cherchant des grandeurs connues d'avance
 
 Aucun n'était visible à la lecture du code, et aucun n'aurait été trouvé en
 regardant si les résultats « semblaient plausibles » :
@@ -392,9 +392,18 @@ regardant si les résultats « semblaient plausibles » :
 3. **L'application ne relisait jamais ses solutions au démarrage.** Seul le Worker
    hydratait. Après un rechargement, le Trainer répondait « solution introuvable »
    sur une base intacte. Le défaut avait survécu parce que le script de QA appelait
-   lui-même `hydrateStore()` : il prouvait la persistance du **stockage** sans
+   lui-même  : il prouvait la persistance du **stockage** sans
    jamais tester celle de l'**application**. Une QA qui compense le défaut qu'elle
    doit détecter ne détecte rien.
+4. **Et sous ce défaut, un second, plus profond.** Une fois l'hydratation ajoutée,
+   la QA échouait toujours : l'application appelait bien `hydrateStore()`, mais sur
+   SA copie du module. En développement, Vite sert une dépendance invalidée avec un
+   horodatage (`solutionStore.js?t=1787664993378`) — URL différente, module
+   différent, `Map` différentes. Le magasin que lisaient le Trainer et le Replayer
+   restait vide, sans exception ni avertissement. L'inspecteur du §95 avait été
+   écrit pour DÉTECTER ce cas ; il fallait aussi cesser d'y être vulnérable :
+   l'état du magasin vit désormais sur `globalThis` sous une clé versionnée, et
+   toutes les copies du module partagent le même magasin.
 
 ## Definition of done (§108)
 

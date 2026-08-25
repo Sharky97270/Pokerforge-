@@ -37,7 +37,7 @@
 
 import { solutionId as makeSolutionId } from "./canonicalHash.js";
 import { validateSolution, isCurrentEngine, stalenessOf, SolutionProvenance } from "./solutionSchema.js";
-import { SIZING_COMPLEXITIES } from "./config.js";
+import { SIZING_COMPLEXITIES, SOLUTION_SCHEMA_VERSION } from "./config.js";
 import { registerHook, noteEvent } from "./debugInspector.js";
 
 const DB_NAME = "pfase";
@@ -48,20 +48,52 @@ const STORE_STATE = "states";
 const MAX_MEMORY = 400;      // solutions en mémoire (LRU)
 const MAX_PERSISTED = 300;   // solutions sur disque
 
-const _solutions = new Map();   // solutionId → PFSolution (complète, fusionnée)
-const _states = new Map();      // gameStateHash → bloc d'état partagé
-const _byState = new Map();     // gameStateHash → Set(complexity)
+/* ══════════════════════════════════════════════════════════════════════════
+   L'ÉTAT DU MAGASIN VIT SUR globalThis, PAS DANS LE MODULE (§95)
 
-export const storeStatus = {
-  persistent: false,
-  hydrated: false,
-  loaded: 0,
-  written: 0,
-  skipped: 0,
-  rejected: 0,
-  staleDropped: 0,
-  lastError: null,
-};
+   Un magasin à état de module suppose qu'il n'existe qu'une copie du module.
+   Cette supposition est fausse plus souvent qu'il n'y paraît :
+
+     · en développement, Vite sert les dépendances invalidées avec un horodatage
+       (`solutionStore.js?t=1787664993378`). C'est une URL différente, donc un
+       MODULE différent, avec ses propres Map et son propre `storeStatus` ;
+     · un import dynamique, un Worker mal configuré ou un rechargement à chaud
+       produisent le même effet.
+
+   Le symptôme observé est instructif parce qu'il n'a rien d'une erreur : après un
+   rechargement, l'application appelait bien `hydrateStore()` — mais sur SA copie.
+   Le magasin que lisaient le Trainer et le Replayer restait vide, sans exception,
+   sans avertissement, et la solution « n'existait pas ». Le §95 avait été écrit
+   pour DÉTECTER ce cas ; il fallait aussi cesser d'y être vulnérable.
+
+   Les structures sont donc ancrées sur `globalThis` sous une clé versionnée :
+   toutes les copies du module partagent le même magasin. La clé porte la version
+   du schéma pour qu'un futur changement de forme ne se greffe pas sur l'ancien
+   état, ce qui serait pire que le problème d'origine.
+   ══════════════════════════════════════════════════════════════════════════ */
+const _SHARED_KEY = "__pfase_store_v" + SOLUTION_SCHEMA_VERSION + "__";
+const _shared = globalThis[_SHARED_KEY] || (globalThis[_SHARED_KEY] = {
+  solutions: new Map(),   // solutionId → PFSolution (complète, fusionnée)
+  states: new Map(),      // gameStateHash → bloc d'état partagé
+  byState: new Map(),     // gameStateHash → Set(complexity)
+  status: {
+    persistent: false,
+    hydrated: false,
+    loaded: 0,
+    written: 0,
+    skipped: 0,
+    rejected: 0,
+    staleDropped: 0,
+    lastError: null,
+  },
+  hydrating: null,
+});
+
+const _solutions = _shared.solutions;
+const _states = _shared.states;
+const _byState = _shared.byState;
+
+export const storeStatus = _shared.status;
 
 /* ── Champs LOURDS, déportés dans l'enregistrement d'état partagé (§28). ── */
 const STATE_FIELDS = [
@@ -171,6 +203,11 @@ export function clearStore() {
   _solutions.clear(); _states.clear(); _byState.clear();
   storeStatus.loaded = 0; storeStatus.written = 0; storeStatus.skipped = 0;
   storeStatus.rejected = 0; storeStatus.staleDropped = 0;
+  /* L hydratation aussi : sans cela, un test qui vide le magasin puis demande une
+     relecture recevrait la promesse déjà résolue de la relecture précédente, et
+     n obtiendrait jamais les entrées qu il vient d écrire en base. */
+  storeStatus.hydrated = false;
+  _shared.hydrating = null;
   _persistClear();
 }
 
@@ -283,10 +320,11 @@ async function _prune(keep) {
    À appeler UNE FOIS au démarrage. Remonte les solutions récentes ; PURGE au
    passage celles produites par un moteur périmé — les garder ferait grossir la
    base d'entrées qu'on refuserait de servir de toute façon. */
-let _hydrating = null;
 export function hydrateStore({ limit = 300 } = {}) {
-  if (_hydrating) return _hydrating;
-  _hydrating = (async () => {
+  /* Partagée entre toutes les copies du module : deux instances qui hydratent
+     en parallèle liraient la même base et se marcheraient dessus. */
+  if (_shared.hydrating) return _shared.hydrating;
+  _shared.hydrating = (async () => {
     if (!persistenceAvailable()) { storeStatus.hydrated = true; return 0; }
     let n = 0;
     try {
@@ -314,7 +352,7 @@ export function hydrateStore({ limit = 300 } = {}) {
     storeStatus.hydrated = true;
     return n;
   })();
-  return _hydrating;
+  return _shared.hydrating;
 }
 
 function readAll(db, store, limit) {

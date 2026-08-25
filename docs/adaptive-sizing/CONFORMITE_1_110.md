@@ -163,7 +163,7 @@ pas se tromper sur ce qu'il reçoit.
 | 92 | Qualité de donnée | **PASS** | 6 catégories de refus testées |
 | 93 | Normalisation des stratégies | **PASS** | somme ≈ 1 vérifiée à chaque nœud, refus au stockage |
 | 94 | Stabilité numérique | **PASS** | `EPS` centralisés, aucune égalité stricte de flottants |
-| 95 | Debug inspector | **PASS** | `globalThis.__PFASE__` ; a servi à trouver un vrai bug d'instance de module |
+| 95 | Debug inspector | **PASS** | `globalThis.__PFASE__` ; a servi **deux fois** à trouver un vrai bug d'instance de module. La seconde fois a mené plus loin : détecter le problème ne suffisait pas, l'état du magasin est désormais ancré sur `globalThis` sous une clé versionnée, de sorte que toutes les copies du module partagent le même magasin |
 | 96 | Fonctions pures | **PASS** | tous les modules `sizing/` sont purs et testés hors navigateur |
 | 97 | Documentation | **PASS** | 9 fichiers dans `docs/adaptive-sizing/` |
 | 98 | ALGORITHM.md avec formules | **PASS** | formule géométrique, perte d'EV, plancher, budget |

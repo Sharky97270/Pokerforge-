@@ -21,7 +21,7 @@
     {
       "step": "solution affichée",
       "ok": true,
-      "ms": 45506
+      "ms": 42505
     },
     {
       "step": "sizings annoncés par le solveur",
@@ -65,7 +65,7 @@
       "badgeTexte": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
       "heuristiqueAffichee": false,
       "perteAffichee": true,
-      "perteTexte": "perte -0.001 bb — non mesurable : sous le plancher de 0.0112 bb"
+      "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb"
     }
   ],
   "errors": [],
@@ -99,7 +99,7 @@
     "badgeTexte": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
     "heuristiqueAffichee": false,
     "perteAffichee": true,
-    "perteTexte": "perte -0.001 bb — non mesurable : sous le plancher de 0.0112 bb"
+    "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb"
   },
   "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-trainer.png"
 }
