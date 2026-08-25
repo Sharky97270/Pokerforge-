@@ -20,6 +20,7 @@ import {
   normalizeGameState, sizingContextFrom, validateDataQuality, cardKey,
   streetsRemainingFor, normalizeStreet, ActionType, isSizedActionType,
 } from "./src/sizing/gameState.js";
+import { preflopOpenAmountBb, preflopCandidates, preflopContext, DEFAULT_PREFLOP_TREE } from "./src/sizing/preflopSizing.js";
 
 let passed = 0;
 const ok = (c, m) => { assert.ok(c, m); passed++; };
@@ -264,6 +265,97 @@ console.log("\n── normalisation des cartes et des rues");
   eq(streetsRemainingFor("FLOP"), 3, "flop → 3");
   eq(streetsRemainingFor("TURN"), 2, "turn → 2");
   eq(streetsRemainingFor("RIVER"), 1, "river → 1");
+}
+
+console.log("\n── §54 — CONSTRUCTEUR D'ARBRE PRÉFLOP : le montant suit la table");
+{
+  const etat = (pos, hist, over = {}) => {
+    const n = normalizeGameState({
+      gameType: "CASH", street: "PREFLOP", board: [], blinds: { sb: 0.5, bb: 1 }, minBet: 1,
+      players: [
+        { id: "h", position: pos, stack: 100, committedStreet: 0, isHero: true },
+        { id: "v", position: "BB", stack: 100, committedStreet: 1 },
+      ],
+      actorId: "h", actionHistory: hist, ...over,
+    });
+    ok(n.ok, `état préflop ${pos} valide${n.ok ? "" : " : " + n.errors.join(", ")}`);
+    return n.state;
+  };
+  const limp = (p) => ({ position: p, actionType: "CALL", size: 1 });
+  const open = (p, s) => ({ position: p, actionType: "RAISE", size: s });
+
+  /* ── LES QUATRE PARAMÈTRES DU §54 SONT DES PARAMÈTRES ──────────────────── */
+  const seul = preflopOpenAmountBb(etat("CO", []));
+  eq(seul.kind, "open", "table vide : c'est une ouverture");
+  eq(seul.amountBb, 2.5, "au sizing IP de base");
+
+  const iso2 = preflopOpenAmountBb(etat("CO", [limp("UTG"), limp("MP")]));
+  eq(iso2.kind, "iso", "derrière des limpeurs : c'est une isolation");
+  eq(iso2.amountBb, 4.5, "2.5 + 2 limpeurs × 1 = 4.5 bb — un open qui ignore les limpeurs offre une cote absurde");
+  eq(iso2.context.limpers, 2, "les deux limpeurs sont comptés");
+  eq(iso2.context.callers, 0, "et aucun n'est pris pour un payeur d'ouverture");
+  ok(/2 limpeur/.test(iso2.breakdown), `la décomposition est lisible : « ${iso2.breakdown} »`);
+
+  /* Les paramètres sont réellement lus, pas décoratifs. */
+  const perso = preflopOpenAmountBb(etat("CO", [limp("UTG"), limp("MP")]), { ipSizing: 2, additionalPerLimp: 1.5 });
+  eq(perso.amountBb, 5, "2 + 2 × 1.5 = 5 bb : baseRaise et additionalPerLimp sont bien des paramètres");
+
+  /* ── IP ET OOP NE SONT PAS UNE PRÉFÉRENCE DE STYLE ─────────────────────── */
+  const ip = preflopOpenAmountBb(etat("BTN", []));
+  const oop = preflopOpenAmountBb(etat("SB", []));
+  eq(ip.amountBb, 2.5, "le bouton ouvre au sizing IP");
+  eq(oop.amountBb, 3, "la petite blinde au sizing OOP");
+  ok(oop.amountBb > ip.amountBb, "hors de position on ouvre plus grand : il faut refuser plus de cote");
+  eq(ip.context.heroInPosition, true, "le bouton est en position");
+  eq(oop.context.heroInPosition, false, "la petite blinde ne l'est pas");
+
+  /* ── LIMPEUR ET COLD-CALLER SONT DEUX POPULATIONS ──────────────────────── */
+  const vs3bet = preflopOpenAmountBb(etat("BTN", [open("CO", 2.5), { position: "MP", actionType: "CALL", size: 2.5 }]));
+  eq(vs3bet.kind, "3bet", "après une relance, payer est un cold-call, pas un limp");
+  eq(vs3bet.context.limpers, 0, "aucun limpeur");
+  eq(vs3bet.context.callers, 1, "un payeur d'ouverture");
+  ok(vs3bet.multipleOfFacing > 0, "et l'unité devient la mise affrontée, pas la blinde (§6)");
+
+  const quatreBet = preflopOpenAmountBb(etat("CO", [open("CO", 2.5), open("BTN", 8)]));
+  eq(quatreBet.kind, "4bet", "deux relances derrière soi : c'est un 4-bet");
+
+  /* ── LES CANDIDATS SONT LÉGAUX, DISTINCTS, ET NON CLASSÉS ──────────────── */
+  const c = preflopCandidates(etat("CO", [limp("UTG"), limp("MP")]));
+  ok(c.ok, "les candidats se construisent");
+  ok(c.candidats.length >= 2, "il y en a plusieurs");
+  eq(c.principal.toBb, 4.5, "le principal est celui du §54");
+  const montants = c.candidats.map(x => x.toBb);
+  eq(montants.length, new Set(montants).size, "aucun doublon après quantification — un faux choix n'est pas un choix");
+
+  /* Tapis trop court : les montants injouables sont ÉCARTÉS, pas ramenés. */
+  const court = preflopCandidates(normalizeGameState({
+    gameType: "CASH", street: "PREFLOP", board: [], blinds: { sb: 0.5, bb: 1 }, minBet: 1,
+    players: [
+      { id: "h", position: "CO", stack: 3, committedStreet: 0, isHero: true },
+      { id: "v", position: "BB", stack: 3, committedStreet: 1 },
+    ],
+    actorId: "h", actionHistory: [limp("UTG"), limp("MP")],
+  }).state);
+  ok(court.ok, "un tapis de 3 bb donne quand même un résultat");
+  ok(court.candidats.every(x => x.toBb <= 3 + 1e-9), "et aucun candidat ne dépasse le tapis");
+  ok(court.ecartes.length > 0, "les montants injouables sont écartés explicitement");
+  ok(court.ecartes.some(e => /tapis/.test(e.raison)), "avec le motif");
+
+  /* ── §0 — CE QUI N'A PAS ÉTÉ MESURÉ N'EST PAS PRÉSENTÉ COMME RETENU ────── */
+  eq(c.rankable, false, "aucun de ces montants n'est déclaré « le meilleur »");
+  ok(/résoudre les trois rues/.test(c.rankableNote),
+    "et le motif est donné : l'EV d'une ouverture se réalise après le flop, la classer exigerait de résoudre la suite (L1)");
+
+  /* Hors préflop, le module REFUSE plutôt que de produire un nombre. */
+  const postflop = normalizeGameState({
+    gameType: "CASH", street: "FLOP", board: [12, 25, 3], blinds: { sb: 0.5, bb: 1 }, minBet: 1,
+    players: [
+      { id: "h", position: "BB", stack: 40, committedStreet: 0, isHero: true },
+      { id: "v", position: "BTN", stack: 40, committedStreet: 0 },
+    ], deadPot: 10, actorId: "h",
+  }).state;
+  eq(preflopOpenAmountBb(postflop).ok, false, "appelé sur un flop, le module refuse");
+  ok(/autre rue/.test(preflopOpenAmountBb(postflop).reason), "en disant pourquoi");
 }
 
 console.log(`\n✅ PFASE mathématique des montants (§60) — ${passed} assertions OK\n`);

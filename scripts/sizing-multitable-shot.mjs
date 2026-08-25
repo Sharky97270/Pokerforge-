@@ -77,7 +77,29 @@ try {
     return true;
   }, BOARD);
   out.steps.push({ step: "board saisi", ok: boardSet, board: BOARD });
-  await sleep(900);
+
+  /* ── ATTENDRE QUE LE PANNEAU SOIT PRÊT, pas dormir ────────────────────────
+     Le bouton de solve est désactivé tant que l état de jeu n est pas complet
+     (board valide ET ranges présentes). Un `sleep` fixe part parfois trop tôt :
+     le script cliquait alors sur un bouton désactivé, ne voyait rien se passer,
+     et rapportait un échec sur une interface parfaitement saine. On attend donc
+     la CONDITION, et si elle ne vient pas on dit laquelle manque. */
+  let pret = false;
+  for (let i = 0; i < 40 && !pret; i++) {
+    pret = await page.evaluate(() => {
+      const b = document.querySelector('[data-pfase="solve"]');
+      return !!(b && !b.disabled);
+    });
+    if (!pret) await sleep(500);
+  }
+  out.steps.push({ step: "panneau prêt (état de jeu complet)", ok: pret });
+  if (!pret) {
+    out.raisonPanneau = await page.evaluate(() => {
+      const el = [...document.querySelectorAll("span")].find(e => /résoudre|manquant|incomplet|range/i.test(e.textContent || ""));
+      return el ? el.textContent.trim().slice(0, 160) : "motif non affiché";
+    });
+    throw new Error("le panneau reste désactivé : " + out.raisonPanneau);
+  }
 
   /* La case « famille » produit les quatre niveaux sous un seul état (§110). */
   /* Ancre de DONNÉES, pas expression régulière sur le texte : la case vit dans
@@ -119,12 +141,26 @@ try {
   out.steps.push({ step: "solve lancé", ok: lance, bouton: out.boutonSolve || null });
   if (!lance) throw new Error("bouton « Optimiser les sizings » introuvable ou désactivé : " + JSON.stringify(out.boutonSolve));
 
+  /* Un solve de FAMILLE résout quatre niveaux plus leurs sous-ensembles : sur les
+     ranges par défaut de l onglet, il se compte en minutes. On suit donc la PHASE
+     annoncée par le panneau plutôt que d attendre en aveugle — sans cela, « lent »
+     et « mort » se ressemblent, et l on ne sait pas s il faut patienter ou chercher
+     un défaut. */
   const t0 = Date.now();
   let done = false;
+  out.phases = [];
+  let dernierePhase = null;
   while (Date.now() - t0 < TIMEOUT) {
-    done = await page.evaluate(() => !!document.querySelector('[data-pfase="family"], [data-pfase="error"]'));
-    if (done) break;
-    await sleep(1500);
+    const etat = await page.evaluate(() => ({
+      fini: !!document.querySelector('[data-pfase="family"], [data-pfase="error"]'),
+      phase: (document.body.innerText.match(/(QUEUED|OPTIMIZING[_ ]SIZINGS|FINAL[_ ]SOLVE|COMPLETE|PARTIAL|FAILED|Calcul…)/i) || [])[1] || null,
+    }));
+    if (etat.phase && etat.phase !== dernierePhase) {
+      dernierePhase = etat.phase;
+      out.phases.push({ phase: etat.phase, apresMs: Date.now() - t0 });
+    }
+    if (etat.fini) { done = true; break; }
+    await sleep(2000);
   }
   out.steps.push({ step: "famille affichée", ok: done, ms: Date.now() - t0 });
   if (!done) throw new Error("aucune famille après " + TIMEOUT + " ms");

@@ -17,12 +17,12 @@
     {
       "step": "solution produite",
       "ok": true,
-      "ms": 44544
+      "ms": 39475
     },
     {
       "step": "solution enregistrée en mémoire",
       "ok": true,
-      "id": "PFS-DCC9E5D795BD1A58#SINGLE"
+      "id": "PFS-8A5DFA7DBE6934F0#SINGLE"
     },
     {
       "step": "application rechargée",
@@ -63,10 +63,10 @@
   ],
   "errors": [],
   "avant": {
-    "solutionId": "PFS-DCC9E5D795BD1A58#SINGLE",
+    "solutionId": "PFS-8A5DFA7DBE6934F0#SINGLE",
     "selected": "67%",
-    "evloss": "-0.001",
-    "floor": "0.0132",
+    "evloss": "0.0013",
+    "floor": "0.007",
     "store": {
       "solutions": 1,
       "states": 1,
@@ -75,7 +75,7 @@
       },
       "status": {
         "persistent": true,
-        "hydrated": false,
+        "hydrated": true,
         "loaded": 0,
         "written": 1,
         "skipped": 0,
@@ -85,8 +85,8 @@
       }
     },
     "detail": {
-      "solutionId": "PFS-DCC9E5D795BD1A58#SINGLE",
-      "gameStateHash": "PFS-DCC9E5D795BD1A58",
+      "solutionId": "PFS-8A5DFA7DBE6934F0#SINGLE",
+      "gameStateHash": "PFS-8A5DFA7DBE6934F0",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -105,13 +105,13 @@
       "selectedSizes": [
         "67%"
       ],
-      "ev": -0.016,
-      "evLoss": -0.001,
-      "measurementFloor": 0.0132,
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
       "accuracy": {
         "exact": true,
         "metric": "NashConv (bb)",
-        "value": 0.0183,
+        "value": 0.0216,
         "note": null,
         "iterations": 400,
         "sampled": false
@@ -148,8 +148,8 @@
       }
     },
     "detail": {
-      "solutionId": "PFS-DCC9E5D795BD1A58#SINGLE",
-      "gameStateHash": "PFS-DCC9E5D795BD1A58",
+      "solutionId": "PFS-8A5DFA7DBE6934F0#SINGLE",
+      "gameStateHash": "PFS-8A5DFA7DBE6934F0",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -168,13 +168,13 @@
       "selectedSizes": [
         "67%"
       ],
-      "ev": -0.016,
-      "evLoss": -0.001,
-      "measurementFloor": 0.0132,
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
       "accuracy": {
         "exact": true,
         "metric": "NashConv (bb)",
-        "value": 0.0183,
+        "value": 0.0216,
         "note": null,
         "iterations": 400,
         "sampled": false
@@ -191,7 +191,7 @@
       ],
       "classes": 169
     },
-    "instanceId": "pfase-8k1cqqr9"
+    "instanceId": "pfase-xrjrcq4a"
   },
   "comparaison": {
     "memeId": true,
@@ -202,8 +202,8 @@
     "memesNoeuds": true,
     "memesClasses": true,
     "avant": {
-      "solutionId": "PFS-DCC9E5D795BD1A58#SINGLE",
-      "gameStateHash": "PFS-DCC9E5D795BD1A58",
+      "solutionId": "PFS-8A5DFA7DBE6934F0#SINGLE",
+      "gameStateHash": "PFS-8A5DFA7DBE6934F0",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -222,13 +222,13 @@
       "selectedSizes": [
         "67%"
       ],
-      "ev": -0.016,
-      "evLoss": -0.001,
-      "measurementFloor": 0.0132,
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
       "accuracy": {
         "exact": true,
         "metric": "NashConv (bb)",
-        "value": 0.0183,
+        "value": 0.0216,
         "note": null,
         "iterations": 400,
         "sampled": false
@@ -246,8 +246,8 @@
       "classes": 169
     },
     "apres": {
-      "solutionId": "PFS-DCC9E5D795BD1A58#SINGLE",
-      "gameStateHash": "PFS-DCC9E5D795BD1A58",
+      "solutionId": "PFS-8A5DFA7DBE6934F0#SINGLE",
+      "gameStateHash": "PFS-8A5DFA7DBE6934F0",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -266,13 +266,13 @@
       "selectedSizes": [
         "67%"
       ],
-      "ev": -0.016,
-      "evLoss": -0.001,
-      "measurementFloor": 0.0132,
+      "ev": -0.0172,
+      "evLoss": 0.0013,
+      "measurementFloor": 0.007,
       "accuracy": {
         "exact": true,
         "metric": "NashConv (bb)",
-        "value": 0.0183,
+        "value": 0.0216,
         "note": null,
         "iterations": 400,
         "sampled": false

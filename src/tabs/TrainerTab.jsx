@@ -39,6 +39,7 @@ import { isSolvablePostflop, buildPostflopSolveRequest, mapWorkerResultToStrateg
 /* ⚖️ Adaptive Sizing Engine (§29/§87) — le Trainer CONSOMME une solution ; il
    n'en choisit jamais les sizings. Import de la seule API publique de PFASE. */
 import { spotsFromSolutions, spotFromSolution } from "../sizing/trainerBridge.js";
+import { hydrateStore, storeStatus as pfaseStoreStatus } from "../sizing/solutionStore.js";
 /* `getSolutionById` prend un solutionId ; `getSolution` prend (hash, complexité).
    Confondre les deux rendait systématiquement null — la solution existait bien,
    mais on la cherchait avec la mauvaise clé. */
@@ -8404,6 +8405,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(sd&&Array.isArray(sd.pfaseSolutionIds)&&sd.pfaseSolutionIds.length){
       const sols=sd.pfaseSolutionIds.map(id=>getPfaseSolution(id)).filter(Boolean);
       if(!sols.length){
+        /* Même raison qu'au singulier : un magasin non encore hydraté n'est pas
+           un magasin vide. */
+        if(!pfaseStoreStatus.hydrated){
+          setPfaseNotice("Lecture des solutions enregistrées…");
+          hydrateStore().then(()=>applyTrainerSeed(sd))
+            .catch(()=>setPfaseNotice("Lecture des solutions enregistrées impossible sur cet appareil."));
+          return;
+        }
         setPfaseNotice("Aucune des solutions demandées n'a été retrouvée — relance le solve dans SharkSolver.");
         return;
       }
@@ -8432,6 +8441,24 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(sd&&sd.pfaseSolutionId){
       const sol=getPfaseSolution(sd.pfaseSolutionId);
       if(!sol){
+        /* ── LE MAGASIN N'EST PEUT-ÊTRE PAS ENCORE RELU ────────────────────
+           Les solutions vivent dans IndexedDB ; après un rechargement de page,
+           le magasin en mémoire est VIDE tant que l'hydratation n'a pas eu lieu.
+           Conclure « introuvable » à cet instant est faux : la solution existe,
+           on ne l'a simplement pas encore lue.
+
+           Le défaut était masqué par la QA elle-même, qui appelait `hydrateStore()`
+           avant de vérifier — elle faisait le travail de l'application, et
+           prouvait donc quelque chose que l'application ne faisait pas. */
+        if(!pfaseStoreStatus.hydrated){
+          setPfaseNotice("Lecture des solutions enregistrées…");
+          hydrateStore().then(()=>{
+            const relu=getPfaseSolution(sd.pfaseSolutionId);
+            if(relu)applyTrainerSeed(sd);
+            else setPfaseNotice("Solution introuvable ou produite par un moteur périmé — relance le solve dans SharkSolver.");
+          }).catch(()=>setPfaseNotice("Lecture des solutions enregistrées impossible sur cet appareil."));
+          return;
+        }
         /* §90 — pas de repli silencieux vers un spot générique : on le dit. */
         setPfaseNotice("Solution introuvable ou produite par un moteur périmé — relance le solve dans SharkSolver.");
         return;

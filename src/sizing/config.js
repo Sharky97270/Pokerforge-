@@ -21,12 +21,33 @@
    Les trois entrent dans le hash canonique (§19) : une solution produite par un
    moteur antérieur ne peut donc pas être servie en silence à la place d'une
    solution courante. C'est le manque qui existait dans `library.js`. */
-export const SIZING_ENGINE_VERSION = "1.0.0";
+/* ── 1.1.0 — POURQUOI CETTE VERSION A ÉTÉ INCRÉMENTÉE ──────────────────────
+   Une version ne se change pas pour marquer une livraison : elle se change quand
+   les nombres changent. Quatre modifications rendent toute solution antérieure
+   NON COMPARABLE à une solution actuelle, et il vaut mieux les purger que les
+   servir :
+
+     1. l'EV rapportée est celle de la stratégie MOYENNE (`strategyEV`) et non
+        plus la moyenne des EV des itérations — écart mesuré : 0.086 bb à 600
+        itérations ;
+     2. le dénominateur des EV ne compte plus les paires de mains impossibles
+        (celles qui partagent une carte) — toutes les valeurs bougent du taux de
+        blocage, et `bestResponseEV` avec elles, donc NashConv aussi ;
+     3. le rake est APPLIQUÉ à l'utilité terminale quand il est déclaré ;
+     4. le hash canonique porte désormais les verrous de nœud et la variante de
+        rake — deux états jadis confondus sont maintenant distincts.
+
+   Sans incrément, une solution d'hier serait servie aujourd'hui avec des EV
+   calculées sous une autre convention, sans que rien ne le signale. L'hydratation
+   purge les entrées périmées : c'est le comportement voulu. */
+export const SIZING_ENGINE_VERSION = "1.1.0";
 export const SOLUTION_SCHEMA_VERSION = 1;
 /* Le cœur CFR n'exposait aucune version. On en déclare une ici, à incrémenter
    dès qu'un changement de `core/cfr.js`, `core/multistreet.js` ou
-   `core/gametree.js` modifie les EV produites. */
-export const SOLVER_VERSION = "sharksolver-core-2.1.0";
+   `core/gametree.js` modifie les EV produites — ce qui est le cas ici : EV de
+   stratégie moyenne, normalisation des combinaisons bloquées, rake, verrous par
+   main. */
+export const SOLVER_VERSION = "sharksolver-core-2.2.0";
 
 /* ── EPSILONS (§94) ────────────────────────────────────────────────────────
    Jamais de comparaison de flottants par égalité stricte. Un seul jeu de

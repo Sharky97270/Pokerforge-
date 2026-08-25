@@ -15,6 +15,7 @@ import CoachAITab, { CoachFloatingButton, buildEventPreparation, saveCoachEvent 
 import ReplayerTab from "./tabs/ReplayerTab.jsx";
 import { SPOTS, POKER_EVENTS, LEXIQUE, PROS, MENTAL_CONTENT, ARTICLES, POSITIONS_BY_SIZE } from "./data/content.js";
 import TrainerTab, { RangeGrid, RangePopup, SingleTable } from "./tabs/TrainerTab.jsx";
+import { hydrateStore as hydratePfaseStore } from "./sizing/solutionStore.js";
 import CoachTab from "./tabs/CoachToolsTab.jsx";
 import { vibrate, VIB } from "./utils/ui.js";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
@@ -958,6 +959,21 @@ export default function App(){
       const p2=await authFetchProfile(user.id);if(p2)setAuthProfile(p2);
     }catch{}
   }
+  /* ── §88/§89 — RELIRE LES SOLUTIONS ENREGISTRÉES AU DÉMARRAGE ────────────
+     Les solutions du moteur de sizing vivent dans IndexedDB, mais le magasin en
+     mémoire démarre VIDE : sans cette lecture, une solution parfaitement
+     persistée était introuvable après un rechargement de page, et le Trainer
+     répondait « solution introuvable » sur une base pourtant intacte.
+
+     Le défaut avait échappé à la QA parce que le script de vérification appelait
+     lui-même hydrateStore() avant de contrôler — il faisait le travail que
+     l'application ne faisait pas, et prouvait donc la persistance du STOCKAGE
+     sans jamais tester celle de l'APPLICATION.
+
+     La lecture est asynchrone, mémoïsée et sans effet de bord si elle échoue
+     (navigation privée, quota refusé) : le moteur fonctionne alors en mémoire
+     seule, ce que storeStatus.persistent indique. */
+  useEffect(()=>{ hydratePfaseStore().catch(()=>{}); },[]);
   useEffect(()=>{
     let mounted=true;
     (async()=>{

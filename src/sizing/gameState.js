@@ -197,6 +197,23 @@ export function normalizeGameState(input = {}) {
        · le drapeau entre dans le hash d'état (canonicalHash), donc une solution
          rakée et une solution non rakée du même spot ne peuvent pas se
          confondre en cache — ce serait le pire des mélanges. */
+  /* ── STRADDLE (§78) ───────────────────────────────────────────────────────
+     Un straddle est une troisième blinde postée à l'aveugle. Postflop — le seul
+     périmètre de PFASE — il n'ajoute aucune mécanique : il a grossi le pot et
+     réduit les tapis, deux grandeurs que l'état porte déjà. Le déclarer sert
+     donc à deux choses, et à deux choses seulement :
+
+       · la TRAÇABILITÉ — le Replayer et le Coach doivent pouvoir dire d'où vient
+         un pot de 9 bb avant le flop ;
+       · la SÉPARATION EN CACHE — deux mains au même pot, l'une straddée et
+         l'autre non, restent deux mains différentes pour qui les relit.
+
+     Ce qu'il ne fait PAS : changer l'ordre de parole postflop, qui suit le
+     bouton et non le straddle. Prétendre le contraire serait ajouter une
+     mécanique inexistante. */
+  const straddleBb = input.blinds && input.blinds.straddle != null
+    ? Math.max(0, num(input.blinds.straddle) || 0) : 0;
+
   const rakePct = input.rake ? Math.max(0, num(input.rake.pct) || 0) : 0;
   const rake = input.rake ? {
     pct: rakePct,
@@ -243,7 +260,7 @@ export function normalizeGameState(input = {}) {
     streetsRemaining: streetsRemainingFor(street),
     board,
     boardKeys,
-    blinds: Object.freeze({ sb: roundAmount(sb), bb: roundAmount(bb) }),
+    blinds: Object.freeze({ sb: roundAmount(sb), bb: roundAmount(bb), straddle: roundAmount(straddleBb) }),
     ante: roundAmount(ante),
     minBet: roundAmount(minBet),
     betStepBb,

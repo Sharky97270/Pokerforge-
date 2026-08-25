@@ -9,15 +9,36 @@
 
 ---
 
-## L1 — Le préflop n'est pas résolu par PFASE
+## L1 — Le préflop est CONSTRUIT, il n'est pas résolu · **PRÉCISÉE**
 
 | | |
 |---|---|
-| **Capacité visée** | §54 : arbre préflop (open / 3bet / 4bet / limp / iso / cold-call). |
-| **Cause technique** | `core/gametree.js` construit un arbre **postflop heads-up** : il part d'un pot mort et de deux joueurs à égalité de contribution. Il n'a ni blindes postées, ni ordre de parole multi-joueurs, ni notion de limpeurs. |
-| **Ce qui est livré** | Les types de sizing préflop existent et sont testés (`bbSizing`, multiples d'ouverture dans le générateur de candidats). `gameState` accepte `PREFLOP`, valide un board vide et calcule correctement blindes, antes et relance minimale. `trainingSolutionResolver` **refuse** explicitement le préflop, avec son motif. |
-| **Ce qui reste à faire** | Un constructeur d'arbre préflop dans `core/`, avec blindes postées et n joueurs. PFASE le consommerait sans modification : sélection, métriques, magasin et Trainer sont indépendants de la forme de l'arbre. |
-| **Comportement actuel** | `resolveTrainingSolution` rend `UNSUPPORTED` : « PFASE résout le postflop ; le préflop passe par le moteur push/fold et les charts ». Le push/fold HU existant reste la seule zone préflop réellement calculée. |
+| **Capacité visée** | §54 : arbre préflop (open / 3bet / 4bet / limp / iso / cold-call), avec `baseRaise`, `additionalPerLimp`, `additionalPerCaller`, `ipSizing`, `oopSizing`. |
+| **Ce qui est livré** | `src/sizing/preflopSizing.js` fournit **les cinq paramètres nommés par le §54** et en tire des montants corrects au regard de l'état : une ouverture à 2.5 bb devient 4.5 bb derrière deux limpeurs, la petite blinde ouvre à 3 bb là où le bouton ouvre à 2.5, un cold-caller n'est pas compté comme un limpeur, et l'unité bascule de la blinde au multiple de la mise affrontée dès qu'il y a une relance (§6). Chaque montant est rendu **avec sa décomposition** (« 2.5 bb + 2 limpeurs × 1 = 4.5 bb ») : un nombre qu'on ne peut pas vérifier n'a pas sa place à l'écran. |
+| **Ce qui reste vrai** | Ces montants sont **construits**, pas **classés**. |
+
+**Pourquoi le classement n'est pas une question de budget.** L'EV d'une ouverture
+préflop se réalise presque entièrement **après le flop** : départager 2.5 bb et
+3 bb exigerait de résoudre, pour chaque candidat, l'arbre complet des trois rues
+suivantes sur l'ensemble des flops. Ce n'est pas « long », c'est d'un autre ordre
+de grandeur que ce que le moteur sait faire (voir aussi L3).
+
+La conséquence est portée par les données, pas seulement par cette page :
+`preflopCandidates()` rend `rankable:false` avec son motif, et
+`trainingSolutionResolver` continue de répondre `UNSUPPORTED` au préflop. PFASE
+**offre** des sizings préflop ; il n'en **retient** aucun par comparaison, et rien
+en aval ne peut présenter l'un d'eux comme optimal.
+
+**Ce qui reste à faire pour lever la limitation.** Un constructeur d'arbre dans
+`core/` avec blindes postées et n joueurs, puis une évaluation postflop
+abstraite (regroupement de flops) assez rapide pour être comparée. PFASE le
+consommerait sans modification : sélection, métriques, magasin et Trainer sont
+indépendants de la forme de l'arbre.
+
+Verrouillé par `test-sizing-math.mjs` (§54), qui vérifie notamment qu'un montant
+au-dessus du tapis est **écarté** et non ramené, que deux paramètres différents
+produisant le même montant après quantification ne créent pas un faux choix, et
+que le module **refuse** de répondre hors préflop.
 
 ---
 

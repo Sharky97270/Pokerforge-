@@ -15,7 +15,7 @@ node scripts/sizing-bench.mjs
 
 | Fichier | Couvre | Assertions |
 |---|---|---:|
-| `test-sizing-math.mjs` | §6, §7, §37, §60, §72, §73, §75, §76, §92 | 111 |
+| `test-sizing-math.mjs` | §6, §7, §37, §54, §60, §72, §73, §75, §76, §92 | 149 |
 | `test-sizing-gametree.mjs` | non-régression v2 + §6, §10, §26, §74 | 60 |
 | `test-sizing-hash.mjs` | §19, §20, §28, §63, §80 | 49 |
 | `test-sizing-dynamic.mjs` | §9, §10, §11, §14, §15, §16, §22, §59, §61, §62, §86, §93 | 94 |
@@ -23,8 +23,8 @@ node scripts/sizing-bench.mjs
 | `test-sizing-trainer.mjs` | §29 → §44, §45, §46, §56, §64, §67, §68, §71, §87, §90, §91 | 178 |
 | `test-sizing-replayer-coach.mjs` | §0, §47 → §53 | 103 |
 | `test-sizing-import.mjs` | §84 — lecture stricte, vérification par meilleure réponse, contrôle négatif | 46 |
-| `test-sizing-pipeline.mjs` | §101 CASE A → K, §110 (vrai solveur) | 151 |
-| **Total** | | **898** |
+| `test-sizing-pipeline.mjs` | §101 CASE A → M, §110 (vrai solveur) | 201 |
+| **Total** | | **986** |
 
 ---
 
@@ -78,6 +78,8 @@ parasite) et 85 s pour les huit cas.
 | **I — EV par action** | trois contrôles INDÉPENDANTS : une valeur connue d avance (un fold vaut exactement −6 bb sur un pot mort de 12), un invariant interne (le mélange des EV par action redonne l EV de la stratégie moyenne), et une propriété d équilibre (le déficit d indifférence pondéré tient dans NashConv) | fold −6 exact · mélange 1.3294 vs 1.32941 · déficit 0.029 vs NashConv 0.059 |
 | **J — rake** | le rake coûte, dans le bon sens, et CHANGE le sizing retenu · la somme nulle tombe donc NashConv devient `null` · un fold vaut toujours −6 bb (c est le gagnant qui paie) · rake + ICM refusé | 75 % → 33 % à 5 %/cap 3bb ; EV 1.29 → 0.60 |
 | **K — exploit** | le sizing retenu contre un modèle DIFFÈRE de l équilibre · `mayClaimEquilibrium` est faux · NashConv `null` sous verrou et `lockedPlayerGap` ≥ 0 · quatre profils, quatre hashs | équilibre 75 % (1.34 bb) · Calling Station 150 % (8.17 bb) |
+| **L — progression** | l état produit par une action jouée est exactement celui que la solution suivante résout : pot, tapis, SPR, et un sizing RECALCULÉ au nouvel état | turn pot 12 / mise 9 → river pot 30 / mise 22.5 |
+| **M — tapis inégaux** | all-in partiel en heads-up : tapis effectif = le plus court dans les deux sens, SPR et relance max calculés dessus, bouton Tapis à 25 bb et non 40, rien au-dessus du tapis à 8 bb | 40/25 → effectif 25, SPR 2.08 |
 
 ---
 

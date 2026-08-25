@@ -180,6 +180,10 @@ export function gameStateHash({ state, heroRange, villainRanges, treeSpec, solve
     "s", String(state?.street || ""),
     "b", (state?.boardKeys || []).join(""),                 // ordre du board conservé (il est donné)
     "bl", qa(state?.blinds?.sb), qa(state?.blinds?.bb), qa(state?.ante),
+    /* Le straddle n ajoute aucune mécanique postflop, mais deux mains au même
+       pot — l une straddée, l autre non — restent deux mains différentes pour
+       qui les relit. Il entre donc dans l identité de l état (§78). */
+    state?.blinds?.straddle ? "str" + qa(state.blinds.straddle) : "str0",
     "rk", qf(state?.rake?.pct), state?.rake?.cap == null ? "∅" : qa(state.rake.cap), state?.rake?.applied ? "1" : "0",
     /* La variante « pots non disputés non rakés » change les valeurs terminales :
        deux états qui ne diffèrent que par elle sont deux jeux différents. */

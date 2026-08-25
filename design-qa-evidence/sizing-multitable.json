@@ -12,23 +12,25 @@
     },
     {
       "step": "mode famille activé",
-      "ok": true,
-      "libelle": true
+      "ok": false,
+      "libelle": null
     },
     {
       "step": "solve lancé",
       "ok": false,
       "bouton": {
-        "absent": true
+        "texte": "Optimiser les sizings",
+        "disabled": true
       }
     }
   ],
   "errors": [
-    "bouton « Optimiser les sizings » introuvable ou désactivé : {\"absent\":true}"
+    "bouton « Optimiser les sizings » introuvable ou désactivé : {\"texte\":\"Optimiser les sizings\",\"disabled\":true}"
   ],
   "console": [],
   "tables": [],
   "boutonSolve": {
-    "absent": true
+    "texte": "Optimiser les sizings",
+    "disabled": true
   }
 }

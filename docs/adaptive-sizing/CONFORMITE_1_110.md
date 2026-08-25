@@ -95,7 +95,7 @@ n'est masquée.
 | 51 | Analyse HH : niveau demandé, type conservé | **PASS** | `verdictSource` ; dénominateur partiel annoncé |
 | 52 | Couche de données pour rapports agrégés | **PASS** | `aggregateSolutions` par texture, SPR, type de pot, complexité |
 | 53 | Textures dérivées, jamais des heuristiques cachées | **PASS** | aucune propriété ne porte de sizing/fréquence/action |
-| 54 | Preflop Tree Builder | **PARTIAL** | types et candidats préflop existent et sont testés ; **constructeur d'arbre préflop absent** → L1 |
+| 54 | Preflop Tree Builder | **PARTIAL** | `preflopSizing.js` livre **les cinq paramètres nommés** (`baseRaise` via ipSizing/oopSizing, `additionalPerLimp`, `additionalPerCaller`) et en tire des montants corrects : 2.5 bb → 4.5 bb derrière deux limpeurs, SB 3 bb vs BTN 2.5 bb, cold-caller ≠ limpeur, unité qui bascule au multiple de la mise affrontée. Chaque montant est rendu avec sa décomposition. **Les montants sont CONSTRUITS, pas CLASSÉS** (`rankable:false`) : classer du préflop exigerait l'EV postflop → L1 |
 | 55 | `evaluationModel` ChipEV/ICM/PKO, pas de faux ICM | **PASS** | badge ICM sans paramètres → solution **refusée** |
 | 56 | Multiway prévu, activé seulement si supporté | **PASS** | `TABLE_FORMAT_SUPPORT` ; 3 joueurs → `UNSUPPORTED` |
 | 57 | Instrumentation | **PASS** | durées, cache, taille d'arbre, itérations ; silence en production |
@@ -129,7 +129,7 @@ n'est masquée.
 | 75 | Tapis courts 5→30bb | **PASS** | testé |
 | 76 | Tapis profonds 50→200bb | **PASS** | testé, aucun débordement |
 | 77 | Format tournoi | **PARTIAL** | antes, tapis symétriques et asymétriques, HU testés ; **MTT/ICM** limité par L6 |
-| 78 | Format cash (rake, cap, straddle) | **PARTIAL** | **rake et cap APPLIQUÉS** à l'utilité terminale (`makeRakeModel`), variante « pots non disputés » comprise ; le sizing retenu en change (75 % → 33 % à 5 %/cap 3bb). Somme nulle levée → NashConv `null`, ICM+rake refusé. L5 levée. **Straddle toujours non modélisé** |
+| 78 | Format cash (rake, cap, straddle) | **PASS** | **rake et cap APPLIQUÉS** à l'utilité terminale (`makeRakeModel`), variante « pots non disputés » comprise ; le sizing retenu en change (75 % → 33 % à 5 %/cap 3bb). Somme nulle levée → NashConv `null`, ICM+rake refusé. **Straddle déclaré et hashé** : postflop il n'ajoute aucune mécanique (il a grossi le pot et réduit les tapis, deux grandeurs déjà portées par l'état) et ne change PAS l'ordre de parole, qui suit le bouton — mais deux mains au même pot, l'une straddée l'autre non, restent deux états distincts. L5 levée |
 | 79 | API claire | **PASS** | `pfase.js` — 8 fonctions publiques ; aucun doublon de service existant |
 | 80 | Versionnage | **PASS** | 3 versions, dans le hash **et** vérifiées à la lecture |
 | 81 | Feature flag | **PASS** | `adaptiveSizingEngine` ; complet derrière le drapeau |
@@ -144,8 +144,8 @@ n'est masquée.
 | 85 | Critère Single Size (9 points) | **PASS** | les 9 vérifiés un par un dans CASE A |
 | 86 | Critère Dynamic | **PASS** | retirer un candidat change le sous-arbre, la stratégie et l'EV |
 | 87 | Critère Trainer | **PASS** | « S'entraîner contre cette solution » → sizings identiques, vérifié au navigateur |
-| 88 | Persistance solve/save/reload/load/train | **PASS** | CASE G en test ; rechargement de page vérifié au navigateur (`audit:sizing:persistence`) |
-| 89 | Routage / rechargement direct | **PARTIAL** | aucune solution ne vit uniquement en mémoire volatile (IndexedDB + hydratation) ; **PokerForge n'a pas de routage d'URL**, donc rien à préserver de ce côté |
+| 88 | Persistance solve/save/reload/load/train | **PASS** | CASE G en test ; rechargement vérifié au navigateur. **Défaut trouvé et corrigé ici** : l'application ne relisait JAMAIS ses solutions au démarrage — seul le Worker hydratait. Le script de QA appelait lui-même `hydrateStore()` et masquait donc exactement ce qu'il devait détecter. L'application hydrate maintenant au montage, le Trainer réessaie après hydratation plutôt que de conclure « introuvable », et la QA ATTEND l'hydratation au lieu de la provoquer |
+| 89 | Routage / rechargement direct | **PASS** | aucune solution ne vit en mémoire volatile, et le rechargement direct fonctionne désormais VRAIMENT côté application (cf. §88). PokerForge n'a pas de routage d'URL — il n'y a donc pas d'état d'URL à préserver, et l'onglet actif est restauré depuis `localStorage` |
 | 90 | Fail safe Trainer | **PASS** | « No verified solution available » + 3 suites proposées, 0 bouton fabriqué |
 | 91 | Mode approximatif distingué | **PASS** | `APPROXIMATION` ne peut pas porter un badge calculé |
 | 92 | Qualité de donnée | **PASS** | 6 catégories de refus testées |

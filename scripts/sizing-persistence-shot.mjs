@@ -128,9 +128,18 @@ try {
   out.apres = await page.evaluate(async (id) => {
     const store = globalThis.__PFASE__;
     if (!store) return { error: "__PFASE__ absent après rechargement" };
-    /* L'hydratation est asynchrone : on la déclenche et on l'attend. */
+    /* ── NE PAS FAIRE LE TRAVAIL DE L'APPLICATION ──────────────────────────
+       Ce script appelait ici `hydrateStore()` lui-même. Il prouvait donc que le
+       STOCKAGE persistait — ce qui était vrai — mais jamais que l'APPLICATION
+       relisait quoi que ce soit au démarrage. Elle ne le faisait pas : après un
+       rechargement, le magasin en mémoire restait vide et le Trainer répondait
+       « solution introuvable » sur une base intacte.
+
+       Une QA qui compense le défaut qu'elle est censée détecter ne détecte rien.
+       On ATTEND donc l'hydratation faite par l'application, sans la provoquer. */
     const mod = await import("/src/sizing/solutionStore.js");
-    await mod.hydrateStore();
+    for (let i = 0; i < 60 && !mod.storeStatus.hydrated; i++) await new Promise(r => setTimeout(r, 250));
+    if (!mod.storeStatus.hydrated) return { error: "l'application n'a pas relu ses solutions au démarrage (hydratation jamais déclenchée)" };
     const insp = store.inspect();
     const detail = store.inspectSolution(id);
     return { store: insp.store, detail, instanceId: insp.instanceId };
