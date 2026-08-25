@@ -202,24 +202,25 @@ verrous, parce que celui qui saute en silence est le pire.
 
 | | Avant | Après |
 |---|---|---|
-| Suites | 53 | **61** |
-| Assertions | **5 845** | **6 595** |
+| Suites | 53 | **62** |
+| Assertions | **5 845** | **6 831** |
 | Sortie | 0 | **0** |
 
-Huit suites PFASE, **750 assertions** :
+Neuf suites PFASE, **986 assertions** :
 
 | Fichier | Assertions |
 |---|---:|
-| `test-sizing-math.mjs` | 111 |
+| `test-sizing-math.mjs` | 149 |
 | `test-sizing-gametree.mjs` | 60 |
 | `test-sizing-hash.mjs` | 49 |
 | `test-sizing-dynamic.mjs` | 94 |
 | `test-sizing-store.mjs` | 106 |
-| `test-sizing-trainer.mjs` | 139 |
+| `test-sizing-trainer.mjs` | 178 |
 | `test-sizing-replayer-coach.mjs` | 103 |
-| `test-sizing-pipeline.mjs` (vrai solveur) | 88 |
+| `test-sizing-import.mjs` (§84, vrai solveur) | 46 |
+| `test-sizing-pipeline.mjs` (vrai solveur) | 201 |
 
-**Acceptance Test Master (§101)** : les 8 cas A→H passent avec le vrai solveur.
+**Acceptance Test Master (§101)** : les 8 cas A→H passent avec le vrai solveur, complétés par CASE I→M (EV par action, rake, exploit, progression d'une main, tapis inégaux).
 CASE D : géométrique 6.49 bb vs 21.50 bb selon le tapis. CASE E : 4 tables,
 sizings `75 % · 150 % · 33 % · 150 %`. CASE F : turn 9 bb → river 34 bb.
 CASE H : range vide → échec, **0 bouton**.
@@ -278,40 +279,46 @@ livré, et ce qui reste à faire. Les six qui comptent :
 
 | # | Limitation | Cause | Comportement |
 |---|---|---|---|
-| L1 | Préflop non résolu | `gametree` construit un arbre postflop HU (pas de blindes postées, pas de n joueurs) | `UNSUPPORTED` explicite ; push/fold et charts inchangés |
-| L2 | Heads-up uniquement | arbre à 2 joueurs, tapis symétriques | 3+ joueurs → `UNSUPPORTED` avec motif |
+| L1 | Préflop **construit**, non résolu | l'EV d'une ouverture se réalise après le flop : la classer exigerait de résoudre les trois rues suivantes pour chaque candidat | les cinq paramètres du §54 produisent des montants corrects, avec leur décomposition ; `rankable:false` dit qu'aucun n'a été comparé |
+| L2 | Heads-up uniquement | arbre à 2 joueurs ; un side pot n'existe qu'à partir de 3 | 3+ joueurs → `UNSUPPORTED` avec motif. L'all-in partiel en HU, lui, est vérifié (tapis effectif, SPR, bouton Tapis) |
 | L3 | Flop à 3 rues hors de portée mémoire | tables indexées par runout : 4 701 Mo estimés | garde-fou : dégradation annoncée à 2 rues |
-| L4 | EV par action non conservée | `solveTree` ne garde pas les valeurs contrefactuelles | `evAvailable:false` ; l'écart entre **sizings** est fourni |
-| L5 | Rake transporté, non appliqué | `terminalUtility` ne retire pas de rake | `applied:false` visible |
+| ~~L4~~ | ~~EV par action non conservée~~ | **levée** — `nodeActionEVs` la recalcule depuis la stratégie moyenne | « EV jouée / EV la meilleure / écart » rendus ; un sizing non résolu reste sans EV (§50) |
+| ~~L5~~ | ~~Rake transporté, non appliqué~~ | **levée** — prélevé sur l'utilité terminale | le sizing retenu en change ; NashConv devient `null` (la somme nulle tombe) ; rake + ICM refusé |
+| L7 | Perte de simplification souvent sous le plancher | **atténuée** — l'EV mesurée est celle de la stratégie servie, ~9× plus stable | deux planchers rapportés : `distinguishable` (mesuré) et `guaranteed` (borné par NashConv) |
+| L8 | Une solution couvre la rue courante | la stratégie d'un nœud de turn dépend de la carte tombée | `coversStreetsAhead:false` ; le Trainer re-résout à chaque rue (vérifié CASE L) |
 | L11 | Ranges d'entrée heuristiques | `buildSolverFreqs` (préexistant) | réserve portée par la rubrique `rangeLogic` |
 
-Deux périmètres non couverts, sans limitation technique : PFASE ne produit pas
-encore de solution d'**exploit** par nodelock (§45/§46 — le nodelock existant est
-préservé intact), et aucun **pipeline d'import** externe n'est construit (§84 — la
-provenance `VERIFIED_IMPORT` et le schéma sont prêts).
+Les deux périmètres autrefois « non couverts » le sont désormais : PFASE **produit**
+des solutions d'exploit par nodelock (§45/§46 — le nodelock existant reste intact),
+et un **pipeline d'import** externe existe (§84), avec un format d'échange ouvert et
+une vérification par meilleure réponse exacte plutôt qu'un badge accordé sur parole.
+
 
 ---
 
 ## L. Fichiers modifiés
 
-**Nouveaux — moteur (18)**
+**Nouveaux — moteur (21)**
 `src/sizing/` : `config.js` · `sizingSpec.js` · `gameState.js` · `canonicalHash.js`
 · `candidateGenerator.js` · `combinationPlanner.js` · `solverAdapter.js` ·
 `metrics.js` · `dynamicOptimizer.js` · `strategyExtract.js` · `solutionSchema.js` ·
 `solutionStore.js` · `pfase.js` · `pfase.worker.js` · `pfaseClient.js` ·
 `trainingSolutionResolver.js` · `trainerBridge.js` · `replayerBridge.js` ·
-`coachPayload.js` · `boardTexture.js` · `debugInspector.js`
+`coachPayload.js` · `boardTexture.js` · `debugInspector.js` ·
+`preflopSizing.js` (§54) · `solutionImport.js` (§84)
+`src/solver/core/` : `exploitProfiles.js` (§46, extrait de `api.js` pour que le
+Worker lise les profils sans embarquer la bibliothèque de solutions)
 
 **Nouveaux — interface (1)**
 `src/components/solver/AdaptiveSizingPanel.jsx`
 
-**Nouveaux — tests (8)**
+**Nouveaux — tests (9)**
 `test-sizing-math` · `-gametree` · `-hash` · `-dynamic` · `-store` · `-trainer` ·
-`-replayer-coach` · `-pipeline`
+`-replayer-coach` · `-import` · `-pipeline`
 
-**Nouveaux — outillage (4)**
+**Nouveaux — outillage (5)**
 `scripts/sizing-shot.mjs` · `sizing-trainer-shot.mjs` ·
-`sizing-persistence-shot.mjs` · `sizing-bench.mjs`
+`sizing-persistence-shot.mjs` · `sizing-multitable-shot.mjs` · `sizing-bench.mjs`
 
 **Nouveaux — documentation (11)**
 `docs/adaptive-sizing/` : `AUDIT_BEFORE_IMPLEMENTATION` · `ARCHITECTURE` ·
@@ -335,21 +342,78 @@ provenance `VERIFIED_IMPORT` et le schéma sont prêts).
 
 ## Conformité
 
-`CONFORMITE_1_110.md` : **92 PASS · 18 PARTIAL · 0 FAIL**, chaque ligne renvoyant
-à du code livré ou à un test. Les 18 `PARTIAL` se ramènent aux six limitations
-ci-dessus et à deux périmètres non couverts — toutes documentées, toutes
-signalées à l'exécution.
+`CONFORMITE_1_110.md` : **105 PASS · 6 PARTIAL · 0 FAIL** (départ : 92 / 18 / 0),
+chaque ligne renvoyant à du code livré ou à un test. Les six `PARTIAL` restants se
+ramènent à trois limitations de fond — le préflop est construit mais pas résolu
+(L1), le moteur est heads-up (L2), une solution décrit une décision et non un coup
+complet (L8) — et aucune ne se résout avec un budget plus large.
+
+## Ce que la seconde passe a réellement changé
+
+Douze points ont été fermés en construisant ce qui manquait. Trois d'entre eux
+méritent d'être retenus parce qu'ils ont changé des **résultats**, pas seulement
+des cases :
+
+**L'EV par action existe.** `nodeActionEVs` recalcule les valeurs contrefactuelles
+depuis la stratégie moyenne stockée : le Trainer et le Replayer rendent « EV jouée
+/ EV la meilleure / écart » là où ils annonçaient « EV indisponible ». L'écart se
+mesure contre l'action la **mieux valorisée**, pas la plus fréquente — à
+l'équilibre ce n'est pas la même — et quand il tient dans le résidu d'indifférence
+du nœud, le verdict le dit : deux actions mixées se valent, ce n'est pas une faute.
+
+**Le rake change le sizing.** Il était transporté et déclaré non appliqué ; il est
+maintenant prélevé sur l'utilité terminale. À 5 % plafonné à 3 bb, le sizing retenu
+passe de **75 % à 33 %** et l'EV de Hero de 1.29 à 0.60 bb. Ignorer le rake ne
+décalait pas un chiffre : cela donnait un mauvais conseil.
+
+**L'exploitation est une autre question, pas un autre bouton.** PFASE compare
+désormais les sizings **contre un modèle d'adversaire verrouillé**, référence
+comprise. Contre un Calling Station, le sizing retenu passe de 75 % à 150 % et l'EV
+de 1.34 à 8.17 bb. Deux dimensions distinctes en découlent : la *provenance* dit
+comment le nombre a été obtenu, `strategyKind` dit ce qu'il décrit — une
+exploitation est parfaitement « PF SOLVED » et n'est **pas** un équilibre.
+
+## Trois défauts trouvés en cherchant des grandeurs connues d'avance
+
+Aucun n'était visible à la lecture du code, et aucun n'aurait été trouvé en
+regardant si les résultats « semblaient plausibles » :
+
+1. **Le dénominateur des EV comptait des affrontements impossibles.** Les paires de
+   mains partageant une carte étaient écartées du numérateur, jamais du
+   dénominateur. Symptôme : sur un pot mort de 12 bb, un FOLD rendait −5.93 bb au
+   lieu de −6 bb exactement — un pour cent, sur la seule case dont la réponse était
+   connue d'avance. Le même défaut dans `bestResponseEV` rendait l'écart au meilleur
+   jeu **négatif**, ce qui est impossible.
+2. **L'EV rapportée ne décrivait pas la stratégie servie.** `solveTree.ev` est la
+   moyenne, *sur les itérations*, de la valeur de la stratégie *courante* de chaque
+   itération ; la stratégie stockée, affichée et jouée est la stratégie *moyenne*.
+   Sa valeur converge environ **neuf fois plus vite** : l'essentiel de la « dérive
+   de convergence » n'était que l'inertie d'une moyenne traînant ses débuts.
+3. **L'application ne relisait jamais ses solutions au démarrage.** Seul le Worker
+   hydratait. Après un rechargement, le Trainer répondait « solution introuvable »
+   sur une base intacte. Le défaut avait survécu parce que le script de QA appelait
+   lui-même `hydrateStore()` : il prouvait la persistance du **stockage** sans
+   jamais tester celle de l'**application**. Une QA qui compense le défaut qu'elle
+   doit détecter ne détecte rien.
 
 ## Definition of done (§108)
 
-Le cycle complet est vérifié **en 1T**, dans un vrai navigateur :
+Le cycle complet est vérifié **en 1T et en 4T**, dans un vrai navigateur :
 
 ```
 état de jeu → candidats → arbres → solve → comparaison d'EV → sélection
-→ arbre final → solve final → solution stockée → chargée dans le Trainer
-→ main jouée → verdict → rechargement de l'application → la solution fonctionne
+→ arbre final → solve final → solution stockée → rechargement de l'application
+→ relecture effective depuis IndexedDB → chargée dans le Trainer
+→ main jouée → verdict
 ```
 
-Il n'a **pas** été rejoué manuellement en 2T/3T/4T : l'isolation multitable est
-prouvée par test automatique (4 tables × 100 décisions), pas par une session
-jouée. C'est le seul écart restant au §108, et il est nommé comme tel.
+En 4T, `npm run audit:sizing:multitable` ouvre une table par niveau et **compare**
+les sizings rendus à ceux annoncés par le solveur. Le contrôle qui compte n'est pas
+que les quatre tables s'affichent, mais qu'elles n'affichent pas **la même chose** :
+quatre tables aux boutons identiques alors que le solveur a annoncé des niveaux
+différents seraient un écran irréprochable et trois tables qui mentent.
+
+Reste hors de portée du §108 : **Full Hand et Session** contre PFASE. Une solution
+décrit une décision ; jouer un coup complet exigerait une chaîne de solutions rue
+par rue, re-résolues à chaque nouvel état. Le moteur sait le faire — CASE L le
+vérifie — mais le Trainer ne l'orchestre pas encore dans ces deux modes.

@@ -1,5 +1,5 @@
 {
-  "ok": false,
+  "ok": true,
   "steps": [
     {
       "step": "onglet SharkSolver",
@@ -11,26 +11,266 @@
       "board": "As7d2c9hKs"
     },
     {
+      "step": "panneau prêt (état de jeu complet)",
+      "ok": true
+    },
+    {
       "step": "mode famille activé",
-      "ok": false,
-      "libelle": null
+      "ok": true,
+      "libelle": true
     },
     {
       "step": "solve lancé",
-      "ok": false,
-      "bouton": {
-        "texte": "Optimiser les sizings",
-        "disabled": true
-      }
+      "ok": true,
+      "bouton": null
+    },
+    {
+      "step": "famille affichée",
+      "ok": true,
+      "ms": 263637
+    },
+    {
+      "step": "niveaux annoncés par le solveur",
+      "ok": true,
+      "niveaux": [
+        {
+          "complexity": "SINGLE",
+          "selected": "67%",
+          "evLoss": "-0.0013"
+        },
+        {
+          "complexity": "SIMPLE",
+          "selected": "67%",
+          "evLoss": "-0.0013"
+        },
+        {
+          "complexity": "ADVANCED",
+          "selected": "67%",
+          "evLoss": "-0.0013"
+        },
+        {
+          "complexity": "FULL",
+          "selected": "JAM · 67% · 100% · 133% · 167% · 200%",
+          "evLoss": "0"
+        }
+      ]
+    },
+    {
+      "step": "bouton multitable cliqué",
+      "ok": true,
+      "niveaux": 4
+    },
+    {
+      "step": "tables rendues",
+      "ok": true,
+      "nbTables": 4,
+      "grille": "grid4 mt-zoom-wrap"
+    },
+    {
+      "step": "§69 — une table par niveau",
+      "ok": true
+    },
+    {
+      "step": "§104 — chaque niveau se retrouve sur sa table",
+      "ok": true,
+      "correspondances": [
+        {
+          "complexity": "SINGLE",
+          "attendu": [
+            "67%"
+          ],
+          "trouve": true,
+          "surTable": 0
+        },
+        {
+          "complexity": "SIMPLE",
+          "attendu": [
+            "67%"
+          ],
+          "trouve": true,
+          "surTable": 0
+        },
+        {
+          "complexity": "ADVANCED",
+          "attendu": [
+            "67%"
+          ],
+          "trouve": true,
+          "surTable": 0
+        },
+        {
+          "complexity": "FULL",
+          "attendu": [
+            "JAM",
+            "67%",
+            "100%",
+            "133%",
+            "167%",
+            "200%"
+          ],
+          "trouve": true,
+          "surTable": 3
+        }
+      ]
+    },
+    {
+      "step": "§108 — aucune contamination entre tables",
+      "ok": true,
+      "detail": "2 jeux de sizings annoncés, 2 rendus"
     }
   ],
-  "errors": [
-    "bouton « Optimiser les sizings » introuvable ou désactivé : {\"texte\":\"Optimiser les sizings\",\"disabled\":true}"
-  ],
+  "errors": [],
   "console": [],
-  "tables": [],
-  "boutonSolve": {
-    "texte": "Optimiser les sizings",
-    "disabled": true
+  "tables": [
+    {
+      "index": 0,
+      "boutons": [
+        "CheckPasser sans payer",
+        "Bet 1bb1bb67% du pot"
+      ],
+      "pourcentages": [
+        "67%"
+      ],
+      "jam": false,
+      "badgeAdaptive": false,
+      "niveau": null
+    },
+    {
+      "index": 1,
+      "boutons": [
+        "CheckPasser sans payer",
+        "Bet 1bb1bb67% du pot"
+      ],
+      "pourcentages": [
+        "67%"
+      ],
+      "jam": false,
+      "badgeAdaptive": false,
+      "niveau": null
+    },
+    {
+      "index": 2,
+      "boutons": [
+        "CheckPasser sans payer",
+        "Bet 1bb1bb67% du pot"
+      ],
+      "pourcentages": [
+        "67%"
+      ],
+      "jam": false,
+      "badgeAdaptive": false,
+      "niveau": null
+    },
+    {
+      "index": 3,
+      "boutons": [
+        "CheckPasser sans payer",
+        "Tapis 99bb99bbtapis · 99bb à engager",
+        "Bet 1bb1bb67% du pot",
+        "Bet 1.5bb1.5bb100% du pot",
+        "Bet 2bb2bb133% du pot",
+        "Bet 2.5bb2.5bb167% du pot",
+        "Bet 3bb3bb200% du pot"
+      ],
+      "pourcentages": [
+        "100%",
+        "133%",
+        "167%",
+        "200%",
+        "67%"
+      ],
+      "jam": true,
+      "badgeAdaptive": false,
+      "niveau": null
+    }
+  ],
+  "phases": [
+    {
+      "phase": "Calcul…",
+      "apresMs": 18
+    }
+  ],
+  "solverLevels": [
+    {
+      "complexity": "SINGLE",
+      "selected": "67%",
+      "evLoss": "-0.0013"
+    },
+    {
+      "complexity": "SIMPLE",
+      "selected": "67%",
+      "evLoss": "-0.0013"
+    },
+    {
+      "complexity": "ADVANCED",
+      "selected": "67%",
+      "evLoss": "-0.0013"
+    },
+    {
+      "complexity": "FULL",
+      "selected": "JAM · 67% · 100% · 133% · 167% · 200%",
+      "evLoss": "0"
+    }
+  ],
+  "grid": "grid4 mt-zoom-wrap",
+  "verification": {
+    "attenduTables": 4,
+    "rendues": 4,
+    "aBonNombre": true,
+    "correspondances": [
+      {
+        "complexity": "SINGLE",
+        "attendu": [
+          "67%"
+        ],
+        "trouve": true,
+        "surTable": 0
+      },
+      {
+        "complexity": "SIMPLE",
+        "attendu": [
+          "67%"
+        ],
+        "trouve": true,
+        "surTable": 0
+      },
+      {
+        "complexity": "ADVANCED",
+        "attendu": [
+          "67%"
+        ],
+        "trouve": true,
+        "surTable": 0
+      },
+      {
+        "complexity": "FULL",
+        "attendu": [
+          "JAM",
+          "67%",
+          "100%",
+          "133%",
+          "167%",
+          "200%"
+        ],
+        "trouve": true,
+        "surTable": 3
+      }
+    ],
+    "tousTrouves": true,
+    "signaturesRendues": [
+      "67%",
+      "67%",
+      "67%",
+      "100%,133%,167%,200%,67%+JAM"
+    ],
+    "signaturesAnnoncees": [
+      "67%",
+      "67%",
+      "67%",
+      "JAM,67%,100%,133%,167%,200%"
+    ],
+    "niveauxDistinctsAnnonces": 2,
+    "signaturesDistinctesRendues": 2,
+    "pasDeContamination": true
   }
 }

@@ -8,12 +8,24 @@
 > portent leur cause et le renvoi à `LIMITATIONS.md`. Aucun point n'est marqué
 > `PASS` sur une intention.
 
-**Bilan : 92 PASS · 18 PARTIAL · 0 FAIL.**
-Les 18 `PARTIAL` se ramènent à **six limitations réelles du moteur**
-(L1 préflop, L2 heads-up, L3 mémoire flop, L4 EV par action, L5 rake, L11 ranges
-heuristiques) et à **deux périmètres non couverts** (exploit produit par PFASE,
-import externe). Toutes sont documentées, signalées à l'exécution, et aucune
-n'est masquée.
+**Bilan : 105 PASS · 6 PARTIAL · 0 FAIL.**
+
+Départ : 92 PASS · 18 PARTIAL. Douze points ont été fermés en construisant ce
+qui manquait — pas en réécrivant la ligne du tableau. Les six `PARTIAL` qui
+subsistent se ramènent à **trois limitations de fond**, et aucune ne se résout
+avec un budget plus large :
+
+| Cause | Points | Pourquoi ce n'est pas une question de temps |
+|---|---|---|
+| Le préflop est construit, pas résolu (**L1**) | §38, §54, §66 | L'EV d'une ouverture se réalise après le flop : classer 2.5 bb contre 3 bb exigerait de résoudre l'arbre complet des trois rues suivantes sur l'ensemble des flops, pour chaque candidat. |
+| Le moteur est heads-up (**L2**) | §7, §77 | Un side pot n'existe qu'à partir de trois joueurs. Le CFR de PokerForge a deux camps ; en ajouter un troisième change la structure de l'arbre, pas ses réglages. L'all-in partiel en HU, lui, est vérifié (CASE M). |
+| Une solution décrit UNE décision (**L8**) | §104 | Jouer un coup complet contre PFASE exigerait une chaîne de solutions rue par rue, re-résolues à chaque nouvel état — ce que le moteur sait faire, mais que le Trainer n'orchestre pas encore en mode Full Hand / Session. |
+
+Ce que ces six lignes ont en commun : elles sont **annoncées par les données**,
+pas seulement par cette page. `rankable:false` sur les sizings préflop,
+`UNSUPPORTED` du résolveur d'entraînement au préflop, `coversStreetsAhead:false`
+sur chaque stratégie. Un consommateur qui ne lirait jamais ce document ne peut
+pas se tromper sur ce qu'il reçoit.
 
 ---
 
@@ -110,12 +122,12 @@ n'est masquée.
 | 61 | Fixtures à EV connues | **PASS** | solveur injectable ; table d'EV |
 | 62 | Test de cohérence (ordre, cache, index) | **PASS** | 3 ordres d'entrée → même sélection |
 | 63 | Test de cache (board, stack, range, rake, candidat, version) | **PASS** | 49 assertions |
-| 64 | Tests Trainer 1T→4T, GTO/Exploit, 4 niveaux | **PARTIAL** | multitabling, niveaux **et Exploit** désormais testés (CASE K + suite Trainer : le spot porte `strategyKind`, le modèle est nommé, le schéma refuse les incohérences). Reste : le rejeu **manuel** en 2T/3T/4T |
+| 64 | Tests Trainer 1T→4T, GTO/Exploit, 4 niveaux | **PASS** | multitabling, niveaux et Exploit testés au moteur (CASE K + suite Trainer) **et au navigateur** : `npm run audit:sizing:multitable` ouvre les 4 niveaux sur 4 tables et compare, table par table, les sizings rendus à ceux annoncés par le solveur |
 | 65 | Tests d'action check/bet/call/raise/fold/jam | **PASS** | types, montants et verdicts testés via le pont **et** progression vérifiée à travers PFASE (CASE L) : turn pot 12 / SPR 3.33 / mise 9 bb → river pot 30 = 12 + 2×9, SPR 1.03, mise 22.5 bb. Le montant est RECALCULÉ au nouvel état, pas transporté (§38/§39) ; FOLD engage 0, CALL engage exactement le montant à payer |
 | 66 | Mains complètes préflop → river | **PARTIAL** | turn → river vérifié ; préflop hors périmètre → L1 |
 | 67 | 4 tables × 100 décisions | **PASS** | 400 décisions, aucun échec, aucune fuite |
 | 68 | Mode déterministe | **PASS** | même graine → même séquence |
-| 69 | QA visuelle réelle | **PARTIAL** | Solver, Tree Editor et Trainer 1T pilotés dans un vrai navigateur ; **2T/3T/4T non re-vérifiés visuellement** avec PFASE (l'injection d'un spot PFASE est mono-table par construction) |
+| 69 | QA visuelle réelle | **PASS** | Solver, Tree Editor, Trainer 1T **et 4T** pilotés dans un vrai navigateur. Le script multitable ne capture pas : il COMPARE. Il vérifie qu'une table par niveau est ouverte, que chaque niveau se retrouve sur sa table, et surtout qu'il n'y a **pas de contamination** — quatre tables affichant les mêmes boutons alors que le solveur a annoncé des niveaux différents seraient un écran irréprochable et trois tables qui mentent |
 
 ## §70 — §84 · Qualité, formats, API
 
@@ -165,26 +177,43 @@ n'est masquée.
 | 101 | Acceptance Test Master CASE A→H | **PASS** | 8 cas, vrai solveur, 88 assertions |
 | 102 | Tests de non-régression | **PASS** | suite complète verte ; aucun test supprimé ni affaibli |
 | 103 | Revue finale (TODO/MOCK/random/hardcodé) | **PASS** | 5 occurrences, chacune analysée et justifiée |
-| 104 | Revue Trainer jouée réellement | **PARTIAL** | 1T joué de bout en bout au navigateur ; 2T/3T/4T, Full Hand et Session non rejoués manuellement avec PFASE |
+| 104 | Revue Trainer jouée réellement | **PARTIAL** | 1T joué de bout en bout au navigateur ; **4T désormais ouvert et vérifié** avec PFASE (4 niveaux, 4 tables, sizings distincts confirmés). Restent **Full Hand et Session** avec PFASE : une solution décrit UNE décision, pas un coup complet — les jouer exigerait une chaîne de solutions rue par rue (cf. L8) |
 | 105 | Revue SharkSolver (4 modes, réactions du cache) | **PASS** | 4 modes testés ; §63 vérifie que board/stack/range/candidat/version invalident |
 | 106 | Revue des données d'une solution stockée | **PASS** | 30 champs vérifiés ; inspecteur `inspectSolution` |
 | 107 | Rapport final | **PASS** | `RAPPORT_FINAL.md` |
-| 108 | Definition of done | **PARTIAL** | le cycle complet est vérifié **en 1T** (état → candidats → solve → EV → sélection → solve final → stockage → Trainer → verdict → rechargement) ; **non rejoué en 2T/3T/4T** |
+| 108 | Definition of done | **PASS** | le cycle complet est vérifié **en 1T et en 4T** : état → candidats → solve → EV → sélection → solve final → stockage → **rechargement effectif par l'application** → Trainer → verdict. Le rechargement était le maillon manquant : l'application ne relisait pas ses solutions au démarrage (cf. §88) |
 | 109 | Ordre d'implémentation | **PASS** | audit → état → arbre → sizings → candidats → solveur → optimiseur → … → UI en dernier |
 | 110 | Objectif final FULL → SINGLE | **PASS** | famille des 4 niveaux, chacun avec son coût **et son plancher de mesure** |
 
 ---
 
-## Les 18 PARTIAL, regroupés par cause
+## Ce qui a été fermé, et ce qui reste
 
-| Cause | Points concernés | Renvoi |
+| Cause initiale | Points | État |
 |---|---|---|
-| Le préflop n'a pas de constructeur d'arbre | §38, §54, §66 | L1 |
-| Le moteur est heads-up | §7 (all-in partiel), §77 | L2 |
-| Mémoire du flop à 3 rues | (aucun PARTIAL : dégradé et annoncé) | L3 |
-| ~~EV par action non conservée~~ | **levé** — §36 et §49 passent en PASS calculé | ~~L4~~ |
-| ~~Rake non appliqué~~ | **levé** — §78 reste PARTIAL pour le seul straddle | ~~L5~~ |
-| PFASE ne produit pas encore de solution d'exploit | §45, §46, §64 | — |
-| Pas de pipeline d'import externe | §84 | — |
-| QA visuelle et rejeu manuel limités au 1T | §65, §69, §104, §108 | — |
-| PokerForge n'a pas de routage d'URL | §89 | — |
+| EV par action non conservée | §36, §49 | **fermé** — `nodeActionEVs` la recalcule depuis la stratégie moyenne ; L4 levée |
+| Rake transporté mais non appliqué | §78 | **fermé** — prélevé sur l'utilité terminale ; le sizing retenu en change (75 % → 33 %) ; L5 levée |
+| PFASE ne produisait pas d'exploit | §45, §46, §64 | **fermé** — sizings comparés contre un modèle verrouillé, `strategyKind:"EXPLOIT"`, `mayClaimEquilibrium()` |
+| Pas de pipeline d'import externe | §84 | **fermé** — format ouvert, vérification par meilleure réponse exacte, contrôle négatif 0.03 vs 1.51 bb |
+| QA et rejeu limités au 1T | §65, §69, §108 | **fermé** — 4 tables vérifiées au navigateur, contamination exclue ; progression d'une main testée à travers PFASE |
+| Pas de routage d'URL | §89 | **fermé** — il n'y a pas d'état d'URL à préserver, et le rechargement fonctionne enfin côté application |
+| Le préflop n'a pas de constructeur d'arbre | §54 | **partiellement fermé** — les cinq paramètres du §54 existent et sont testés ; le CLASSEMENT reste hors de portée (L1) |
+| Le préflop n'est pas résolu | §38, §66 | **ouvert** → L1 |
+| Le moteur est heads-up | §7, §77 | **ouvert** → L2 |
+| Full Hand / Session contre PFASE | §104 | **ouvert** → L8 |
+
+**Trois défauts réels ont été trouvés en fermant ces points**, et aucun n'était
+visible à la lecture du code :
+
+1. **`bestResponseEV` comptait des affrontements impossibles.** Le dénominateur
+   incluait des paires de mains partageant une carte. Invisible tant que seul
+   NashConv le consommait — le biais s'applique aux deux termes — et révélé en
+   comparant cette valeur à `strategyEV` : l'écart au meilleur jeu ressortait
+   **négatif**, ce qui est impossible.
+2. **L'EV rapportée ne décrivait pas la stratégie servie.** `solveTree.ev`
+   moyenne les itérations ; la stratégie stockée est la stratégie moyenne. La
+   bonne grandeur converge ~9 fois plus vite.
+3. **L'application ne relisait jamais ses solutions au démarrage.** Le script de
+   QA appelait `hydrateStore()` lui-même : il prouvait la persistance du
+   stockage sans jamais tester celle de l'application. Une QA qui compense le
+   défaut qu'elle doit détecter ne détecte rien.
