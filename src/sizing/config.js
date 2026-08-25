@@ -190,6 +190,9 @@ export const DEFAULT_MEMORY_GUARD = Object.freeze({
 /* Configuration du SOLVE FINAL (§13) — volontairement plus riche que
    l'évaluation : les micro-solves de sélection ne sont pas la solution. */
 export const DEFAULT_FINAL_SOLVE_CONFIG = Object.freeze({
+  /* Seul le solve FINAL entre en bibliothèque : c'est lui qui EST une solution.
+     Les micro-solves d'évaluation sont jetables (§13). */
+  persistSolve: true,
   maxIterations: 400,
   maxCombos: 200,
   evaluationDepth: null,

@@ -1,0 +1,971 @@
+{
+  "generatedAt": "2026-08-25T04:50:23.778Z",
+  "totalMs": 625021,
+  "spots": 10,
+  "note": "Ranges réduites (8 classes par camp) : ce banc mesure le COMPORTEMENT du moteur (temps, mémoire, monotonie de la perte d'EV), pas des vérités stratégiques.",
+  "evaluationConfig": {
+    "maxIterations": 200,
+    "maxCombos": 0,
+    "seed": 4242,
+    "convergenceTarget": 0.03,
+    "maxIterationsCeiling": 800,
+    "timeBudgetMs": 30000
+  },
+  "finalSolveConfig": {
+    "maxIterations": 400,
+    "maxCombos": 0,
+    "seed": 4242
+  },
+  "candidates": [
+    "pot:0.33",
+    "pot:0.75",
+    "pot:1.5",
+    "geometric",
+    "jam"
+  ],
+  "monotonyFailures": [],
+  "rows": [
+    {
+      "spot": "SRP OOP · river · SPR moyen",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 12,
+      "stack": 40,
+      "spr": 3.3333,
+      "totalMs": 15247,
+      "heapDeltaMb": 18.7,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.813,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.058,
+          "distinguishable": true,
+          "nashConv": 0.1095,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.794,
+          "evLossBb": 0.019,
+          "evLossPotPct": 0.1583,
+          "measurementFloorBb": 0.058,
+          "distinguishable": false,
+          "nashConv": 0.0202,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.794,
+          "evLossBb": 0.019,
+          "evLossPotPct": 0.1583,
+          "measurementFloorBb": 0.058,
+          "distinguishable": false,
+          "nashConv": 0.0202,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.794,
+          "evLossBb": 0.019,
+          "evLossPotPct": 0.1583,
+          "measurementFloorBb": 0.058,
+          "distinguishable": false,
+          "nashConv": 0.0202,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · river · SPR bas",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 24,
+      "stack": 12,
+      "spr": 0.5,
+      "totalMs": 2113,
+      "heapDeltaMb": -13.5,
+      "cacheHits": 14,
+      "cacheMisses": 6,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.971,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": true,
+          "nashConv": 0.0606,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.976,
+          "evLossBb": -0.005,
+          "evLossPotPct": -0.0208,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": false,
+          "nashConv": 0.01,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.976,
+          "evLossBb": -0.005,
+          "evLossPotPct": -0.0208,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": false,
+          "nashConv": 0.01,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.976,
+          "evLossBb": -0.005,
+          "evLossPotPct": -0.0208,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": false,
+          "nashConv": 0.01,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · river · SPR haut",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 8,
+      "stack": 90,
+      "spr": 11.25,
+      "totalMs": 11688,
+      "heapDeltaMb": 28.2,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": true,
+          "nashConv": 0.0865,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": false,
+          "nashConv": 0.0134,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": false,
+          "nashConv": 0.0134,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": false,
+          "nashConv": 0.0134,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "3BP OOP · river",
+      "street": "RIVER",
+      "potType": "3BP",
+      "pot": 22,
+      "stack": 45,
+      "spr": 2.0455,
+      "totalMs": 14502,
+      "heapDeltaMb": -4.5,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.1,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": true,
+          "nashConv": 0.1151,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.052,
+          "evLossBb": 0.048,
+          "evLossPotPct": 0.2182,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": false,
+          "nashConv": 0.0538,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.052,
+          "evLossBb": 0.048,
+          "evLossPotPct": 0.2182,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": false,
+          "nashConv": 0.0538,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.052,
+          "evLossBb": 0.048,
+          "evLossPotPct": 0.2182,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": false,
+          "nashConv": 0.0538,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "4BP OOP · river · SPR très bas",
+      "street": "RIVER",
+      "potType": "4BP",
+      "pot": 48,
+      "stack": 20,
+      "spr": 0.4167,
+      "totalMs": 3179,
+      "heapDeltaMb": -5.1,
+      "cacheHits": 14,
+      "cacheMisses": 6,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": true,
+          "nashConv": 0.1671,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": false,
+          "nashConv": 0.0465,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": false,
+          "nashConv": 0.0465,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": false,
+          "nashConv": 0.0465,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "BvB · river apparié",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 10,
+      "stack": 45,
+      "spr": 4.5,
+      "totalMs": 14387,
+      "heapDeltaMb": 18.5,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.491,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": true,
+          "nashConv": 0.1026,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.48,
+          "evLossBb": 0.011,
+          "evLossPotPct": 0.11,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": false,
+          "nashConv": 0.0322,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.48,
+          "evLossBb": 0.011,
+          "evLossPotPct": 0.11,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": false,
+          "nashConv": 0.0322,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.48,
+          "evLossBb": 0.011,
+          "evLossPotPct": 0.11,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": false,
+          "nashConv": 0.0322,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · turn",
+      "street": "TURN",
+      "potType": "SRP",
+      "pot": 12,
+      "stack": 40,
+      "spr": 3.3333,
+      "totalMs": 143377,
+      "heapDeltaMb": 150.9,
+      "cacheHits": 25,
+      "cacheMisses": 14,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "géo 2e",
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.074,
+          "ev": 3.074,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.324,
+          "distinguishable": true,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.074,
+          "ev": 3.169,
+          "evLossBb": -0.095,
+          "evLossPotPct": -0.7917,
+          "measurementFloorBb": 0.324,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "exploration : 20 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.074,
+          "ev": 3.169,
+          "evLossBb": -0.095,
+          "evLossPotPct": -0.7917,
+          "measurementFloorBb": 0.324,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "exploration : 6 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.074,
+          "ev": 3.169,
+          "evLossBb": -0.095,
+          "evLossPotPct": -0.7917,
+          "measurementFloorBb": 0.324,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "3BP OOP · turn",
+      "street": "TURN",
+      "potType": "3BP",
+      "pot": 22,
+      "stack": 45,
+      "spr": 2.0455,
+      "totalMs": 118194,
+      "heapDeltaMb": 149.2,
+      "cacheHits": 25,
+      "cacheMisses": 14,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "géo 2e",
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 5.834,
+          "ev": 5.834,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.139,
+          "distinguishable": true,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": []
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 5.834,
+          "ev": 5.932,
+          "evLossBb": -0.098,
+          "evLossPotPct": -0.4455,
+          "measurementFloorBb": 0.139,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "exploration : 20 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 5.834,
+          "ev": 5.932,
+          "evLossBb": -0.098,
+          "evLossPotPct": -0.4455,
+          "measurementFloorBb": 0.139,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "exploration : 6 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 5.834,
+          "ev": 5.932,
+          "evLossBb": -0.098,
+          "evLossPotPct": -0.4455,
+          "measurementFloorBb": 0.139,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": []
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · flop sec",
+      "street": "FLOP",
+      "potType": "SRP",
+      "pot": 12,
+      "stack": 40,
+      "spr": 3.3333,
+      "totalMs": 145039,
+      "heapDeltaMb": 602,
+      "cacheHits": 25,
+      "cacheMisses": 14,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e",
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.282,
+          "ev": 2.282,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.203,
+          "distinguishable": true,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 6613 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 12973 Mo > budget 384 Mo"
+          ]
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.282,
+          "ev": 2.482,
+          "evLossBb": -0.2,
+          "evLossPotPct": -1.6667,
+          "measurementFloorBb": 0.203,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 519 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 12973 Mo > budget 384 Mo",
+            "exploration : 20 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.282,
+          "ev": 2.482,
+          "evLossBb": -0.2,
+          "evLossPotPct": -1.6667,
+          "measurementFloorBb": 0.203,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 519 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 12973 Mo > budget 384 Mo",
+            "exploration : 6 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.282,
+          "ev": 2.482,
+          "evLossBb": -0.2,
+          "evLossPotPct": -1.6667,
+          "measurementFloorBb": 0.203,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 519 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 12973 Mo > budget 384 Mo"
+          ]
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · flop humide monotone",
+      "street": "FLOP",
+      "potType": "SRP",
+      "pot": 12,
+      "stack": 40,
+      "spr": 3.3333,
+      "totalMs": 157287,
+      "heapDeltaMb": -153.4,
+      "cacheHits": 25,
+      "cacheMisses": 14,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e",
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": -1.16,
+          "ev": -1.16,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.316,
+          "distinguishable": true,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 7018 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 13767 Mo > budget 384 Mo"
+          ]
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e"
+          ],
+          "selectedRaises": [],
+          "referenceEV": -1.16,
+          "ev": -1.005,
+          "evLossBb": -0.155,
+          "evLossPotPct": -1.2917,
+          "measurementFloorBb": 0.316,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 551 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 13767 Mo > budget 384 Mo",
+            "exploration : 20 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e"
+          ],
+          "selectedRaises": [],
+          "referenceEV": -1.16,
+          "ev": -1.005,
+          "evLossBb": -0.155,
+          "evLossPotPct": -1.2917,
+          "measurementFloorBb": 0.316,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 551 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 13767 Mo > budget 384 Mo",
+            "exploration : 6 sous-ensemble(s) non évalué(s) : budget temps de 30000 ms atteint"
+          ]
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "PARTIAL",
+          "selected": [
+            "géo 2e"
+          ],
+          "selectedRaises": [],
+          "referenceEV": -1.16,
+          "ev": -1.005,
+          "evLossBb": -0.155,
+          "evLossPotPct": -1.2917,
+          "measurementFloorBb": 0.316,
+          "distinguishable": false,
+          "nashConv": null,
+          "iterations": 400,
+          "partialReasons": [
+            "profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 551 Mo > budget 384 Mo",
+            "sélection : profondeur d'évaluation bornée à 2 rue(s) sur 3",
+            "sélection : profondeur ramenée de 3 à 2 rue(s) — coût mémoire estimé 13767 Mo > budget 384 Mo"
+          ]
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    }
+  ]
+}

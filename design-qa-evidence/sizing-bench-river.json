@@ -1,0 +1,685 @@
+{
+  "generatedAt": "2026-08-25T04:52:28.532Z",
+  "totalMs": 62535,
+  "spots": 6,
+  "note": "Ranges réduites (8 classes par camp) : ce banc mesure le COMPORTEMENT du moteur (temps, mémoire, monotonie de la perte d'EV), pas des vérités stratégiques.",
+  "evaluationConfig": {
+    "maxIterations": 200,
+    "maxCombos": 0,
+    "seed": 4242,
+    "convergenceTarget": 0.03,
+    "maxIterationsCeiling": 800,
+    "timeBudgetMs": 30000
+  },
+  "finalSolveConfig": {
+    "maxIterations": 400,
+    "maxCombos": 0,
+    "seed": 4242
+  },
+  "candidates": [
+    "pot:0.33",
+    "pot:0.75",
+    "pot:1.5",
+    "geometric",
+    "jam"
+  ],
+  "monotonyFailures": [],
+  "rows": [
+    {
+      "spot": "SRP OOP · river · SPR moyen",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 12,
+      "stack": 40,
+      "spr": 3.3333,
+      "totalMs": 15405,
+      "heapDeltaMb": 11.5,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.813,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.058,
+          "distinguishable": true,
+          "nashConv": 0.1095,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [],
+          "rankingDistinguishable": false
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.794,
+          "evLossBb": 0.019,
+          "evLossPotPct": 0.1583,
+          "measurementFloorBb": 0.058,
+          "distinguishable": false,
+          "nashConv": 0.0202,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.232,
+            -0.387,
+            -0.81
+          ],
+          "rankingDistinguishable": true
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.794,
+          "evLossBb": 0.019,
+          "evLossPotPct": 0.1583,
+          "measurementFloorBb": 0.058,
+          "distinguishable": false,
+          "nashConv": 0.0202,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.232,
+            -0.387,
+            -0.81
+          ],
+          "rankingDistinguishable": true
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 3.813,
+          "ev": 3.794,
+          "evLossBb": 0.019,
+          "evLossPotPct": 0.1583,
+          "measurementFloorBb": 0.058,
+          "distinguishable": false,
+          "nashConv": 0.0202,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.232,
+            -0.387,
+            -0.81
+          ],
+          "rankingDistinguishable": true
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · river · SPR bas",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 24,
+      "stack": 12,
+      "spr": 0.5,
+      "totalMs": 2634,
+      "heapDeltaMb": 2.1,
+      "cacheHits": 14,
+      "cacheMisses": 6,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.971,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": true,
+          "nashConv": 0.0606,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [],
+          "rankingDistinguishable": false
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.976,
+          "evLossBb": -0.005,
+          "evLossPotPct": -0.0208,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": false,
+          "nashConv": 0.01,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.005
+          ],
+          "rankingDistinguishable": false
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.976,
+          "evLossBb": -0.005,
+          "evLossPotPct": -0.0208,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": false,
+          "nashConv": 0.01,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.005
+          ],
+          "rankingDistinguishable": false
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.971,
+          "ev": 7.976,
+          "evLossBb": -0.005,
+          "evLossPotPct": -0.0208,
+          "measurementFloorBb": 0.0223,
+          "distinguishable": false,
+          "nashConv": 0.01,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.005
+          ],
+          "rankingDistinguishable": false
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "SRP OOP · river · SPR haut",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 8,
+      "stack": 90,
+      "spr": 11.25,
+      "totalMs": 13134,
+      "heapDeltaMb": 28.1,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": true,
+          "nashConv": 0.0865,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [],
+          "rankingDistinguishable": false
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": false,
+          "nashConv": 0.0134,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.265,
+            -0.393,
+            -1.443
+          ],
+          "rankingDistinguishable": true
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": false,
+          "nashConv": 0.0134,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.265,
+            -0.393,
+            -1.443
+          ],
+          "rankingDistinguishable": true
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 2.528,
+          "ev": 2.528,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.068,
+          "distinguishable": false,
+          "nashConv": 0.0134,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.265,
+            -0.393,
+            -1.443
+          ],
+          "rankingDistinguishable": true
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "3BP OOP · river",
+      "street": "RIVER",
+      "potType": "3BP",
+      "pot": 22,
+      "stack": 45,
+      "spr": 2.0455,
+      "totalMs": 15102,
+      "heapDeltaMb": -4.8,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.1,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": true,
+          "nashConv": 0.1151,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [],
+          "rankingDistinguishable": false
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.052,
+          "evLossBb": 0.048,
+          "evLossPotPct": 0.2182,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": false,
+          "nashConv": 0.0538,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.017,
+            -0.319,
+            -0.476
+          ],
+          "rankingDistinguishable": true
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.052,
+          "evLossBb": 0.048,
+          "evLossPotPct": 0.2182,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": false,
+          "nashConv": 0.0538,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.017,
+            -0.319,
+            -0.476
+          ],
+          "rankingDistinguishable": true
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 7.1,
+          "ev": 7.052,
+          "evLossBb": 0.048,
+          "evLossPotPct": 0.2182,
+          "measurementFloorBb": 0.0756,
+          "distinguishable": false,
+          "nashConv": 0.0538,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.017,
+            -0.319,
+            -0.476
+          ],
+          "rankingDistinguishable": true
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "4BP OOP · river · SPR très bas",
+      "street": "RIVER",
+      "potType": "4BP",
+      "pot": 48,
+      "stack": 20,
+      "spr": 0.4167,
+      "totalMs": 2213,
+      "heapDeltaMb": -30,
+      "cacheHits": 14,
+      "cacheMisses": 6,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": true,
+          "nashConv": 0.1671,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [],
+          "rankingDistinguishable": false
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": false,
+          "nashConv": 0.0465,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.004
+          ],
+          "rankingDistinguishable": false
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": false,
+          "nashConv": 0.0465,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.004
+          ],
+          "rankingDistinguishable": false
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "33%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 15.316,
+          "ev": 15.316,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0539,
+          "distinguishable": false,
+          "nashConv": 0.0465,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.004
+          ],
+          "rankingDistinguishable": false
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    },
+    {
+      "spot": "BvB · river apparié",
+      "street": "RIVER",
+      "potType": "SRP",
+      "pot": 10,
+      "stack": 45,
+      "spr": 4.5,
+      "totalMs": 14040,
+      "heapDeltaMb": 18.4,
+      "cacheHits": 23,
+      "cacheMisses": 17,
+      "levels": {
+        "FULL": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "JAM",
+            "33%",
+            "75%",
+            "150%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.491,
+          "evLossBb": 0,
+          "evLossPotPct": 0,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": true,
+          "nashConv": 0.1026,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [],
+          "rankingDistinguishable": false
+        },
+        "ADVANCED": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.48,
+          "evLossBb": 0.011,
+          "evLossPotPct": 0.11,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": false,
+          "nashConv": 0.0322,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.053,
+            -0.513,
+            -0.862
+          ],
+          "rankingDistinguishable": true
+        },
+        "SIMPLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.48,
+          "evLossBb": 0.011,
+          "evLossPotPct": 0.11,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": false,
+          "nashConv": 0.0322,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.053,
+            -0.513,
+            -0.862
+          ],
+          "rankingDistinguishable": true
+        },
+        "SINGLE": {
+          "ok": true,
+          "status": "COMPLETE",
+          "selected": [
+            "75%"
+          ],
+          "selectedRaises": [],
+          "referenceEV": 1.491,
+          "ev": 1.48,
+          "evLossBb": 0.011,
+          "evLossPotPct": 0.11,
+          "measurementFloorBb": 0.0584,
+          "distinguishable": false,
+          "nashConv": 0.0322,
+          "iterations": 400,
+          "partialReasons": [],
+          "rankingGaps": [
+            0,
+            -0.053,
+            -0.513,
+            -0.862
+          ],
+          "rankingDistinguishable": true
+        }
+      },
+      "monotone": {
+        "ok": true,
+        "problems": []
+      }
+    }
+  ]
+}

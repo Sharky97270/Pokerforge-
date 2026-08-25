@@ -138,13 +138,43 @@ export function optimizeBettingTree({
   /* Configuration EFFECTIVE : elle peut monter en précision si la référence
      n'est pas assez convergée (voir « escalade de convergence » plus bas). */
   let effCfg = { ...cfg };
+  /* ══ POURQUOI L'ÉVALUATION NE CONSERVE PAS LES SOLUTIONS ══════════════════
+     Un résultat de `solveTreeSpec` porte `solution`, qui contient les tables de
+     regret et de stratégie du CFR : des Float64Array indexés par (nœud, runout,
+     combo, action). Sur un flop, c'est plusieurs centaines de mégaoctets par
+     solve. L'optimiseur en enchaîne dix à quarante, et le cache les gardait
+     TOUS — le banc d'essai (§83) est tombé à court de tas au dixième spot.
+
+     Or la phase de sélection n'a besoin que de NOMBRES : l'EV, le statut, la
+     convergence, la durée. La solution complète n'est nécessaire qu'au SOLVE
+     FINAL, qui a lieu ailleurs (pfase.js) et une seule fois. On ne mémorise donc
+     que l'essentiel, et l'objet lourd devient collectable immédiatement.
+
+     `sampled` est extrait avant l'oubli : c'est lui qui décide s'il faut sonder
+     le bruit d'échantillonnage. */
+  const slim = (r) => ({
+    ok: r.ok, ev: r.ev, reason: r.reason, status: r.status,
+    partialReasons: r.partialReasons || [],
+    convergence: r.convergence || null,
+    instrumentation: r.instrumentation ? {
+      elapsedMs: r.instrumentation.elapsedMs, treeNodes: r.instrumentation.treeNodes,
+      iterations: r.instrumentation.iterations, maxCombos: r.instrumentation.maxCombos,
+      depth: r.instrumentation.depth, depthLimited: r.instrumentation.depthLimited,
+      guardNotes: r.instrumentation.guardNotes || [],
+    } : null,
+    elapsedMs: r.elapsedMs ?? (r.instrumentation ? r.instrumentation.elapsedMs : null),
+    /* Un booléen à la place de tout l'objet solution. */
+    sampled: !!(r.solution && r.solution.sampled),
+    solution: null,
+  });
   const runSolve = (treeSpec, cfgOverride, tag) => {
     const c = cfgOverride ? { ...effCfg, ...cfgOverride } : effCfg;
     const key = evaluationKey(baseHash, treeSpec, c);
     const hit = evalCache.get(key);
     if (hit) { evalCache.stats.hits++; return { ...hit, cacheHit: true }; }
     evalCache.stats.misses++;
-    const r = solveFn({ state, heroRange, villainRange, treeSpec, config: c, optimizeFor, signal });
+    const full = solveFn({ state, heroRange, villainRange, treeSpec, config: c, optimizeFor, signal });
+    const r = slim(full);
     solves.push({ tag, ok: r.ok, ms: r.instrumentation ? r.instrumentation.elapsedMs : r.elapsedMs, ev: r.ev });
     evalCache.set(key, r);
     return r;
@@ -235,7 +265,7 @@ export function optimizeBettingTree({
        Sur board complet il n'y a pas d'échantillonnage de runouts : le solve est
        exact et ce plancher-là vaut 0. Sinon on re-solve la référence à d'autres
        graines et l'on prend l'écart observé. */
-    const sampled = !!(refSolve.solution && refSolve.solution.sampled);
+    const sampled = !!refSolve.sampled;
     const probes = [];
     if (sampled && noiseProbeSeeds > 0) {
       progress(SolveStatus.SOLVING, { step: "plancher de bruit" });

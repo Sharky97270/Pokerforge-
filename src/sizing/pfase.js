@@ -429,6 +429,11 @@ export function compareAction({
     reason: `le sizing joué (${target}bb) n'existe pas dans l'arbre résolu — EV exacte indisponible`,
     nearestStudied: {
       label: nearest.label, actionType: nearest.actionType,
+      /* Le nom LISIBLE du sizing voisin : c'est lui que le §49 affiche
+         (« Nearest studied sizing: 75% »). Sans lui, l'écran ne pourrait citer
+         qu'un montant brut, et l'utilisateur perdrait le lien avec les sizings
+         de la solution. */
+      specKey: nearest.specKey, specLabel: nearest.specLabel,
       toBb: nearest.toBb, additionalBb: nearest.additionalBb,
       potFraction: nearest.potFraction, frequency: nearest.frequency,
       approximate: true,

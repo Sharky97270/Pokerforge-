@@ -195,7 +195,16 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
     },
     solveId,seed,
   };
-  storeSolution(solveId,out);
+  /* ── `noStore` : NE PAS entrer en bibliothèque ────────────────────────────
+     La Solution Library garde jusqu'à 500 solutions COMPLÈTES en mémoire, tables
+     de stratégie comprises. C'est un bon compromis pour des solves d'analyse,
+     que l'on relit. Ce n'en est pas un pour les micro-solves d'évaluation de
+     l'Adaptive Sizing Engine : il en enchaîne dix à quarante par spot, dont
+     aucun n'est une solution (§13 — « ne pas considérer les micro-solves de
+     sélection comme équivalents à la solution finale »). Les conserver a fait
+     tomber le banc d'essai à court de tas dès le dixième spot.
+     L'appelant qui produit du jetable le déclare. */
+  if(!opts.noStore)storeSolution(solveId,out);
   return out;
 }
 
