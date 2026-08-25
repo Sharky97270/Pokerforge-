@@ -3914,6 +3914,26 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   useEffect(()=>{
     if(!spot||!isSolvablePostflop(spot)){ setCfrSolving(false); return; }
     if(spot.strategyProvenance==="cfr-experimental"){ setCfrSolving(false); return; } // déjà solvé
+    /* ── UNE SOLUTION PFASE NE SE FAIT PAS ÉCRASER (§0/§18/§29) ───────────────
+       Ce pré-solve améliore un spot heuristique en le résolvant en arrière-plan.
+       Appliqué à un spot issu du moteur de sizing, il fait exactement l'inverse :
+
+         · il REMPLACE une stratégie calculée sur les ranges réelles du solveur
+           par une stratégie calculée sur des ranges HEURISTIQUES ;
+         · il remplace des sizings SÉLECTIONNÉS par comparaison d'EV, dont le coût
+           de simplification a été mesuré, par ceux de son propre arbre ;
+         · et il réécrit `strategyProvenance`, de sorte que l'écran annonce
+           « SOLUTION CFR POSTFLOP — expérimental » sur une solution qui n'en est
+           pas une. C'est le §18 pris à revers : la provenance affichée désigne un
+           moteur qui n'a pas produit ce qui est joué.
+
+       Le défaut était invisible parce qu'il est ASYNCHRONE : le spot s'affiche
+       correctement, puis bascule quelques secondes plus tard. La QA navigateur le
+       manquait en lisant le badge trop tôt — elle gagnait la course. Elle attend
+       désormais que la provenance cesse de bouger, et c'est ce qui l'a révélé.
+
+       Règle : le spot qui porte une solution PFASE la garde. */
+    if(spot.strategyProvenance==="pfase"||spot.pfase){ setCfrSolving(false); return; }
     const built=buildPostflopSolveRequest(spot);
     if(!built){ setCfrSolving(false); return; }
     const mySpot=spot; cfrSpotRef.current=mySpot;

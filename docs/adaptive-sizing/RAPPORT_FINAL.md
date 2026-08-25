@@ -373,7 +373,7 @@ de 1.34 à 8.17 bb. Deux dimensions distinctes en découlent : la *provenance* d
 comment le nombre a été obtenu, `strategyKind` dit ce qu'il décrit — une
 exploitation est parfaitement « PF SOLVED » et n'est **pas** un équilibre.
 
-## Quatre défauts trouvés en cherchant des grandeurs connues d'avance
+## Cinq défauts trouvés en cherchant des grandeurs connues d'avance
 
 Aucun n'était visible à la lecture du code, et aucun n'aurait été trouvé en
 regardant si les résultats « semblaient plausibles » :
@@ -404,6 +404,20 @@ regardant si les résultats « semblaient plausibles » :
    écrit pour DÉTECTER ce cas ; il fallait aussi cesser d'y être vulnérable :
    l'état du magasin vit désormais sur `globalThis` sous une clé versionnée, et
    toutes les copies du module partagent le même magasin.
+
+5. **Un autre moteur écrasait la solution en arrière-plan.** Le Trainer lance un
+   pré-solve CFR pour améliorer les spots heuristiques. Appliqué à un spot issu du
+   moteur de sizing, il faisait l’inverse : ranges HEURISTIQUES à la place des
+   ranges réelles du solveur, sizings de son propre arbre à la place de ceux qui
+   avaient été sélectionnés par comparaison d’EV, et provenance réécrite en
+   « SOLUTION CFR POSTFLOP — expérimental ». Le §18 pris à revers : le badge
+   désignait un moteur qui n’avait pas produit ce qui était joué.
+
+   Le défaut est ASYNCHRONE — le spot s’affiche correctement puis bascule quelques
+   secondes plus tard — et la QA le manquait en lisant le badge trop tôt : elle
+   gagnait la course. Elle attend maintenant que la provenance cesse de bouger,
+   c’est-à-dire l’état que l’utilisateur voit réellement. C’est ce changement qui
+   l’a mis au jour.
 
 ## Definition of done (§108)
 

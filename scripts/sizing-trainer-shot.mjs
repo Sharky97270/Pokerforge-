@@ -153,7 +153,23 @@ try {
      Trainer) : c'est là que vit le badge de provenance. */
   const revealed = await clickContains("Révéler") || await clickContains("Afficher la solution");
   out.steps.push({ step: "solution révélée", ok: revealed });
+  /* ── LAISSER L ÉTAT SE STABILISER AVANT DE LIRE ───────────────────────────
+     Le Trainer lance un pré-solve CFR en arrière-plan qui peut MUTER le spot
+     quelques secondes après son affichage. Lire le badge trop tôt, c est gagner
+     une course — et donc valider un écran qui changera juste après. On attend que
+     la provenance cesse de bouger : c est l état que l utilisateur verra. */
   await sleep(1200);
+  let provPrec = null, stable = 0;
+  for (let k = 0; k < 30 && stable < 3; k++) {
+    /* La LIGNE de provenance du panneau, pas un mot-clé attrapé n importe où :
+       « Push/Fold » apparaît ailleurs dans l interface et faisait stabiliser la
+       sonde sur un texte sans rapport. */
+    const p = await page.evaluate(() => (document.body.innerText.match(/^.*(ADAPTIVE SIZING|SOLUTION CFR POSTFLOP|SOLVEUR PUSH.FOLD|ESTIMATION HEURISTIQUE|CHART PR..FLOP).*$/im) || [])[0] || null);
+    stable = (p === provPrec) ? stable + 1 : 0;
+    provPrec = p;
+    await sleep(600);
+  }
+  out.provenanceStabilisee = provPrec;
   await page.screenshot({ path: "design-qa-evidence/sizing-trainer-revealed.png", captureBeyondViewport: false });
   out.provenance = await page.evaluate(() => {
     const txt = document.body.innerText;
@@ -166,6 +182,12 @@ try {
       heuristiqueAffichee: /≈ Heuristique|ESTIMATION HEURISTIQUE/i.test(txt),
       perteAffichee: /perte\s+(non mesurable|[-0-9.,]+\s*bb)/i.test(txt),
       perteTexte: (txt.match(/[^\n]*perte\s+(?:non mesurable|[-0-9.,]+\s*bb)[^\n]*/i) || [])[0] || null,
+      /* Diagnostic : quand le bandeau manque, il faut voir CE QUI est affiché.
+         Sans cet extrait, un échec ne dit que « absent » et laisse deviner si la
+         solution n a pas été révélée, si le spot n est pas PFASE, ou si le libellé
+         a changé — trois causes qui se corrigent très différemment. */
+      solutionRevelee: /SOLUTION/.test(txt),
+      extrait: (() => { const k = txt.search(/SOLUTION/); return k < 0 ? txt.slice(0, 400) : txt.slice(Math.max(0, k - 120), k + 700); })(),
     };
   });
   out.steps.push({ step: "§18 — provenance Adaptive Sizing visible", ok: !!out.provenance.badge, ...out.provenance });

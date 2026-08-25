@@ -21,7 +21,7 @@
     {
       "step": "solution affichée",
       "ok": true,
-      "ms": 42505
+      "ms": 40455
     },
     {
       "step": "sizings annoncés par le solveur",
@@ -65,7 +65,9 @@
       "badgeTexte": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
       "heuristiqueAffichee": false,
       "perteAffichee": true,
-      "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb"
+      "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb",
+      "solutionRevelee": false,
+      "extrait": "Entraîneur\nBB\n$\n⚡ 0 XP\n🥉 Bronze Lv 1\n🎮\nDashboard\nEntraîneur\nSharkSolver\nBiblio\nMains\nReplayer\nCoach AI\nCommunauté\nParamètres\nLegal\n◀\n🔒\nSession active — filtres verrouillés\n🤖 COACH IA — DÉCRIS TA SESSION\n✨ Configurer depuis ma demande\nSESSION\nSprint\n20 spots\n20\nStandard\n50 spots\n50\nMarathon\n100 spots\n100\nIllimite\nspots\n∞\nMULTITABLING\n1T\n2T\n3T\n4T\nProgression\n0/1\nMODE D'ENTRAÎNEMENT\n🎯 GTO\n🦈 Exp"
     }
   ],
   "errors": [],
@@ -94,12 +96,15 @@
     "manquants": [],
     "ok": true
   },
+  "provenanceStabilisee": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
   "provenance": {
     "badge": true,
     "badgeTexte": "ADAPTIVE SIZING — SINGLE · sizings retenus 67%",
     "heuristiqueAffichee": false,
     "perteAffichee": true,
-    "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb"
+    "perteTexte": "perte 0.0013 bb — non mesurable : sous le plancher de 0.007 bb",
+    "solutionRevelee": false,
+    "extrait": "Entraîneur\nBB\n$\n⚡ 0 XP\n🥉 Bronze Lv 1\n🎮\nDashboard\nEntraîneur\nSharkSolver\nBiblio\nMains\nReplayer\nCoach AI\nCommunauté\nParamètres\nLegal\n◀\n🔒\nSession active — filtres verrouillés\n🤖 COACH IA — DÉCRIS TA SESSION\n✨ Configurer depuis ma demande\nSESSION\nSprint\n20 spots\n20\nStandard\n50 spots\n50\nMarathon\n100 spots\n100\nIllimite\nspots\n∞\nMULTITABLING\n1T\n2T\n3T\n4T\nProgression\n0/1\nMODE D'ENTRAÎNEMENT\n🎯 GTO\n🦈 Exp"
   },
   "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-trainer.png"
 }

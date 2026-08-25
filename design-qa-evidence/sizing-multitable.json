@@ -27,7 +27,7 @@
     {
       "step": "famille affichée",
       "ok": true,
-      "ms": 273846
+      "ms": 261796
     },
     {
       "step": "niveaux annoncés par le solveur",
@@ -187,7 +187,7 @@
   "phases": [
     {
       "phase": "Calcul…",
-      "apresMs": 12
+      "apresMs": 11
     }
   ],
   "solverLevels": [

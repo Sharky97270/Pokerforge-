@@ -56,7 +56,7 @@ pas se tromper sur ce qu'il reçoit.
 | 15 | Écart d'EV entre actions | **PASS** | `actionRanking` mesuré à l'étage 1 ; affiché en barres dans le panneau |
 | 16 | `maxAcceptableEVLoss` + complexité minimale | **PASS** | `selectUnderTolerance` ; tolérance non tenue → **dite**, pas masquée |
 | 17 | Solution store versionné, tous les champs | **PASS** | `solutionSchema.js` ; 30 champs vérifiés un par un par test |
-| 18 | SolutionProvenance + badges | **PASS** | provenance **dérivée** ; `APPROXIMATION.gtoClaim === false` |
+| 18 | SolutionProvenance + badges | **PASS** | provenance **dérivée** ; `APPROXIMATION.gtoClaim === false` ; et la provenance affichée désigne bien le moteur qui a produit ce qui est joué — un autre moteur ne peut plus la réécrire en arrière-plan (cf. §29) |
 | 19 | Hash canonique | **PASS** | clés triées, nombres quantifiés, `-0` normalisé ; 5 000 chaînes voisines → 5 000 hashs |
 | 20 | Cache à plusieurs niveaux, invalidation | **PASS** | 3 étages ; `EVAL:` ≠ solution ; 2ᵉ passage = 0 solve |
 | 21 | Convergence réelle, jamais fabriquée | **PASS** | NashConv exact sur board complet ; `null` + motif sinon — y compris sous rake, où la somme nulle tombe et où l'exploitabilité cesse d'être définie |
@@ -77,7 +77,7 @@ pas se tromper sur ce qu'il reçoit.
 
 | § | Exigence | État | Preuve / cause |
 |---|---|:--:|---|
-| 29 | Le Trainer consomme une solution | **PASS** | `prepareTrainerSpot` ; `spotFromSolution` ; vérifié au navigateur |
+| 29 | Le Trainer consomme une solution | **PASS** | `prepareTrainerSpot` ; `spotFromSolution` ; vérifié au navigateur. **Défaut trouvé et corrigé** : le pré-solve CFR d'arrière-plan ÉCRASAIT la solution PFASE quelques secondes après l'affichage — ranges heuristiques à la place des ranges réelles, sizings de son propre arbre à la place de ceux qui avaient été sélectionnés, et provenance réécrite en « CFR expérimental ». Un spot porteur d'une solution PFASE la garde désormais |
 | 30 | TrainingSolutionResolver, pas de « nearest board » | **PASS** | une carte de board différente → aucune solution servie |
 | 31 | Single Size → un seul sizing affiché | **PASS** | 2 boutons exactement (Check + 1 mise) |
 | 32 | Simple → deux sizings du même arbre | **PASS** | test dédié |
