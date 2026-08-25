@@ -36,3 +36,6 @@ Holdem Manager 3/
 # Sauvegardes audit (locales)
 .audit-backup/
 .pfase-profile/
+
+# Fichiers de travail PFASE (scripts de patch, sondes de mesure) — jamais livrés
+.pfase-tmp/
