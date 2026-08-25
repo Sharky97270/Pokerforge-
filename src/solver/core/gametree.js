@@ -51,6 +51,9 @@ export const HERO=0, VILL=1;   // Hero = OOP (parle en premier chaque street)
    aucune quantification au pas de mise — c'est le Trainer, pas le solveur, qui
    impose un pas de 0.5bb. */
 const ADAPTIVE_ROUNDING=Object.freeze({amountDecimals:6,fractionDecimals:6,evDecimals:6,betStepBb:0});
+/* §73 — quand la table impose un pas de mise, l'arbre le respecte : un montant
+   que la table ne sait pas jouer n'a rien à faire dans l'arbre. */
+const roundingFor=(step)=>(step>0?{amountDecimals:6,fractionDecimals:6,evDecimals:6,betStepBb:step}:ADAPTIVE_ROUNDING);
 
 let _id=0;
 const mk=(o)=>({id:_id++,...o});
@@ -59,6 +62,7 @@ const EPS=1e-9;
 /* Le chemin adaptatif n'est emprunté QUE si l'appelant l'a explicitement
    demandé. Un tableau de nombres nus + `raiseMult` = chemin v2 historique. */
 function usesAdaptiveSizing(opts,betSizes){
+  if(opts.nodeOverrides&&Object.keys(opts.nodeOverrides).length)return true;
   if(opts.betSizesByPlayer)return true;
   if(opts.raiseSizesByPlayer)return true;
   if(Array.isArray(opts.raiseSizes)&&opts.raiseSizes.length)return true;
@@ -76,32 +80,52 @@ export function buildPostflopTree(opts={}){
   const bbUnit=Number(opts.bb)>0?Number(opts.bb):1;
   const minBet=Number(opts.minBet)>0?Number(opts.minBet):0;
   const allowJam=!!opts.allowJam;
-  const specsFor=(player)=>{
-    const list=(opts.betSizesByPlayer&&opts.betSizesByPlayer[player])||betSizes;
+  const betStepBb=Number(opts.betStepBb)>0?Number(opts.betStepBb):0;
+  const ROUND=roundingFor(betStepBb);
+  /* ── §26 · TREE EDITOR — sizings SPÉCIFIQUES À UN NŒUD ────────────────────
+     `nodeOverrides` associe un CHEMIN D'ACTIONS depuis la racine (labels joints
+     par « | », la racine portant le chemin vide) à un jeu de sizings propre à ce
+     nœud :
+
+       { "": {betSizes:[…]},  "B0": {raiseSizes:[…]},  "X|B1": {betSizes:[…]} }
+
+     C'est ce qui distingue un éditeur d'arbre d'un simple sélecteur global : on
+     peut donner trois tailles au premier nœud et une seule au nœud de
+     check-raise, sans que l'un contamine l'autre. Un nœud sans override hérite
+     du réglage global. */
+  const overrides=opts.nodeOverrides||null;
+  const overrideAt=(path)=>(overrides?overrides[(path||[]).join("|")]||null:null);
+  const specsFor=(player,path)=>{
+    const ov=overrideAt(path);
+    const list=(ov&&ov.betSizes)||(opts.betSizesByPlayer&&opts.betSizesByPlayer[player])||betSizes;
     const out=(list||[]).map(toSizingSpec).filter(Boolean);
-    if(allowJam&&!out.some(s=>s.type===SizingType.JAM))out.push(jamSizing());
+    const jam=ov&&ov.allowJam!=null?ov.allowJam:allowJam;
+    if(jam&&!out.some(s=>s.type===SizingType.JAM))out.push(jamSizing());
     return out;
   };
   /* Relances PAR JOUEUR — même raison que `betSizesByPlayer` : restreindre les
      options d'UN SEUL camp est ce qui rend la perte d'EV mathématiquement
      garantie ≥ 0 (cf. ALGORITHM.md § « Définition de la perte d'EV »). */
   const rawRaiseFor=(player)=>(opts.raiseSizesByPlayer&&opts.raiseSizesByPlayer[player])||opts.raiseSizes||[];
-  const raiseSpecsFor=(player)=>{
-    const out=(Array.isArray(rawRaiseFor(player))?rawRaiseFor(player):[]).map(toSizingSpec).filter(Boolean);
+  const raiseSpecsFor=(player,path)=>{
+    const ov=overrideAt(path);
+    const raw=(ov&&ov.raiseSizes)||rawRaiseFor(player);
+    const out=(Array.isArray(raw)?raw:[]).map(toSizingSpec).filter(Boolean);
     if(allowJam&&out.length&&!out.some(s=>s.type===SizingType.JAM))out.push(jamSizing());
     return out;
   };
-  const anyRaiseSpecs=(Array.isArray(opts.raiseSizes)&&opts.raiseSizes.length)||!!opts.raiseSizesByPlayer;
+  const anyRaiseSpecs=(Array.isArray(opts.raiseSizes)&&opts.raiseSizes.length)||!!opts.raiseSizesByPlayer
+    ||!!(overrides&&Object.values(overrides).some(o=>o&&o.raiseSizes&&o.raiseSizes.length));
   _id=0;
   const lastStreet=streets-1;
   const remain=(bets)=>Math.max(0,effStack-bets);
 
   // Fin de street → chance vers la suivante (ou showdown). allIn : plus de décisions.
-  function advance(street,pot,betsH,betsV,allIn){
+  function advance(street,pot,betsH,betsV,allIn,path=[]){
     if(street>=lastStreet) return mk({kind:"terminal",result:"showdown",street,pot,betsH,betsV});
     return mk({kind:"chance",street,pot,betsH,betsV,
-      next:allIn?advance(street+1,pot,betsH,betsV,true)
-                :buildStreet(street+1,pot,betsH,betsV)});
+      next:allIn?advance(street+1,pot,betsH,betsV,true,path)
+                :buildStreet(street+1,pot,betsH,betsV,path)});
   }
   /* Sizings jouables pour un joueur ayant déjà investi `bets` (écrêtés, dédupliqués).
      `base` = investissement commun au DÉBUT de la street (les deux camps sont à
@@ -109,7 +133,7 @@ export function buildPostflopTree(opts={}){
      check-check ou un call). `bets - base` est donc l'engagement de street, la
      grandeur dont les specs ont besoin. En v2 elle valait toujours 0 ici, ce qui
      explique qu'elle n'était pas suivie. */
-  function betActionsFor(pot,bets,player,street,base){
+  function betActionsFor(pot,bets,player,street,base,path){
     const rem=remain(bets);
     if(rem<=EPS)return[];
     const out=[];const seen=new Set();
@@ -126,14 +150,19 @@ export function buildPostflopTree(opts={}){
     /* ── Chemin adaptatif : chaque spec est résolu dans le contexte du nœud. Un
        sizing géométrique dépend du SPR local, donc du pot ET du tapis restant
        ICI — c'est précisément ce qu'une constante ne peut pas exprimer. ── */
-    const specs=specsFor(player);
+    const specs=specsFor(player,path);
     const ctx={
       pot,effectiveRemaining:rem,alreadyCommitted:0,facingLevel:0,
       minIncrement:minBet,bb:bbUnit,streetsRemaining:Math.max(1,streets-street),
     };
     specs.forEach((spec,k)=>{
-      const r=resolveSizing(spec,ctx,ADAPTIVE_ROUNDING);
+      const r=resolveSizing(spec,ctx,ROUND);
       if(!r)return;
+      /* Une mise remontée au minimum légal n'est plus le sizing demandé : elle
+         entrerait dans l'arbre sous une étiquette qui ne la décrit pas (mesuré :
+         « 33 % » valant en réalité 67 % du pot sur un pot de 1.5bb). On l'écarte,
+         comme les relances. Le tapis, lui, reste toujours jouable. */
+      if(r.clamped==="minimum légal"&&spec.type!==SizingType.JAM)return;
       const amt=Math.min(r.additionalChips,rem);
       const key=Math.round(amt*1000);
       if(amt<=EPS||seen.has(key))return;
@@ -144,27 +173,27 @@ export function buildPostflopTree(opts={}){
     return out;
   }
   // OOP ouvre la street : X (check) ou B (bet, par sizing).
-  function buildStreet(street,pot,betsH,betsV){
+  function buildStreet(street,pot,betsH,betsV,path=[]){
     const base=Math.min(betsH,betsV);
-    const node=mk({kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["X"],children:{}});
-    node.children.X=ipAfterCheck(street,pot,betsH,betsV);
-    for(const b of betActionsFor(pot,betsH,HERO,street,base)){
+    const node=mk({kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["X"],children:{},path:path.slice()});
+    node.children.X=ipAfterCheck(street,pot,betsH,betsV,[...path,"X"]);
+    for(const b of betActionsFor(pot,betsH,HERO,street,base,path)){
       node.actions.push(b.label);
       if(b.spec)(node.sizingSpecs||(node.sizingSpecs={}))[b.label]=b.spec;
-      node.children[b.label]=facingBet(street,pot+b.amt,betsH+b.amt,betsV,b.amt,VILL,0,b.allIn,base,b.amt);
+      node.children[b.label]=facingBet(street,pot+b.amt,betsH+b.amt,betsV,b.amt,VILL,0,b.allIn,base,b.amt,[...path,b.label]);
     }
     return node;
   }
   // IP après un check du Hero : X (street finie) ou B (probe, par sizing).
-  function ipAfterCheck(street,pot,betsH,betsV){
-    if(!ipProbe) return advance(street,pot,betsH,betsV,false);
+  function ipAfterCheck(street,pot,betsH,betsV,path=[]){
+    if(!ipProbe) return advance(street,pot,betsH,betsV,false,path);
     const base=Math.min(betsH,betsV);
-    const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X"],children:{}});
-    node.children.X=advance(street,pot,betsH,betsV,false);
-    for(const b of betActionsFor(pot,betsV,VILL,street,base)){
+    const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X"],children:{},path:path.slice()});
+    node.children.X=advance(street,pot,betsH,betsV,false,path);
+    for(const b of betActionsFor(pot,betsV,VILL,street,base,path)){
       node.actions.push(b.label);
       if(b.spec)(node.sizingSpecs||(node.sizingSpecs={}))[b.label]=b.spec;
-      node.children[b.label]=facingBet(street,pot+b.amt,betsH,betsV+b.amt,b.amt,HERO,0,b.allIn,base,b.amt);
+      node.children[b.label]=facingBet(street,pot+b.amt,betsH,betsV+b.amt,b.amt,HERO,0,b.allIn,base,b.amt,[...path,b.label]);
     }
     return node;
   }
@@ -172,18 +201,18 @@ export function buildPostflopTree(opts={}){
      R (raise = raiseMult × la mise, écrêté au stack → possible all-in).
      `base` et `lastIncrement` ne servent QUE au chemin adaptatif (légalité de la
      relance minimale et résolution des specs) — ils sont ignorés en v2. */
-  function facingBet(street,pot,betsH,betsV,toCall,who,nRaises,aggAllIn,base=0,lastIncrement=0){
+  function facingBet(street,pot,betsH,betsV,toCall,who,nRaises,aggAllIn,base=0,lastIncrement=0,path=[]){
     const myBets=who===HERO?betsH:betsV;
-    const node=mk({kind:"decision",player:who,street,pot,betsH,betsV,toCall,actions:["F","C"],children:{}});
+    const node=mk({kind:"decision",player:who,street,pot,betsH,betsV,toCall,actions:["F","C"],children:{},path:path.slice()});
     node.children.F=mk({kind:"terminal",result:who===HERO?"foldH":"foldV",street,pot,betsH,betsV});
     // Call — stacks symétriques : le suiveur couvre toujours (pas de side-pot).
     const cBetsH=who===HERO?betsH+toCall:betsH;
     const cBetsV=who===VILL?betsV+toCall:betsV;
     const callerAllIn=remain(who===HERO?cBetsH:cBetsV)<=EPS;
-    node.children.C=advance(street,pot+toCall,cBetsH,cBetsV,aggAllIn||callerAllIn);
+    node.children.C=advance(street,pot+toCall,cBetsH,cBetsV,aggAllIn||callerAllIn,path);
     // Raise — si le plafond de raises n'est pas atteint et que l'agresseur n'est pas all-in.
     if(nRaises<maxRaisesPerStreet&&!aggAllIn){
-      const myRaiseSpecs=adaptive&&anyRaiseSpecs?raiseSpecsFor(who):[];
+      const myRaiseSpecs=adaptive&&anyRaiseSpecs?raiseSpecsFor(who,path):[];
       if(!adaptive||!myRaiseSpecs.length){
         const raiseAmt=Math.min(raiseMult*toCall,remain(myBets));
         if(raiseAmt>toCall+EPS){
@@ -191,7 +220,7 @@ export function buildPostflopTree(opts={}){
           const rBetsV=who===VILL?betsV+raiseAmt:betsV;
           const raiseAllIn=raiseAmt>=remain(myBets)-EPS;
           node.actions.push("R");
-          node.children.R=facingBet(street,pot+raiseAmt,rBetsH,rBetsV,raiseAmt-toCall,who===HERO?VILL:HERO,nRaises+1,raiseAllIn,base,raiseAmt-toCall);
+          node.children.R=facingBet(street,pot+raiseAmt,rBetsH,rBetsV,raiseAmt-toCall,who===HERO?VILL:HERO,nRaises+1,raiseAllIn,base,raiseAmt-toCall,[...path,"R"]);
         }
       }else{
         /* ── Relances typées (§6 · multiple de la mise précédente, pot %,
@@ -209,7 +238,7 @@ export function buildPostflopTree(opts={}){
         };
         const seen=new Set();
         myRaiseSpecs.forEach((spec,k)=>{
-          const r=resolveSizing(spec,ctx,ADAPTIVE_ROUNDING);
+          const r=resolveSizing(spec,ctx,ROUND);
           if(!r)return;
           const raiseAmt=Math.min(r.additionalChips,rem);
           const raiseAllIn=raiseAmt>=rem-EPS;
@@ -233,7 +262,7 @@ export function buildPostflopTree(opts={}){
           const rBetsV=who===VILL?betsV+raiseAmt:betsV;
           node.actions.push(label);
           (node.sizingSpecs||(node.sizingSpecs={}))[label]=spec;
-          node.children[label]=facingBet(street,pot+raiseAmt,rBetsH,rBetsV,raiseAmt-toCall,who===HERO?VILL:HERO,nRaises+1,raiseAllIn,base,raiseAmt-toCall);
+          node.children[label]=facingBet(street,pot+raiseAmt,rBetsH,rBetsV,raiseAmt-toCall,who===HERO?VILL:HERO,nRaises+1,raiseAllIn,base,raiseAmt-toCall,[...path,label]);
         });
       }
     }

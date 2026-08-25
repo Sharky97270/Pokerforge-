@@ -63,6 +63,10 @@ export default function AdaptiveSizingPanel({
   /* Tout vient de l'appelant : le panneau ne calcule aucun état de jeu. */
   stateInput, heroRange, villainRange, disabled, disabledReason,
   onSolution,
+  /* §87 — « une solution produite dans SharkSolver peut être immédiatement
+     saved / loaded / opened / trained against SANS RECOPIER MANUELLEMENT SES
+     SIZINGS ». Ce rappel est la porte de sortie vers le Trainer. */
+  onTrainSolution,
 }) {
   const enabled = adaptiveSizingEnabled();
 
@@ -76,6 +80,16 @@ export default function AdaptiveSizingPanel({
   const [useJam, setUseJam] = useState(true);
   const [maxEvLoss, setMaxEvLoss] = useState(null);
   const [family, setFamily] = useState(false);
+
+  /* ── §26 · TREE EDITOR ──────────────────────────────────────────────────
+     `nodePath` : le nœud actuellement inspecté, désigné par son chemin d'actions.
+     `nodeOverrides` : les sizings définis POUR CE NŒUD, indexés par ce chemin.
+     `treeDirty` : une modification de l'arbre invalide les résultats affichés —
+     §26 l'exige explicitement, et c'est ce qui empêche de lire des fréquences
+     qui décrivent un arbre qu'on vient de changer. */
+  const [nodePath, setNodePath] = useState([]);
+  const [nodeOverrides, setNodeOverrides] = useState({});
+  const [treeDirty, setTreeDirty] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState(null);
@@ -99,7 +113,13 @@ export default function AdaptiveSizingPanel({
     setPreset(id); setMode(p.mode); setComplexity(p.complexity); setProfile(p.profile);
   };
 
-  const toggle = (list, setList, v) => setList(list.includes(v) ? list.filter(x => x !== v) : [...list, v].sort((a, b) => a - b));
+  const toggle = (list, setList, v) => {
+    setList(list.includes(v) ? list.filter(x => x !== v) : [...list, v].sort((a, b) => a - b));
+    /* §26 — « Une modification de l'arbre doit invalider les résultats
+       dépendants. » Y compris depuis les réglages globaux, pas seulement depuis
+       l'éditeur de nœud. */
+    setTreeDirty(true);
+  };
 
   const buildSpecs = useCallback(() => {
     const bets = betSel.map(potSizing);
@@ -119,6 +139,8 @@ export default function AdaptiveSizingPanel({
       mode, complexity,
       candidateProfile: profile,
       maxAcceptableEVLoss: maxEvLoss,
+      /* §26 — les sizings définis nœud par nœud voyagent avec la requête. */
+      ...(Object.keys(nodeOverrides).length ? { nodeOverrides } : {}),
       ...(manualCandidates ? { userBetSpecs: bets, userRaiseSpecs: raises } : {}),
     };
     const { promise, cancel } = solveAsync(request, {
@@ -130,9 +152,12 @@ export default function AdaptiveSizingPanel({
       setBusy(false); cancelRef.current = null; setPhase(r.status || null);
       if (!r.ok) { setError(r.reason || "solve échoué"); setResult(r); return; }
       setResult(r);
+      /* Le résultat correspond de nouveau à l'arbre courant. */
+      setTreeDirty(false);
+      setNodePath([]);
       try { onSolution && onSolution(r); } catch { /* l'appelant ne casse pas le panneau */ }
     });
-  }, [disabled, busy, buildSpecs, stateInput, heroRange, villainRange, mode, complexity, profile, maxEvLoss, manualCandidates, family, onSolution]);
+  }, [disabled, busy, buildSpecs, stateInput, heroRange, villainRange, mode, complexity, profile, maxEvLoss, manualCandidates, family, onSolution, nodeOverrides]);
 
   const stop = () => { if (cancelRef.current) { cancelRef.current(); setPhase(SolveStatus.CANCELLED); } };
   useEffect(() => () => { if (cancelRef.current) cancelRef.current(); }, []);
@@ -295,8 +320,35 @@ export default function AdaptiveSizingPanel({
         </div>
       )}
 
-      {result && result.ok && !family && result.solution && <SolutionCard solution={result.solution} optimization={result.optimization} />}
-      {result && result.ok && family && Array.isArray(result.family) && <FamilyTable family={result.family} />}
+      {treeDirty && result && result.ok && (
+        <div style={{ ...box, borderColor: T.amber, background: T.amberDim }}>
+          <div style={{ fontSize: 10.5, color: T.amber, fontFamily: T.stats, fontWeight: 700 }}>
+            Arbre modifié — les résultats ci-dessous ne le décrivent plus
+          </div>
+          <div style={{ fontSize: 9.5, color: T.text3, fontFamily: T.stats, marginTop: 3 }}>
+            Les fréquences et la perte d'EV affichées ont été mesurées sur l'arbre PRÉCÉDENT.
+            Relancez l'optimisation pour qu'elles décrivent celui-ci.
+          </div>
+        </div>
+      )}
+
+      {result && result.ok && !family && result.solution && (
+        <>
+          <SolutionCard solution={result.solution} optimization={result.optimization} onTrain={onTrainSolution} stale={treeDirty} />
+          <TreeEditor
+            solution={result.solution}
+            path={nodePath} setPath={setNodePath}
+            overrides={nodeOverrides}
+            setOverride={(key, ov) => { setNodeOverrides(o => ({ ...o, [key]: ov })); setTreeDirty(true); }}
+            clearOverride={(key) => { setNodeOverrides(o => { const n = { ...o }; delete n[key]; return n; }); setTreeDirty(true); }}
+            clearAll={() => { setNodeOverrides({}); setTreeDirty(true); }}
+            stale={treeDirty}
+          />
+        </>
+      )}
+      {result && result.ok && family && Array.isArray(result.family) && (
+        <FamilyTable family={result.family} results={result.results} onTrain={onTrainSolution} />
+      )}
     </div>
   );
 }
@@ -339,7 +391,7 @@ function PhaseBar({ phase, progress }) {
 }
 
 /* ── Carte de solution : ce que le moteur a MESURÉ ─────────────────────── */
-function SolutionCard({ solution, optimization }) {
+function SolutionCard({ solution, optimization, onTrain, stale }) {
   const d = describeSolution(solution);
   const m = solution.simplificationMetrics || {};
   const floor = solution.measurement ? solution.measurement.floor : null;
@@ -369,6 +421,7 @@ function SolutionCard({ solution, optimization }) {
         {solution.status === "PARTIAL" && (
           <span style={{ ...chip(true, T.amber), fontSize: 9 }} title={(solution.partialReasons || []).join(" · ")}>PARTIEL</span>
         )}
+        {stale && <span style={{ ...chip(true, T.red), fontSize: 9 }} title="L'arbre a été modifié depuis ce solve.">PÉRIMÉ</span>}
       </div>
 
       {/* Sizings retenus vs candidats */}
@@ -457,6 +510,19 @@ function SolutionCard({ solution, optimization }) {
         </ul>
       )}
 
+      {/* §87 — entraînement direct, sans recopier un seul sizing */}
+      {onTrain && (
+        <button onClick={() => onTrain(solution.solutionId)}
+          title="Ouvre le Trainer sur CE spot, avec les actions de CETTE solution"
+          style={{
+            marginTop: 10, padding: "7px 13px", borderRadius: 7,
+            border: `1px solid ${T.gold}`, background: `${T.gold}22`, color: T.gold,
+            fontFamily: T.stats, fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+          }}>
+          🎯 S'entraîner contre cette solution
+        </button>
+      )}
+
       {/* Traçabilité (§19/§95) */}
       <div style={{ marginTop: 8, fontSize: 8.5, color: T.text4, fontFamily: "monospace", wordBreak: "break-all" }}>
         {solution.solutionId} · graine {solution.seed} · moteur {solution.sizingEngineVersion}/{solution.solverVersion}
@@ -478,7 +544,7 @@ function Metric({ label: l, value, unit, color }) {
 const fmtEv = (v) => (typeof v === "number" ? (Math.round(v * 1000) / 1000).toFixed(3) : "—");
 
 /* ── §110 — le tableau FULL → SINGLE ──────────────────────────────────── */
-function FamilyTable({ family }) {
+function FamilyTable({ family, results, onTrain }) {
   return (
     <div data-pfase="family" data-pfase-levels={family.map(d => `${d.complexity}=${d.selected}@${d.evLossBb}`).join("|")}
       style={{ ...box, borderColor: T.cyan, background: "rgba(52,216,255,.05)" }}>
@@ -488,8 +554,8 @@ function FamilyTable({ family }) {
       <div style={{ fontSize: 9, color: T.text4, fontFamily: T.stats, marginTop: 2, marginBottom: 8 }}>
         Même spot, quatre niveaux. La perte d'EV est mesurée face à un adversaire qui, lui, dispose de tout l'arbre.
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto", gap: "4px 12px", fontSize: 10, fontFamily: T.stats, alignItems: "baseline" }}>
-        <span style={label}>Niveau</span><span style={label}>Sizings</span><span style={label}>Perte</span><span style={label}>% pot</span><span style={label}>Mesurable ?</span>
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto auto auto auto", gap: "4px 12px", fontSize: 10, fontFamily: T.stats, alignItems: "baseline" }}>
+        <span style={label}>Niveau</span><span style={label}>Sizings</span><span style={label}>Perte</span><span style={label}>% pot</span><span style={label}>Mesurable ?</span><span style={label}>{onTrain ? "Entraîner" : ""}</span>
         {family.map(d => (
           <React.Fragment key={d.complexity}>
             <span style={{ color: T.text2, fontWeight: 700 }}>{d.complexity}</span>
@@ -499,9 +565,149 @@ function FamilyTable({ family }) {
             <span style={{ color: d.distinguishable ? T.text3 : T.text4 }}>
               {d.distinguishable ? "oui" : `non (< ${fmtEv(d.measurementFloor)} bb)`}
             </span>
+            <span>
+              {onTrain && d.solutionId && (
+                <button onClick={() => onTrain(d.solutionId)} style={{ ...chip(false, T.gold), fontSize: 9 }}>🎯</button>
+              )}
+            </span>
           </React.Fragment>
         ))}
       </div>
+    </div>
+  );
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §26 · TREE EDITOR — navigation nœud par nœud et sizings propres à un nœud.
+
+   « Le Tree Editor doit permettre : navigation nœud par nœud · ajout d'un
+   sizing · suppression · modification · passage Fixed/Dynamic · définition
+   spécifique d'un nœud · affichage des actions · visualisation du sizing
+   sélectionné. Une modification de l'arbre doit invalider les résultats
+   dépendants. »
+
+   PÉRIMÈTRE RÉEL, ET IL EST DIT À L'ÉCRAN : la navigation couvre les nœuds de
+   la RUE COURANTE, parce que c'est ce que la solution extrait (voir
+   LIMITATIONS L8 — la stratégie des rues suivantes dépend de la carte tombée et
+   se re-résout au nouvel état). Descendre plus loin afficherait un nœud sans
+   stratégie, donc des fréquences absentes présentées comme un arbre.
+   ══════════════════════════════════════════════════════════════════════════ */
+function TreeEditor({ solution, path, setPath, overrides, setOverride, clearOverride, clearAll, stale }) {
+  const nodes = (solution.strategy && solution.strategy.nodes) || {};
+  const key = path.join("|");
+  const node = nodes[key] || null;
+  const ov = overrides[key] || null;
+
+  const goTo = (i) => setPath(path.slice(0, i));
+  const descend = (label) => { if (nodes[[...path, label].join("|")]) setPath([...path, label]); };
+
+  return (
+    <div data-pfase="tree-editor" style={{ ...box, borderColor: T.cyan, background: "rgba(52,216,255,.04)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: T.brand }}>🌳 Tree Editor</span>
+        <span style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats, fontStyle: "italic" }}>
+          rue courante · {Object.keys(nodes).length} nœud(s) — les rues suivantes se re-résolvent au nouvel état
+        </span>
+        {Object.keys(overrides).length > 0 && (
+          <button onClick={clearAll} style={{ ...chip(false, T.red), marginLeft: "auto", fontSize: 9 }}>
+            Tout réinitialiser ({Object.keys(overrides).length})
+          </button>
+        )}
+      </div>
+
+      {/* Fil d'Ariane — navigation nœud par nœud */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginTop: 7 }}>
+        <button onClick={() => goTo(0)} style={chip(path.length === 0, T.cyan)}>racine</button>
+        {path.map((lbl, i) => (
+          <React.Fragment key={i}>
+            <span style={{ color: T.text4, fontSize: 10 }}>›</span>
+            <button onClick={() => goTo(i + 1)} style={chip(i === path.length - 1, T.cyan)}>{lbl}</button>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {!node ? (
+        <div style={{ fontSize: 9.5, color: T.text4, fontFamily: T.stats, marginTop: 8 }}>
+          Ce nœud n'appartient pas à la rue courante : la solution ne le couvre pas.
+          Il sera résolu au nouvel état lorsque la rue changera.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8, fontSize: 9.5, color: T.text3, fontFamily: T.stats }}>
+            <span>joueur <b style={{ color: node.player === 0 ? T.green : T.blue }}>{node.player === 0 ? "Hero (OOP)" : "Vilain (IP)"}</b></span>
+            <span>pot <b style={{ color: T.text2 }}>{node.potBb}bb</b></span>
+            {node.toCallBb > 0 && <span>à payer <b style={{ color: T.text2 }}>{node.toCallBb}bb</b></span>}
+            <span>{node.actions.length} action(s)</span>
+          </div>
+
+          {/* Actions du nœud, avec leur sizing et leur fréquence */}
+          <div style={{ marginTop: 7, display: "flex", flexDirection: "column", gap: 3 }}>
+            {node.actions.map(lbl => {
+              const sz = node.sizings[lbl] || {};
+              const f = node.aggregate[lbl] ?? 0;
+              const child = nodes[[...path, lbl].join("|")];
+              return (
+                <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10, fontFamily: T.stats }}>
+                  <span style={{ minWidth: 26, color: T.text4 }}>{lbl}</span>
+                  <span style={{ minWidth: 62, color: T.text2 }}>{node.actionTypes[lbl]}</span>
+                  <span style={{ minWidth: 96, color: T.green }}>
+                    {(sz.realizedLabel || sz.specLabel) ? `${sz.realizedLabel || sz.specLabel} · ${sz.toBb}bb` : sz.toBb ? `${sz.toBb}bb` : "—"}
+                  </span>
+                  <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: "hidden", opacity: stale ? .35 : 1 }}>
+                    <div style={{ height: "100%", width: `${Math.round(f * 100)}%`, background: T.cyan, opacity: .8 }} />
+                  </div>
+                  <span style={{ minWidth: 42, textAlign: "right", color: stale ? T.text4 : T.text3 }}>
+                    {stale ? "—" : `${Math.round(f * 1000) / 10}%`}
+                  </span>
+                  <button onClick={() => descend(lbl)} disabled={!child}
+                    title={child ? "Inspecter ce nœud" : "Pas de nœud à inspecter au-delà (rue suivante)"}
+                    style={{ ...chip(false, T.cyan), opacity: child ? 1 : .3, cursor: child ? "pointer" : "not-allowed", fontSize: 9 }}>›</button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Définition SPÉCIFIQUE de ce nœud */}
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={label}>Sizings de CE nœud</span>
+              <span style={{ ...chip(!!ov, ov ? T.amber : T.text4), fontSize: 8.5, cursor: "default" }}>
+                {ov ? "Fixed — défini ici" : "Dynamic — hérité du réglage global"}
+              </span>
+              {ov && (
+                <button onClick={() => clearOverride(key)} style={{ ...chip(false, T.red), fontSize: 9 }}>
+                  Revenir au réglage global
+                </button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 5 }}>
+              {BET_CHOICES.map(f => {
+                const on = !!(ov && (ov.betSizes || []).some(x => x.type === "pot" && Math.abs(x.value - f) < 1e-6));
+                return (
+                  <button key={f} onClick={() => {
+                    const cur = (ov && ov.betSizes) || [];
+                    const next = on
+                      ? cur.filter(x => !(x.type === "pot" && Math.abs(x.value - f) < 1e-6))
+                      : [...cur, potSizing(f)];
+                    if (!next.length) clearOverride(key); else setOverride(key, { ...(ov || {}), betSizes: next });
+                  }} style={chip(on, T.amber)}>{Math.round(f * 100)}%</button>
+                );
+              })}
+              <button onClick={() => {
+                const cur = (ov && ov.betSizes) || [];
+                const on = cur.some(x => x.type === "jam");
+                const next = on ? cur.filter(x => x.type !== "jam") : [...cur, jamSizing()];
+                if (!next.length) clearOverride(key); else setOverride(key, { ...(ov || {}), betSizes: next });
+              }} style={chip(!!(ov && (ov.betSizes || []).some(x => x.type === "jam")), T.gold)}>JAM</button>
+            </div>
+            <div style={{ fontSize: 8.5, color: T.text4, fontFamily: T.stats, marginTop: 5, lineHeight: 1.5 }}>
+              Un nœud sans définition propre hérite du réglage global. Définir des sizings ici ne
+              touche <b>aucun autre nœud</b> — c'est ce qui distingue l'éditeur d'arbre d'un sélecteur global.
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

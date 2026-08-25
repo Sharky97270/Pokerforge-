@@ -53,7 +53,31 @@ export function deriveProvenance({ solvedNow, fromStore, imported, approximate }
   return SolutionProvenance.APPROXIMATION;
 }
 
-const specSummary = (specs) => (specs || []).map(s => ({ key: specKey(s), label: specLabel(s), spec: s }));
+/* ── L'ÉTIQUETTE D'UN SIZING DÉCRIT CE QUI EST JOUÉ ────────────────────────
+   `specLabel` rend ce qui a été DEMANDÉ (« 75 % »). Quand la quantification au
+   pas de la table ou l'écrêtage déplacent le montant, le générateur de candidats
+   a déjà calculé l'étiquette RÉALISÉE (« 67 % ») ; on la préfère, sinon la
+   solution annoncerait un sizing que le Trainer n'affiche pas. La demande reste
+   conservée dans `requestedLabel` pour la traçabilité. */
+const specSummary = (specs, labels) => (specs || []).map(s => {
+  const key = specKey(s);
+  const realized = labels ? labels.get(key) : null;
+  return {
+    key,
+    label: realized && realized.label ? realized.label : specLabel(s),
+    requestedLabel: specLabel(s),
+    relabelled: !!(realized && realized.relabelled),
+    spec: s,
+  };
+});
+/* Index specKey → { label, relabelled } construit depuis les candidats résolus. */
+export function realizedLabels(candidates) {
+  const m = new Map();
+  for (const list of [candidates?.bets, candidates?.raises]) {
+    for (const c of (list || [])) if (c && c.key) m.set(c.key, { label: c.label, relabelled: !!c.relabelled });
+  }
+  return m;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    buildSolution — assemble une PFSolution conforme au §17.
@@ -69,6 +93,7 @@ export function buildSolution({
   optimizeFor, noise, plannerReport, solveId, seed,
 } = {}) {
   const now = Date.now();
+  const labels = realizedLabels(candidates);
   return {
     /* ── Identité et versions (§17, §80) ── */
     solutionId,
@@ -111,17 +136,17 @@ export function buildSolution({
     sizingMode: mode,
     sizingComplexity: complexity,
     candidateSizes: {
-      bets: specSummary((candidates?.bets || []).map(c => c.spec)),
-      raises: specSummary((candidates?.raises || []).map(c => c.spec)),
+      bets: specSummary((candidates?.bets || []).map(c => c.spec), labels),
+      raises: specSummary((candidates?.raises || []).map(c => c.spec), labels),
       dropped: candidates?.dropped || [],
     },
     selectedSizes: {
-      bets: specSummary(selectedBetSpecs),
-      raises: specSummary(selectedRaiseSpecs),
+      bets: specSummary(selectedBetSpecs, labels),
+      raises: specSummary(selectedRaiseSpecs, labels),
     },
     referenceSizes: {
-      bets: specSummary(referenceBetSpecs),
-      raises: specSummary(referenceRaiseSpecs),
+      bets: specSummary(referenceBetSpecs, labels),
+      raises: specSummary(referenceRaiseSpecs, labels),
     },
     bettingTree: treeSpec || null,
 

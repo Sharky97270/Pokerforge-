@@ -102,6 +102,10 @@ export function optimizeBettingTree({
         qu'un Single Size bat le solve complet. Voir ALGORITHM.md. */
   restrictPlayers = "optimized",
   noiseProbeSeeds = DEFAULT_NOISE_PROBE_SEEDS,
+  /* §26 — sizings définis nœud par nœud (Tree Editor). Ils s'appliquent à TOUS
+     les sous-arbres évalués : sans cela, la sélection porterait sur un arbre
+     différent de celui qui sera finalement résolu. */
+  nodeOverrides = null,
   cache = null, signal, onProgress,
   /* Solveur INJECTABLE (§61). Les tests doivent pouvoir fournir des EV connues
      pour vérifier la LOGIQUE DE SÉLECTION indépendamment du CFR : si l'on ne
@@ -199,7 +203,7 @@ export function optimizeBettingTree({
     /* ── 2. ARBRE DE RÉFÉRENCE (§9) ─────────────────────────────────────── */
     progress(SolveStatus.SOLVING, { step: "référence" });
     const refEntry = referenceEntry({ betCandidates: cand.bets, raiseCandidates: cand.raises });
-    const refSpec = entryToTreeSpec(refEntry, { restrictPlayers: "both", state });
+    const refSpec = entryToTreeSpec(refEntry, { restrictPlayers: "both", state, nodeOverrides });
     let refSolve = runSolve(refSpec, null, "reference");
     if (!refSolve.ok) {
       return fail(`arbre de référence non résolu : ${refSolve.reason}`, t0, { candidates: cand, referenceSolve: refSolve });
@@ -338,7 +342,7 @@ export function optimizeBettingTree({
     for (const entry of stage1) {
       if (signal && signal.aborted) throw new SolveCancelled();
       if (hardBudgetSpent()) { stage1Skipped++; continue; }
-      const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry });
+      const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry, nodeOverrides });
       const r = runSolve(spec, null, "stage1");
       const rec = makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor, refNashConv);
       evaluations.push(rec);
@@ -366,7 +370,7 @@ export function optimizeBettingTree({
         if (signal && signal.aborted) throw new SolveCancelled();
         if (evaluations.some(e => e.id === entry.id)) continue;   // déjà mesuré à l'étage 1
         if (budgetSpent()) { stage2Skipped++; continue; }
-        const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry });
+        const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry, nodeOverrides });
         const r = runSolve(spec, null, "stage2");
         evaluations.push(makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor, refNashConv));
         progress(SolveStatus.OPTIMIZING_SIZINGS, { step: "étage 2", done: evaluations.length, total: stage1.length + plan.entries.length });
@@ -444,13 +448,14 @@ export function optimizeBettingTree({
 }
 
 /* ── Traduction d'une entrée de plan en arbre concret ───────────────────── */
-function entryToTreeSpec(entry, { restrictPlayers, state, reference }) {
+function entryToTreeSpec(entry, { restrictPlayers, state, reference, nodeOverrides }) {
   const base = {
     betSpecs: entry.betSpecs,
     raiseSpecs: entry.raiseSpecs,
     maxRaisesPerStreet: 1,
     ipProbe: true,
     allowJam: entry.betSpecs.some(s => s.type === "jam") || entry.raiseSpecs.some(s => s.type === "jam"),
+    ...(nodeOverrides && Object.keys(nodeOverrides).length ? { nodeOverrides } : {}),
   };
   if (restrictPlayers !== "optimized" || !reference) return base;
   /* Restriction ASYMÉTRIQUE : le joueur optimisé (0 = Hero/OOP) voit le

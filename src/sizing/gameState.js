@@ -18,7 +18,7 @@
    Module PUR.
    ══════════════════════════════════════════════════════════════════════════ */
 
-import { EPS, EvaluationModel, TableFormat } from "./config.js";
+import { EPS, EvaluationModel, TableFormat, DEFAULT_BET_STEP_BB } from "./config.js";
 import { roundAmount, roundTo } from "./sizingSpec.js";
 
 /* ── TYPES D'ACTION STRICTS (§37) ──────────────────────────────────────────
@@ -110,6 +110,8 @@ export function normalizeGameState(input = {}) {
   const sb = pos(input.blinds?.sb) || bb / 2;
   const ante = Math.max(0, num(input.ante) || 0);
   const minBet = pos(input.minBet) || bb;
+  /* §73 — le pas de mise de la table. Voir DEFAULT_BET_STEP_BB. */
+  const betStepBb = input.betStepBb != null ? Math.max(0, num(input.betStepBb) || 0) : DEFAULT_BET_STEP_BB;
 
   /* ── Joueurs ── */
   const rawPlayers = Array.isArray(input.players) ? input.players : [];
@@ -231,6 +233,7 @@ export function normalizeGameState(input = {}) {
     blinds: Object.freeze({ sb: roundAmount(sb), bb: roundAmount(bb) }),
     ante: roundAmount(ante),
     minBet: roundAmount(minBet),
+    betStepBb,
     rake: Object.freeze(rake),
     players: Object.freeze(players.map(Object.freeze)),
     heroId: hero ? hero.id : null,
@@ -269,6 +272,7 @@ export function sizingContextFrom(state, opts = {}) {
     facingLevel: state.currentBet,
     minIncrement: state.minIncrement,
     bb: state.blinds.bb,
+    betStepBb: state.betStepBb,
     streetsRemaining: opts.streetsRemaining != null ? opts.streetsRemaining : state.streetsRemaining,
   };
 }

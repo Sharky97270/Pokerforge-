@@ -25,7 +25,20 @@
     {
       "step": "résultat affiché",
       "ok": true,
-      "ms": 59649
+      "ms": 43625
+    },
+    {
+      "step": "§26 — Tree Editor présent et navigable",
+      "ok": true
+    },
+    {
+      "step": "§26 — une modification invalide les résultats dépendants",
+      "ok": true,
+      "edited": true,
+      "banniere": true,
+      "badgePerime": true,
+      "frequencesMasquees": true,
+      "noeudFixe": true
     }
   ],
   "errors": [],
@@ -35,17 +48,17 @@
     "badge": "PF SOLVED",
     "status": "PARTIAL",
     "complexity": "SINGLE",
-    "retenu": "33%",
-    "compares": "JAM,33%,75%,150%",
+    "retenu": "67%",
+    "compares": "JAM,67%,167%",
     "perteEv": "-0.001",
-    "plancher": "0.0102",
+    "plancher": "0.0132",
     "distinguable": "false",
     "famille": null,
     "aucuneSolution": false,
     "motifEchec": null,
     "partiel": true,
     "avertissementBruit": true,
-    "ecartSizings": false,
+    "ecartSizings": true,
     "exploitabilite": "Exploitabilité 0.0183 bb (NashConv exact)",
     "modes": [
       "Automatic",
@@ -67,11 +80,25 @@
       "PF Full"
     ]
   },
+  "treeEditor": {
+    "present": true,
+    "filAriane": true,
+    "actionsListees": 3,
+    "definitionNoeud": true,
+    "etatHerite": true,
+    "texte": "🌳 Tree Editor\nrue courante · 8 nœud(s) — les rues suivantes se re-résolvent au nouvel état\nracine\njoueur Hero (OOP)\npot 1.5bb\n3 action(s)\nX\nCHECK\n—\n60.3%\n›\nB0\nBET\n67% · 1bb\n39.6%\n›\nJ\nALL_IN\nJAM · 100bb\n0.1%\n›\nSIZINGS DE CE NŒUD\nDynamic — hérité du réglage global\n20%\n25%\n33%\n50%\n66%\n75%\n100%\n125%\n150%\n200%\nJAM\nUn nœud sans définition propre hérite du réglage global. Définir des sizings ici ne touc"
+  },
+  "invalidation": {
+    "banniere": true,
+    "badgePerime": true,
+    "frequencesMasquees": true,
+    "noeudFixe": true
+  },
   "rect": {
     "x": 438,
     "y": 194.875,
     "width": 846,
-    "height": 725.53125
+    "height": 1072.28125
   },
   "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-panel.png"
 }

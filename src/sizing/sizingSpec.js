@@ -125,14 +125,39 @@ export function roundTo(v, decimals) {
      normalise ici plutôt que dans chaque consommateur. */
   return r === 0 ? 0 : r;
 }
+/* ── TROIS GRANDEURS, TROIS ARRONDIS (§73) ────────────────────────────────
+   La quantification au pas de mise ne s'applique pas de la même façon selon ce
+   que le nombre REPRÉSENTE. Les confondre produit des montants faux :
+
+     PLAFOND (tapis, capacité)  → TRONQUER. Arrondir vers le haut proposerait au
+                                  joueur des jetons qu'il n'a pas — le défaut
+                                  `floorStep` déjà corrigé côté Trainer.
+     PLANCHER (minimum légal)   → ARRONDIR VERS LE HAUT. Sinon on proposerait une
+                                  relance en dessous du minimum.
+     DEMANDE (un sizing voulu)  → ARRONDIR AU PLUS PROCHE. C'est une intention,
+                                  pas une borne : sur un pot de 12bb au pas de
+                                  0.5bb, « 33 % » vaut 3.96bb, dont le voisin
+                                  légal est 4.0bb (33 %), pas 3.5bb (29 %).
+                                  Tronquer renommait le sizing en « 29 % ».
+   `roundAmount` reste le PLAFOND (comportement historique, appelé partout où un
+   tapis est calculé) ; les deux autres sont explicites. */
 export function roundAmount(v, rounding = DEFAULT_ROUNDING) {
   const step = rounding.betStepBb;
   const r = roundTo(v, rounding.amountDecimals);
   if (!(step > 0)) return r;
-  /* Quantification au pas de mise de la table : on TRONQUE (un montant ne doit
-     jamais grandir au-dessus de ce que le tapis permet — cf. `floorStep` du
-     Trainer, corrigé pour la même raison). */
   return Math.floor(Math.round((r / step) * 1e6) / 1e6) * step;
+}
+export function roundAmountNearest(v, rounding = DEFAULT_ROUNDING) {
+  const step = rounding.betStepBb;
+  const r = roundTo(v, rounding.amountDecimals);
+  if (!(step > 0)) return r;
+  return roundTo(Math.round(r / step) * step, rounding.amountDecimals);
+}
+export function roundAmountUp(v, rounding = DEFAULT_ROUNDING) {
+  const step = rounding.betStepBb;
+  const r = roundTo(v, rounding.amountDecimals);
+  if (!(step > 0)) return r;
+  return roundTo(Math.ceil(Math.round((r / step) * 1e6) / 1e6) * step, rounding.amountDecimals);
 }
 export function roundFraction(v, rounding = DEFAULT_ROUNDING) { return roundTo(v, rounding.fractionDecimals); }
 export function roundEv(v, rounding = DEFAULT_ROUNDING) { return roundTo(v, rounding.evDecimals); }
@@ -242,12 +267,20 @@ export function resolveSizing(spec, ctx, rounding = DEFAULT_ROUNDING) {
     ? facing + Math.max(minIncrement, EPS.amount)
     : committed + Math.max(minIncrement, EPS.amount);
 
-  let to = raw, clamped = null;
-  if (to > maxTo - EPS.amount) { to = maxTo; clamped = "tapis"; }
-  else if (to < minTo - EPS.amount) { to = Math.min(minTo, maxTo); clamped = "minimum légal"; }
+  /* Quantification AVANT l'écrêtage, avec l'arrondi propre à chaque grandeur :
+     le plafond descend au pas, le plancher monte, la demande va au plus proche.
+     Écrêter d'abord puis quantifier ferait basculer un montant légal sous le
+     minimum ou au-dessus du tapis. */
+  const maxToQ = roundAmount(maxTo, rounding);                       // plafond : tronqué
+  const minToQ = Math.min(roundAmountUp(minTo, rounding), maxToQ);   // plancher : arrondi vers le haut
+  const rawQ = roundAmountNearest(raw, rounding);                    // demande : au plus proche
 
-  const amount = roundAmount(to, rounding);
-  const additional = Math.max(0, roundAmount(amount - committed, rounding));
+  let to = rawQ, clamped = null;
+  if (to > maxToQ - EPS.amount) { to = maxToQ; clamped = "tapis"; }
+  else if (to < minToQ - EPS.amount) { to = minToQ; clamped = "minimum légal"; }
+
+  const amount = roundTo(to, rounding.amountDecimals);
+  const additional = Math.max(0, roundTo(amount - committed, rounding.amountDecimals));
   const allIn = amount >= maxTo - EPS.amount;
   const toCall = Math.max(0, facing - committed);
   const potAfterCall = pot + toCall;
@@ -266,8 +299,8 @@ export function resolveSizing(spec, ctx, rounding = DEFAULT_ROUNDING) {
     allIn,
     clamped,
     note,
-    minTo: roundAmount(Math.min(minTo, maxTo), rounding),
-    maxTo: roundAmount(maxTo, rounding),
+    minTo: minToQ,
+    maxTo: maxToQ,
   };
 }
 

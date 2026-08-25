@@ -150,9 +150,23 @@ export function extractStreetStrategy(solution, { includeByClass = true, maxClas
       const amt = actionAmountOf(node, lbl);
       const spec = node.sizingSpecs ? node.sizingSpecs[lbl] : null;
       actionTypes[lbl] = actionTypeOfLabel(lbl, node);
+      /* ── DEUX ÉTIQUETTES, ET L'ÉCRAN DOIT MONTRER LA SECONDE ──────────
+         `specLabel` dit ce qui a été DEMANDÉ (« 75 % ») ; la quantification au
+         pas de la table et l'écrêtage déplacent le montant. Sur un pot de 1.5bb
+         au pas de 0.5bb, « 75 % » vaut 1.125bb → 1bb, soit 67 % du pot. Afficher
+         « 75 % » à côté de « 1bb » serait faux d'un point d'affichage — et c'est
+         exactement le genre d'écart que §73 demande d'éliminer.
+         On expose donc les deux : `realizedLabel` pour l'écran, `specLabel` pour
+         la traçabilité de la demande. */
+      const realizedFraction = node.pot > EPS.amount ? amt.additionalBb / node.pot : null;
+      const realizedLabel = spec && spec.type === "jam" ? "JAM"
+        : realizedFraction != null && lbl !== "X" && lbl !== "F" && lbl !== "C"
+          ? `${Math.round(realizedFraction * 100)}%`
+          : (spec ? specLabel(spec) : null);
       sizings[lbl] = {
         specKey: spec ? specKey(spec) : null,
         specLabel: spec ? specLabel(spec) : null,
+        realizedLabel,
         spec: spec || null,
         additionalBb: amt.additionalBb,
         toBb: amt.toBb,
@@ -214,7 +228,10 @@ export function legalActionsFromNode(node) {
     toBb: node.sizings[lbl].toBb,
     potFraction: node.sizings[lbl].potFraction,
     specKey: node.sizings[lbl].specKey,
-    specLabel: node.sizings[lbl].specLabel,
+    /* L'étiquette exposée aux écrans est celle du montant réalisé (§73) ; la
+       demande d'origine reste lisible dans `requestedLabel`. */
+    specLabel: node.sizings[lbl].realizedLabel || node.sizings[lbl].specLabel,
+    requestedLabel: node.sizings[lbl].specLabel,
     frequency: node.aggregate[lbl],
   }));
 }

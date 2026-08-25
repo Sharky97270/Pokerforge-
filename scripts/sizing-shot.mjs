@@ -146,6 +146,39 @@ try {
     };
   });
 
+  /* §26 — le Tree Editor : présent, navigable, et son édition invalide le résultat. */
+  out.treeEditor = await page.evaluate(() => {
+    const ed = document.querySelector('[data-pfase="tree-editor"]');
+    if (!ed) return { present: false };
+    const txt = ed.innerText;
+    return {
+      present: true,
+      filAriane: /racine/.test(txt),
+      actionsListees: (txt.match(/CHECK|BET|ALL_IN|FOLD|CALL|RAISE/g) || []).length,
+      /* Le titre est mis en majuscules par CSS ; innerText le reflète. */
+      definitionNoeud: /sizings de ce n/i.test(txt),
+      etatHerite: /Dynamic — hérité/.test(txt),
+      texte: txt.slice(0, 400),
+    };
+  });
+  out.steps.push({ step: "§26 — Tree Editor présent et navigable", ok: !!(out.treeEditor.present && out.treeEditor.filAriane && out.treeEditor.definitionNoeud) });
+
+  /* Éditer un sizing DOIT invalider les résultats affichés. */
+  const edited = await page.evaluate(() => {
+    const ed = document.querySelector('[data-pfase="tree-editor"]');
+    if (!ed) return false;
+    const b = [...ed.querySelectorAll('button')].find(x => x.textContent.trim() === '100%');
+    if (!b) return false; b.click(); return true;
+  });
+  await sleep(500);
+  out.invalidation = await page.evaluate(() => ({
+    banniere: /Arbre modifié/.test(document.body.innerText),
+    badgePerime: /PÉRIMÉ/.test(document.body.innerText),
+    frequencesMasquees: (document.querySelector('[data-pfase="tree-editor"]') || { innerText: "" }).innerText.includes("—"),
+    noeudFixe: /Fixed — défini ici/.test(document.body.innerText),
+  }));
+  out.steps.push({ step: "§26 — une modification invalide les résultats dépendants", ok: !!(edited && out.invalidation.banniere && out.invalidation.badgePerime && out.invalidation.noeudFixe), edited, ...out.invalidation });
+
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
   await sleep(200);
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
@@ -169,7 +202,9 @@ try {
   if (rect && rect.width > 20 && rect.height > 20) await page.screenshot({ path: OUT, clip: rect, captureBeyondViewport: false });
   else await page.screenshot({ path: OUT });
   out.screenshot = OUT;
-  out.ok = done && out.errors.length === 0;
+  out.ok = done && out.errors.length === 0
+    && !!(out.treeEditor && out.treeEditor.present)
+    && !!(out.invalidation && out.invalidation.banniere && out.invalidation.badgePerime);
 } catch (e) {
   out.errors.push(String((e && e.message) || e));
 } finally {

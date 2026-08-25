@@ -38,6 +38,7 @@
 import { solutionId as makeSolutionId } from "./canonicalHash.js";
 import { validateSolution, isCurrentEngine, stalenessOf, SolutionProvenance } from "./solutionSchema.js";
 import { SIZING_COMPLEXITIES } from "./config.js";
+import { registerHook, noteEvent } from "./debugInspector.js";
 
 const DB_NAME = "pfase";
 const DB_VERSION = 1;
@@ -97,6 +98,7 @@ export function saveSolution(sol) {
   if (!v.ok) {
     storeStatus.rejected++;
     storeStatus.lastError = v.problems.join(" · ");
+    noteEvent("store-reject", { solutionId: sol && sol.solutionId, problems: v.problems });
     return { ok: false, solutionId: sol && sol.solutionId, problems: v.problems };
   }
   const id = sol.solutionId;
@@ -113,6 +115,7 @@ export function saveSolution(sol) {
   _byState.get(sol.gameStateHash).add(sol.sizingComplexity);
 
   _persist(solRec, stateRec);
+  noteEvent("store-save", { solutionId: id, complexity: sol.sizingComplexity, size: _solutions.size });
   return { ok: true, solutionId: id, problems: [] };
 }
 
@@ -342,3 +345,11 @@ export function inspectStore() {
     status: { ...storeStatus },
   };
 }
+
+
+/* ── §95 — l'inspecteur observe CETTE instance ─────────────────────────────
+   Les accesseurs sont PUBLIÉS plutôt qu'importés par l'inspecteur : c'est ce
+   qui garantit qu'on lit le magasin réellement utilisé par l'application, et
+   non une seconde copie du module. */
+registerHook("store", inspectStore);
+registerHook("getSolution", getSolutionById);

@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import {
   spotToGameState, solutionActsForSpot, trainerVerdict, villainActionFromSolution,
   prepareTrainerSpot, seededRng, trainerActionId, trainerActionLabel,
+  spotFromSolution, dealHandForClass, cardKeyToTrainerCard,
 } from "./src/sizing/trainerBridge.js";
 import { resolveTrainingSolution, ResolutionOutcome, suggestedComplexityFor, describeAvailability, compatibilityReport } from "./src/sizing/trainingSolutionResolver.js";
 import { buildSolution, SolutionProvenance } from "./src/sizing/solutionSchema.js";
@@ -404,4 +405,91 @@ console.log("\n── identifiants et libellés dérivent du MONTANT, pas d'un t
   eq(trainerActionLabel({ actionType: "ALL_IN", toBb: 94 }), "Tapis 94bb", "celui d'un jam porte le total");
 }
 
-console.log(`\n✅ PFASE intégration Trainer (§29→§43/§64/§67/§68/§71/§90) — ${passed} assertions OK\n`);
+
+console.log("\n── §87 — SOLVER → TRAINER : le spot est CONSTRUIT à partir de la solution");
+{
+  clearStore();
+  const { sol } = seedSolution(SPOT(), LEDGER(), "SIMPLE", [potSizing(0.33), potSizing(0.75)]);
+  const built = spotFromSolution(sol, { handClass: "AKs" });
+  ok(built.ok, `spot construit${built.ok ? "" : " : " + built.reason}`);
+  const s = built.spot;
+
+  /* Rien n'est recopié à la main : tout sort de la solution. */
+  eq(s.street, "River", "la rue vient de la solution");
+  eq(s.board.length, 5, "le board aussi");
+  eq(s.pot, sol.pot, "le pot aussi");
+  eq(s.stack, `${sol.effectiveStacks}bb`, "le tapis effectif aussi");
+  eq(s.hpos, "BB", "les positions aussi");
+  eq(s.acts.map(a => a.id), ["CHECK", "BET33", "BET75"], "et les ACTIONS — les sizings ne sont pas recopiés, ils viennent de la solution");
+  ok(s.acts.every(a => typeof a.amountBb === "number"), "chaque action porte son montant exploitable");
+
+  /* La main est une classe RÉELLEMENT solvée, distribuée sans collision. */
+  eq(s.hand.length, 2, "deux cartes distribuées");
+  const boardKeys = new Set(sol.board.map(k => k.toLowerCase()));
+  const handKeys = s.hand.map(c => (c.r + ({ "♠": "s", "♥": "h", "♦": "d", "♣": "c" })[c.s]).toLowerCase());
+  ok(handKeys.every(k => !boardKeys.has(k)), "aucune carte de la main n'est au board");
+  eq(new Set(handKeys).size, 2, "et les deux cartes sont distinctes");
+  ok(sol.strategy.classes.includes(built.handClass), "la classe distribuée est bien dans la range solvée");
+
+  /* Provenance : le spot SAIT d'où il vient (§18/§51). */
+  eq(s.strategySource, "solver", "source solveur");
+  eq(s.strategyProvenance, "pfase", "provenance PFASE");
+  eq(s.pfase.solutionId, sol.solutionId, "l'identifiant de solution voyage avec le spot");
+  eq(s.pfase.complexity, "SIMPLE", "le niveau aussi");
+  eq(s.pfase.selected, ["33%", "75%"], "les sizings retenus aussi");
+  eq(s.pfase.reference.length, 3, "et ceux contre lesquels ils ont été comparés");
+  ok(/Adaptive Sizing/.test(s.strategyNote), "la note explique d'où viennent les sizings");
+  ok(/plancher de mesure|Perte d'EV mesurée/.test(s.strategyNote), "et ce que la simplification coûte");
+
+  /* §36/L4 — aucune EV par action n'est inventée pour remplir le champ. */
+  eq(s.ev, {}, "aucune EV par action fabriquée");
+}
+
+console.log("\n── §87 — la classe demandée est respectée, sinon TIRÉE dans la range");
+{
+  clearStore();
+  const { sol } = seedSolution(SPOT(), LEDGER(), "SINGLE", [potSizing(0.33)]);
+  const demande = spotFromSolution(sol, { handClass: "AKs" });
+  eq(demande.handClass, "AKs", "la classe demandée est respectée si elle est dans la range");
+  const horsRange = spotFromSolution(sol, { handClass: "72o", rng: () => 0 });
+  ok(horsRange.ok, "une classe hors range ne fait pas échouer");
+  ok(sol.strategy.classes.includes(horsRange.handClass), "une classe RÉELLEMENT solvée est tirée à la place");
+  ok(horsRange.handClass !== "72o", "et ce n'est pas la classe hors range — elle n'aurait aucune fréquence");
+}
+
+console.log("\n── §87 — sans solution, aucun spot n'est fabriqué");
+{
+  eq(spotFromSolution(null).ok, false, "solution absente → pas de spot");
+  const vide = { ...seedSolutionShell(), strategy: { classes: [], nodes: {}, nodeCount: 0 } };
+  eq(spotFromSolution(vide).ok, false, "solution sans stratégie → pas de spot");
+}
+function seedSolutionShell() {
+  clearStore();
+  const { sol } = seedSolution(SPOT(), LEDGER(), "SINGLE", [potSizing(0.33)]);
+  return sol;
+}
+
+console.log("\n── distribution de main : paires, suited, offsuit, collisions");
+{
+  const boardKeys = ["As", "Kh", "2c"];
+  const paire = dealHandForClass("QQ", boardKeys, () => 0.2);
+  eq(paire.length, 2, "une paire donne deux cartes");
+  eq(paire[0].r, "Q", "du bon rang");
+  ok(paire[0].s !== paire[1].s, "de couleurs différentes");
+
+  const suited = dealHandForClass("JTs", boardKeys, () => 0.2);
+  eq(suited[0].s, suited[1].s, "une main suited a deux fois la même couleur");
+  ok(suited[0].r === "J" && suited[1].r === "T", "et les bons rangs");
+
+  const offsuit = dealHandForClass("T9o", boardKeys, () => 0.2);
+  ok(offsuit[0].s !== offsuit[1].s, "une main offsuit a deux couleurs");
+
+  /* Collision : As est au board, la classe AKs ne peut pas prendre le pique. */
+  const collision = dealHandForClass("AKs", ["As", "Kh", "2c"], () => 0.2);
+  ok(collision, "une classe reste distribuable malgré une collision partielle");
+  ok(collision.every(c => !(c.r === "A" && c.s === "♠")), "et l'As de pique du board n'est pas redistribué");
+
+  eq(dealHandForClass("", boardKeys), null, "classe vide → rien");
+}
+
+console.log(`\n✅ PFASE intégration Trainer + Solver→Trainer (§29→§43, §64, §67, §68, §71, §87, §90) — ${passed} assertions OK\n`);

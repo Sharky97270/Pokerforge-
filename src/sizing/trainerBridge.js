@@ -276,6 +276,181 @@ export function villainActionFromSolution({ solution, path = [], handClass = nul
   };
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   spotFromSolution (§87) — LE CHEMIN « SOLVER → TRAINER ».
+
+   « Le Trainer est terminé uniquement si une solution produite dans SharkSolver
+   peut être immédiatement saved / loaded / opened / trained against SANS
+   RECOPIER MANUELLEMENT SES SIZINGS. » (§87)
+
+   Le sens du flux compte. Chercher, depuis un spot du Trainer, une solution qui
+   lui corresponde suppose que le Trainer sache reconstruire les MÊMES ranges et
+   les MÊMES paramètres d'étude que le solveur — coïncidence qui n'arrive jamais
+   (les ranges du Trainer sont heuristiques, celles du solveur sont éditées).
+
+   On construit donc le spot À PARTIR de la solution : board, pot, tapis,
+   positions, actions et fréquences en sortent tous, et rien n'est recopié à la
+   main. C'est aussi ce qui rend l'entraînement HONNÊTE — le spot joué est
+   exactement celui qui a été résolu.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const SUIT_SYMBOL = { s: "♠", h: "♥", d: "♦", c: "♣" };
+/* "As" → {r:"A", s:"♠"} : la représentation de carte du Trainer. */
+export function cardKeyToTrainerCard(key) {
+  if (typeof key !== "string" || key.length < 2) return null;
+  const r = key[0].toUpperCase();
+  const s = SUIT_SYMBOL[key[1]];
+  return "23456789TJQKA".includes(r) && s ? { r, s } : null;
+}
+
+/* Deux cartes concrètes pour une classe ("AKs", "QQ", "T9o"), en évitant le board. */
+export function dealHandForClass(classKey, boardKeys = [], rng = Math.random) {
+  if (typeof classKey !== "string" || classKey.length < 2) return null;
+  const suits = ["s", "h", "d", "c"];
+  const used = new Set(boardKeys.map(k => String(k).toLowerCase()));
+  const free = (r, s) => !used.has((r + s).toLowerCase());
+  const r1 = classKey[0].toUpperCase(), r2 = classKey[1].toUpperCase();
+  const suited = /s$/i.test(classKey) && r1 !== r2;
+  const pair = r1 === r2;
+
+  const order = suits.slice().sort(() => (rng() < 0.5 ? -1 : 1));   // varie les couleurs
+  if (pair) {
+    for (const a of order) for (const b of order) {
+      if (a === b) continue;
+      if (free(r1, a) && free(r2, b)) return [cardKeyToTrainerCard(r1 + a), cardKeyToTrainerCard(r2 + b)];
+    }
+    return null;
+  }
+  if (suited) {
+    for (const a of order) if (free(r1, a) && free(r2, a)) return [cardKeyToTrainerCard(r1 + a), cardKeyToTrainerCard(r2 + a)];
+    return null;
+  }
+  for (const a of order) for (const b of order) {
+    if (a === b) continue;
+    if (free(r1, a) && free(r2, b)) return [cardKeyToTrainerCard(r1 + a), cardKeyToTrainerCard(r2 + b)];
+  }
+  return null;
+}
+
+/* Construit un spot Trainer complet à partir d'une PFSolution.
+   Retourne { ok, spot, reason }. */
+export function spotFromSolution(solution, { handClass = null, path = [], rng = Math.random, id = null } = {}) {
+  if (!solution) return { ok: false, reason: "solution absente" };
+  const acts = solutionActsForSpot({ solution, path, handClass });
+  if (!acts.ok) return { ok: false, reason: acts.reason };
+
+  /* Classe de main : celle demandée si elle est dans la solution, sinon une
+     classe TIRÉE parmi celles réellement solvées — jamais une main hors range,
+     qui n'aurait aucune fréquence associée. */
+  const classes = (solution.strategy && solution.strategy.classes) || [];
+  const chosen = handClass && classes.includes(handClass)
+    ? handClass
+    : (classes.length ? classes[Math.min(classes.length - 1, Math.floor(rng() * classes.length))] : null);
+  if (!chosen) return { ok: false, reason: "la solution ne porte aucune classe de main" };
+
+  const board = (solution.board || []).map(cardKeyToTrainerCard).filter(Boolean);
+  const hand = dealHandForClass(chosen, solution.board || [], rng);
+  if (!hand || hand.some(c => !c)) return { ok: false, reason: `impossible de distribuer ${chosen} sans collision avec le board` };
+
+  /* Les fréquences de LA MAIN choisie, pas de la range. */
+  const forHand = solutionActsForSpot({ solution, path, handClass: chosen });
+  const useActs = forHand.ok ? forHand : acts;
+
+  const hero = (solution.players || []).find(p => p.isHero) || {};
+  const vill = (solution.players || []).find(p => !p.isHero) || {};
+  const node = useActs.node;
+
+  const spot = {
+    id: id || `pfase-${solution.solutionId}`,
+    cat: solution.street === "FLOP" ? "Flop" : solution.street === "TURN" ? "Turn" : solution.street === "RIVER" ? "River" : "Postflop",
+    street: solution.street === "FLOP" ? "Flop" : solution.street === "TURN" ? "Turn" : "River",
+    hpos: hero.position || (solution.positions || [])[0] || "BB",
+    vpos: vill.position || (solution.positions || [])[1] || "BTN",
+    stack: `${solution.effectiveStacks}bb`,
+    pot: solution.pot,
+    toCall: node ? node.toCallBb : 0,
+    hand, board,
+    acts: useActs.acts,
+    freq: useActs.freq,
+    ok: useActs.ok_index,
+    best: useActs.acts[useActs.ok_index] ? useActs.acts[useActs.ok_index].l : null,
+    ev: {},                       // §36/L4 — l'EV par action n'existe pas : on ne l'invente pas
+    expl: explanationFor(solution, useActs, chosen),
+    detail: detailFor(solution, useActs),
+    leaks: [],
+    diff: 3,
+
+    /* ── Provenance, au format que l'écran du Trainer sait déjà afficher ── */
+    strategySource: "solver",
+    strategyProvenance: "pfase",
+    strategyNote: noteFor(solution),
+    strategyScope: null,
+    strategyLimits: solution.partialReasons || [],
+    strategyEngine: { name: "PFASE", version: solution.sizingEngineVersion, exact: solution.status === "COMPLETE", label: "⚖️ Adaptive Sizing" },
+    strategyConfidence: solution.status === "COMPLETE" ? "exact" : "documented",
+    strategyPayoutModel: solution.evaluationModel,
+    strategyFallbackReason: null,
+
+    /* ── Traçabilité : le spot SAIT de quelle solution il vient (§51/§87) ── */
+    pfase: {
+      solutionId: solution.solutionId,
+      gameStateHash: solution.gameStateHash,
+      complexity: solution.sizingComplexity,
+      mode: solution.sizingMode,
+      handClass: chosen,
+      path: path.slice(),
+      selected: (solution.selectedSizes?.bets || []).map(b => b.label),
+      reference: (solution.referenceSizes?.bets || []).map(b => b.label),
+      evLossBb: solution.simplificationMetrics ? solution.simplificationMetrics.absoluteEVLoss : null,
+      measurementFloorBb: solution.measurement ? solution.measurement.floor : null,
+      distinguishable: solution.distinguishable !== false,
+      frequencySource: useActs.frequencySource,
+      badge: solution.provenanceMeta ? solution.provenanceMeta.badge : null,
+      status: solution.status,
+    },
+  };
+  return { ok: true, spot, handClass: chosen };
+}
+
+function noteFor(sol) {
+  const sizes = (sol.selectedSizes?.bets || []).map(b => b.label).join(" · ") || "—";
+  const ref = (sol.referenceSizes?.bets || []).map(b => b.label).join(" · ");
+  const loss = sol.simplificationMetrics ? sol.simplificationMetrics.absoluteEVLoss : null;
+  const floor = sol.measurement ? sol.measurement.floor : null;
+  const dist = sol.distinguishable !== false;
+  let s = `Adaptive Sizing — niveau ${sol.sizingComplexity}, sizing retenu ${sizes} (comparé à ${ref}).`;
+  if (loss != null) {
+    s += dist
+      ? ` Perte d'EV mesurée : ${loss} bb.`
+      : ` Perte d'EV ${loss} bb, sous le plancher de mesure (${floor} bb) : non distinguable du bruit.`;
+  }
+  if (sol.status === "PARTIAL") s += ` Réserves : ${(sol.partialReasons || []).join(" · ")}.`;
+  return s;
+}
+function explanationFor(sol, acts, handClass) {
+  const best = acts.acts[acts.ok_index];
+  if (!best) return "Solution disponible.";
+  const f = acts.freq[best.id];
+  return `${best.l} — ${f}% avec ${handClass} dans la solution ${sol.sizingComplexity}.`;
+}
+function detailFor(sol, acts) {
+  const out = [];
+  const sizes = (sol.selectedSizes?.bets || []).map(b => b.label).join(" · ");
+  out.push({ i: "⚖️", t: `<strong>Sizings retenus</strong> : ${sizes || "—"} — sélectionnés par comparaison d'EV, pas proposés d'avance.` });
+  if (sol.actionRanking && sol.actionRanking.actions.length > 1) {
+    const r = sol.actionRanking.actions.map(a => `${a.displayLabel} ${a.delta === 0 ? "(référence)" : a.delta + " bb"}`).join(" · ");
+    out.push({ i: "📊", t: `<strong>Écart d'EV entre sizings</strong> : ${r}.` });
+  }
+  if (sol.accuracy) {
+    out.push({ i: "🎯", t: sol.accuracy.exact
+      ? `<strong>Exploitabilité</strong> ${sol.accuracy.value} bb (NashConv exact, ${sol.accuracy.iterations} itérations).`
+      : `<strong>Exploitabilité</strong> indisponible — ${sol.accuracy.note || "runouts échantillonnés"}.` });
+  }
+  const freqs = acts.acts.map(a => `${a.l} ${acts.freq[a.id]}%`).join(" · ");
+  out.push({ i: "🧮", t: `<strong>Fréquences</strong> (${acts.frequencySource === "hand-class" ? "cette main" : "range entière"}) : ${freqs}.` });
+  return out;
+}
+
 /* Générateur pseudo-aléatoire SEEDÉ (§68) — même graine, même partie. */
 export function seededRng(seed) {
   let a = (seed >>> 0) || 1;

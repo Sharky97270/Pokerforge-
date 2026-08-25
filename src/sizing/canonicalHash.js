@@ -117,8 +117,20 @@ export function canonicalTreeSpec(treeSpec) {
     ipProbe: treeSpec.ipProbe !== false,
     streets: treeSpec.streets ?? null,
     /* Overrides par nœud (Tree Editor §26) : chemin → sizings, triés par chemin */
+    /* §26 — un override est un OBJET { betSizes, raiseSizes, allowJam }, pas un
+       tableau. Le canonicaliser comme un tableau rendait tous les overrides
+       équivalents, donc invisibles au cache : deux arbres différents auraient
+       partagé une entrée (§63). */
     nodeOverrides: treeSpec.nodeOverrides
-      ? Object.keys(treeSpec.nodeOverrides).sort().map(p => p + "=" + setOf(treeSpec.nodeOverrides[p]).join("|"))
+      ? Object.keys(treeSpec.nodeOverrides).sort().map(path => {
+        const o = treeSpec.nodeOverrides[path] || {};
+        return [
+          path,
+          "b:" + setOf(o.betSizes).join("+"),
+          "r:" + setOf(o.raiseSizes).join("+"),
+          "j:" + (o.allowJam == null ? "-" : o.allowJam ? "1" : "0"),
+        ].join("=");
+      })
       : null,
   });
 }

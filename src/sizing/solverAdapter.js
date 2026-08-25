@@ -134,6 +134,7 @@ export function solveTreeSpec({
       ipProbe: treeSpec.ipProbe !== false,
       minBet: state.minBet,
       bb: state.blinds.bb,
+      betStepBb: state.betStepBb,
       ...(cfg.seed != null ? { seed: cfg.seed } : {}),
       /* Un solve d'ÉVALUATION est jetable : il ne doit pas peupler la Solution
          Library (cf. `noStore` dans solver/api.js). Seul le solve final, qui
@@ -145,6 +146,8 @@ export function solveTreeSpec({
       ...(treeSpec.raiseSpecs && treeSpec.raiseSpecs.length ? { raiseSizes: treeSpec.raiseSpecs } : {}),
       ...(treeSpec.raiseSpecsByPlayer ? { raiseSizesByPlayer: treeSpec.raiseSpecsByPlayer } : {}),
       ...(treeSpec.allowJam ? { allowJam: true } : {}),
+      /* §26 — sizings propres à certains nœuds (Tree Editor). */
+      ...(treeSpec.nodeOverrides && Object.keys(treeSpec.nodeOverrides).length ? { nodeOverrides: treeSpec.nodeOverrides } : {}),
       /* §21/§55 — le modèle d'évaluation entre dans le SOLVE, pas seulement dans
          l'affichage. Une solution ChipEV ne peut pas être re-badgée ICM (§55). */
       ...(state.evaluationModel === EvaluationModel.ICM && state.icmParams ? { icm: state.icmParams } : {}),
@@ -276,12 +279,14 @@ export function estimateSolveMemory({ state, treeSpec = {}, depth, maxCombos, it
     ipProbe: treeSpec.ipProbe !== false,
     minBet: state.minBet,
     bb: state.blinds.bb,
+    betStepBb: state.betStepBb,
     ...(treeSpec.betSpecsByPlayer
       ? { betSizesByPlayer: treeSpec.betSpecsByPlayer, betSizes: treeSpec.betSpecs || treeSpec.betSpecsByPlayer[0] }
       : { betSizes: treeSpec.betSpecs || [] }),
     ...(treeSpec.raiseSpecs && treeSpec.raiseSpecs.length ? { raiseSizes: treeSpec.raiseSpecs } : {}),
     ...(treeSpec.raiseSpecsByPlayer ? { raiseSizesByPlayer: treeSpec.raiseSpecsByPlayer } : {}),
     ...(treeSpec.allowJam ? { allowJam: true } : {}),
+    ...(treeSpec.nodeOverrides ? { nodeOverrides: treeSpec.nodeOverrides } : {}),
   });
   const boardLen = (state.board || []).length;
   /* Préfixes possibles à la street s : arrangements de s cartes parmi celles

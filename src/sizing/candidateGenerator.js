@@ -31,6 +31,7 @@ import {
   resolveSizing, specKey, specLabel, normalizeSpec,
 } from "./sizingSpec.js";
 import { sizingContextFrom } from "./gameState.js";
+import { DEFAULT_ROUNDING, EPS as EPS2 } from "./config.js";
 
 /* ── Profils de candidats livrés ───────────────────────────────────────────
    Un profil décrit une AMPLEUR d'exploration, pas une opinion stratégique. */
@@ -140,7 +141,13 @@ function materialize(entries, ctx, { facing, state, dropped, kind }) {
       dropped.push({ kind, key: specKey(spec), reason: "aucune mise affrontée" });
       continue;
     }
-    const r = resolveSizing(spec, ctx);
+    /* §73 — le montant est produit AU PAS DE LA TABLE. Sans cela, le solveur
+       proposerait des sizings que le Trainer devrait ensuite quantifier, et une
+       même action porterait deux montants. */
+    const rounding = ctx.betStepBb > 0
+      ? { ...DEFAULT_ROUNDING, betStepBb: ctx.betStepBb }
+      : DEFAULT_ROUNDING;
+    const r = resolveSizing(spec, ctx, rounding);
     if (!r) { dropped.push({ kind, key: specKey(spec), reason: "non résoluble dans cet état" }); continue; }
     if (r.additionalChips <= EPS.amount) { dropped.push({ kind, key: specKey(spec), reason: "montant nul" }); continue; }
     /* ── SOUS LE MINIMUM LÉGAL : ÉCARTÉ, JAMAIS RELEVÉ (§34) ──────────────
@@ -148,9 +155,16 @@ function materialize(entries, ctx, { facing, state, dropped, kind }) {
        pas pour un candidat. Un « 1.5× la mise » promu en « 2× » ferait évaluer
        un sizing que l'utilisateur n'a pas proposé, et le rendrait indiscernable
        d'un vrai « 2× ». On teste donc l'écrêtage lui-même, et pas seulement le
-       montant final — qui, après écrêtage, est légal par construction. */
-    if (facing && r.clamped === "minimum légal") {
-      dropped.push({ kind, key: specKey(spec), reason: `sous la relance minimale (${state.minimumRaise}bb) — écarté plutôt que relevé` });
+       montant final — qui, après écrêtage, est légal par construction.
+
+       Vu en QA navigateur : sur un pot de 1.5bb avec une mise minimale de 1bb,
+       « 33 % du pot » vaut 0.495bb — illégal. Écrêté, il devenait une mise de
+       1bb TOUJOURS ÉTIQUETÉE « 33 % », alors qu'elle valait 67 % du pot. Le
+       Trainer affichait donc « Bet 33 % » sur un bouton de 67 %. Un candidat
+       injouable doit disparaître, pas être renommé. */
+    if (r.clamped === "minimum légal") {
+      const seuil = facing ? `relance minimale (${state.minimumRaise}bb)` : `mise minimale (${state.minBet}bb)`;
+      dropped.push({ kind, key: specKey(spec), reason: `sous la ${seuil} — écarté plutôt que relevé` });
       continue;
     }
     if (facing && !r.allIn && r.computedAmount < state.minimumRaise - EPS.amount) {
@@ -168,8 +182,22 @@ function materialize(entries, ctx, { facing, state, dropped, kind }) {
       dropped.push({ kind, key: specKey(spec), reason: `même montant que ${prev.key} (${prev.amountBb}bb)`, duplicateOf: prev.key });
       continue;
     }
+    /* ── UNE ÉTIQUETTE DÉCRIT CE QUI EST JOUÉ, PAS CE QUI A ÉTÉ DEMANDÉ ────
+       Quantification et écrêtage déplacent le montant. Sur un pot de 1.5bb au
+       pas de 0.5bb, « 75 % » vaut 1.125bb → 1bb, soit 67 % du pot. Garder
+       l'étiquette « 75 % » ferait afficher au Trainer un bouton « Bet 75 % »
+       sur une mise de 67 % — un mensonge d'un point d'affichage, mais un
+       mensonge quand même. On relabellise, en conservant la demande d'origine
+       pour la traçabilité. */
+    const requested = specLabel(spec);
+    let label = requested;
+    if (spec.type === SizingType.POT && r.potFraction != null
+        && Math.abs(r.potFraction - spec.value) > 0.01) {
+      label = `${Math.round(r.potFraction * 100)}%`;
+    }
     const cand = {
-      spec, key: specKey(spec), label: specLabel(spec), source: e.source,
+      spec, key: specKey(spec), label, requestedLabel: requested,
+      relabelled: label !== requested, source: e.source,
       amountBb: r.computedAmount, additionalBb: r.additionalChips,
       potFraction: r.potFraction, allIn: r.allIn, clamped: r.clamped,
     };

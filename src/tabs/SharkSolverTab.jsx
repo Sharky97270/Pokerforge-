@@ -3427,6 +3427,12 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               disabled={!pfaseStateInput}
               disabledReason={pfaseDisabledReason}
               onSolution={setPfaseResult}
+              onTrainSolution={(solutionId)=>{
+                /* §87 — aucun sizing n'est recopié : le Trainer reconstruit le
+                   spot À PARTIR de la solution (board, pot, tapis, actions,
+                   fréquences en sortent tous). */
+                if(onGoTrainer)onGoTrainer({pfaseSolutionId:solutionId});
+              }}
             />
           </div>
 

@@ -178,4 +178,70 @@ console.log("\n── comptabilité terminale inchangée (base P/2, somme nulle)
   eq(legalActions(sd), [], "un nœud terminal n'a aucune action légale");
 }
 
+
+
+console.log("\n── §26 — TREE EDITOR : des sizings PROPRES à un nœud");
+{
+  /* Sans override, tous les nœuds partagent le réglage global. */
+  const global = buildPostflopTree({
+    startPot: 10, streets: 1, effStack: 100, minBet: 1,
+    betSizes: [potSizing(0.3), potSizing(0.8)],
+  });
+  eq(global.actions, ["X", "B0", "B1"], "sans override : deux sizings à la racine");
+  eq(global.children.X.actions, ["X", "B0", "B1"], "et les mêmes après le check");
+
+  /* Override À LA RACINE : le nœud suivant garde le réglage global. */
+  const t = buildPostflopTree({
+    startPot: 10, streets: 1, effStack: 100, minBet: 1,
+    betSizes: [potSizing(0.3), potSizing(0.8)],
+    nodeOverrides: { "": { betSizes: [potSizing(1)] } },
+  });
+  eq(t.actions, ["X", "B"], "la racine n'a plus qu'un sizing — celui de son override");
+  near(amountOf(t, "B"), 10, "et c'est bien 100% du pot");
+  eq(t.children.X.actions, ["X", "B0", "B1"], "le nœud suivant garde le global — l'override ne déborde pas");
+
+  /* Override sur un nœud PROFOND, désigné par son chemin d'actions. */
+  const deep = buildPostflopTree({
+    startPot: 10, streets: 1, effStack: 100, minBet: 1,
+    betSizes: [potSizing(0.5)],
+    nodeOverrides: { X: { betSizes: [potSizing(0.2), potSizing(2)] } },
+  });
+  eq(deep.actions, ["X", "B"], "la racine garde le global");
+  eq(deep.children.X.actions, ["X", "B0", "B1"], "le nœud « X » reçoit ses deux sizings propres");
+  near(amountOf(deep.children.X, "B0"), 2, "20% du pot");
+  near(amountOf(deep.children.X, "B1"), 20, "200% du pot");
+
+  /* Chaque nœud porte son CHEMIN — c'est ce que l'éditeur affiche et manipule. */
+  eq(deep.path, [], "la racine porte le chemin vide");
+  eq(deep.children.X.path, ["X"], "le nœud après check porte son chemin");
+  eq(deep.children.B.path, ["B"], "le nœud face à la mise aussi");
+
+  /* Relances propres à un nœud. */
+  const r = buildPostflopTree({
+    startPot: 10, streets: 1, effStack: 100, minBet: 1,
+    betSizes: [potSizing(0.5)],
+    nodeOverrides: { B: { raiseSizes: [previousBetSizing(2.5), previousBetSizing(4)] } },
+  });
+  eq(r.children.B.actions, ["F", "C", "R0", "R1"], "le nœud face à la mise reçoit ses deux relances");
+  near(amountOf(r.children.B, "R0"), 12.5, "relance to 2.5× la mise de 5bb");
+  near(amountOf(r.children.B, "R1"), 20, "relance to 4× la mise de 5bb");
+
+  /* Un override sur un chemin inexistant ne casse rien et n'invente rien. */
+  const ghost = buildPostflopTree({
+    startPot: 10, streets: 1, effStack: 100, minBet: 1,
+    betSizes: [potSizing(0.5)],
+    nodeOverrides: { "X|B0|R9": { betSizes: [potSizing(2)] } },
+  });
+  eq(ghost.actions, ["X", "B"], "un chemin inexistant est simplement ignoré");
+
+  /* Le jam peut être activé ou coupé NŒUD PAR NŒUD. */
+  const jamOff = buildPostflopTree({
+    startPot: 10, streets: 1, effStack: 40, minBet: 1, allowJam: true,
+    betSizes: [potSizing(0.5)],
+    nodeOverrides: { X: { allowJam: false } },
+  });
+  ok(jamOff.actions.includes("J"), "le jam reste à la racine");
+  ok(!jamOff.children.X.actions.includes("J"), "et il est coupé au nœud qui le refuse");
+}
+
 console.log(`\n✅ PFASE Game Tree (extension additive) — ${passed} assertions OK\n`);

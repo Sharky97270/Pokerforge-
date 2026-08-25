@@ -127,6 +127,7 @@ export function solveMultiStreet(heroFreqs,villFreqs,board,opts={}){
     "es:"+(opts.effStack==null?"inf":opts.effStack),
     "ip:"+(opts.ipProbe!==false?1:0),
     opts.allowJam?"jam:1":"",
+    opts.nodeOverrides?"no:"+JSON.stringify(opts.nodeOverrides):"",
     opts.minBet!=null?"mb:"+opts.minBet:"",
     opts.bb!=null?"bb:"+opts.bb:"",
   ].filter(Boolean).join("|");

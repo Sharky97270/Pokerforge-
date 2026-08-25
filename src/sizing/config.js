@@ -222,6 +222,17 @@ export const DEFAULT_ROUNDING = Object.freeze({
   betStepBb: 0,
 });
 
+/* ── PAS DE MISE DE LA TABLE (§73) ─────────────────────────────────────────
+   PokerForge compte en grosses blindes avec un pas d'un demi-blind : c'est la
+   granularité du Trainer (`TRAINER_BB_STEP`), donc celle des actions réellement
+   jouables. Un solveur qui produirait 1.125bb livrerait un sizing que la table
+   ne sait pas jouer ; le Trainer le quantifierait à 1bb, et l'on se retrouverait
+   avec DEUX montants pour UNE action — exactement le défaut que §73 nomme
+   (« 3.29 UI / 3.3 solveur / 3.25 Trainer considérés comme trois actions »).
+   Le pas est donc appliqué À LA SOURCE, dans la génération des candidats et
+   dans l'arbre. 0 = aucune quantification (analyse pure, hors entraînement). */
+export const DEFAULT_BET_STEP_BB = 0.5;
+
 /* ── ÉTATS D'UN SOLVE (§22) ────────────────────────────────────────────────
    Un solve échoué ne renvoie JAMAIS une stratégie approximative en silence. */
 export const SolveStatus = Object.freeze({

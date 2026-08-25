@@ -104,6 +104,7 @@ export function solveOptimizedTree(request = {}) {
     maxAcceptableEVLoss: request.maxAcceptableEVLoss,
     restrictPlayers: request.restrictPlayers,
     cache: request.cache, signal: request.signal, onProgress: request.onProgress,
+    nodeOverrides: request.nodeOverrides,
     ...(request.solveFn ? { solveFn: request.solveFn } : {}),
   });
   if (!opt.ok) {
@@ -124,6 +125,9 @@ export function solveOptimizedTree(request = {}) {
     raiseSpecs: opt.selected.entry.raiseSpecs,
     maxRaisesPerStreet: request.maxRaisesPerStreet ?? 1,
     ipProbe: request.ipProbe !== false,
+    /* §26 — les sizings définis nœud par nœud dans le Tree Editor. */
+    ...(request.nodeOverrides && Object.keys(request.nodeOverrides).length
+      ? { nodeOverrides: request.nodeOverrides } : {}),
     allowJam: opt.selected.entry.betSpecs.some(s => s.type === "jam")
       || opt.selected.entry.raiseSpecs.some(s => s.type === "jam"),
   };
@@ -169,6 +173,10 @@ export function solveOptimizedTree(request = {}) {
     mode,
     betSizes: opt.reference.entry.betSpecs,
     raiseSizes: opt.reference.entry.raiseSpecs,
+    /* L'arbre d'étude inclut les overrides : deux études du même spot avec des
+       réglages de nœud différents sont deux études, pas deux niveaux d'une même
+       famille. */
+    nodeOverrides: request.nodeOverrides || null,
     maxRaisesPerStreet: finalTreeSpec.maxRaisesPerStreet,
     /* `allowJam` doit décrire l'ÉTUDE (les candidats explorés), pas la
        sélection : le jam figure parmi les candidats de tous les niveaux, mais

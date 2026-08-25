@@ -22,6 +22,41 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { SolveStatus } from "./config.js";
+import { saveSolution } from "./solutionStore.js";
+import { noteEvent, recordSolve, recordError } from "./debugInspector.js";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LE WORKER A SA PROPRE MÉMOIRE — il faut donc rapatrier ses solutions.
+
+   Le Worker écrit bien sur IndexedDB, mais le magasin EN MÉMOIRE du thread
+   principal, lui, ne voit rien passer. Sans ce rapatriement, la solution qui
+   vient d'être calculée serait introuvable pour le Trainer, le Replayer et le
+   Coach jusqu'à la prochaine hydratation — c'est-à-dire jusqu'au prochain
+   rechargement de page. On l'enregistre donc à la réception ; l'opération est
+   idempotente (même `solutionId`).
+   ══════════════════════════════════════════════════════════════════════════ */
+function adoptSolutions(result) {
+  try { recordSolve(result || {}); } catch { /* la journalisation n'est jamais critique */ }
+  if (!result || !result.ok) return result;
+  try {
+    const saved = [];
+    if (result.solution) saved.push(saveSolution(result.solution));
+    if (Array.isArray(result.results)) {
+      for (const r of result.results) if (r && r.solution) saved.push(saveSolution(r.solution));
+    }
+    noteEvent("adopt", {
+      count: saved.length,
+      ok: saved.filter(x => x && x.ok).length,
+      refus: saved.filter(x => x && !x.ok).map(x => x.problems),
+    });
+  } catch (e) {
+    /* Un échec d'adoption ne doit pas perdre le résultat du solve — mais il ne
+       doit pas non plus disparaître : sans trace, la solution « n'existe pas »
+       côté Trainer et personne ne sait pourquoi. */
+    recordError("adoptSolutions", e);
+  }
+  return result;
+}
 
 let _worker = null;
 let _seq = 0;
@@ -43,7 +78,7 @@ function makeWorker() {
       if (!p) return;
       if (d.type === "progress") { try { p.onProgress && p.onProgress(d); } catch { /* noop */ } return; }
       _pending.delete(d.id);
-      p.resolve(d.result);
+      p.resolve(adoptSolutions(d.result));
     };
     _worker.onerror = () => {
       _broken = true;
@@ -93,7 +128,9 @@ export function solveAsync(request, { onProgress, family = false, allowMainThrea
     let aborted = false;
     const promise = import("./pfase.js").then(m => {
       const fn = family ? m.solveSolutionFamily : m.solveOptimizedTree;
-      return fn({ ...request, onProgress, signal: { get aborted() { return aborted; } } });
+      /* Chemin thread principal : la solution est déjà dans le magasin (même
+         mémoire), `adoptSolutions` est alors un no-op idempotent. */
+      return adoptSolutions(fn({ ...request, onProgress, signal: { get aborted() { return aborted; } } }));
     });
     return { promise, cancel: () => { aborted = true; } };
   }
