@@ -5,7 +5,7 @@
 ```bash
 npm run test:sizing        # les 8 suites PFASE
 npm test                   # tout PokerForge, PFASE compris
-npm run audit:sizing:ui    # QA navigateur du panneau
+npm run audit:sizing:all   # QA navigateur : panneau, Trainer, persistance
 node scripts/sizing-bench.mjs
 ```
 
@@ -16,14 +16,14 @@ node scripts/sizing-bench.mjs
 | Fichier | Couvre | Assertions |
 |---|---|---:|
 | `test-sizing-math.mjs` | §6, §7, §37, §60, §72, §73, §75, §76, §92 | 111 |
-| `test-sizing-gametree.mjs` | non-régression v2 + §6, §10, §74 | 42 |
+| `test-sizing-gametree.mjs` | non-régression v2 + §6, §10, §26, §74 | 60 |
 | `test-sizing-hash.mjs` | §19, §20, §28, §63, §80 | 49 |
 | `test-sizing-dynamic.mjs` | §9, §10, §11, §14, §15, §16, §22, §59, §61, §62, §86, §93 | 94 |
 | `test-sizing-store.mjs` | §17, §18, §22, §28, §55, §80, §88, §92 | 106 |
-| `test-sizing-trainer.mjs` | §29 → §44, §56, §64, §67, §68, §71, §90, §91 | 103 |
+| `test-sizing-trainer.mjs` | §29 → §44, §56, §64, §67, §68, §71, §87, §90, §91 | 139 |
 | `test-sizing-replayer-coach.mjs` | §0, §47 → §53 | 103 |
 | `test-sizing-pipeline.mjs` | §101 CASE A → H, §110 (vrai solveur) | 88 |
-| **Total** | | **696** |
+| **Total** | | **750** |
 
 ---
 
@@ -82,8 +82,8 @@ parasite) et 85 s pour les huit cas.
 Baseline capturée **avant** toute modification : `BASELINE_TESTS.txt`,
 **5 845 assertions, exit 0**.
 
-Après implémentation : `npm test` → exit 0, **60 suites vertes**, dont les huit
-nouvelles. Aucun test supprimé, aucun test affaibli.
+Après implémentation : `npm test` → exit 0, **61 suites vertes, 6 595 assertions**,
+dont les huit nouvelles. Aucun test supprimé, aucun test affaibli.
 
 Points de régression surveillés spécifiquement :
 
@@ -113,13 +113,20 @@ Onze défauts réels, tous corrigés, tous verrouillés par un test :
 | 10 | Les 4 niveaux ne partageaient pas le même `gameStateHash` | test de famille |
 | 11 | La complexité `FULL` simplifiait, au lieu de ne rien simplifier | test de famille |
 
-Et trois de plus, trouvés **au navigateur** ou **au banc** :
+Et neuf de plus, trouvés **au navigateur** ou **au banc** — c'est-à-dire hors de
+portée de toute relecture de code :
 
 | # | Défaut | Trouvé par |
 |---|---|---|
 | 12 | Le budget temps affamait l'étage 1 → aucune solution rendue | QA navigateur |
 | 13 | Le Worker plantait en nettoyant un échec, masquant le vrai motif | QA navigateur |
 | 14 | Trois fuites mémoire distinctes (cache d'évaluation, bibliothèque, estimateur) | banc d'essai |
+| 15 | Le Trainer cherchait la solution avec la mauvaise clé (hash au lieu d'id) | QA navigateur |
+| 16 | Les solutions du Worker n'entraient jamais dans le magasin du thread principal | inspecteur §95 |
+| 17 | §73 : solveur 1.125bb vs Trainer 1bb — deux montants pour une action | QA navigateur |
+| 18 | Une étiquette « 75 % » désignait une mise de 67 % après quantification | QA navigateur |
+| 19 | Le badge du Trainer étiquetait PFASE « SOLVEUR PUSH/FOLD » | QA navigateur |
+| 20 | Le profil Chrome de QA, créé dans le dépôt, tuait le watcher de Vite | QA persistance |
 
 ---
 
@@ -151,3 +158,19 @@ Tout ce qui est aléatoire est seedé et injectable :
 * actions Villain → `seededRng(seed)` ; vérifié sur 60 tirages, même graine →
   séquence identique ;
 * banc d'essai → graine fixe 4242, deux exécutions donnent les mêmes EV.
+
+
+---
+
+## 8. QA navigateur : les trois scripts
+
+| Script | Ce qu'il prouve |
+|---|---|
+| `npm run audit:sizing:ui` | le panneau existe, résout, et affiche perte d'EV, plancher, écart entre sizings, exploitabilité, provenance ; le Tree Editor navigue et son édition invalide les résultats (§23→§27) |
+| `npm run audit:sizing:trainer` | « S'entraîner contre cette solution » → le Trainer rend EXACTEMENT les sizings du solveur, et affiche la provenance ⚖️ Adaptive Sizing avec le coût de la simplification (§87, §18, §71) |
+| `npm run audit:sizing:persistence` | solve → sauvegarde → **rechargement de page** → la solution est retrouvée et IDENTIQUE : id, sizings, perte, plancher, exploitabilité, nœuds, classes (§88, §108) |
+
+Chacun échoue bruyamment : ce ne sont pas des captures d'écran, ce sont des
+comparaisons. Le second confronte les sizings annoncés par le solveur aux boutons
+réellement rendus par le Trainer ; le troisième compare l'empreinte de la solution
+avant et après rechargement.
