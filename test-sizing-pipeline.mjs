@@ -221,8 +221,19 @@ console.log("\n══ CASE F — le sizing change entre TURN et RIVER ═══�
   const bT = getTrainingNode(turn.solution, [], { handClass: "AKs" }).actions.find(a => a.actionType !== "CHECK");
   const bR = getTrainingNode(river.solution, [], { handClass: "AKs" }).actions.find(a => a.actionType !== "CHECK");
   ok(bT.toBb !== bR.toBb, `§38 — le montant proposé à la river (${bR.toBb}bb) n'est PAS celui de la turn (${bT.toBb}bb)`);
-  ok(turn.solution.strategy.coversStreetsAhead === false,
-    "§39 — la solution de turn ne prétend PAS couvrir la river : elle impose une re-résolution au nouvel état");
+  /* Deux vérités distinctes, et c est le fond du §39.
+     EXTRACTION : la solution de turn n expose pas les nœuds de river — le Trainer
+     doit re-résoudre au nouvel état.
+     HORIZON    : la river a pourtant PARTICIPÉ à la valeur des actions de turn.
+     Le champ unique d origine portait le premier sens et le second nom. */
+  eq(turn.solution.strategy.exposesStreetsAhead, false,
+    "§39 — la solution de turn n EXPOSE pas la river : elle impose une re-résolution au nouvel état");
+  eq(turn.solution.strategy.coversStreetsAhead, true,
+    "mais la river a bien participé à la VALEUR des actions de turn");
+  eq(turn.solution.strategy.streetsValued, 2, "deux rues de mise valorisées");
+  eq(river.solution.strategy.coversStreetsAhead, false,
+    "à la river, il n y a plus rien après : aucun horizon à couvrir");
+  eq(river.solution.strategy.streetsValued, 1, "une seule rue valorisée");
   console.log(`   turn : ${bT.specLabel} = ${bT.toBb}bb (pot ${turn.solution.pot}) · river : ${bR.specLabel} = ${bR.toBb}bb (pot ${river.solution.pot})`);
 }
 
@@ -678,8 +689,8 @@ console.log("\n══ CASE L — LA MAIN AVANCE : pot, tapis et rue à travers P
   ok(miseRiver, "la river propose une mise");
   ok(Math.abs(miseRiver.additionalBb - mise.additionalBb) > 0.01,
     `même fraction, montants différents : ${mise.additionalBb} bb à la turn contre ${miseRiver.additionalBb} bb à la river`);
-  eq(stRiver.strategy.coversStreetsAhead, false,
-    "et la solution de la turn ne prétendait PAS couvrir la river — c'est pour cela qu'on a re-résolu");
+  eq(stRiver.strategy.exposesStreetsAhead, false,
+    "et aucune solution n EXPOSE la rue suivante — c est pour cela qu on re-résout à chaque rue");
 
   /* ── LES TYPES D'ACTION, UN PAR UN (§65) ────────────────────────────────
      Chaque type doit être reconnu POUR CE QU'IL EST : §37 interdit de qualifier

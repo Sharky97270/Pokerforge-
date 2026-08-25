@@ -40,14 +40,30 @@
    Sans incrément, une solution d'hier serait servie aujourd'hui avec des EV
    calculées sous une autre convention, sans que rien ne le signale. L'hydratation
    purge les entrées périmées : c'est le comportement voulu. */
-export const SIZING_ENGINE_VERSION = "1.1.0";
-export const SOLUTION_SCHEMA_VERSION = 1;
+/* ── 1.2.0 · SCHÉMA 2 — LA SÉMANTIQUE D'UN CHAMP STOCKÉ A CHANGÉ ───────────
+   Ce n'est pas une addition : `coversStreetsAhead` ne veut plus dire la même
+   chose. Il signifiait « la solution expose les nœuds des rues suivantes »
+   (toujours faux) ; il signifie désormais « les rues suivantes ont participé à
+   la VALEUR de cette décision » — vrai dès que le solve a porté sur plus d'une
+   rue. Ce que le champ décrivait auparavant s'appelle `exposesStreetsAhead`.
+
+   Une solution enregistrée sous l'ancien schéma porte donc `false` là où la
+   nouvelle lecture attend `true`. Servie telle quelle, elle affirmerait qu'une
+   décision de flop a été prise sans voir la turn ni la river — l'inverse de ce
+   qui s'est passé. Le schéma est incrémenté pour que l'hydratation la purge au
+   lieu de la relire sous une convention qui n'est pas la sienne.
+
+   S'ajoutent : la structure de pot N joueurs portée par l'état, l'abstraction
+   de boards déclarée par les solves préflop, et le calendrier de cartes
+   explicite dans l'arbre (`cardsVisible`, `cardsBefore` → `cardsAfter`). */
+export const SIZING_ENGINE_VERSION = "1.2.0";
+export const SOLUTION_SCHEMA_VERSION = 2;
 /* Le cœur CFR n'exposait aucune version. On en déclare une ici, à incrémenter
    dès qu'un changement de `core/cfr.js`, `core/multistreet.js` ou
    `core/gametree.js` modifie les EV produites — ce qui est le cas ici : EV de
    stratégie moyenne, normalisation des combinaisons bloquées, rake, verrous par
    main. */
-export const SOLVER_VERSION = "sharksolver-core-2.2.0";
+export const SOLVER_VERSION = "sharksolver-core-2.3.0";
 
 /* ── EPSILONS (§94) ────────────────────────────────────────────────────────
    Jamais de comparaison de flottants par égalité stricte. Un seul jeu de

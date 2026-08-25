@@ -45,7 +45,7 @@
     "audit:sizing": "node scripts/trainer-sizing-audit.mjs",
     "audit:multiway": "node scripts/trainer-fullhand-audit.mjs --spot=Squeeze --hands=16 --multiway=3 --out=design-qa-evidence/trainer-multiway.json --shot=trainer-multiway.png",
     "audit:suiveurs": "node scripts/trainer-fullhand-audit.mjs --spot=Squeeze --hero=raise --hands=12 --reponses=2 --out=design-qa-evidence/trainer-suiveurs.json --shot=trainer-suiveurs.png",
-    "test:sizing": "node test-sizing-math.mjs && node test-sizing-gametree.mjs && node test-sizing-hash.mjs && node test-sizing-dynamic.mjs && node test-sizing-store.mjs && node test-sizing-trainer.mjs && node test-sizing-replayer-coach.mjs && node test-sizing-import.mjs && node test-sizing-pipeline.mjs",
+    "test:sizing": "node test-sizing-math.mjs && node test-sizing-gametree.mjs && node test-sizing-hash.mjs && node test-sizing-dynamic.mjs && node test-sizing-store.mjs && node test-sizing-trainer.mjs && node test-sizing-replayer-coach.mjs && node test-sizing-import.mjs && node test-sizing-handsolution.mjs && node test-sizing-multiway.mjs && node test-sizing-preflop.mjs && node test-sizing-pipeline.mjs",
     "audit:sizing:ui": "node scripts/sizing-shot.mjs --board=As7d2c9hKs --h=1200",
     "audit:sizing:trainer": "node scripts/sizing-trainer-shot.mjs",
     "bench:sizing": "node scripts/sizing-bench.mjs",

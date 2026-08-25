@@ -21,9 +21,26 @@
         réponse est de RE-RÉSOUDRE au nouvel état — pot, tapis et SPR ayant
         changé — ce que fait le Trainer à chaque transition de rue.
 
-   La solution porte donc `coversStreetsAhead:false` : un consommateur qui aurait
-   besoin de la turn sait qu'il doit demander une nouvelle solution, au lieu de
-   lire un champ absent et de se rabattre sur autre chose.
+   ── DEUX QUESTIONS, DEUX CHAMPS (mission « coup complet ») ──────────────────
+   « Cette solution couvre-t-elle les rues suivantes ? » n'a pas UNE réponse, et
+   c'est ce qui a produit une affirmation fausse pendant toute la première passe.
+
+     `exposesStreetsAhead` — la solution STOCKÉE contient-elle les nœuds des rues
+        suivantes ? **Non**, par choix, pour les deux raisons ci-dessus. C'est ce
+        champ que lit un consommateur qui cherche un nœud de turn et ne le trouve
+        pas : il doit demander une nouvelle solution au nouvel état.
+
+     `coversStreetsAhead` — les décisions des rues suivantes ont-elles PARTICIPÉ
+        au calcul de la valeur de la décision courante ? **Oui dès que le solve a
+        porté sur plus d'une rue.** Le CFR construit alors l'arbre jusqu'à la
+        river et remonte les valeurs ; l'EV d'un check de flop intègre déjà tout
+        ce qui suit.
+
+   Le champ unique d'origine portait le premier sens et le second nom. Il
+   annonçait donc `false` sur des solutions dont l'EV triplait précisément parce
+   qu'elle intégrait les rues suivantes. Concaténer quatre solutions
+   indépendantes ne produit toujours PAS un horizon : `coversStreetsAhead` est
+   DÉRIVÉ de `streetsSolved`, jamais choisi par un appelant.
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { EPS, DEFAULT_EVALUATION_CONFIG } from "./config.js";
@@ -65,7 +82,7 @@ export const pathKey = (path) => (path || []).join("|");
 
    Sortie (plain data, clonable) :
    {
-     coversStreetsAhead:false,
+     coversStreetsAhead:<dérivé>, exposesStreetsAhead:false, streetsValued:<n>,
      nodes: {
        "<path>": {
          path:[…], player, actions:[…], actionTypes:{label→type},
@@ -103,6 +120,9 @@ export function extractStreetStrategy(solution, {
   const nodes = {};
   const seenClasses = new Set();
   const boardComplete = (solution.board ? solution.board.length : solution.initLen || 0) >= 5;
+  /* Combien de rues de mise ce solve a réellement portées. Lu sur la solution,
+     jamais fourni par l'appelant. */
+  const streetsValued = Math.max(1, solution.streetsSolved || 1);
   let evBudget = includeEV ? maxEVNodes : 0;
   let evSkipped = 0;
 
@@ -238,8 +258,20 @@ export function extractStreetStrategy(solution, {
     evAvailable: includeEV,
     evExact: includeEV ? boardComplete : null,
     evNodesSkipped: evSkipped,
-    coversStreetsAhead: false,
-    coversStreetsNote: "Stratégie de la rue courante uniquement. Les rues suivantes se re-résolvent au nouvel état (pot, tapis et SPR changent) — voir §38/§39.",
+    /* ── L'HORIZON DE VALEUR — DÉRIVÉ, JAMAIS DÉCLARÉ ────────────────────────
+       Lu sur le solve lui-même. Un appelant ne peut pas le mettre à `true` : ce
+       serait exactement la faute que la mission interdit — juxtaposer des
+       décisions indépendantes et appeler cela une solution multi-rue. */
+    streetsValued,
+    coversStreetsAhead: streetsValued > 1,
+    coversStreetsNote: streetsValued > 1
+      ? `Valeur calculée sur ${streetsValued} rues de mise : les décisions des rues suivantes ont participé à l'EV de la décision courante. La STRATÉGIE des rues suivantes n'est pas stockée pour autant (voir exposesStreetsAhead).`
+      : "Solve d'une seule rue : la valeur ne tient compte d'aucune rue suivante.",
+    /* ── CE QUE LA SOLUTION EXPOSE — un choix, pas une limite subie ──────────
+       Toujours faux : la stratégie d'un nœud de turn dépend de la carte tombée,
+       et la re-résoudre au nouvel état est la bonne réponse (§38/§39). */
+    exposesStreetsAhead: false,
+    exposesStreetsNote: "Nœuds de la rue courante uniquement. Une rue suivante se re-résout au nouvel état — pot, tapis et SPR ont changé (§38/§39).",
     nodes,
     classes: [...seenClasses].sort(),
     nodeCount: Object.keys(nodes).length,

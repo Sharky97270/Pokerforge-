@@ -17,12 +17,12 @@
     {
       "step": "solution produite",
       "ok": true,
-      "ms": 38410
+      "ms": 55802
     },
     {
       "step": "solution enregistrée en mémoire",
       "ok": true,
-      "id": "PFS-E86138C5A414B44E#SINGLE"
+      "id": "PFS-23C6AD4C3061A8EE#SINGLE"
     },
     {
       "step": "application rechargée",
@@ -33,7 +33,7 @@
       "ok": true,
       "store": {
         "solutions": 1,
-        "states": 2,
+        "states": 3,
         "byComplexity": {
           "SINGLE": 1
         },
@@ -63,30 +63,30 @@
   ],
   "errors": [],
   "avant": {
-    "solutionId": "PFS-E86138C5A414B44E#SINGLE",
+    "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
     "selected": "67%",
     "evloss": "0.0013",
     "floor": "0.007",
     "store": {
       "solutions": 1,
-      "states": 2,
+      "states": 3,
       "byComplexity": {
         "SINGLE": 1
       },
       "status": {
         "persistent": true,
         "hydrated": true,
-        "loaded": 1,
+        "loaded": 0,
         "written": 1,
         "skipped": 0,
         "rejected": 0,
-        "staleDropped": 0,
+        "staleDropped": 1,
         "lastError": null
       }
     },
     "detail": {
-      "solutionId": "PFS-E86138C5A414B44E#SINGLE",
-      "gameStateHash": "PFS-E86138C5A414B44E",
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -132,7 +132,7 @@
   "apres": {
     "store": {
       "solutions": 1,
-      "states": 2,
+      "states": 3,
       "byComplexity": {
         "SINGLE": 1
       },
@@ -148,8 +148,8 @@
       }
     },
     "detail": {
-      "solutionId": "PFS-E86138C5A414B44E#SINGLE",
-      "gameStateHash": "PFS-E86138C5A414B44E",
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -191,7 +191,7 @@
       ],
       "classes": 169
     },
-    "instanceId": "pfase-1gqlnli4"
+    "instanceId": "pfase-xh9e3qps"
   },
   "comparaison": {
     "memeId": true,
@@ -202,8 +202,8 @@
     "memesNoeuds": true,
     "memesClasses": true,
     "avant": {
-      "solutionId": "PFS-E86138C5A414B44E#SINGLE",
-      "gameStateHash": "PFS-E86138C5A414B44E",
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",
@@ -246,8 +246,8 @@
       "classes": 169
     },
     "apres": {
-      "solutionId": "PFS-E86138C5A414B44E#SINGLE",
-      "gameStateHash": "PFS-E86138C5A414B44E",
+      "solutionId": "PFS-23C6AD4C3061A8EE#SINGLE",
+      "gameStateHash": "PFS-23C6AD4C3061A8EE",
       "isStale": false,
       "stale": null,
       "sizingMode": "SINGLE",

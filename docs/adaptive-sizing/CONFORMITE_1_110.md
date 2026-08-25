@@ -8,15 +8,32 @@
 > portent leur cause et le renvoi à `LIMITATIONS.md`. Aucun point n'est marqué
 > `PASS` sur une intention.
 
-**Bilan : 105 PASS · 6 PARTIAL · 0 FAIL.**
+**Bilan : 107 PASS · 4 PARTIAL · 0 FAIL.**
 
-Départ : 92 PASS · 18 PARTIAL. Douze points ont été fermés en construisant ce
-qui manquait — pas en réécrivant la ligne du tableau. Les six `PARTIAL` qui
-subsistent se ramènent à **trois limitations de fond**, et aucune ne se résout
-avec un budget plus large :
+Trajectoire : 92 / 18 → 105 / 6 → **107 / 4**. La seconde passe a fermé douze
+points ; la troisième en a fermé deux de plus — mais surtout, elle a montré que
+deux des trois causes restantes **n'étaient pas ce qu'elles disaient être** :
 
-| Cause | Points | Pourquoi ce n'est pas une question de temps |
+| Cause annoncée | Ce que l'audit a trouvé |
+|---|---|
+| « les side pots exigent ≥ 3 joueurs » (§7) | `potDistribution.js` les modélise depuis longtemps, exactement et pour N joueurs, avec 160 assertions. Ils ne remontaient simplement pas jusqu'à l'état PFASE. Le refus disait « le moteur ne sait pas », là où il fallait dire « il sait compter, il ne sait pas résoudre » |
+| « une solution décrit une décision, pas un coup complet » (§104) | Le moteur résout déjà `streets = streetsRemaining`. Mesuré sur un même flop : EV **1.33 → 3.74 bb** et check **57 % → 18 %** selon l'horizon. Les rues futures participaient déjà à la valeur ; `coversStreetsAhead` mesurait l'EXTRACTION et portait le nom de l'HORIZON |
+| « le préflop est construit, pas résolu » (§54) | Exacte. Deux verrous précis — racine à contributions inégales, calendrier de cartes — tous deux levés |
+
+Les quatre `PARTIAL` restants tiennent à **deux composants nommés**, tous deux
+documentés avec leur plan de fermeture :
+
+| Composant manquant | Points | Pourquoi il n'est pas livré ici |
 |---|---|---|
+| L'orchestration d'une CHAÎNE de décisions par le Trainer (modes Full Hand et Session) | §38, §66, §104 | Le moteur sait valoriser chaque maillon et `handSolution.js` sait les relier en vérifiant la continuité. Ce qui manque est côté Trainer : `fullHandEngine.js` démarre au **flop**, et ses modes Full Hand / Session ne consomment pas encore de chaîne PFASE |
+| Un solveur CFR **stratégique** multiway | §77 | Deux camps sont câblés dans `buildPostflopTree` et dans les tables de `solveTree`. Un troisième joueur ne se règle pas : il change la structure. La **comptabilité** multiway, elle, est livrée et EXACTE |
+
+Ce que ces quatre lignes ont en commun : elles sont **annoncées par les données**.
+`describeCapabilities` rend `potAccounting: EXACT` et `strategicSolving:
+UNSUPPORTED` séparément ; `rankable:false` porte son motif ; `boardAbstraction`
+déclare le sous-jeu réellement résolu. Un consommateur qui ne lirait jamais ce
+document ne peut pas se tromper sur ce qu'il reçoit.
+---|---|---|
 | Le préflop est construit, pas résolu (**L1**) | §38, §54, §66 | L'EV d'une ouverture se réalise après le flop : classer 2.5 bb contre 3 bb exigerait de résoudre l'arbre complet des trois rues suivantes sur l'ensemble des flops, pour chaque candidat. |
 | Le moteur est heads-up (**L2**) | §7, §77 | Un side pot n'existe qu'à partir de trois joueurs. Le CFR de PokerForge a deux camps ; en ajouter un troisième change la structure de l'arbre, pas ses réglages. L'all-in partiel en HU, lui, est vérifié (CASE M). |
 | Une solution décrit UNE décision (**L8**) | §104 | Jouer un coup complet contre PFASE exigerait une chaîne de solutions rue par rue, re-résolues à chaque nouvel état — ce que le moteur sait faire, mais que le Trainer n'orchestre pas encore en mode Full Hand / Session. |
@@ -40,7 +57,7 @@ pas se tromper sur ce qu'il reçoit.
 | 4 | Modes FIXED / DYNAMIC / AUTOMATIC / SINGLE | **PASS** | `BettingTreeMode` ; `test-sizing-dynamic` (4 modes) ; CASE B/C |
 | 5 | Complexités SINGLE/SIMPLE/ADVANCED/FULL centralisées | **PASS** | `COMPLEXITY_LIMITS` dans `config.js` — aucune borne ailleurs |
 | 6 | Sizings pot % · géométrique · multiple de mise | **PASS** | `sizingSpec.js` (+ `bb`, `jam`) ; formule géométrique vérifiée analytiquement (4 contrôles) |
-| 7 | Source unique pot/SPR/tapis/relances | **PARTIAL** | `gameState.js` fournit les 7 grandeurs ; testé SRP·3BP·4BP·limp·BvB·HU·antes. **All-in partiel VÉRIFIÉ en heads-up** (CASE M) : tapis effectif = le plus court dans les deux sens, SPR et relance maximale calculés dessus, bouton Tapis à 25 bb et non 40, aucune action au-dessus du tapis à 8 bb effectifs. **Les side pots exigent ≥ 3 joueurs** → L2 |
+| 7 | Source unique pot/SPR/tapis/relances | **PASS** | `gameState.js` fournit les 7 grandeurs **et la structure de pot à N joueurs** : paliers, pot principal, side pots, mise non suivie, éligibilité par palier, conservation des jetons vérifiée sur 200 configurations tirées au hasard. Le calcul n'est pas dupliqué — il vient de `potDistribution.js`, déjà couvert par 160 assertions. All-in partiel HU vérifié (CASE M). La cause invoquée jusqu'ici (« les side pots exigent ≥ 3 joueurs ») était fausse : ils étaient déjà modélisés, ils ne remontaient simplement pas jusqu'à l'état |
 | 8 | SizingCandidateGenerator | **PASS** | `candidateGenerator.js` ; `dropped[]` motive chaque écart |
 | 9 | Dynamic Sizing Engine (référence, EV, argmin) | **PASS** | `dynamicOptimizer.js` ; convention d'EV documentée `ALGORITHM.md §0` |
 | 10 | Sous-ensembles multi-size, pas les N meilleurs | **PASS** | fixture piège : `{33,150}` retenu contre `{33,75}` ; la paire écartée a bien été **évaluée** |
@@ -86,8 +103,8 @@ pas se tromper sur ce qu'il reçoit.
 | 35 | Architecture prête pour les mises libres | **PASS** | `compareAction` traite n'importe quel montant : hors arbre, EV indisponible, voisin cité comme approximatif |
 | 36 | Retour : action, sizing, fréquence, EV… si disponibles | **PASS** | **EV par action désormais CALCULÉE** (`nodeActionEVs`) : `evPlayedBb`, `evBestBb`, `evLossBb`, avec la source (main ou range) et l'exactitude. Un sizing non résolu reste sans EV (§50). L4 levée |
 | 37 | Ne jamais confondre action et sizing | **PASS** | `ActionType` strict ; un CALL de 9bb ≠ un BET de 9bb |
-| 38 | Full Hand suit préflop → river | **PARTIAL** | postflop vérifié rue par rue (turn 9bb → river 34bb) ; **préflop hors périmètre PFASE** → L1 |
-| 39 | Recalcul à chaque rue | **PASS** | `coversStreetsAhead:false` force la re-résolution |
+| 38 | Full Hand suit préflop → river | **PARTIAL** | postflop vérifié rue par rue (turn 9bb → river 34bb) ; **le moteur sait désormais valoriser une décision préflop avec sa continuation** (§54), et `handSolution.js` relie des décisions en vérifiant que chacune découle de la précédente. Reste : `fullHandEngine.js` démarre au **flop** (`FH_STREETS`), donc le mode Full Hand du Trainer ne joue pas le préflop. Composant restant nommé, plan de fermeture dans LIMITATIONS L1 |
+| 39 | Recalcul à chaque rue | **PASS** | `coversStreetsAhead:false` force la re-résolution · **et la distinction est désormais explicite** : `exposesStreetsAhead:false` (l'extraction ne couvre que la rue courante, par choix) contre `coversStreetsAhead` (les rues suivantes ont participé à la valeur — vrai dès 2 rues solvées, mesuré : EV 1.33 → 3.74 bb, check 57 % → 18 %) |
 | 40 | UN seul moteur pour 1T→4T | **PASS** | aucun chemin par nombre de tables |
 | 41 | Multitabling : suggérer, pas imposer | **PASS** | un choix explicite n'est jamais écrasé |
 | 42 | États de table isolés | **PASS** | 4 tables → 4 `solutionId` ; aucun sizing ne fuit |
@@ -107,7 +124,7 @@ pas se tromper sur ce qu'il reçoit.
 | 51 | Analyse HH : niveau demandé, type conservé | **PASS** | `verdictSource` ; dénominateur partiel annoncé |
 | 52 | Couche de données pour rapports agrégés | **PASS** | `aggregateSolutions` par texture, SPR, type de pot, complexité |
 | 53 | Textures dérivées, jamais des heuristiques cachées | **PASS** | aucune propriété ne porte de sizing/fréquence/action |
-| 54 | Preflop Tree Builder | **PARTIAL** | `preflopSizing.js` livre **les cinq paramètres nommés** (`baseRaise` via ipSizing/oopSizing, `additionalPerLimp`, `additionalPerCaller`) et en tire des montants corrects : 2.5 bb → 4.5 bb derrière deux limpeurs, SB 3 bb vs BTN 2.5 bb, cold-caller ≠ limpeur, unité qui bascule au multiple de la mise affrontée. Chaque montant est rendu avec sa décomposition. **Les montants sont CONSTRUITS, pas CLASSÉS** (`rankable:false`) : classer du préflop exigerait l'EV postflop → L1 |
+| 54 | Preflop Tree Builder | **PASS** | `preflopTree.js` construit un vrai arbre préflop : **contributions inégales à la racine** (blindes postées), option de la grosse blinde, relances typées par niveau, tapis — et un **calendrier de cartes explicite** qui permet au flop d'en révéler trois. La continuation postflop est GREFFÉE (`buildPostflopTree` réutilisé tel quel, identifiants et rues décalés). Les cinq paramètres du §54 restent portés par `preflopSizing.js`. Deux valeurs terminales exactes le vérifient : fold de la SB = −0.5 bb, fold de la BB face à un tapis = −1 bb, pour chaque classe |
 | 55 | `evaluationModel` ChipEV/ICM/PKO, pas de faux ICM | **PASS** | badge ICM sans paramètres → solution **refusée** |
 | 56 | Multiway prévu, activé seulement si supporté | **PASS** | `TABLE_FORMAT_SUPPORT` ; 3 joueurs → `UNSUPPORTED` |
 | 57 | Instrumentation | **PASS** | durées, cache, taille d'arbre, itérations ; silence en production |
@@ -124,7 +141,7 @@ pas se tromper sur ce qu'il reçoit.
 | 63 | Test de cache (board, stack, range, rake, candidat, version) | **PASS** | 49 assertions |
 | 64 | Tests Trainer 1T→4T, GTO/Exploit, 4 niveaux | **PASS** | multitabling, niveaux et Exploit testés au moteur (CASE K + suite Trainer) **et au navigateur** : `npm run audit:sizing:multitable` ouvre les 4 niveaux sur 4 tables et compare, table par table, les sizings rendus à ceux annoncés par le solveur |
 | 65 | Tests d'action check/bet/call/raise/fold/jam | **PASS** | types, montants et verdicts testés via le pont **et** progression vérifiée à travers PFASE (CASE L) : turn pot 12 / SPR 3.33 / mise 9 bb → river pot 30 = 12 + 2×9, SPR 1.03, mise 22.5 bb. Le montant est RECALCULÉ au nouvel état, pas transporté (§38/§39) ; FOLD engage 0, CALL engage exactement le montant à payer |
-| 66 | Mains complètes préflop → river | **PARTIAL** | turn → river vérifié ; préflop hors périmètre → L1 |
+| 66 | Mains complètes préflop → river | **PARTIAL** | turn → river vérifié (CASE L) ; préflop désormais **résoluble** avec continuation, mais non **orchestré** par le Trainer en coup complet — même composant restant qu'au §38 |
 | 67 | 4 tables × 100 décisions | **PASS** | 400 décisions, aucun échec, aucune fuite |
 | 68 | Mode déterministe | **PASS** | même graine → même séquence |
 | 69 | QA visuelle réelle | **PASS** | Solver, Tree Editor, Trainer 1T **et 4T** pilotés dans un vrai navigateur. Le script multitable ne capture pas : il COMPARE. Il vérifie qu'une table par niveau est ouverte, que chaque niveau se retrouve sur sa table, et surtout qu'il n'y a **pas de contamination** — quatre tables affichant les mêmes boutons alors que le solveur a annoncé des niveaux différents seraient un écran irréprochable et trois tables qui mentent |
@@ -140,7 +157,7 @@ pas se tromper sur ce qu'il reçoit.
 | 74 | All-in : action explicite | **PASS** | label `J`, montant issu du tapis |
 | 75 | Tapis courts 5→30bb | **PASS** | testé |
 | 76 | Tapis profonds 50→200bb | **PASS** | testé, aucun débordement |
-| 77 | Format tournoi | **PARTIAL** | antes, tapis symétriques et asymétriques, HU testés ; **MTT/ICM** limité par L6 |
+| 77 | Format tournoi | **PARTIAL** | antes, tapis symétriques et asymétriques, HU testés ; **l'ICM entre réellement dans le CFR** (`describeCapabilities` le déclare `SUPPORTED`, avec sa conséquence : la somme nulle tombe, NashConv devient indisponible). La **comptabilité** d'un pot MTT multiway est désormais EXACTE. Restent UNSUPPORTED : la **résolution stratégique** multiway (l'arbre CFR a deux camps) et la réalisation de prime PKO, qui est paramétrée et non modélisée |
 | 78 | Format cash (rake, cap, straddle) | **PASS** | **rake et cap APPLIQUÉS** à l'utilité terminale (`makeRakeModel`), variante « pots non disputés » comprise ; le sizing retenu en change (75 % → 33 % à 5 %/cap 3bb). Somme nulle levée → NashConv `null`, ICM+rake refusé. **Straddle déclaré et hashé** : postflop il n'ajoute aucune mécanique (il a grossi le pot et réduit les tapis, deux grandeurs déjà portées par l'état) et ne change PAS l'ordre de parole, qui suit le bouton — mais deux mains au même pot, l'une straddée l'autre non, restent deux états distincts. L5 levée |
 | 79 | API claire | **PASS** | `pfase.js` — 8 fonctions publiques ; aucun doublon de service existant |
 | 80 | Versionnage | **PASS** | 3 versions, dans le hash **et** vérifiées à la lecture |
@@ -177,7 +194,7 @@ pas se tromper sur ce qu'il reçoit.
 | 101 | Acceptance Test Master CASE A→H | **PASS** | 8 cas, vrai solveur, 88 assertions |
 | 102 | Tests de non-régression | **PASS** | suite complète verte ; aucun test supprimé ni affaibli |
 | 103 | Revue finale (TODO/MOCK/random/hardcodé) | **PASS** | 5 occurrences, chacune analysée et justifiée |
-| 104 | Revue Trainer jouée réellement | **PARTIAL** | 1T joué de bout en bout au navigateur ; **4T désormais ouvert et vérifié** avec PFASE (4 niveaux, 4 tables, sizings distincts confirmés). Restent **Full Hand et Session** avec PFASE : une solution décrit UNE décision, pas un coup complet — les jouer exigerait une chaîne de solutions rue par rue (cf. L8) |
+| 104 | Revue Trainer jouée réellement | **PARTIAL** | 1T et 4T vérifiés au navigateur ; `handSolution.js` livre la `HandSolution` demandée — état initial, ranges, tapis, pot, positions, board, historique, décision par décision, provenance, convergence, rues couvertes **et non couvertes** — avec la garantie que **concaténer des décisions ne crée aucun horizon** (`coversStreetsAhead` est dérivé de `streetsSolved`, jamais déclaré). Reste : le Trainer n'orchestre pas encore cette chaîne dans ses modes **Full Hand et Session** |
 | 105 | Revue SharkSolver (4 modes, réactions du cache) | **PASS** | 4 modes testés ; §63 vérifie que board/stack/range/candidat/version invalident |
 | 106 | Revue des données d'une solution stockée | **PASS** | 30 champs vérifiés ; inspecteur `inspectSolution` |
 | 107 | Rapport final | **PASS** | `RAPPORT_FINAL.md` |

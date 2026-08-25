@@ -120,10 +120,35 @@ export function buildPostflopTree(opts={}){
   const lastStreet=streets-1;
   const remain=(bets)=>Math.max(0,effStack-bets);
 
+  /* ── LE CALENDRIER DES CARTES, ÉNONCÉ AU LIEU D'ÊTRE IMPLICITE ────────────
+     Un arbre postflop révèle exactement UNE carte par transition de rue, et le
+     solveur le supposait en calculant l'indice de la carte comme `street`.
+     L'hypothèse est juste ici et fausse ailleurs : **le flop en révèle trois**.
+
+     Les nœuds portent donc désormais leur position sur le board, en nombre de
+     cartes RELATIF au début de l'arbre :
+
+       · nœuds de décision et terminaux : `cardsVisible` ;
+       · nœuds de chance : `cardsBefore` → `cardsAfter`.
+
+     Pour un arbre postflop ces valeurs redonnent exactement l'ancien calcul
+     (`street` et `street` → `street+1`), et le solveur retombe sur son
+     comportement historique si les champs manquent. C'est ce qui permet à un
+     arbre PRÉFLOP de déclarer « 0 carte, puis 3 » sans qu'aucune autre ligne du
+     moteur ne change. */
+  const CARDS_PER_STREET = opts.cardsPerStreet || null;   // ex. [3,1,1] depuis le préflop
+  const cardsVisibleAt = (street) => {
+    if (!CARDS_PER_STREET) return street;                 // postflop : 1 carte par rue
+    let n = 0;
+    for (let s = 0; s < street; s++) n += CARDS_PER_STREET[s] || 0;
+    return n;
+  };
+
   // Fin de street → chance vers la suivante (ou showdown). allIn : plus de décisions.
   function advance(street,pot,betsH,betsV,allIn,path=[]){
-    if(street>=lastStreet) return mk({kind:"terminal",result:"showdown",street,pot,betsH,betsV});
+    if(street>=lastStreet) return mk({kind:"terminal",result:"showdown",street,pot,betsH,betsV,cardsVisible:cardsVisibleAt(street)});
     return mk({kind:"chance",street,pot,betsH,betsV,
+      cardsBefore:cardsVisibleAt(street),cardsAfter:cardsVisibleAt(street+1),
       next:allIn?advance(street+1,pot,betsH,betsV,true,path)
                 :buildStreet(street+1,pot,betsH,betsV,path)});
   }
@@ -175,7 +200,7 @@ export function buildPostflopTree(opts={}){
   // OOP ouvre la street : X (check) ou B (bet, par sizing).
   function buildStreet(street,pot,betsH,betsV,path=[]){
     const base=Math.min(betsH,betsV);
-    const node=mk({kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["X"],children:{},path:path.slice()});
+    const node=mk({cardsVisible:cardsVisibleAt(street),kind:"decision",player:HERO,street,pot,betsH,betsV,actions:["X"],children:{},path:path.slice()});
     node.children.X=ipAfterCheck(street,pot,betsH,betsV,[...path,"X"]);
     for(const b of betActionsFor(pot,betsH,HERO,street,base,path)){
       node.actions.push(b.label);
@@ -188,7 +213,7 @@ export function buildPostflopTree(opts={}){
   function ipAfterCheck(street,pot,betsH,betsV,path=[]){
     if(!ipProbe) return advance(street,pot,betsH,betsV,false,path);
     const base=Math.min(betsH,betsV);
-    const node=mk({kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X"],children:{},path:path.slice()});
+    const node=mk({cardsVisible:cardsVisibleAt(street),kind:"decision",player:VILL,street,pot,betsH,betsV,actions:["X"],children:{},path:path.slice()});
     node.children.X=advance(street,pot,betsH,betsV,false,path);
     for(const b of betActionsFor(pot,betsV,VILL,street,base,path)){
       node.actions.push(b.label);
@@ -203,8 +228,8 @@ export function buildPostflopTree(opts={}){
      relance minimale et résolution des specs) — ils sont ignorés en v2. */
   function facingBet(street,pot,betsH,betsV,toCall,who,nRaises,aggAllIn,base=0,lastIncrement=0,path=[]){
     const myBets=who===HERO?betsH:betsV;
-    const node=mk({kind:"decision",player:who,street,pot,betsH,betsV,toCall,actions:["F","C"],children:{},path:path.slice()});
-    node.children.F=mk({kind:"terminal",result:who===HERO?"foldH":"foldV",street,pot,betsH,betsV});
+    const node=mk({cardsVisible:cardsVisibleAt(street),kind:"decision",player:who,street,pot,betsH,betsV,toCall,actions:["F","C"],children:{},path:path.slice()});
+    node.children.F=mk({cardsVisible:cardsVisibleAt(street),kind:"terminal",result:who===HERO?"foldH":"foldV",street,pot,betsH,betsV});
     // Call — stacks symétriques : le suiveur couvre toujours (pas de side-pot).
     const cBetsH=who===HERO?betsH+toCall:betsH;
     const cBetsV=who===VILL?betsV+toCall:betsV;

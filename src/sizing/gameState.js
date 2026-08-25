@@ -20,6 +20,7 @@
 
 import { EPS, EvaluationModel, TableFormat, DEFAULT_BET_STEP_BB } from "./config.js";
 import { roundAmount, roundTo } from "./sizingSpec.js";
+import { buildPots } from "../potDistribution.js";
 
 /* ── TYPES D'ACTION STRICTS (§37) ──────────────────────────────────────────
    « Ne jamais qualifier un CALL de BET. » Le type et le montant sont deux
@@ -182,6 +183,84 @@ export function normalizeGameState(input = {}) {
      dimensionnée : le tapis. On le dit plutôt que de proposer l'impossible. */
   const allInOnly = maximumRaise < minimumRaise - EPS.amount;
 
+  /* ── STRUCTURE DU POT : PALIERS, POT PRINCIPAL, SIDE POTS (§7) ────────────
+     Le tapis effectif suffit en heads-up : il n'y a qu'un pot. Dès trois
+     joueurs, un seul nombre ne décrit plus rien — un joueur à tapis pour 5 bb ne
+     peut pas remporter les 40 bb que deux autres se disputent au-dessus de lui.
+
+     Le calcul n'est PAS refait ici. `potDistribution.js` le fait déjà, exactement
+     et pour N joueurs, et il est vérifié par 160 assertions (paliers, joueurs
+     couchés qui ont contribué, mise non suivie, pot orphelin rendu au prorata,
+     conservation des jetons au demi-blind). Le dupliquer aurait créé deux
+     comptabilités qui divergent — la pire des situations.
+
+     Ce que l'état gagne, c'est de TRANSPORTER cette structure : un consommateur
+     peut désormais savoir combien de paliers existent et qui dispute chacun,
+     sans reconstituer la main. */
+  const contributions = {};
+  let engageBrut = 0;
+  for (const p of players) if (p.committedTotal > EPS.amount) { contributions[p.id] = p.committedTotal; engageBrut += p.committedTotal; }
+  const foldedIds = players.filter(p => p.folded).map(p => p.id);
+  let potStructure = null;
+  try {
+    const b = buildPots(contributions, foldedIds);
+    potStructure = {
+      pots: b.pots.map(x => ({
+        nom: x.nom,
+        montant: roundAmount(x.montant),
+        disputePar: x.disputePar.slice(),
+        alimentePar: { ...x.alimentePar },
+        orphelin: !!x.orphelin,
+      })),
+      uncalled: b.uncalled ? { joueur: b.uncalled.joueur, montant: roundAmount(b.uncalled.montant) } : null,
+      /* `engage` = tout ce que les joueurs ont mis. `total` = ce que les paliers
+         plus la mise non suivie représentent. L'écart doit être nul : c'est
+         l'invariant de conservation, et il voyage AVEC l'état plutôt que d'être
+         vérifié seulement dans un test. */
+      engage: roundAmount(b.engage),
+      repartition: roundAmount(b.total),
+      /* ── LA CONSERVATION SE VÉRIFIE SUR LA GRILLE DU MODULE ──────────────
+         `potDistribution` quantifie au DEMI-BLIND — c'est l'unité du Trainer,
+         et son invariant vaut sur cette grille. PFASE, lui, travaille plus fin
+         (le pas de mise peut valoir 0.25 bb, et un pot postflop vaut rarement un
+         multiple de 0.5). Comparer les deux comme si elles étaient la même chose
+         faisait apparaître un écart d'ARRONDI là où rien n'était perdu.
+
+         L'invariant retenu est donc celui du module : ce qu'il a reçu doit être
+         égal à ce qu'il répartit. L'écart entre la précision de PFASE et la
+         sienne est une autre grandeur, publiée séparément. */
+      conserve: Math.abs(b.engage - b.total) <= 1e-6,
+      /* Ce que la quantification au demi-blind a déplacé. Information, pas
+         défaut : elle décrit l'écart entre deux précisions, pas une perte. */
+      quantizationResidualBb: roundAmount(Math.abs(engageBrut - b.engage)),
+      /* L'argent mort — antes, blindes d'un siège déjà couché avant cette rue,
+         pot reporté — n'appartient à aucun joueur assis. Il entre dans le pot
+         principal, et le publier permet de vérifier que
+         « paliers + non suivi + argent mort = pot » au lieu de laisser l'écart
+         inexpliqué. */
+      argentMort: roundAmount(Math.max(0, pot - b.engage)),
+      niveaux: b.pots.length,
+      sidePots: Math.max(0, b.pots.length - 1),
+    };
+    /* ── UNE ANOMALIE DE POT NE DOIT PAS INVALIDER L'ÉTAT ────────────────────
+       Ce bloc a d'abord poussé une ERREUR quand la conservation échouait. Le
+       résultat a été immédiat et instructif : tout solve postflop du panneau
+       tombait sur « état de jeu invalide », parce que l'écart venait de la
+       quantification au demi-blind et non d'un jeton perdu.
+
+       La leçon dépasse l'arrondi : une comptabilité de side pots est un SERVICE
+       rendu par l'état, pas une condition de sa validité. Un heads-up postflop
+       n'a qu'un pot et n'en dépend pas. L'anomalie est donc SIGNALÉE — elle
+       voyage avec la structure, et `describeCapabilities` la dégrade — mais elle
+       n'empêche jamais de résoudre ce qui est par ailleurs résoluble. */
+    if (!potStructure.conserve) {
+      potStructure.anomaly = `${potStructure.engage} engagés contre ${potStructure.repartition} répartis`;
+    }
+  } catch (e) {
+    potStructure = { pots: [], uncalled: null, niveaux: 0, sidePots: 0, conserve: false,
+      anomaly: `structure de pot incalculable : ${(e && e.message) || e}` };
+  }
+
   const spr = pot > EPS.amount ? roundTo(effectiveStack / pot, 4) : null;
 
   /* ── Rake (§78) — DÉCLARÉ, et désormais APPLIQUÉ ─────────────────────────
@@ -272,6 +351,7 @@ export function normalizeGameState(input = {}) {
     /* ══ LES SEPT GRANDEURS DÉRIVÉES (§7) ══ */
     pot,
     effectiveStack,
+    potStructure: Object.freeze(potStructure || { pots: [], uncalled: null, niveaux: 0, sidePots: 0, conserve: true }),
     spr,
     currentBet: roundAmount(currentBet),
     amountToCall,

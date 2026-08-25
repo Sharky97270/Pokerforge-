@@ -9,48 +9,78 @@
 
 ---
 
-## L1 — Le préflop est CONSTRUIT, il n'est pas résolu · **PRÉCISÉE**
+## L1 — Le préflop est RÉSOLU avec continuation, mais son classement dépend de l'échantillon · **LEVÉE EN PARTIE**
 
 | | |
 |---|---|
 | **Capacité visée** | §54 : arbre préflop (open / 3bet / 4bet / limp / iso / cold-call), avec `baseRaise`, `additionalPerLimp`, `additionalPerCaller`, `ipSizing`, `oopSizing`. |
-| **Ce qui est livré** | `src/sizing/preflopSizing.js` fournit **les cinq paramètres nommés par le §54** et en tire des montants corrects au regard de l'état : une ouverture à 2.5 bb devient 4.5 bb derrière deux limpeurs, la petite blinde ouvre à 3 bb là où le bouton ouvre à 2.5, un cold-caller n'est pas compté comme un limpeur, et l'unité bascule de la blinde au multiple de la mise affrontée dès qu'il y a une relance (§6). Chaque montant est rendu **avec sa décomposition** (« 2.5 bb + 2 limpeurs × 1 = 4.5 bb ») : un nombre qu'on ne peut pas vérifier n'a pas sa place à l'écran. |
-| **Ce qui reste vrai** | Ces montants sont **construits**, pas **classés**. |
+| **Ce qui bloquait, précisément** | **V1** — `buildPostflopTree` documente que « les deux camps sont à égalité quand une street s'ouvre ». Le préflop viole cela : SB a posté 0.5, BB a posté 1. **V2** — le calendrier des cartes était implicite, une par rue ; le flop en révèle trois. |
+| **Comment c'est levé** | `preflopTree.js` construit une racine à contributions inégales et déclare son calendrier (`cardsVisible`, `cardsBefore` → `cardsAfter`). La continuation postflop est **greffée** : `buildPostflopTree` est réutilisé tel quel, avec le pot et les tapis que le préflop a produits, identifiants et rues décalés. La généralisation du calendrier vit dans `gametree.js` et `multistreet.js`, et elle est **neutre** sur les arbres postflop — EV identiques au bit près. |
 
-**Pourquoi le classement n'est pas une question de budget.** L'EV d'une ouverture
-préflop se réalise presque entièrement **après le flop** : départager 2.5 bb et
-3 bb exigerait de résoudre, pour chaque candidat, l'arbre complet des trois rues
-suivantes sur l'ensemble des flops. Ce n'est pas « long », c'est d'un autre ordre
-de grandeur que ce que le moteur sait faire (voir aussi L3).
+**Ce que la continuation change, mesuré.** Valeur d'un limp à la racine, mêmes
+ranges, seul l'horizon varie :
 
-La conséquence est portée par les données, pas seulement par cette page :
-`preflopCandidates()` rend `rankable:false` avec son motif, et
-`trainingSolutionResolver` continue de répondre `UNSUPPORTED` au préflop. PFASE
-**offre** des sizings préflop ; il n'en **retient** aucun par comparaison, et rien
-en aval ne peut présenter l'un d'eux comme optimal.
+| tapis | abattage direct | flop joué | flop + turn + river |
+|---:|---:|---:|---:|
+| 20 bb | −0.746 | −0.161 | −0.024 |
+| 60 bb | −1.007 | **+0.602** | **+0.914** |
 
-**Ce qui reste à faire pour lever la limitation.** Un constructeur d'arbre dans
-`core/` avec blindes postées et n joueurs, puis une évaluation postflop
-abstraite (regroupement de flops) assez rapide pour être comparée. PFASE le
-consommerait sans modification : sélection, métriques, magasin et Trainer sont
-indépendants de la forme de l'arbre.
+À 60 bb, limper passe de clairement perdant à clairement gagnant. Ce n'est pas un
+décalage de quelques centièmes : **c'est un changement de signe**. Une valeur
+préflop calculée sans continuation ne se contente pas d'être imprécise, elle
+conclut l'inverse.
 
-Verrouillé par `test-sizing-math.mjs` (§54), qui vérifie notamment qu'un montant
-au-dessus du tapis est **écarté** et non ramené, que deux paramètres différents
-produisant le même montant après quantification ne créent pas un faux choix, et
-que le module **refuse** de répondre hors préflop.
+**Deux valeurs exactes le vérifient**, du même genre que le fold à −6 bb qui avait
+révélé le défaut de dénominateur postflop : une petite blinde qui se couche vaut
+**exactement −0.5 bb**, une grosse blinde qui se couche face à un tapis vaut
+**exactement −1 bb** — pour chaque classe de main, sans exception.
+
+**Ce qui reste, et pourquoi.** Depuis le préflop, chaque itération tire un flop
+neuf, donc un contexte de runout neuf, donc de nouvelles tables de regret : un
+solve à trois rues épuise 4 Go de tas en une cinquantaine de secondes. Ce n'est
+pas une fuite, c'est la taille du problème. La continuation est donc résolue sur
+un **échantillon fixe de K runouts**, déclaré par `boardAbstraction`.
+
+Il s'ensuit deux incertitudes distinctes, mesurées séparément — les additionner
+les rendrait toutes deux inutilisables :
+
+* le **plancher de convergence** : même sous-jeu, autre graine CFR ;
+* la **variance d'échantillon** : autre tirage de runouts, donc autre sous-jeu.
+
+`rankable` exige que la continuation ait été résolue **et** que l'écart dépasse le
+plancher. Mesuré à continuation d'une rue et 6 000 itérations : écart 1.26 bb
+contre un plancher de 0.72 → **classable**. Le même spot sur un échantillon de 48
+runouts au lieu de 24 : écart 0.53 contre 0.81 → **non classable**. Le classement
+préflop est donc réel mais **dépendant de l'échantillon**, et le moteur le dit
+(`generalizes`, `sameOrderOnOtherSample`).
+
+**Plan de fermeture.** Remplacer l'échantillon aléatoire par une abstraction de
+flops par classes stratégiques (texture, connectivité, monotonie) : quelques
+dizaines de représentants pondérés couvriraient l'espace des flops au lieu de
+l'échantillonner. C'est ce qui ferait passer `generalizes` de « dépend du tirage »
+à « décrit le jeu ».
 
 ---
 
-## L2 — Heads-up uniquement
+## L2 — La COMPTABILITÉ multiway est exacte ; la STRATÉGIE multiway ne l'est pas · **SCINDÉE**
 
 | | |
 |---|---|
-| **Capacité visée** | §56 : HU / 3-way / multiway. |
-| **Cause technique** | `buildPostflopTree` alterne entre deux joueurs (`HERO`/`VILL`) et sa comptabilité terminale suppose des tapis symétriques (aucun side-pot). |
-| **Ce qui est livré** | `TABLE_FORMAT_SUPPORT` déclare `3WAY` et `MULTIWAY` **non supportés**, avec le motif. `supportCheck` compte les joueurs encore dans le coup et refuse au-delà de deux. |
-| **Ce qui reste à faire** | Arbre à n joueurs et side-pots dans le Game Tree Engine. |
-| **Comportement actuel** | `UNSUPPORTED` : « le moteur ne construit qu'un arbre heads-up — une solution HU ne sert PAS de vérité pour un spot multiway ». Vérifié par test. |
+| **Ce qui était annoncé** | « Heads-up uniquement — un side pot exige trois joueurs. » |
+| **Ce que l'audit a trouvé** | La première moitié de la phrase était fausse. `potDistribution.js` (module pur, 241 lignes) empile les paliers, construit pot principal et side pots, gère les joueurs couchés qui ont contribué, détache la mise non suivie, rend un pot orphelin à ses contributeurs au prorata et attribue le jeton indivisible. Il est couvert par **160 assertions** et utilisé par le Trainer depuis longtemps. |
+| **Ce qui est livré ici** | L'état PFASE **transporte** cette structure (`state.potStructure`) : paliers, montants, éligibilité par pot, argent mort, et l'invariant de conservation vérifié à chaque normalisation. Vérifié en plus sur **200 configurations tirées au hasard** (2 à 4 joueurs, tapis et engagements aléatoires, joueurs couchés contributeurs). |
+| **Ce qui reste UNSUPPORTED** | La **résolution stratégique**. Deux camps sont câblés dans `buildPostflopTree` (`HERO`/`VILL`) et dans les tables de regret de `solveTree`. Un troisième joueur ne se règle pas : il change la structure de l'arbre. |
+
+**La distinction est portée par les données, pas seulement par cette page.**
+`describeCapabilities(state)` rend `potAccounting: EXACT` et `strategicSolving:
+UNSUPPORTED` séparément, chacun avec son motif — et le motif de la seconde ne
+prétend jamais que le pot serait incalculable. Un refus qui n'énonce que ce qui
+manque laisse croire que rien ne fonctionne.
+
+**Plan de fermeture.** Un arbre à n camps et des tables de regret indexées par
+joueur, puis un CFR multiway (les garanties de convergence y sont plus faibles
+qu'en heads-up : à plus de deux joueurs, un équilibre de Nash n'est plus
+nécessairement la bonne cible). C'est un moteur, pas un réglage.
 
 ---
 
@@ -196,14 +226,33 @@ sur les flops. L'arbitrage temps/précision reste exposé (`convergenceTarget`,
 
 ---
 
-## L8 — La solution ne couvre que la rue courante
+## L8 — La solution ne couvre que la rue courante · **REFORMULÉE : deux questions, deux champs**
 
 | | |
 |---|---|
-| **Choix, pas limite subie** | `extractStreetStrategy` n'extrait que les nœuds de la rue du board. |
-| **Raison 1 — taille** | La stratégie d'un nœud de turn dépend de la carte tombée : jusqu'à 48 stratégies par nœud, puis 47 de plus à la river. |
-| **Raison 2 — justesse (§38/§39)** | « Le sizing proposé à la turn dépend du nouvel état. Ne pas réutiliser naïvement le sizing flop. » Rejouer la turn depuis une extraction figée du flop, ce serait exactement cela. |
-| **Comportement actuel** | `strategy.coversStreetsAhead: false`. Le Trainer re-résout au nouvel état à chaque transition de rue. Vérifié sur un même coup : turn → 75 % = 9 bb (pot 12) ; river → 150 % = 34 bb (pot 24). |
+| **Ce qui était annoncé** | `coversStreetsAhead: false` — « la solution ne couvre que la rue courante ». |
+| **Ce que l'audit a trouvé** | Le champ portait le nom d'une question et la réponse d'une autre. PFASE résout `streets = state.streetsRemaining` : sur un flop, la turn et la river participent **déjà** à la valeur de chaque action. |
+
+Même flop, mêmes ranges, mêmes sizings, seul l'horizon change :
+
+| profondeur | rues couvertes | EV (bb) | fréquence de check |
+|---:|---|---:|---:|
+| 1 | flop seul | 1.3275 | 57.0 % |
+| 2 | flop + turn | 3.2938 | 21.3 % |
+| 3 | flop + turn + river | 3.7401 | 18.1 % |
+
+L'EV **triple** et la stratégie s'inverse. Le champ annonçait pourtant `false`.
+
+**Les deux champs, désormais :**
+
+* `exposesStreetsAhead` — la solution stockée contient-elle les nœuds des rues
+  suivantes ? **Non**, par choix : la stratégie d'un nœud de turn dépend de la
+  carte tombée, et la re-résoudre au nouvel état est la bonne réponse (§38/§39).
+* `coversStreetsAhead` — les décisions futures ont-elles participé à la valeur de
+  la décision courante ? **Dérivé de `streetsSolved`**, jamais déclaré. Un
+  appelant ne peut pas le forcer, et concaténer quatre solutions indépendantes ne
+  le rend pas vrai : `handSolution.js` publie l'horizon **décision par décision**
+  et signale la moindre décision myope dans la chaîne.
 
 ---
 

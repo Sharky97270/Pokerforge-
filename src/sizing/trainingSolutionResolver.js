@@ -32,6 +32,7 @@ import { SizingComplexity, SIZING_COMPLEXITIES, SolveStatus, statusYieldsStrateg
 import { gameStateHash } from "./canonicalHash.js";
 import { getSolution, solutionFamily, complexitiesFor } from "./solutionStore.js";
 import { SolutionProvenance, mayClaimSolved } from "./solutionSchema.js";
+import { describeCapabilities, CapabilityLevel } from "./capabilities.js";
 
 /* Résultats possibles — un vocabulaire fermé, pour que l'UI ne bricole pas. */
 export const ResolutionOutcome = Object.freeze({
@@ -88,6 +89,12 @@ export function resolveTrainingSolution({
       available: [], compatibility: { ok: false, mismatches: support.reasons },
       provenance: null, mayClaimSolved: false,
       reason: support.reasons[0],
+      /* ── DIRE AUSSI CE QUI MARCHE ────────────────────────────────────────
+         Un refus qui n'énonce que ce qui manque laisse croire que rien ne
+         fonctionne. Sur un spot à trois joueurs, la comptabilité du pot est
+         EXACTE — side pots compris — et c'est une information utile, y compris
+         au moment où l'on refuse de servir une stratégie. */
+      capabilities: support.capabilities,
       actions: offeredActions({ canSolve: false }),
     };
   }
@@ -156,18 +163,29 @@ function usable(sol) {
   return !!sol && statusYieldsStrategy(sol.status) && !!sol.strategy && !!sol.strategy.nodes;
 }
 
-/* Le moteur sait-il RÉELLEMENT traiter cet état ? (§56) */
+/* ══════════════════════════════════════════════════════════════════════════
+   Le moteur sait-il RÉELLEMENT traiter cet état ? (§56)
+
+   La question n'a pas UNE réponse, et n'en rendre qu'une était trompeur. Sur un
+   spot à trois joueurs, l'ancien motif — « le moteur ne construit qu'un arbre
+   heads-up » — laissait entendre que PokerForge ne savait rien en faire. Il sait
+   au contraire en régler le pot exactement, side pots compris ; ce qu'il ne sait
+   pas, c'est en résoudre la STRATÉGIE.
+
+   `describeCapabilities` répond capacité par capacité. Ce qui décide ici de
+   servir ou non une solution stratégique reste, évidemment, la capacité
+   stratégique — mais le rapport transporte les autres, pour que l'écran puisse
+   dire ce qui MARCHE au lieu de ne dire que ce qui manque.
+   ══════════════════════════════════════════════════════════════════════════ */
 function supportCheck(state) {
-  const reasons = [];
-  if (!state) return { ok: false, reasons: ["état de jeu absent"] };
-  const live = (state.players || []).filter(p => !p.folded);
-  if (live.length !== 2) {
-    reasons.push(`le moteur ne construit qu'un arbre heads-up — ${live.length} joueurs encore dans le coup (une solution HU ne sert PAS de vérité pour un spot multiway)`);
-  }
-  if (state.street === "PREFLOP") {
-    reasons.push("PFASE résout le postflop ; le préflop passe par le moteur push/fold et les charts");
-  }
-  return { ok: reasons.length === 0, reasons };
+  if (!state) return { ok: false, reasons: ["état de jeu absent"], capabilities: null };
+  const caps = describeCapabilities(state);
+  const reasons = caps.strategicSolving.level === CapabilityLevel.SUPPORTED
+    ? []
+    : (caps.strategicSolving.reasons && caps.strategicSolving.reasons.length
+      ? caps.strategicSolving.reasons.slice()
+      : [caps.strategicSolving.reason]);
+  return { ok: reasons.length === 0, reasons, capabilities: caps };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

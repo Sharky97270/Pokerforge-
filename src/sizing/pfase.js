@@ -374,7 +374,7 @@ export function getTrainingNode(solutionOrId, path = [], { handClass = null } = 
   if (!entry) {
     return {
       ok: false,
-      reason: sol.strategy && sol.strategy.coversStreetsAhead === false && (path || []).length
+      reason: sol.strategy && sol.strategy.exposesStreetsAhead !== true && (path || []).length
         ? "nœud absent : cette solution ne couvre que la rue courante — re-résoudre au nouvel état (§38/§39)"
         : "nœud absent de la solution",
     };

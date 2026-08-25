@@ -91,7 +91,9 @@ import { mulberry32 } from "./equity.js";
 /* Résout l'arbre postflop pour un board de 3 à 5 cartes. */
 export function solveTree(heroList,villList,board,opts={}){
   const iters=opts.iters||600;
-  const startPot=opts.startPot||6;
+  /* `??` et non `||` : un arbre PRÉFLOP sans antes a un pot mort de ZÉRO, et
+     `0 || 6` vaut 6. L écart passerait pour une EV, pas pour un défaut. */
+  const startPot=opts.startPot??6;
   const initLen=board.length;
   const need=5-initLen;                       // cartes de board à tirer (0..2)
   const rng=mulberry32((opts.seed??123457)>>>0);
@@ -110,7 +112,14 @@ export function solveTree(heroList,villList,board,opts={}){
        lignes plus loin — un message qui masque complètement la vraie cause. */
     throw new Error("rake et ICM/PKO ne se combinent pas : l'utilité ICM transforme un TRANSFERT de jetons entre deux joueurs, or le rake en fait sortir une part de la table. Aucune convention publiée ne fonde ce mélange — résoudre en chip-EV, ou sans rake.");
   }
-  const tree=buildPostflopTree({...opts,startPot,streets:opts.streets||1,ipProbe:opts.ipProbe!==false});
+  /* ── UN ARBRE DÉJÀ CONSTRUIT PEUT ÊTRE FOURNI ────────────────────────────
+     Le solveur construisait toujours son arbre lui-même, ce qui l enfermait
+     dans la forme postflop. Un arbre PRÉFLOP a une racine à contributions
+     inégales et un calendrier de cartes différent : il ne peut pas naître ici.
+     Il est donc construit ailleurs (`preflopTree.js`) et passé tel quel — le
+     reste du solveur ne fait aucune hypothèse sur la façon dont l arbre est né,
+     seulement sur les champs que portent ses nœuds. */
+  const tree=opts.tree||buildPostflopTree({...opts,startPot,streets:opts.streets||1,ipProbe:opts.ipProbe!==false});
   const nH=heroList.length,nV=villList.length;
   const wH=heroList.map(e=>e.w??1),wV=villList.map(e=>e.w??1);
 
@@ -131,11 +140,51 @@ export function solveTree(heroList,villList,board,opts={}){
       }}
   };
   const used=new Uint8Array(52);
-  const sampleBoard=()=>{
+  const tirerBoard=()=>{
     used.fill(0);for(const c of board)used[c]=1;
     const b=board.slice();
     while(b.length<5){const c=(rng()*52)|0;if(!used[c]){used[c]=1;b.push(c);}}
     return b;
+  };
+  /* ── ÉCHANTILLON DE BOARDS BORNÉ (abstraction déclarée) ───────────────────
+     Les tables de regret sont indexées par le CONTEXTE de runout — les cartes
+     tombées depuis le début de l'arbre. Sur un solve postflop ce contexte est
+     borné : le board de départ est fixé, seules la turn et la river varient.
+
+     Depuis le PRÉFLOP il ne l'est plus. Chaque itération tire un flop neuf,
+     donc un contexte neuf, donc de nouvelles tables — indéfiniment. Mesuré : un
+     arbre préflop à 20 bb avec trois rues de continuation épuise 4 Go de tas en
+     une cinquantaine de secondes. Ce n'est pas une fuite : c'est la taille du
+     problème.
+
+     `boardPool` fixe un ensemble de K boards, tiré une fois avec la graine du
+     solve et réutilisé à chaque itération. Le contexte redevient borné, et le
+     coût mémoire avec lui. C'est une ABSTRACTION DE BOARDS : la stratégie
+     obtenue est celle du jeu restreint à ces K runouts, pas celle du jeu
+     complet. La solution doit le déclarer — voir `boardAbstraction` dans le
+     résultat — et rien ne doit présenter le résultat comme exact. */
+  const poolSize=Math.max(0,Math.round(opts.boardPool||0));
+  const pool=[];
+  /* ── LE TIRAGE DES BOARDS A SA PROPRE GRAINE ─────────────────────────────
+     Sans cela, comparer deux solves à graines différentes compare deux
+     SOUS-JEUX différents, et le bruit mesuré (2.07 bb sur un préflop à 20
+     runouts) écrase tout écart réel entre sizings.
+
+     `boardSeed` fixe l ensemble des runouts ; `seed` ne fait plus varier que
+     l ordre d échantillonnage du CFR. On peut alors mesurer séparément :
+     le bruit de CONVERGENCE (même sous-jeu, graines différentes) et le bruit
+     d ÉCHANTILLON DE BOARDS (sous-jeux différents). Ce sont deux incertitudes
+     distinctes, et les additionner en une seule les rend toutes deux inutiles. */
+  if(poolSize>0&&need>0){
+    const brng=mulberry32(((opts.boardSeed??opts.seed??123457)>>>0));
+    const tirerAvec=(r)=>{used.fill(0);for(const c of board)used[c]=1;const b=board.slice();
+      while(b.length<5){const c=(r()*52)|0;if(!used[c]){used[c]=1;b.push(c);}}return b;};
+    for(let i=0;i<poolSize;i++)pool.push(tirerAvec(brng));
+  }
+  let poolIdx=0;
+  const sampleBoard=()=>{
+    if(!pool.length)return tirerBoard();
+    const b=pool[poolIdx%pool.length];poolIdx++;return b;
   };
   let curB=board.slice();
   if(need===0){curB=board.slice();computeE(curB);}
@@ -232,7 +281,14 @@ export function solveTree(heroList,villList,board,opts={}){
   // Clé de contexte d'un nœud : cartes du board visibles à sa street, au-delà du
   // board initial. La street 0 de l'arbre = le board initial (flop OU turn OU river),
   // donc visibles à la street s = initLen + s.
-  const keyFor=(node)=>{const vis=initLen+node.street;return vis<=initLen?"":curB.slice(initLen,Math.min(5,vis)).join(",");};
+  /* ── LE CONTEXTE D'UN NŒUD, C'EST CE QUI EST TOMBÉ DEPUIS LE DÉBUT ────────
+     `node.cardsVisible` est le nombre de cartes de board visibles AU nœud,
+     compté depuis le début de l'arbre. Un arbre postflop le fait valoir
+     `street` (une carte par rue) et l'on retrouve exactement l'ancien calcul ;
+     un arbre préflop le fait valoir 0 puis 3 puis 4 puis 5, parce que le flop
+     tombe en une fois. Le repli sur `street` préserve les arbres anciens. */
+  const visOf=(node)=>initLen+(node.cardsVisible!=null?node.cardsVisible:node.street);
+  const keyFor=(node)=>{const vis=visOf(node);return vis<=initLen?"":curB.slice(initLen,Math.min(5,vis)).join(",");};
   const getTbl=(store,node,key,nc,na)=>{
     const m=store[node.id];let t=m.get(key);
     if(!t){t=Array.from({length:nc},()=>new Float64Array(na));m.set(key,t);}
@@ -265,14 +321,24 @@ export function solveTree(heroList,villList,board,opts={}){
       return{vH,vV};
     }
     if(node.kind==="chance"){
-      const ci=initLen+node.street;            // index de la carte révélée pour street+1
-      if(ci>=initLen&&ci<5){
-        // Carte échantillonnée : les combos qui la contiennent n'existent pas sur ce runout.
-        const c=curB[ci];
-        const rh=Float64Array.from(reachH),rv=Float64Array.from(reachV);
-        for(let i=0;i<nH;i++){const h=heroList[i].cards;if(h[0]===c||h[1]===c)rh[i]=0;}
-        for(let j=0;j<nV;j++){const v=villList[j].cards;if(v[0]===c||v[1]===c)rv[j]=0;}
-        return traverse(node.next,rh,rv,tw);
+      /* ── UNE TRANSITION PEUT RÉVÉLER PLUSIEURS CARTES ─────────────────────
+         Turn et river en découvrent une ; **le flop en découvre trois**. Le
+         code ne lisait qu'un seul indice (`initLen + street`), ce qui suffisait
+         tant que le moteur ne partait jamais d'avant le flop.
+
+         Le nœud de chance porte maintenant l'intervalle qu'il révèle. Sur un
+         arbre postflop il vaut [street, street+1[ et le comportement est
+         identique au précédent, carte pour carte. Le repli est explicite pour
+         que les arbres construits sans ces champs continuent de fonctionner. */
+      const from=initLen+(node.cardsBefore!=null?node.cardsBefore:node.street);
+      const to=Math.min(5,initLen+(node.cardsAfter!=null?node.cardsAfter:node.street+1));
+      if(to>from){
+        // Cartes échantillonnées : les combos qui les contiennent n'existent pas sur ce runout.
+        const rh=Float64Array.from(reachH),rv=Float64Array.from(reachV);
+        for(let k=from;k<to;k++){const c=curB[k];
+          for(let i=0;i<nH;i++){const h=heroList[i].cards;if(h[0]===c||h[1]===c)rh[i]=0;}
+          for(let j=0;j<nV;j++){const v=villList[j].cards;if(v[0]===c||v[1]===c)rv[j]=0;}}
+        return traverse(node.next,rh,rv,tw);
       }
       return traverse(node.next,reachH,reachV,tw);
     }
@@ -338,6 +404,24 @@ export function solveTree(heroList,villList,board,opts={}){
     /* Board et graine CONSERVÉS : `nodeActionEVs` en a besoin pour rejouer
        exactement les mêmes runouts que le solve (§36/§49 — l'EV par action). */
     board:board.slice(),seed:(opts.seed??123457)>>>0,
+    /* ── COMBIEN DE RUES DE MISE CE SOLVE A-T-IL RÉELLEMENT VALORISÉES ? ──────
+       Ce n'est pas une métadonnée d'affichage : c'est ce qui décide si la valeur
+       d'une décision de flop tient compte de la turn et de la river, ou seulement
+       du flop. Mesuré sur un même flop, mêmes ranges, mêmes sizings :
+
+         profondeur 1  →  EV 1.3275 bb  ·  check 57.0 %
+         profondeur 2  →  EV 3.2938 bb  ·  check 21.3 %
+         profondeur 3  →  EV 3.7401 bb  ·  check 18.1 %
+
+       L'EV triple et la stratégie s'inverse. Une solution qui ne transporte pas
+       cette information laisse ses consommateurs supposer l'un ou l'autre. */
+    streetsSolved:Math.max(1,opts.streets||1),
+    /* ── L'ABSTRACTION EST DÉCLARÉE, PAS DEVINÉE ─────────────────────────────
+       `null` quand le solve a tiré ses runouts librement. Un objet quand il a
+       été restreint à un échantillon fixe : la stratégie décrit alors le jeu
+       restreint à ces boards, et aucun affichage ne doit la présenter autrement. */
+    boardAbstraction:pool.length?{kind:"BOARD_SAMPLE",boards:pool.length,seed:(opts.seed??123457)>>>0,
+      note:`continuation résolue sur un échantillon FIXE de ${pool.length} runouts, tiré avec la graine du solve. La stratégie est exacte sur ce sous-jeu, approchée sur le jeu complet.`}:null,
     /* VERROUS (§19/§45) : une solution verrouillée n'est pas un équilibre. Elle
        doit le porter, sans quoi rien n'empêche un écran de l'appeler « GTO ». */
     lockedNodeCount:Object.keys(locks).length,
@@ -599,7 +683,9 @@ export function nodeActionEVs(sol, path = [], { samples = null } = {}) {
       } }
   };
   let curB = board.slice();
-  const keyFor = (n) => { const vis = initLen + n.street; return vis <= initLen ? "" : curB.slice(initLen, Math.min(5, vis)).join(","); };
+  /* Même règle que dans `traverse` : la position du nœud sur le board, avec
+     repli sur `street` pour les arbres qui ne la portent pas. */
+  const keyFor = (n) => { const vis = initLen + (n.cardsVisible != null ? n.cardsVisible : n.street); return vis <= initLen ? "" : curB.slice(initLen, Math.min(5, vis)).join(","); };
 
   function walk(n, oppReach) {
     if (n.kind === "terminal") {
@@ -618,12 +704,13 @@ export function nodeActionEVs(sol, path = [], { samples = null } = {}) {
       return v;
     }
     if (n.kind === "chance") {
-      const ci = initLen + n.street;
-      if (ci >= initLen && ci < 5) {
-        const c = curB[ci];
+      const from = initLen + (n.cardsBefore != null ? n.cardsBefore : n.street);
+      const to = Math.min(5, initLen + (n.cardsAfter != null ? n.cardsAfter : n.street + 1));
+      if (to > from) {
         const list = p === 0 ? villList : heroList;
         const r = Float64Array.from(oppReach);
-        for (let j = 0; j < nO; j++) { const cc = list[j].cards; if (cc[0] === c || cc[1] === c) r[j] = 0; }
+        for (let k = from; k < to; k++) { const c = curB[k];
+          for (let j = 0; j < nO; j++) { const cc = list[j].cards; if (cc[0] === c || cc[1] === c) r[j] = 0; } }
         return walk(n.next, r);
       }
       return walk(n.next, oppReach);
@@ -798,7 +885,9 @@ export function strategyEV(sol, { samples = null } = {}) {
       } }
   };
   let curB = board.slice();
-  const keyFor = (n) => { const vis = initLen + n.street; return vis <= initLen ? "" : curB.slice(initLen, Math.min(5, vis)).join(","); };
+  /* Même règle que dans `traverse` : la position du nœud sur le board, avec
+     repli sur `street` pour les arbres qui ne la portent pas. */
+  const keyFor = (n) => { const vis = initLen + (n.cardsVisible != null ? n.cardsVisible : n.street); return vis <= initLen ? "" : curB.slice(initLen, Math.min(5, vis)).join(","); };
 
   /* Valeur pour le joueur 0, les deux camps jouant leur stratégie moyenne. */
   function walk(n, reachV) {
@@ -811,11 +900,12 @@ export function strategyEV(sol, { samples = null } = {}) {
       return v;
     }
     if (n.kind === "chance") {
-      const ci = initLen + n.street;
-      if (ci >= initLen && ci < 5) {
-        const c = curB[ci];
+      const from = initLen + (n.cardsBefore != null ? n.cardsBefore : n.street);
+      const to = Math.min(5, initLen + (n.cardsAfter != null ? n.cardsAfter : n.street + 1));
+      if (to > from) {
         const r = Float64Array.from(reachV);
-        for (let j = 0; j < nV; j++) { const cc = villList[j].cards; if (cc[0] === c || cc[1] === c) r[j] = 0; }
+        for (let k = from; k < to; k++) { const c = curB[k];
+          for (let j = 0; j < nV; j++) { const cc = villList[j].cards; if (cc[0] === c || cc[1] === c) r[j] = 0; } }
         return walk(n.next, r);
       }
       return walk(n.next, reachV);
