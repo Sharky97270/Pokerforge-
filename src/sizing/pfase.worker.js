@@ -93,9 +93,18 @@ function sanitize(out) {
         raises: (o.candidates.raises || []).map(stripCandidate),
         dropped: o.candidates.dropped || [],
       } : null,
-      reference: o.reference ? { ev: o.reference.ev, betKeys: o.reference.entry.betKeys, raiseKeys: o.reference.entry.raiseKeys } : null,
+      /* Défensif par nécessité : sur un ÉCHEC, l'optimisation renvoie un objet
+         partiel (pas toujours d'`entry`). Une exception ici masquerait le vrai
+         motif d'échec derrière un « Cannot read properties of undefined » —
+         c'est exactement ce qui est arrivé en QA navigateur. */
+      reference: o.reference ? {
+        ev: o.reference.ev,
+        betKeys: o.reference.entry ? o.reference.entry.betKeys : null,
+        raiseKeys: o.reference.entry ? o.reference.entry.raiseKeys : null,
+      } : null,
       ranking: (o.ranking || []).map(stripEvaluation),
       evaluations: (o.evaluations || []).map(stripEvaluation),
+      budgetNotes: o.budgetNotes || [],
       selected: o.selected ? {
         betKeys: o.selected.betKeys, raiseKeys: o.selected.raiseKeys,
         ev: o.selected.ev, metrics: o.selected.metrics,

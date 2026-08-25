@@ -1,0 +1,340 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   PFASE · PONT TRAINER (Mission §29, §31, §32, §33, §34, §36, §37, §42, §71, §90)
+
+   Traduit dans les deux sens entre le vocabulaire du Trainer (`spot`, `acts`,
+   `handLedger`) et celui de PFASE (`GameState`, `PFSolution`, `TrainingNode`).
+
+   ── LE SENS DU FLUX EST INVERSÉ PAR RAPPORT À L'EXISTANT ───────────────────
+   Aujourd'hui, le générateur de spots écrit les boutons (`acts:[{id:"BET33",
+   l:"Cbet 33%"}]`) et le solveur est ensuite invité à produire des fréquences
+   SUR CET ARBRE IMPOSÉ. §29 renverse l'ordre : la solution décide des actions,
+   l'écran les affiche.
+
+   Ce module produit donc des `acts` au FORMAT EXACT que le Trainer sait déjà
+   rendre — id, libellé, montant — mais dérivés de la solution. Aucun composant
+   n'est redessiné (§70) ; seule la SOURCE des boutons change.
+
+   ── CE QU'IL NE FAIT PAS ───────────────────────────────────────────────────
+   Il ne fabrique jamais d'action absente de la solution (§71), n'arrondit jamais
+   un sizing joué vers un sizing étudié (§34), et ne produit rien du tout quand
+   il n'y a pas de solution (§90) — il rend alors l'état « aucune solution
+   vérifiée » que l'écran doit afficher tel quel.
+
+   Module PUR.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+import { normalizeGameState, ActionType } from "./gameState.js";
+import { getTrainingNode, compareAction, sampleAction } from "./pfase.js";
+import { resolveTrainingSolution, ResolutionOutcome } from "./trainingSolutionResolver.js";
+import { EvaluationModel, EPS } from "./config.js";
+import { roundAmount } from "./sizingSpec.js";
+
+/* ── Identifiants d'action côté Trainer ────────────────────────────────────
+   Le Trainer reconnaît FOLD / CHECK / CALL / RAISE / ALLIN et une famille
+   BETxx. On conserve ce vocabulaire pour ne rien casser, mais l'identifiant est
+   désormais DÉRIVÉ du montant réel, pas d'une étiquette de template. C'est le
+   défaut C6 déjà corrigé côté Trainer, appliqué ici à la source. */
+export function trainerActionId(action, index) {
+  switch (action.actionType) {
+    case ActionType.FOLD: return "FOLD";
+    case ActionType.CHECK: return "CHECK";
+    case ActionType.CALL: return "CALL";
+    case ActionType.ALL_IN: return "ALLIN";
+    case ActionType.RAISE: return index > 0 ? `RAISE${index}` : "RAISE";
+    case ActionType.BET: default: {
+      const pct = action.potFraction != null ? Math.round(action.potFraction * 100) : null;
+      return pct != null ? `BET${pct}` : `BET${index}`;
+    }
+  }
+}
+
+/* Libellé lisible — dérivé du MONTANT, jamais d'un identifiant (§C6/§34). */
+export function trainerActionLabel(action) {
+  const bb = fmt(action.toBb);
+  switch (action.actionType) {
+    case ActionType.FOLD: return "Fold";
+    case ActionType.CHECK: return "Check";
+    case ActionType.CALL: return `Call ${fmt(action.additionalBb)}bb`;
+    case ActionType.ALL_IN: return `Tapis ${bb}bb`;
+    case ActionType.RAISE: return `Relancer à ${bb}bb`;
+    case ActionType.BET: default: {
+      const pct = action.potFraction != null ? Math.round(action.potFraction * 100) : null;
+      return pct != null ? `Bet ${pct}% · ${bb}bb` : `Bet ${bb}bb`;
+    }
+  }
+}
+const fmt = (v) => {
+  const n = roundAmount(v);
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10);
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   spotToGameState — spot Trainer + ledger → état canonique PFASE.
+
+   Le LEDGER est la source des tapis et du pot : c'est lui qui, côté Trainer, a
+   déjà été rendu cohérent (une seule comptabilité de main). On ne recalcule
+   rien ici — on traduit.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function spotToGameState(spot, ledger, opts = {}) {
+  if (!spot) return { ok: false, errors: ["spot absent"], state: null };
+  const seats = (ledger && ledger.seats) || {};
+  const positions = Object.keys(seats);
+  const heroPos = spot.hpos;
+
+  /* Sans ledger utilisable, on construit un état minimal heads-up à partir du
+     spot. C'est le cas des spots de template, pour lesquels le Trainer n'a pas
+     encore ouvert de main complète. */
+  const players = positions.length
+    ? positions.map(p => ({
+      id: p, position: p,
+      stack: num(seats[p].remaining),
+      committedStreet: num(seats[p].street),
+      committedTotal: num(seats[p].total),
+      folded: !!seats[p].folded,
+      allIn: !!seats[p].allIn,
+      isHero: p === heroPos,
+    }))
+    : [
+      { id: heroPos || "HERO", position: heroPos || "HERO", stack: parseStack(spot.stack), committedStreet: 0, isHero: true },
+      { id: spot.vpos || "VILL", position: spot.vpos || "VILL", stack: parseStack(spot.stack), committedStreet: 0 },
+    ];
+
+  const streetContrib = players.reduce((a, p) => a + p.committedStreet, 0);
+  const potTotal = ledger && Number.isFinite(Number(ledger.pot)) ? Number(ledger.pot) : num(spot.pot);
+  const deadPot = Math.max(0, roundAmount(potTotal - streetContrib));
+
+  return normalizeGameState({
+    gameType: opts.gameType || (String(spot.fmt || "").toLowerCase().includes("tourn") ? "TOURNAMENT" : "CASH"),
+    format: opts.format || spot.fmt || null,
+    street: spot.street,
+    board: Array.isArray(spot.board) ? spot.board : [],
+    blinds: opts.blinds || { sb: 0.5, bb: 1 },
+    ante: opts.ante || 0,
+    minBet: opts.minBet || 1,
+    rake: opts.rake || null,
+    players,
+    actorId: heroPos || (players.find(p => p.isHero) || players[0]).id,
+    deadPot,
+    lastRaiseIncrement: opts.lastRaiseIncrement,
+    actionHistory: normalizeHistory(spot),
+    evaluationModel: opts.evaluationModel || EvaluationModel.CHIP_EV,
+    icmParams: opts.icmParams || null,
+    pkoParams: opts.pkoParams || null,
+  });
+}
+
+function normalizeHistory(spot) {
+  const raw = Array.isArray(spot.actionHistory) ? spot.actionHistory
+    : Array.isArray(spot.preActions) ? spot.preActions : [];
+  return raw.map(a => {
+    const t = String(a?.actionType || a?.action || a?.type || a?.id || "").toUpperCase();
+    /* §37 — traduction EXPLICITE vers les types stricts. Les libellés du Trainer
+       (« 3-bet », « squeeze », « open ») sont tous des RAISE ; les confondre avec
+       des BET produirait un type de pot faux. */
+    const actionType =
+      /FOLD/.test(t) ? ActionType.FOLD
+        : /CHECK/.test(t) ? ActionType.CHECK
+          : /CALL/.test(t) ? ActionType.CALL
+            : /ALL.?IN|SHOVE|JAM|PUSH/.test(t) ? ActionType.ALL_IN
+              : /RAISE|3BET|4BET|5BET|SQUEEZE|OPEN|ISO/.test(t) ? ActionType.RAISE
+                : ActionType.BET;
+    return { street: a?.street, position: a?.position, actionType, size: a?.amountBb ?? a?.amount ?? a?.size ?? 0 };
+  });
+}
+
+const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+function parseStack(stack) {
+  const n = Number(String(stack ?? "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 100;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   solutionActsForSpot — LE POINT CENTRAL (§31, §32, §33, §71).
+
+   Rend les `acts` que le Trainer doit afficher, dérivés de la solution active.
+
+   Single Size → CHECK + un seul BET.
+   Simple      → CHECK + deux BET, issus du MÊME arbre optimisé.
+   Full        → toutes les actions de la solution.
+
+   Aucun ajout, aucune suppression : la liste est celle du nœud.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function solutionActsForSpot({ solution, path = [], handClass = null } = {}) {
+  const node = getTrainingNode(solution, path, { handClass });
+  if (!node.ok) {
+    return { ok: false, reason: node.reason, acts: [], node: null };
+  }
+  const acts = node.actions.map((a, i) => {
+    const id = trainerActionId(a, i);
+    return {
+      id,
+      l: trainerActionLabel(a),
+      s: `${fmt(a.toBb)}bb`,
+      /* Grandeurs EXPLOITABLES par le moteur du Trainer — il ne relit jamais le
+         libellé pour retrouver un montant (défaut C4/C6 déjà corrigé). */
+      amountBb: a.toBb,
+      additionalBb: a.additionalBb,
+      actionType: a.actionType,
+      potFraction: a.potFraction,
+      solverLabel: a.label,
+      specKey: a.specKey,
+      specLabel: a.specLabel,
+    };
+  });
+
+  /* §36 — le retour d'entraînement a besoin des fréquences ET de leur source. */
+  const freq = {};
+  node.actions.forEach((a, i) => { freq[trainerActionId(a, i)] = Math.round((a.frequency || 0) * 1000) / 10; });
+  let okIdx = 0, best = -1;
+  node.actions.forEach((a, i) => { if ((a.frequency || 0) > best) { best = a.frequency || 0; okIdx = i; } });
+
+  return {
+    ok: true,
+    acts, freq, ok_index: okIdx,
+    node,
+    /* Ce que l'écran doit afficher AVEC les boutons (§18/§91). */
+    provenance: node.provenance,
+    provenanceMeta: node.provenanceMeta,
+    complexity: node.complexity,
+    mode: node.mode,
+    status: node.status,
+    partialReasons: node.partialReasons,
+    frequencySource: node.frequencySource,
+    frequencyNote: node.frequencyNote,
+    measurement: node.measurement,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   trainerVerdict (§34, §36, §37) — le retour après la décision d'Hero.
+
+   Rend, quand — et seulement quand — l'information existe :
+     action Hero · action de la solution · sizing retenu · fréquence · EV · perte
+   ══════════════════════════════════════════════════════════════════════════ */
+export function trainerVerdict({ solution, path = [], handClass = null, heroAction } = {}) {
+  if (!heroAction) return { ok: false, reason: "aucune action Hero" };
+  const cmp = compareAction({
+    solution, path, handClass,
+    actionType: heroAction.actionType,
+    sizeBb: heroAction.toBb ?? heroAction.amountBb ?? null,
+    sizeIsTotal: true,
+  });
+  if (!cmp.ok) return { ok: false, reason: cmp.reason };
+
+  const sol = typeof solution === "string" ? null : solution;
+  const ranking = sol && sol.actionRanking ? sol.actionRanking : null;
+
+  return {
+    ok: true,
+    /* §37 — le type et la taille restent DEUX champs distincts jusqu'au bout. */
+    heroAction: { actionType: heroAction.actionType, sizeBb: heroAction.toBb ?? heroAction.amountBb ?? null },
+    solutionAction: cmp.bestAction ? {
+      actionType: cmp.bestAction.actionType,
+      sizeBb: cmp.bestAction.toBb,
+      specLabel: cmp.bestAction.specLabel,
+      frequency: cmp.bestAction.frequency,
+    } : null,
+    inTree: cmp.inTree,
+    matched: cmp.matched || null,
+    nearestStudied: cmp.nearestStudied || null,
+    verdict: cmp.verdict,
+    /* §36 — « uniquement lorsque ces informations sont disponibles ». */
+    evAvailable: cmp.evAvailable,
+    evNote: cmp.evNote || cmp.reason || null,
+    /* §15 — l'écart d'EV entre SIZINGS, lui, est mesuré et disponible. */
+    sizingRanking: ranking,
+    evLossOfSolution: sol && sol.simplificationMetrics ? sol.simplificationMetrics.absoluteEVLoss : null,
+    evLossDistinguishable: sol ? sol.distinguishable !== false : null,
+    frequencySource: cmp.frequencySource,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   villainActionFromSolution (§43, §68)
+
+   « Les actions Villain doivent provenir de la stratégie du nœud. Échantillonner
+   correctement. Ne pas choisir systématiquement l'action majoritaire. »
+
+   `rng` est injectable : le mode déterministe de QA (§68) fournit un générateur
+   seedé, et la séquence devient rejouable à l'identique.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function villainActionFromSolution({ solution, path = [], handClass = null, rng = Math.random } = {}) {
+  const node = getTrainingNode(solution, path, { handClass });
+  if (!node.ok) return { ok: false, reason: node.reason };
+  const a = sampleAction(node, rng);
+  if (!a) return { ok: false, reason: "aucune action au nœud" };
+  return {
+    ok: true,
+    actionType: a.actionType,
+    toBb: a.toBb, additionalBb: a.additionalBb,
+    potFraction: a.potFraction, specLabel: a.specLabel,
+    frequency: a.frequency,
+    label: trainerActionLabel(a),
+    /* La distribution complète voyage : le Coach doit pouvoir dire « il misait
+       36 % du temps » et non « il a misé ». */
+    distribution: node.actions.map(x => ({ actionType: x.actionType, toBb: x.toBb, frequency: x.frequency })),
+  };
+}
+
+/* Générateur pseudo-aléatoire SEEDÉ (§68) — même graine, même partie. */
+export function seededRng(seed) {
+  let a = (seed >>> 0) || 1;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   prepareTrainerSpot — l'enchaînement complet, tel que §29 l'impose :
+
+     Trainer → request solution → Solution Resolver → verified strategy
+             → legal actions → Trainer UI
+
+   Rend soit des actions vérifiées, soit un état « aucune solution » explicite
+   avec ses options (§90). Jamais d'actions fabriquées.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function prepareTrainerSpot({
+  spot, ledger, complexity, trainingMode = "gto",
+  studySpec, solverConfig, handClass = null, path = [], stateOpts,
+} = {}) {
+  const g = spotToGameState(spot, ledger, stateOpts || {});
+  if (!g.ok) {
+    return { ok: false, outcome: "INVALID_STATE", reason: g.errors[0], problems: g.errors, acts: [] };
+  }
+  const res = resolveTrainingSolution({
+    state: g.state,
+    heroRange: spot.heroRange || null,
+    villainRange: spot.villainRange || null,
+    studySpec, solverConfig, complexity, trainingMode,
+  });
+  if (res.outcome === ResolutionOutcome.NONE || res.outcome === ResolutionOutcome.UNSUPPORTED) {
+    return {
+      ok: false, outcome: res.outcome, reason: res.reason,
+      /* §90 — le message EXACT que l'écran doit montrer, et les suites offertes. */
+      message: "No verified solution available",
+      offeredActions: res.actions,
+      available: res.available,
+      state: g.state, acts: [],
+    };
+  }
+  const acts = solutionActsForSpot({ solution: res.solution, path, handClass });
+  if (!acts.ok) {
+    return { ok: false, outcome: "NODE_MISSING", reason: acts.reason, state: g.state, acts: [] };
+  }
+  return {
+    ok: true, outcome: res.outcome,
+    state: g.state,
+    solution: res.solution,
+    solutionId: res.solution.solutionId,
+    complexity: res.complexity,
+    requestedComplexity: res.requestedComplexity,
+    complexityDowngraded: res.outcome === ResolutionOutcome.OTHER_COMPLEXITY,
+    downgradeReason: res.reason || null,
+    compatibility: res.compatibility,
+    mayClaimSolved: res.mayClaimSolved,
+    ...acts,
+  };
+}

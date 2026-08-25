@@ -1,0 +1,77 @@
+{
+  "ok": true,
+  "steps": [
+    {
+      "step": "onglet SharkSolver",
+      "ok": true
+    },
+    {
+      "step": "board saisi",
+      "ok": true,
+      "board": "As7d2c9hKs"
+    },
+    {
+      "step": "panneau Betting Structure présent",
+      "ok": true
+    },
+    {
+      "step": "mode Single Size",
+      "ok": true
+    },
+    {
+      "step": "solve lancé",
+      "ok": true
+    },
+    {
+      "step": "résultat affiché",
+      "ok": true,
+      "ms": 59649
+    }
+  ],
+  "errors": [],
+  "console": [],
+  "panel": {
+    "panelPresent": true,
+    "badge": "PF SOLVED",
+    "status": "PARTIAL",
+    "complexity": "SINGLE",
+    "retenu": "33%",
+    "compares": "JAM,33%,75%,150%",
+    "perteEv": "-0.001",
+    "plancher": "0.0102",
+    "distinguable": "false",
+    "famille": null,
+    "aucuneSolution": false,
+    "motifEchec": null,
+    "partiel": true,
+    "avertissementBruit": true,
+    "ecartSizings": false,
+    "exploitabilite": "Exploitabilité 0.0183 bb (NashConv exact)",
+    "modes": [
+      "Automatic",
+      "Dynamic",
+      "Single Size",
+      "Fixed"
+    ],
+    "niveaux": [
+      "Single Size",
+      "Simple",
+      "Advanced",
+      "Full"
+    ],
+    "presets": [
+      "PF Automatic",
+      "PF Single Size",
+      "PF Simple",
+      "PF Advanced",
+      "PF Full"
+    ]
+  },
+  "rect": {
+    "x": 438,
+    "y": 194.875,
+    "width": 846,
+    "height": 725.53125
+  },
+  "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\sizing-panel.png"
+}

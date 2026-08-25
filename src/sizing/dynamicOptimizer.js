@@ -53,6 +53,13 @@ import { gameStateHash, evaluationKey } from "./canonicalHash.js";
 import { EPS } from "./config.js";
 import { roundEv } from "./sizingSpec.js";
 
+/* Facteur appliqué à la dérive de convergence pour en faire un plancher de
+   mesure lorsque NashConv est indisponible (board incomplet). La dérive mesure
+   le dernier pas ; la distance restante en vaut plusieurs. 2 est un choix
+   CONSERVATEUR et DÉCLARÉ, pas une constante magique — quand NashConv existe,
+   c'est lui qui prime, et il est exact. */
+export const DRIFT_SAFETY_FACTOR = 2;
+
 /* Cache d'évaluation (§20, premier étage). Volontairement injectable : les tests
    doivent pouvoir partir d'un cache vide, et le Worker a le sien. */
 export function createEvaluationCache() {
@@ -143,6 +150,21 @@ export function optimizeBettingTree({
     return r;
   };
 
+  /* ── BUDGET TEMPS, À DEUX ÉTAGES ────────────────────────────────────────
+     L'étage 1 (chaque candidat évalué seul) est le MINIMUM VITAL : sans lui, il
+     n'y a aucun classement, donc rien à sélectionner. Le couper revient à ne
+     rien rendre du tout — c'est ce qui s'est produit au premier essai en
+     navigateur sur un flop : le budget était consommé par la référence et son
+     escalade de convergence, l'étage 1 était intégralement sauté, et
+     l'optimisation échouait au lieu de rendre un résultat partiel.
+     Le budget nominal borne donc l'étage 2 (les sous-ensembles, qui affinent) ;
+     un plafond DUR, plus large, protège l'étage 1 contre les cas extrêmes. */
+  const budgetMs = cfg.timeBudgetMs;
+  const hardBudgetMs = budgetMs == null ? null : budgetMs * 4;
+  const budgetSpent = () => budgetMs != null && Date.now() - t0 > budgetMs;
+  const hardBudgetSpent = () => hardBudgetMs != null && Date.now() - t0 > hardBudgetMs;
+  const budgetNotes = [];
+
   try {
     /* ── 2. ARBRE DE RÉFÉRENCE (§9) ─────────────────────────────────────── */
     progress(SolveStatus.SOLVING, { step: "référence" });
@@ -183,18 +205,29 @@ export function optimizeBettingTree({
        laisse la précision demandée telle quelle. Les confondre revenait à
        doubler en silence la précision que l'appelant avait choisie. */
     const wantProbe = effCfg.convergenceProbe !== false;
+    /* CRITÈRE D'ARRÊT — le meilleur disponible, et il n'est pas toujours le même :
+         board complet  → NashConv, qui BORNE l'écart à l'équilibre (exact) ;
+         board incomplet → la dérive d'EV entre N et 2N, faute de mieux.
+       Viser la dérive quand NashConv existe reviendrait à ignorer une mesure
+       rigoureuse au profit d'une extrapolation. */
+    const errorOf = (solve, d) => {
+      const nc = solve && solve.convergence ? solve.convergence.nashConv : null;
+      return nc != null ? nc : (d == null ? null : d * DRIFT_SAFETY_FACTOR);
+    };
     while (wantProbe) {
       if (signal && signal.aborted) throw new SolveCancelled();
       const doubled = runSolve(refSpec, { maxIterations: effCfg.maxIterations * 2 }, "convergence-probe");
       if (!doubled.ok) break;
       drift = Math.abs(doubled.ev - refSolve.ev);
       if (!autoEscalate) break;                       // mesuré, mais on n'escalade pas
+      if (budgetSpent()) { budgetNotes.push("escalade de convergence arrêtée par le budget temps"); break; }
       /* On adopte la mesure la plus précise : elle est strictement meilleure. */
       effCfg = { ...effCfg, maxIterations: effCfg.maxIterations * 2 };
       refSolve = doubled;
       escalations++;
-      if (drift <= target || effCfg.maxIterations * 2 > ceiling) break;
-      progress(SolveStatus.SOLVING, { step: "convergence", iterations: effCfg.maxIterations, drift });
+      const err = errorOf(refSolve, drift);
+      if (err == null || err <= target || effCfg.maxIterations * 2 > ceiling) break;
+      progress(SolveStatus.SOLVING, { step: "convergence", iterations: effCfg.maxIterations, drift, exploitability: refSolve.convergence ? refSolve.convergence.nashConv : null });
     }
     const referenceEV = refSolve.ev;
 
@@ -212,9 +245,30 @@ export function optimizeBettingTree({
       }
     }
     const seedNoise = probes.length ? Math.max(...probes.map(v => Math.abs(v - referenceEV))) : 0;
-    /* Le plancher de mesure est le PIRE des deux : on ne peut pas être plus
-       précis que la moins bonne de ses sources d'incertitude. */
-    const noiseFloor = roundEv(Math.max(seedNoise, drift == null ? 0 : drift));
+
+    /* ── LE PLANCHER DE MESURE, ET POURQUOI LA DÉRIVE NE SUFFIT PAS ────────
+       La dérive entre N et 2N itérations mesure le DERNIER pas de convergence,
+       pas la distance restante à l'équilibre. Pour une convergence en 1/√T, la
+       somme des pas restants vaut plusieurs fois le dernier : mesuré sur un
+       river à ranges réduites, la dérive annonçait 0.003 bb là où l'écart réel
+       à l'équilibre valait ~0.011 bb — et une perte d'EV négative de 0.011 était
+       alors déclarée « distinguable », c'est-à-dire qu'un Single Size battait le
+       solve complet. Faux, et exactement le genre d'affirmation que §0 interdit.
+
+       Sur BOARD COMPLET, on dispose de mieux qu'une extrapolation : NashConv est
+       calculable exactement, et dans un jeu à somme nulle il BORNE l'écart entre
+       l'EV d'un profil et la valeur du jeu. L'erreur sur une DIFFÉRENCE d'EV est
+       donc bornée par la somme des deux NashConv (référence + sous-arbre) — c'est
+       le plancher rigoureux, appliqué par évaluation dans `makeEvaluation`.
+
+       Hors board complet, NashConv est indisponible ; on retombe sur la dérive
+       assortie d'un facteur de sécurité déclaré. */
+    const refNashConv = refSolve.convergence ? refSolve.convergence.nashConv : null;
+    const noiseFloor = roundEv(Math.max(
+      seedNoise,
+      drift == null ? 0 : drift * DRIFT_SAFETY_FACTOR,
+      refNashConv == null ? 0 : refNashConv,
+    ));
 
     /* ── 3. AUCUNE SIMPLIFICATION À FAIRE (§4/§5) ─────────────────────────
        Deux cas distincts mènent au même endroit :
@@ -250,11 +304,13 @@ export function optimizeBettingTree({
     const stage1 = planStageOne({ betCandidates: cand.bets, raiseCandidates: cand.raises });
     const evaluations = [];
     const evByBetKey = new Map(), evByRaiseKey = new Map();
+    let stage1Skipped = 0;
     for (const entry of stage1) {
       if (signal && signal.aborted) throw new SolveCancelled();
+      if (hardBudgetSpent()) { stage1Skipped++; continue; }
       const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry });
       const r = runSolve(spec, null, "stage1");
-      const rec = makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor);
+      const rec = makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor, refNashConv);
       evaluations.push(rec);
       if (!r.ok) continue;
       if (entry.dimension === "bet") evByBetKey.set(entry.betKeys[0], r.ev);
@@ -275,15 +331,19 @@ export function optimizeBettingTree({
         betCandidates: cand.bets, raiseCandidates: cand.raises,
         rankedBetKeys, rankedRaiseKeys, complexity: effComplexity, budget: bud,
       });
+      let stage2Skipped = 0;
       for (const entry of plan.entries) {
         if (signal && signal.aborted) throw new SolveCancelled();
         if (evaluations.some(e => e.id === entry.id)) continue;   // déjà mesuré à l'étage 1
+        if (budgetSpent()) { stage2Skipped++; continue; }
         const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry });
         const r = runSolve(spec, null, "stage2");
-        evaluations.push(makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor));
+        evaluations.push(makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor, refNashConv));
         progress(SolveStatus.OPTIMIZING_SIZINGS, { step: "étage 2", done: evaluations.length, total: stage1.length + plan.entries.length });
       }
+      if (stage2Skipped) budgetNotes.push(`${stage2Skipped} sous-ensemble(s) non évalué(s) : budget temps de ${budgetMs} ms atteint`);
     }
+    if (stage1Skipped) budgetNotes.push(`${stage1Skipped} candidat(s) non évalué(s) seuls : plafond temps dur de ${hardBudgetMs} ms atteint`);
 
     /* ── 6. SÉLECTION (§9/§10/§16) ───────────────────────────────────────
        On ne retient QUE les sous-ensembles conformes au niveau de complexité :
@@ -296,8 +356,16 @@ export function optimizeBettingTree({
       && (lim.maxRaiseSizes == null || e.raiseKeys.length <= lim.maxRaiseSizes)
     );
     if (!eligible.length) {
-      return fail("aucun sous-arbre conforme au niveau de complexité n'a pu être résolu", t0,
-        { candidates: cand, reference: { ev: referenceEV, solve: refSolve }, evaluations });
+      /* Message PRÉCIS : « rien n'a pu être résolu » et « le temps a manqué avant
+         la première comparaison » appellent des gestes différents de l'utilisateur. */
+      const raison = stage1Skipped
+        ? `budget temps épuisé avant toute comparaison (${stage1Skipped} candidat(s) non évalués) — augmentez le budget, réduisez le nombre de candidats, ou baissez la précision d'évaluation`
+        : "aucun sous-arbre conforme au niveau de complexité n'a pu être résolu";
+      return fail(raison, t0, {
+        candidates: cand,
+        reference: { entry: refEntry, treeSpec: refSpec, ev: referenceEV, solve: refSolve },
+        evaluations, budgetNotes,
+      });
     }
     const choice = selectUnderTolerance(
       eligible.map(e => ({ ...e, complexityCost: e.betKeys.length + e.raiseKeys.length })),
@@ -308,7 +376,11 @@ export function optimizeBettingTree({
 
     return {
       ok: true,
-      status: refSolve.status === SolveStatus.PARTIAL ? SolveStatus.PARTIAL : SolveStatus.COMPLETE,
+      /* Une exploration tronquée par le budget n'est PAS complète : le dire est
+         la seule façon d'empêcher qu'on lise « meilleur sizing » là où il faut
+         lire « meilleur des sizings qu'on a eu le temps de comparer ». */
+      status: (refSolve.status === SolveStatus.PARTIAL || budgetNotes.length) ? SolveStatus.PARTIAL : SolveStatus.COMPLETE,
+      budgetNotes,
       mode, complexity: effComplexity,
       candidates: cand,
       reference: { entry: refEntry, treeSpec: refSpec, ev: referenceEV, solve: refSolve },
@@ -369,21 +441,29 @@ function entryToTreeSpec(entry, { restrictPlayers, state, reference }) {
   };
 }
 
-function makeEvaluation(entry, treeSpec, solve, referenceEV, pot, noiseFloor) {
+function makeEvaluation(entry, treeSpec, solve, referenceEV, pot, noiseFloor, refNashConv) {
   const ok = !!solve.ok;
   const metrics = ok
     ? simplificationMetrics({ referenceEV, simplifiedEV: solve.ev, pot })
     : simplificationMetrics({ referenceEV, simplifiedEV: null, pot });
+  /* Plancher PROPRE à cette évaluation quand l'exploitabilité des deux arbres
+     est mesurable : |Δ mesuré − Δ vrai| ≤ NashConv(réf) + NashConv(sous-arbre).
+     Sinon, le plancher global (dérive + bruit d'échantillonnage). */
+  const evalNashConv = solve.convergence ? solve.convergence.nashConv : null;
+  const measurementFloor = (ok && refNashConv != null && evalNashConv != null)
+    ? roundEv(Math.max(noiseFloor, refNashConv + evalNashConv))
+    : noiseFloor;
   /* La perte est-elle plus grande que le bruit de mesure ? Sinon on ne peut PAS
      affirmer qu'un sizing est meilleur qu'un autre — on le dit (§14/§21). */
-  const distinguishable = ok && (noiseFloor <= EPS.ev || Math.abs(metrics.absoluteEVLoss) > noiseFloor);
+  const distinguishable = ok && (measurementFloor <= EPS.ev || Math.abs(metrics.absoluteEVLoss) > measurementFloor);
   return {
     id: entry.id, stage: entry.stage, dimension: entry.dimension,
     betKeys: entry.betKeys, raiseKeys: entry.raiseKeys,
     entry, treeSpec,
     ok, reason: ok ? null : solve.reason,
     ev: ok ? solve.ev : null,
-    metrics, distinguishable,
+    metrics, distinguishable, measurementFloor,
+    nashConv: evalNashConv,
     status: solve.status,
     partialReasons: solve.partialReasons || [],
     cacheHit: !!solve.cacheHit,

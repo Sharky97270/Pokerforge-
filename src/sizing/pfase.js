@@ -107,7 +107,11 @@ export function solveOptimizedTree(request = {}) {
     ...(request.solveFn ? { solveFn: request.solveFn } : {}),
   });
   if (!opt.ok) {
-    return { ok: false, status: opt.status, reason: opt.reason, optimization: opt, elapsedMs: Date.now() - t0 };
+    return {
+      ok: false, status: opt.status,
+      reason: opt.reason, problems: opt.budgetNotes || [],
+      optimization: opt, elapsedMs: Date.now() - t0,
+    };
   }
 
   /* ── 3. ARBRE FINAL + SOLVE FINAL (§13) ────────────────────────────────
@@ -193,6 +197,7 @@ export function solveOptimizedTree(request = {}) {
   const partialReasons = [
     ...(finalSolve.partialReasons || []),
     ...(opt.reference.solve.partialReasons || []).map(r => `sélection : ${r}`),
+    ...((opt.budgetNotes || []).map(r => `exploration : ${r}`)),
   ];
 
   const solution = buildSolution({

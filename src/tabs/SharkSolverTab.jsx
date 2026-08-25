@@ -12,6 +12,7 @@ import { buildCoachBrief } from "../solver/explain.js";
 // Ranges préflop heuristiques — SOURCE UNIQUE extraite (module pur, aussi utilisé
 // par le Replayer, le provider Trainer et le Web Worker CFR).
 import { buildSolverFreqs, VILLAIN_ACTION_MAP, buildVillainResponseFreqs } from "../solver/preflopRanges.js";
+import AdaptiveSizingPanel from "../components/solver/AdaptiveSizingPanel.jsx";
 import "./SharkSolverTab.css";
 
 /* ═══════════════════════════════════════════════════════
@@ -2845,6 +2846,11 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   const[msPath,setMsPath]=useState([]);        // chemin d'actions dans l'arbre
   const[msExploit,setMsExploit]=useState(null); // libellé du profil si solve exploit (§20)
   const[msTourney,setMsTourney]=useState("chip"); // §21/§22 : "chip" | "icm" | "pko"
+  /* ── PFASE (Adaptive Sizing) ─────────────────────────────────────────────
+     Le panneau ne construit AUCUN état de jeu : il reçoit celui-ci. C'est ce
+     qui garantit que le pot, le tapis effectif et le SPR qu'il utilise sont
+     ceux de la barre du solveur, et non un troisième calcul parallèle (§7). */
+  const[pfaseResult,setPfaseResult]=useState(null);
   const[nodeLock,setNodeLock]=useState(null);      // {f,c,r} agrégats verrouillés (Node Lock)
   const[nodeLockOpen,setNodeLockOpen]=useState(false);
 
@@ -3026,6 +3032,7 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   /* ── Math du spot : pot, SPR, pot odds, MDF (sur stack effectif) ── */
   const math=useMemo(()=>spotMath(scenario.action,effective,blinds,antes,potOverride),[scenario.action,effective,blinds,antes,potOverride]);
 
+
   /* ── Équité Hero/Vilain — calcul RÉEL par énumération de combos (Monte-Carlo all-in) ── */
   const heroKey=heroMode==="hand"&&heroParse?.valid?heroParse.key:null;
   const villainKey=villainMode==="hand"&&villainParse?.valid?villainParse.key:null;
@@ -3091,6 +3098,40 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
       _rate:rate,
     };
   },[icmParams,pkoParams,msTourney]);
+
+  /* ── ÉTAT DE JEU CANONIQUE POUR PFASE (mission §7) ────────────────────────
+     Construit ICI, à partir des MÊMES grandeurs que le reste de l'écran (pot de
+     la barre, tapis effectif, board saisi), et passé au panneau. Le panneau
+     n'en fabrique aucune : c'est la source unique exigée par §7.
+     Hero est le joueur 0 (OOP) par convention du Game Tree Engine. */
+  const pfaseStateInput=useMemo(()=>{
+    if(board.length<3)return null;                 // PFASE est postflop
+    const street=board.length===5?"RIVER":board.length===4?"TURN":"FLOP";
+    const pot=Math.max(0.1,Number(math.pot)||0);
+    const eff=Math.max(0.1,Number(effective)||0);
+    return {
+      gameType:scenario.icmParams||scenario.pkoParams?"TOURNAMENT":"CASH",
+      street,board,
+      blinds:{sb:Number(blinds?.sb)||0.5,bb:Number(blinds?.bb)||1},
+      ante:Number(antes)||0,
+      minBet:Number(blinds?.bb)||1,
+      players:[
+        {id:"hero",position:scenario.heroPos||"OOP",stack:eff,committedStreet:0,committedTotal:pot/2,isHero:true},
+        {id:"vill",position:scenario.vsPos||"IP",stack:eff,committedStreet:0,committedTotal:pot/2},
+      ],
+      actorId:"hero",
+      deadPot:pot,
+      /* §55 — le modèle d'évaluation suit le mode du solveur. Une solution
+         ChipEV ne peut pas être re-badgée ICM ; on transporte donc le modèle
+         ET ses paramètres, ou rien. */
+      evaluationModel:msTourney==="pko"?"PKO":msTourney==="icm"?"ICM":"CHIP_EV",
+      icmParams:msTourney==="icm"?tourneyCtx:null,
+      pkoParams:msTourney==="pko"?tourneyCtx:null,
+    };
+  },[board,math.pot,effective,blinds,antes,scenario.heroPos,scenario.vsPos,scenario.icmParams,scenario.pkoParams,msTourney,tourneyCtx]);
+  const pfaseDisabledReason=board.length<3
+    ?"Saisis un board (3 cartes minimum) : l'Adaptive Sizing Engine résout le postflop."
+    :null;
 
   /* ── Lancement du moteur CFR (à la demande) ── */
   function runCFR(){
@@ -3371,6 +3412,23 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
               <SolverPkoPanel pkoParams={pkoParams} potBb={math.pot} heroEquity={equityHero} effStack={effective}/>
             </div>
           )}
+
+          {/* ── ADAPTIVE SIZING ENGINE (mission §23→§27) ──────────────────
+              Le moteur multi-rue ci-dessous résout UN arbre IMPOSÉ (betSizes
+              [0.33, 0.75], constantes littérales du code). Ce panneau-ci fait
+              l'inverse : il CHOISIT les sizings en comparant les EV de
+              sous-arbres réellement résolus, puis résout l'arbre retenu.
+              Les deux cohabitent volontairement — §82 interdit de retirer le
+              moteur historique avant validation en production. ── */}
+          <div style={{marginTop:12}}>
+            <AdaptiveSizingPanel
+              stateInput={pfaseStateInput}
+              heroRange={heroFreqs} villainRange={villainFreqs}
+              disabled={!pfaseStateInput}
+              disabledReason={pfaseDisabledReason}
+              onSolution={setPfaseResult}
+            />
+          </div>
 
           {/* ── SOLVEUR MULTI-RUE (§26) — moteur CFR+ multi-street exposé ── */}
           <div style={{marginTop:12}}>

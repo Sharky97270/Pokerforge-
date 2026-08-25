@@ -145,7 +145,14 @@ export const DEFAULT_EVALUATION_CONFIG = Object.freeze({
      plus précis que les pertes d'EV qu'on cherche à mesurer (de l'ordre de
      0.03 bb), sinon la sélection mesure sa propre erreur de convergence. */
   convergenceTarget: 0.02,
-  timeBudgetMs: null,
+  /* ── BUDGET TEMPS (§11/§12) ─────────────────────────────────────────────
+     Il ne s'agit pas d'un confort. Mesuré au navigateur sur un flop à ranges
+     complètes : l'optimisation dépassait 180 s sans jamais rendre la main, ce
+     qui, du point de vue de l'utilisateur, est indiscernable d'un blocage.
+     Le budget arrête l'exploration, rend la MEILLEURE solution mesurée jusque-là,
+     et l'annonce en PARTIAL avec le nombre de sous-arbres non évalués — jamais
+     en prétendant avoir tout comparé. */
+  timeBudgetMs: 45000,
   /* ── NOMBRES ALÉATOIRES COMMUNS (CRN) ─────────────────────────────────
      TOUS les sous-arbres d'une même optimisation sont résolus avec CETTE
      graine. Ce n'est pas un détail d'implémentation : sur board incomplet, les
