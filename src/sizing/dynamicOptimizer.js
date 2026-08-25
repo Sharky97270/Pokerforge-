@@ -106,6 +106,11 @@ export function optimizeBettingTree({
      les sous-arbres évalués : sans cela, la sélection porterait sur un arbre
      différent de celui qui sera finalement résolu. */
   nodeOverrides = null,
+  /* §45/§46 — VERROUS DE NŒUD : le modèle d'adversaire contre lequel TOUS les
+     sous-arbres sont comparés, référence comprise. Verrouiller la référence sans
+     les candidats mesurerait la différence de MODÈLE au lieu de la différence de
+     SIZING — l'erreur serait invisible dans le résultat. */
+  locks = null,
   cache = null, signal, onProgress,
   /* Solveur INJECTABLE (§61). Les tests doivent pouvoir fournir des EV connues
      pour vérifier la LOGIQUE DE SÉLECTION indépendamment du CFR : si l'on ne
@@ -203,7 +208,7 @@ export function optimizeBettingTree({
     /* ── 2. ARBRE DE RÉFÉRENCE (§9) ─────────────────────────────────────── */
     progress(SolveStatus.SOLVING, { step: "référence" });
     const refEntry = referenceEntry({ betCandidates: cand.bets, raiseCandidates: cand.raises });
-    const refSpec = entryToTreeSpec(refEntry, { restrictPlayers: "both", state, nodeOverrides });
+    const refSpec = entryToTreeSpec(refEntry, { restrictPlayers: "both", state, nodeOverrides, locks });
     let refSolve = runSolve(refSpec, null, "reference");
     if (!refSolve.ok) {
       return fail(`arbre de référence non résolu : ${refSolve.reason}`, t0, { candidates: cand, referenceSolve: refSolve });
@@ -367,7 +372,7 @@ export function optimizeBettingTree({
     for (const entry of stage1) {
       if (signal && signal.aborted) throw new SolveCancelled();
       if (hardBudgetSpent()) { stage1Skipped++; continue; }
-      const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry, nodeOverrides });
+      const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry, nodeOverrides, locks });
       const r = runSolve(spec, null, "stage1");
       const rec = makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor, refNashConv);
       evaluations.push(rec);
@@ -395,7 +400,7 @@ export function optimizeBettingTree({
         if (signal && signal.aborted) throw new SolveCancelled();
         if (evaluations.some(e => e.id === entry.id)) continue;   // déjà mesuré à l'étage 1
         if (budgetSpent()) { stage2Skipped++; continue; }
-        const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry, nodeOverrides });
+        const spec = entryToTreeSpec(entry, { restrictPlayers, state, reference: refEntry, nodeOverrides, locks });
         const r = runSolve(spec, null, "stage2");
         evaluations.push(makeEvaluation(entry, spec, r, referenceEV, state.pot, noiseFloor, refNashConv));
         progress(SolveStatus.OPTIMIZING_SIZINGS, { step: "étage 2", done: evaluations.length, total: stage1.length + plan.entries.length });
@@ -476,7 +481,7 @@ export function optimizeBettingTree({
 }
 
 /* ── Traduction d'une entrée de plan en arbre concret ───────────────────── */
-function entryToTreeSpec(entry, { restrictPlayers, state, reference, nodeOverrides }) {
+function entryToTreeSpec(entry, { restrictPlayers, state, reference, nodeOverrides, locks }) {
   const base = {
     betSpecs: entry.betSpecs,
     raiseSpecs: entry.raiseSpecs,
@@ -484,6 +489,13 @@ function entryToTreeSpec(entry, { restrictPlayers, state, reference, nodeOverrid
     ipProbe: true,
     allowJam: entry.betSpecs.some(s => s.type === "jam") || entry.raiseSpecs.some(s => s.type === "jam"),
     ...(nodeOverrides && Object.keys(nodeOverrides).length ? { nodeOverrides } : {}),
+    /* ── VERROUS (§45) : DANS CHAQUE sous-arbre, référence comprise ─────────
+       Le point est facile à manquer et fatal si on le manque : comparer des
+       sizings contre un adversaire modélisé n'a de sens que si TOUS les
+       sous-arbres, y compris celui de référence, affrontent LE MÊME modèle.
+       Verrouiller la référence et pas les candidats (ou l'inverse) mesurerait
+       la différence de modèle, pas la différence de sizing. */
+    ...(Array.isArray(locks) && locks.length ? { locks } : {}),
   };
   if (restrictPlayers !== "optimized" || !reference) return base;
   /* Restriction ASYMÉTRIQUE : le joueur optimisé (0 = Hero/OOP) voit le

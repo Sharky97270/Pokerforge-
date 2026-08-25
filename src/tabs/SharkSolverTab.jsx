@@ -3433,6 +3433,13 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
                    fréquences en sortent tous). */
                 if(onGoTrainer)onGoTrainer({pfaseSolutionId:solutionId});
               }}
+              onTrainMany={(solutionIds)=>{
+                /* §67/§69/§110 — une table par solution. Jouer les quatre
+                   niveaux côte à côte est la seule façon de SENTIR ce que coûte
+                   une simplification : la perte d EV, elle, est souvent sous le
+                   plancher de mesure et ne dit rien à personne. */
+                if(onGoTrainer)onGoTrainer({pfaseSolutionIds:solutionIds});
+              }}
             />
           </div>
 

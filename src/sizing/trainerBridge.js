@@ -420,6 +420,16 @@ export function spotFromSolution(solution, { handClass = null, path = [], rng = 
       frequencySource: useActs.frequencySource,
       badge: solution.provenanceMeta ? solution.provenanceMeta.badge : null,
       status: solution.status,
+      /* ── ÉQUILIBRE OU EXPLOIT (§45/§46) ────────────────────────────────
+         Le Trainer doit pouvoir nommer ce contre quoi le joueur s'entraîne. Une
+         séance d'exploitation d'un Calling Station est un exercice légitime et
+         utile — mais présentée comme « la solution », elle enseignerait comme
+         équilibre une stratégie qui se fait détruire par un adversaire correct.
+         Le badge doit donc changer, pas seulement une ligne de détail. */
+      strategyKind: solution.strategyKind || "EQUILIBRIUM",
+      exploitLabel: solution.exploit ? solution.exploit.label : null,
+      exploitProfileId: solution.exploit ? solution.exploit.profileId : null,
+      exploitModelNote: solution.exploit ? solution.exploit.modelNote : null,
     },
   };
   return { ok: true, spot, handClass: chosen };
@@ -525,4 +535,42 @@ export function prepareTrainerSpot({
     mayClaimSolved: res.mayClaimSolved,
     ...acts,
   };
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   spotsFromSolutions — UNE TABLE PAR SOLUTION (§67, §69, §104, §108)
+
+   L'entraînement contre une solution PFASE était mono-table par construction :
+   une solution décrit UN état de jeu, donc UN spot, donc une table. Ce n'était
+   pas un oubli, mais ce n'était pas non plus une fatalité — il suffit de
+   plusieurs solutions.
+
+   Deux usages, et le second est le plus intéressant :
+
+     · plusieurs SPOTS différents (quatre boards résolus séparément), pour du
+       multitabling ordinaire ;
+     · les quatre NIVEAUX du même état (FULL / ADVANCED / SIMPLE / SINGLE), joués
+       côte à côte. Le §110 décrit cette famille ; la jouer simultanément est la
+       seule façon de SENTIR ce qu'une simplification coûte, au lieu de lire un
+       chiffre de perte d'EV sous un plancher de mesure.
+
+   Chaque table reste isolée : sa solution, ses sizings, sa provenance. Rien
+   n'est partagé entre elles — c'est précisément ce que la QA multitable doit
+   vérifier, et le genre de contamination qu'un état global ferait passer
+   inaperçue.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function spotsFromSolutions(solutions, { handClass = null, rng = Math.random, max = 4 } = {}) {
+  const list = (Array.isArray(solutions) ? solutions : [solutions]).filter(Boolean);
+  if (!list.length) return { ok: false, reason: "aucune solution fournie" };
+  const spots = [], refus = [];
+  for (const sol of list.slice(0, max)) {
+    const built = spotFromSolution(sol, { handClass, rng });
+    if (built.ok) spots.push(built.spot);
+    else refus.push({ solutionId: sol.solutionId || null, reason: built.reason });
+  }
+  if (!spots.length) return { ok: false, reason: "aucune solution exploitable", refus };
+  /* Les refus sont RENDUS, pas avalés : trois tables sur quatre, c'est trois
+     tables sur quatre — et l'utilisateur doit savoir laquelle manque. */
+  return { ok: true, spots, refus, tables: spots.length };
 }

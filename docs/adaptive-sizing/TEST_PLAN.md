@@ -3,7 +3,7 @@
 > Mission §60 → §69, §97, §101, §102.
 
 ```bash
-npm run test:sizing        # les 8 suites PFASE
+npm run test:sizing        # les 9 suites PFASE
 npm test                   # tout PokerForge, PFASE compris
 npm run audit:sizing:all   # QA navigateur : panneau, Trainer, persistance
 node scripts/sizing-bench.mjs
@@ -11,7 +11,7 @@ node scripts/sizing-bench.mjs
 
 ---
 
-## 1. Les huit suites
+## 1. Les neuf suites
 
 | Fichier | Couvre | Assertions |
 |---|---|---:|
@@ -20,10 +20,11 @@ node scripts/sizing-bench.mjs
 | `test-sizing-hash.mjs` | §19, §20, §28, §63, §80 | 49 |
 | `test-sizing-dynamic.mjs` | §9, §10, §11, §14, §15, §16, §22, §59, §61, §62, §86, §93 | 94 |
 | `test-sizing-store.mjs` | §17, §18, §22, §28, §55, §80, §88, §92 | 106 |
-| `test-sizing-trainer.mjs` | §29 → §44, §56, §64, §67, §68, §71, §87, §90, §91 | 139 |
+| `test-sizing-trainer.mjs` | §29 → §44, §45, §46, §56, §64, §67, §68, §71, §87, §90, §91 | 178 |
 | `test-sizing-replayer-coach.mjs` | §0, §47 → §53 | 103 |
-| `test-sizing-pipeline.mjs` | §101 CASE A → H, §110 (vrai solveur) | 88 |
-| **Total** | | **750** |
+| `test-sizing-import.mjs` | §84 — lecture stricte, vérification par meilleure réponse, contrôle négatif | 46 |
+| `test-sizing-pipeline.mjs` | §101 CASE A → K, §110 (vrai solveur) | 151 |
+| **Total** | | **898** |
 
 ---
 
@@ -74,6 +75,9 @@ parasite) et 85 s pour les huit cas.
 | **G — SAVE/LOAD** | rechargée à l'identique : sizings, perte, fréquences, graine, convergence · directement entraînable sans recopie · provenance devient `POKERFORGE_DATABASE` | identique au bit près |
 | **H — INVALID** | range vide → échec · board dupliqué → refus · rien stocké · le Trainer ne fabrique **aucun** bouton | `acts.length === 0`, « No verified solution available » |
 | **§110** | 4 niveaux sous **un** `gameStateHash` · cache partagé · chaque niveau annonce son coût et son plancher | 1 état, 4 solutions |
+| **I — EV par action** | trois contrôles INDÉPENDANTS : une valeur connue d avance (un fold vaut exactement −6 bb sur un pot mort de 12), un invariant interne (le mélange des EV par action redonne l EV de la stratégie moyenne), et une propriété d équilibre (le déficit d indifférence pondéré tient dans NashConv) | fold −6 exact · mélange 1.3294 vs 1.32941 · déficit 0.029 vs NashConv 0.059 |
+| **J — rake** | le rake coûte, dans le bon sens, et CHANGE le sizing retenu · la somme nulle tombe donc NashConv devient `null` · un fold vaut toujours −6 bb (c est le gagnant qui paie) · rake + ICM refusé | 75 % → 33 % à 5 %/cap 3bb ; EV 1.29 → 0.60 |
+| **K — exploit** | le sizing retenu contre un modèle DIFFÈRE de l équilibre · `mayClaimEquilibrium` est faux · NashConv `null` sous verrou et `lockedPlayerGap` ≥ 0 · quatre profils, quatre hashs | équilibre 75 % (1.34 bb) · Calling Station 150 % (8.17 bb) |
 
 ---
 

@@ -159,6 +159,42 @@ export function solveTree(heroList,villList,board,opts={}){
     for(let k=0;k<arr.length;k++)arr[k]/=s;
     return arr;
   };
+  /* ── VERROUS PAR MAIN (§84) ────────────────────────────────────────────────
+     Un verrou ordinaire impose UNE distribution à toute la range du nœud. C'est
+     ce qu'il faut pour un modèle de joueur (« ce type se couche 62 % du temps »),
+     et c'est insuffisant pour VÉRIFIER une stratégie importée.
+
+     La raison est mesurable, pas théorique : une stratégie où chaque main joue
+     sa propre fréquence, aplatie en une fréquence de range, devient bien plus
+     exploitable qu'elle ne l'est réellement — on rejetterait des imports
+     parfaitement corrects en leur reprochant une exploitabilité qu'on vient
+     soi-même de créer en les aplatissant.
+
+     `L.byClass` accepte donc { "AKs": {X:0.1, B0:0.9}, … } et `L.freqs` reste
+     le repli pour les classes absentes. La distribution est résolue combo par
+     combo à l'installation du verrou, pas à chaque itération. */
+  const lockByClassFor = (n, L, list) => {
+    const fallback = L.freqs ? lockArrFor(n, L.freqs) : null;
+    const cache = new Map();
+    const rows = new Array(list.length);
+    let anyDefined = false;
+    for (let c = 0; c < list.length; c++) {
+      const key = list[c].key;
+      const src = key && L.byClass && L.byClass[key] ? L.byClass[key] : null;
+      if (!src) { rows[c] = fallback; if (fallback) anyDefined = true; continue; }
+      if (!cache.has(key)) cache.set(key, lockArrFor(n, src));
+      rows[c] = cache.get(key) || fallback;
+      if (rows[c]) anyDefined = true;
+    }
+    if (!anyDefined) return null;
+    /* Une main sans distribution imposée ET sans repli garderait la stratégie du
+       CFR : on refuse ce mélange, qui produirait une « stratégie importée » à
+       moitié inventée par le solveur (§0). */
+    for (const r of rows) if (!r) return null;
+    rows.perCombo = true;
+    return rows;
+  };
+
   if(opts.locks)for(const L of opts.locks){
     if(L.match){
       // Verrou par MOTIF : tous les nœuds de décision correspondants (profils §20).
@@ -168,7 +204,7 @@ export function solveTree(heroList,villList,board,opts={}){
         const isVill=n.player===1;
         const hit=(L.match==="villFacingBet"&&isVill&&n.actions[0]==="F")
                 ||(L.match==="villAfterCheck"&&isVill&&n.actions[0]==="X");
-        if(hit){const arr=lockArrFor(n,L.freqs);if(arr)locks[n.id]=arr;}
+        if(hit){const arr=L.byClass?lockByClassFor(n,L,n.player===0?heroList:villList):lockArrFor(n,L.freqs);if(arr)locks[n.id]=arr;}
         for(const a of n.actions)walk(n.children[a]);
       })(tree);
       continue;
@@ -181,7 +217,7 @@ export function solveTree(heroList,villList,board,opts={}){
     }
     while(n&&n.kind==="chance")n=n.next;
     if(!okPath||!n||n.kind!=="decision")continue;
-    const arr=lockArrFor(n,L.freqs);
+    const arr=L.byClass?lockByClassFor(n,L,n.player===0?heroList:villList):lockArrFor(n,L.freqs);
     if(arr)locks[n.id]=arr;
   }
 
@@ -245,7 +281,7 @@ export function solveTree(heroList,villList,board,opts={}){
     const vH=new Float64Array(nH),vV=new Float64Array(nV);
     if(node.player===0){                                   // Hero agit
       const regT=getTbl(reg,node,key,nH,na),stT=getTbl(strat,node,key,nH,na);
-      const S=[];for(let i=0;i<nH;i++)S[i]=lock||stratFromReg(regT[i]);
+      const S=[];for(let i=0;i<nH;i++)S[i]=lock?(lock.perCombo?lock[i]:lock):stratFromReg(regT[i]);
       const child=[];
       for(let a=0;a<na;a++){const cr=new Float64Array(nH);for(let i=0;i<nH;i++)cr[i]=reachH[i]*S[i][a];child[a]=traverse(node.children[node.actions[a]],cr,reachV,tw);}
       for(let i=0;i<nH;i++){
@@ -256,7 +292,7 @@ export function solveTree(heroList,villList,board,opts={}){
       for(let j=0;j<nV;j++){let acc=0;for(let a=0;a<na;a++)acc+=child[a].vV[j];vV[j]=acc;}
     }else{                                                 // Villain agit
       const regT=getTbl(reg,node,key,nV,na),stT=getTbl(strat,node,key,nV,na);
-      const S=[];for(let j=0;j<nV;j++)S[j]=lock||stratFromReg(regT[j]);
+      const S=[];for(let j=0;j<nV;j++)S[j]=lock?(lock.perCombo?lock[j]:lock):stratFromReg(regT[j]);
       const child=[];
       for(let a=0;a<na;a++){const cr=new Float64Array(nV);for(let j=0;j<nV;j++)cr[j]=reachV[j]*S[j][a];child[a]=traverse(node.children[node.actions[a]],reachH,cr,tw);}
       for(let j=0;j<nV;j++){
@@ -302,6 +338,10 @@ export function solveTree(heroList,villList,board,opts={}){
     /* Board et graine CONSERVÉS : `nodeActionEVs` en a besoin pour rejouer
        exactement les mêmes runouts que le solve (§36/§49 — l'EV par action). */
     board:board.slice(),seed:(opts.seed??123457)>>>0,
+    /* VERROUS (§19/§45) : une solution verrouillée n'est pas un équilibre. Elle
+       doit le porter, sans quoi rien n'empêche un écran de l'appeler « GTO ». */
+    lockedNodeCount:Object.keys(locks).length,
+    lockSpec:opts.locks?JSON.parse(JSON.stringify(opts.locks)):null,
   };
   /* Le modèle vivant, pour les mesures faites au-dessus de CETTE solution
      (bestResponseEV, nodeActionEVs, strategyEV) : il porte des fonctions et ne
@@ -416,7 +456,19 @@ export function bestResponseEV(sol,brPlayer){
   const myW=brPlayer===0?wH:wV;
   const v=walk(tree,oppW);
   let num=0;for(let c=0;c<nBr;c++)num+=myW[c]*v[c];
-  const den=wH.reduce((a,b)=>a+b,0)*wV.reduce((a,b)=>a+b,0);
+  /* ── LE DÉNOMINATEUR NE COMPTE QUE LES AFFRONTEMENTS POSSIBLES ────────────
+     wH·wV compterait aussi les paires (main Hero, main Vilain) qui partagent une
+     carte : elles sont écartées du numérateur, jamais du dénominateur, et toutes
+     les valeurs s'en trouvaient minorées du taux de blocage.
+
+     Ce n'était pas visible tant que la seule consommation était NashConv, où le
+     biais s'applique aux deux termes. Il l'est devenu en comparant cette valeur
+     à , qui normalise correctement : l'écart « meilleure réponse −
+     stratégie » ressortait NÉGATIF de 0.26 à 0.58 bb — une meilleure réponse
+     pire que la stratégie qu'elle est censée battre, ce qui est impossible.
+     Deux conventions de normalisation, pas un défaut de calcul. */
+  let den=0;
+  for(let i=0;i<nH;i++)for(let j=0;j<nV;j++)if(E[i][j]>=0)den+=wH[i]*wV[j];
   return den?num/den:0;
 }
 /* NashConv (bb) : somme des gains de meilleure réponse. ≈0 ⟺ équilibre. */
@@ -434,6 +486,15 @@ export function nashConv(sol){
      pot taxé elle vaut −rake, et l'« exploitabilité » lue serait décalée d'un
      biais constant qu'aucun affichage ne pourrait distinguer d'une divergence. */
   if(sol&&(sol.rakeModel||sol.rakeParams))return null;
+  /* ── UN SOLVE VERROUILLÉ N'A PAS D'ÉQUILIBRE À MESURER ────────────────────
+     NashConv suppose que les DEUX camps peuvent dévier. Sous nodelock, un camp
+     ne le peut pas : sa meilleure réponse est calculée mais lui est interdite,
+     donc le terme correspondant reste grand pour toujours. La somme ne tendrait
+     jamais vers zéro, et l'écran lirait « ça ne converge pas » alors que la
+     stratégie d'exploit, elle, converge parfaitement.
+     La bonne mesure d'un solve verrouillé est `lockedPlayerGap` : l'écart entre
+     ce que le joueur LIBRE obtient et sa meilleure réponse au modèle. */
+  if(sol&&sol.lockedNodeCount>0)return null;
   const h=bestResponseEV(sol,0),v=bestResponseEV(sol,1);
   if(h==null||v==null)return null;
   return Math.round((h+v)*10000)/10000;
@@ -808,4 +869,31 @@ export function strategyEV(sol, { samples = null } = {}) {
   }
   if (!(totalMass > 0)) return null;
   return { ev: Math.round((total / totalMass) * 100000) / 100000, exact: need === 0, samples: nRuns };
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   lockedPlayerGap — LA CONVERGENCE D'UN SOLVE VERROUILLÉ (§45)
+
+   Sous nodelock, NashConv est inutilisable : le camp verrouillé ne peut pas
+   dévier, donc son terme de meilleure réponse ne décroît jamais et la somme
+   reste grande même à convergence parfaite. Lire « ça ne converge pas » là où
+   la stratégie d'exploit est optimale serait un contresens complet.
+
+   Ce qui se mesure vraiment ici, c'est autre chose : le joueur LIBRE joue-t-il
+   sa meilleure réponse au modèle d'adversaire ? L'écart
+
+       gap = EV(meilleure réponse du joueur libre) − EV(sa stratégie moyenne)
+
+   tend vers 0 quand l'exploitation est aboutie. C'est un critère de convergence
+   propre, et il n'a rien à voir avec un équilibre — ce qu'aucun affichage ne
+   doit laisser croire.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function lockedPlayerGap(sol, freePlayer = 0) {
+  if (!sol || sol.sampled) return null;             // exact sur board complet seulement
+  const br = bestResponseEV(sol, freePlayer);
+  const se = strategyEV(sol);
+  if (br == null || !se) return null;
+  const mine = freePlayer === 0 ? se.ev : -se.ev;   // strategyEV est du point de vue de 0
+  return Math.round((br - mine) * 10000) / 10000;
 }

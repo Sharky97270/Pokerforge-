@@ -38,6 +38,18 @@ export const PROVENANCE_META = Object.freeze({
    Deux conditions CUMULATIVES : une provenance qui l'autorise, ET un statut qui
    a réellement produit une stratégie. Une provenance « solveur » sur un solve
    FAILED ne vaut rien. */
+/* ── LE DROIT D'ÉCRIRE LE MOT « ÉQUILIBRE » ────────────────────────────────
+   `mayClaimSolved` répond à « ce résultat a-t-il été calculé ? ». Ce n'est pas
+   la même question que « décrit-il un équilibre ? ». Une solution d'exploit
+   répond oui à la première et non à la seconde : le CFR a bel et bien tourné,
+   mais contre un adversaire figé. Sans ce second verbe, tout écran qui vérifie
+   la provenance conclurait « GTO » sur une exploitation. */
+export function mayClaimEquilibrium(solution) {
+  if (!solution) return false;
+  if (solution.strategyKind === "EXPLOIT") return false;
+  return mayClaimSolved(solution);
+}
+
 export function mayClaimSolved(solution) {
   if (!solution) return false;
   const meta = PROVENANCE_META[solution.source];
@@ -91,6 +103,7 @@ export function buildSolution({
   convergence, status, partialReasons, provenance,
   evaluationConfig, finalSolveConfig, instrumentation,
   optimizeFor, noise, plannerReport, solveId, seed,
+  strategyKind, exploit,
 } = {}) {
   const now = Date.now();
   const labels = realizedLabels(candidates);
@@ -192,6 +205,23 @@ export function buildSolution({
     source: provenance || SolutionProvenance.APPROXIMATION,
     provenanceMeta: PROVENANCE_META[provenance || SolutionProvenance.APPROXIMATION],
 
+    /* ── ÉQUILIBRE OU EXPLOIT (§45/§46) ──────────────────────────────────────
+       Deux dimensions à ne surtout pas confondre, et qui répondent à deux
+       questions différentes :
+
+         · la PROVENANCE dit COMMENT le nombre a été obtenu — résolu ici, relu
+           en base, importé, ou estimé ;
+         · `strategyKind` dit CE QUE LE NOMBRE DÉCRIT — un équilibre, ou la
+           meilleure réponse à un modèle d'adversaire.
+
+       Une solution d'exploit est parfaitement « POKERFORGE_SOLVER » : le CFR a
+       réellement tourné. Elle n'est pour autant PAS un équilibre, et l'appeler
+       « GTO » serait faux au sens exact du §0. Les deux champs coexistent donc,
+       et `mayClaimEquilibrium` est ce que les écrans doivent lire avant d'écrire
+       le mot. */
+    strategyKind: strategyKind || "EQUILIBRIUM",
+    exploit: exploit || null,
+
     createdAt: now,
     updatedAt: now,
   };
@@ -222,6 +252,12 @@ export function validateSolution(sol) {
   if (!sol.gameStateHash) problems.push("gameStateHash manquant");
   if (sol.schemaVersion !== SOLUTION_SCHEMA_VERSION) problems.push(`schemaVersion ${sol.schemaVersion} ≠ ${SOLUTION_SCHEMA_VERSION}`);
   if (!Object.values(SolutionProvenance).includes(sol.source)) problems.push(`provenance inconnue : ${sol.source}`);
+  /* §45/§46 — les deux incohérences possibles, dans les deux sens. */
+  if (sol.strategyKind === "EXPLOIT" && !sol.exploit) problems.push("solution déclarée EXPLOIT sans modèle d'adversaire — on ne saurait pas contre QUI elle a été calculée");
+  if (sol.exploit && sol.strategyKind !== "EXPLOIT") problems.push("modèle d'adversaire présent sur une solution qui ne se déclare pas EXPLOIT — elle serait lue comme un équilibre");
+  if (sol.strategyKind === "EXPLOIT" && sol.convergence && sol.convergence.nashConv != null) {
+    problems.push("solution EXPLOIT portant un NashConv : sous nodelock l'exploitabilité conjointe n'est pas définie, un nombre y serait trompeur");
+  }
   if (!Object.values(SolveStatus).includes(sol.status)) problems.push(`statut inconnu : ${sol.status}`);
   if (statusYieldsStrategy(sol.status)) {
     if (!sol.strategy || !sol.strategy.nodes || !Object.keys(sol.strategy.nodes).length) {

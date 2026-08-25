@@ -19,7 +19,7 @@ import {
   spotFromSolution, dealHandForClass, cardKeyToTrainerCard,
 } from "./src/sizing/trainerBridge.js";
 import { resolveTrainingSolution, ResolutionOutcome, suggestedComplexityFor, describeAvailability, compatibilityReport } from "./src/sizing/trainingSolutionResolver.js";
-import { buildSolution, SolutionProvenance } from "./src/sizing/solutionSchema.js";
+import { buildSolution, SolutionProvenance, validateSolution, mayClaimSolved, mayClaimEquilibrium } from "./src/sizing/solutionSchema.js";
 import { saveSolution, clearStore, storeSize } from "./src/sizing/solutionStore.js";
 import { normalizeGameState, ActionType } from "./src/sizing/gameState.js";
 import { gameStateHash, solutionId } from "./src/sizing/canonicalHash.js";
@@ -566,6 +566,54 @@ console.log("\n── distribution de main : paires, suited, offsuit, collisions
   ok(collision.every(c => !(c.r === "A" && c.s === "♠")), "et l'As de pique du board n'est pas redistribué");
 
   eq(dealHandForClass("", boardKeys), null, "classe vide → rien");
+}
+
+console.log("\n── §45/§46/§64 — le Trainer sait contre QUI il fait travailler");
+{
+  clearStore();
+  /* Une solution d'EXPLOIT correctement formée : nature déclarée, modèle nommé,
+     et NashConv absent — sous verrou l'exploitabilité conjointe n'existe pas. */
+  const exploit = {
+    profileId: "calling_station", label: "Calling Station", model: "HEURISTIC_ESTIMATE",
+    modelNote: "Tendances estimées d'un type de joueur, verrouillées telles quelles dans l'arbre. La stratégie qui les exploite est résolue par CFR ; le modèle qu'elle exploite ne l'est pas.",
+    locks: [{ match: "villFacingBet", freqs: { F: 0.12, C: 0.83, R: 0.05 } }, { match: "villAfterCheck", freqs: { X: 0.6, B: 0.4 } }],
+  };
+  const { sol } = seedSolution(SPOT(), LEDGER(), "SINGLE", [potSizing(0.75)], {
+    strategyKind: "EXPLOIT", exploit,
+    convergence: { iterations: 800, elapsedMs: 900, nashConv: null, note: null, sampled: false, completed: true, locked: true, lockedNodeCount: 4, lockedPlayerGap: 0.0012 },
+  });
+
+  /* Le spot d'entraînement transporte la nature de la stratégie. Sans cela, le
+     Trainer afficherait le même badge ⚖️ que pour un équilibre, et un joueur
+     pourrait travailler des heures une exploitation en croyant apprendre le jeu
+     de référence — la faute exacte que le §0 interdit. */
+  const built = spotFromSolution(sol, { handClass: "AKs" });
+  ok(built.ok, "le spot est construit à partir de la solution d'exploit");
+  eq(built.spot.pfase.strategyKind, "EXPLOIT", "et il déclare une stratégie d'EXPLOITATION");
+  eq(built.spot.pfase.exploitLabel, "Calling Station", "en nommant l'adversaire modélisé");
+  eq(built.spot.pfase.exploitProfileId, "calling_station", "avec son identifiant, pour l'historique");
+  ok(/pas/.test(built.spot.pfase.exploitModelNote || ""), "et la mise en garde sur la nature du modèle");
+
+  /* Une solution d'équilibre ne doit rien porter de tout cela. */
+  clearStore();
+  const { sol: gto } = seedSolution(SPOT(), LEDGER(), "SINGLE", [potSizing(0.75)]);
+  const b2 = spotFromSolution(gto, { handClass: "AKs" });
+  ok(b2.ok, "le spot d'équilibre se construit aussi");
+  eq(b2.spot.pfase.strategyKind, "EQUILIBRIUM", "et se déclare équilibre");
+  eq(b2.spot.pfase.exploitLabel, null, "sans modèle d'adversaire");
+
+  /* Le droit d'employer le mot. */
+  eq(mayClaimSolved(sol), true, "l'exploitation a bien été RÉSOLUE");
+  eq(mayClaimEquilibrium(sol), false, "mais elle ne peut pas revendiquer un équilibre");
+  eq(mayClaimEquilibrium(gto), true, "là où la solution d'équilibre le peut");
+
+  /* Et le schéma refuse les deux incohérences possibles, dans les deux sens. */
+  const sansModele = { ...sol, exploit: null };
+  ok(!validateSolution(sansModele).ok, "une solution EXPLOIT sans modèle est refusée : on ne saurait pas contre qui");
+  const modeleOrphelin = { ...gto, exploit };
+  ok(!validateSolution(modeleOrphelin).ok, "un modèle sur une solution qui se dit d'équilibre est refusé : elle serait lue comme du GTO");
+  const nashSousVerrou = { ...sol, convergence: { ...sol.convergence, nashConv: 0.01 } };
+  ok(!validateSolution(nashSousVerrou).ok, "et un NashConv sous verrou est refusé : sous nodelock il n'est pas défini");
 }
 
 console.log(`\n✅ PFASE intégration Trainer + Solver→Trainer (§29→§43, §64, §67, §68, §71, §87, §90) — ${passed} assertions OK\n`);

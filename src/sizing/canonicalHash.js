@@ -114,6 +114,19 @@ export function canonicalTreeSpec(treeSpec) {
     betSizesByPlayer: byPlayer ? { 0: setOf(byPlayer[0]), 1: setOf(byPlayer[1]) } : null,
     maxRaisesPerStreet: treeSpec.maxRaisesPerStreet ?? null,
     allowJam: !!treeSpec.allowJam,
+    /* ── VERROUS (§45/§46) ────────────────────────────────────────────────
+       Une solution d'exploit contre un Calling Station et l'équilibre du même
+       spot décrivent deux jeux différents. Les laisser hors du hash les ferait
+       partager une entrée de cache — et l'un serait servi pour l'autre, en
+       silence. C'est la même panne que celle du §62, avec des conséquences
+       stratégiques bien pires. */
+    locks: Array.isArray(treeSpec.locks) && treeSpec.locks.length
+      ? treeSpec.locks.map(l => canonicalize({
+        match: l.match || null,
+        path: Array.isArray(l.path) ? l.path.slice() : null,
+        freqs: l.freqs || null,
+      })).sort()
+      : null,
     ipProbe: treeSpec.ipProbe !== false,
     streets: treeSpec.streets ?? null,
     /* Overrides par nœud (Tree Editor §26) : chemin → sizings, triés par chemin */

@@ -28,7 +28,7 @@ n'est masquée.
 | 4 | Modes FIXED / DYNAMIC / AUTOMATIC / SINGLE | **PASS** | `BettingTreeMode` ; `test-sizing-dynamic` (4 modes) ; CASE B/C |
 | 5 | Complexités SINGLE/SIMPLE/ADVANCED/FULL centralisées | **PASS** | `COMPLEXITY_LIMITS` dans `config.js` — aucune borne ailleurs |
 | 6 | Sizings pot % · géométrique · multiple de mise | **PASS** | `sizingSpec.js` (+ `bb`, `jam`) ; formule géométrique vérifiée analytiquement (4 contrôles) |
-| 7 | Source unique pot/SPR/tapis/relances | **PARTIAL** | `gameState.js` fournit les 7 grandeurs ; testé SRP·3BP·4BP·limp·BvB·HU·antes·tapis asymétriques. **All-in partiel (side pots) non modélisé** → L2 |
+| 7 | Source unique pot/SPR/tapis/relances | **PARTIAL** | `gameState.js` fournit les 7 grandeurs ; testé SRP·3BP·4BP·limp·BvB·HU·antes. **All-in partiel VÉRIFIÉ en heads-up** (CASE M) : tapis effectif = le plus court dans les deux sens, SPR et relance maximale calculés dessus, bouton Tapis à 25 bb et non 40, aucune action au-dessus du tapis à 8 bb effectifs. **Les side pots exigent ≥ 3 joueurs** → L2 |
 | 8 | SizingCandidateGenerator | **PASS** | `candidateGenerator.js` ; `dropped[]` motive chaque écart |
 | 9 | Dynamic Sizing Engine (référence, EV, argmin) | **PASS** | `dynamicOptimizer.js` ; convention d'EV documentée `ALGORITHM.md §0` |
 | 10 | Sous-ensembles multi-size, pas les N meilleurs | **PASS** | fixture piège : `{33,150}` retenu contre `{33,75}` ; la paire écartée a bien été **évaluée** |
@@ -81,8 +81,8 @@ n'est masquée.
 | 42 | États de table isolés | **PASS** | 4 tables → 4 `solutionId` ; aucun sizing ne fuit |
 | 43 | Villain échantillonné depuis la stratégie | **PASS** | proportions vérifiées sur 60 tirages |
 | 44 | GTO et Exploit séparés | **PASS** | `compatibilityReport` refuse de servir l'un pour l'autre |
-| 45 | Nodelock préservé et intégré | **PARTIAL** | `solveNodeLocked` **préservé intact** ; PFASE ne produit pas encore de solution d'exploit par nodelock |
-| 46 | Profils formalisés, pas du texte pour LLM | **PARTIAL** | `EXPLOIT_PROFILES` sont déjà des verrous formels (préexistant, préservé) ; PFASE ne les consomme pas encore |
+| 45 | Nodelock préservé et intégré | **PASS** | `solveNodeLocked` préservé intact **et** PFASE produit désormais des solutions d'exploit : `solveOptimizedTree({exploit:{profileId}})` verrouille le Vilain, compare les sizings CONTRE lui (référence comprise), et rend une solution `strategyKind:"EXPLOIT"`. Sizing retenu 75 % → 150 % vs Calling Station |
+| 46 | Profils formalisés, pas du texte pour LLM | **PASS** | `core/exploitProfiles.js` : fréquences formelles, validées (somme à 1), consommées par PFASE. Sélecteur dans le panneau, badge 🎯 au Trainer, `mayClaimEquilibrium` interdit le mot « équilibre » sur une exploitation |
 
 ## §47 — §59 · Coach, Replayer, moteur
 
@@ -110,8 +110,8 @@ n'est masquée.
 | 61 | Fixtures à EV connues | **PASS** | solveur injectable ; table d'EV |
 | 62 | Test de cohérence (ordre, cache, index) | **PASS** | 3 ordres d'entrée → même sélection |
 | 63 | Test de cache (board, stack, range, rake, candidat, version) | **PASS** | 49 assertions |
-| 64 | Tests Trainer 1T→4T, GTO/Exploit, 4 niveaux | **PARTIAL** | multitabling et niveaux testés ; **Exploit non testé** faute de solution d'exploit produite (§45/§46) |
-| 65 | Tests d'action check/bet/call/raise/fold/jam | **PARTIAL** | types, montants et verdicts testés via le pont ; la progression pot/tapis/rue d'une main jouée reste couverte par les suites **existantes** du Trainer, pas re-testée à travers PFASE |
+| 64 | Tests Trainer 1T→4T, GTO/Exploit, 4 niveaux | **PARTIAL** | multitabling, niveaux **et Exploit** désormais testés (CASE K + suite Trainer : le spot porte `strategyKind`, le modèle est nommé, le schéma refuse les incohérences). Reste : le rejeu **manuel** en 2T/3T/4T |
+| 65 | Tests d'action check/bet/call/raise/fold/jam | **PASS** | types, montants et verdicts testés via le pont **et** progression vérifiée à travers PFASE (CASE L) : turn pot 12 / SPR 3.33 / mise 9 bb → river pot 30 = 12 + 2×9, SPR 1.03, mise 22.5 bb. Le montant est RECALCULÉ au nouvel état, pas transporté (§38/§39) ; FOLD engage 0, CALL engage exactement le montant à payer |
 | 66 | Mains complètes préflop → river | **PARTIAL** | turn → river vérifié ; préflop hors périmètre → L1 |
 | 67 | 4 tables × 100 décisions | **PASS** | 400 décisions, aucun échec, aucune fuite |
 | 68 | Mode déterministe | **PASS** | même graine → même séquence |
@@ -135,7 +135,7 @@ n'est masquée.
 | 81 | Feature flag | **PASS** | `adaptiveSizingEngine` ; complet derrière le drapeau |
 | 82 | Migration progressive | **PASS** | moteur historique intact et visible à côté |
 | 83 | Benchmarking | **PASS** | 10 spots, monotonie 10/10, temps et mémoire consignés |
-| 84 | Validation externe (import Pio/HRC) | **PARTIAL** | provenance `VERIFIED_IMPORT` et schéma prêts ; **aucun pipeline d'import** construit |
+| 84 | Validation externe (import Pio/HRC) | **PASS** | `solutionImport.js` : format d'échange **ouvert et documenté** (aucun format propriétaire rétro-conçu), lecture stricte, puis VÉRIFICATION réelle — la stratégie importée est installée main par main dans l'arbre reconstruit et son exploitabilité est mesurée par meilleure réponse exacte. `VERIFIED_IMPORT` n'est accordé que sous tolérance. Contrôle négatif : 0.03 bb pour une vraie solution, 1.51 bb pour la même dégradée d'une seule main |
 
 ## §85 — §100 · Critères de terminaison
 

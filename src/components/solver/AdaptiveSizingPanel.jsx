@@ -27,6 +27,7 @@ import {
 } from "../../sizing/sizingSpec.js";
 import { CANDIDATE_PROFILES } from "../../sizing/candidateGenerator.js";
 import { solveAsync, isWorkerAvailable } from "../../sizing/pfaseClient.js";
+import { EXPLOIT_PROFILES } from "../../solver/core/exploitProfiles.js";
 import { describeSolution } from "../../sizing/pfase.js";
 
 /* ── §27 — PRÉRÉGLAGES POKERFORGE ─────────────────────────────────────────
@@ -67,6 +68,8 @@ export default function AdaptiveSizingPanel({
      saved / loaded / opened / trained against SANS RECOPIER MANUELLEMENT SES
      SIZINGS ». Ce rappel est la porte de sortie vers le Trainer. */
   onTrainSolution,
+  /* §67/§69 — une table par solution : plusieurs identifiants d un coup. */
+  onTrainMany,
 }) {
   const enabled = adaptiveSizingEnabled();
 
@@ -80,6 +83,10 @@ export default function AdaptiveSizingPanel({
   const [useJam, setUseJam] = useState(true);
   const [maxEvLoss, setMaxEvLoss] = useState(null);
   const [family, setFamily] = useState(false);
+  /* §45/§46 — `null` = équilibre. Un identifiant de profil bascule tout le solve
+     en exploitation : les sizings sont alors choisis pour battre CE joueur-là,
+     et non pour résister à un adversaire parfait. */
+  const [exploitProfile, setExploitProfile] = useState(null);
 
   /* ── §26 · TREE EDITOR ──────────────────────────────────────────────────
      `nodePath` : le nœud actuellement inspecté, désigné par son chemin d'actions.
@@ -142,6 +149,8 @@ export default function AdaptiveSizingPanel({
       /* §26 — les sizings définis nœud par nœud voyagent avec la requête. */
       ...(Object.keys(nodeOverrides).length ? { nodeOverrides } : {}),
       ...(manualCandidates ? { userBetSpecs: bets, userRaiseSpecs: raises } : {}),
+      /* §45 — le modèle d'adversaire, quand il y en a un. */
+      ...(exploitProfile ? { exploit: { profileId: exploitProfile } } : {}),
     };
     const { promise, cancel } = solveAsync(request, {
       family,
@@ -157,7 +166,7 @@ export default function AdaptiveSizingPanel({
       setNodePath([]);
       try { onSolution && onSolution(r); } catch { /* l'appelant ne casse pas le panneau */ }
     });
-  }, [disabled, busy, buildSpecs, stateInput, heroRange, villainRange, mode, complexity, profile, maxEvLoss, manualCandidates, family, onSolution, nodeOverrides]);
+  }, [disabled, busy, buildSpecs, stateInput, heroRange, villainRange, mode, complexity, profile, maxEvLoss, manualCandidates, family, onSolution, nodeOverrides, exploitProfile]);
 
   const stop = () => { if (cancelRef.current) { cancelRef.current(); setPhase(SolveStatus.CANCELLED); } };
   useEffect(() => () => { if (cancelRef.current) cancelRef.current(); }, []);
@@ -195,6 +204,30 @@ export default function AdaptiveSizingPanel({
           {PF_PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)} title={p.desc} style={chip(preset === p.id, T.cyan)}>{p.label}</button>
           ))}
+        </div>
+      </div>
+
+      {/* ── §45/§46 CIBLE DU SOLVE : équilibre ou exploitation ── */}
+      <div>
+        <div style={label}>Cible — contre QUI le sizing est optimisé</div>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
+          <button
+            onClick={() => setExploitProfile(null)}
+            title="Sizings choisis pour perdre le moins face à un adversaire qui joue parfaitement contre vous."
+            style={chip(exploitProfile === null, T.cyan)}
+            data-pfase-target="equilibrium">⚖️ Équilibre</button>
+          {Object.entries(EXPLOIT_PROFILES).map(([id, p]) => (
+            <button key={id}
+              onClick={() => setExploitProfile(id)}
+              title={`Sizings choisis pour gagner le plus face à ce profil. Le profil est une ESTIMATION de tendances (${Math.round(p.vsBet.F * 100)} % de folds face à une mise) ; la stratégie qui l'exploite, elle, est réellement résolue.`}
+              style={chip(exploitProfile === id, T.amber)}
+              data-pfase-target={id}>🎯 {p.label}</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 9, color: exploitProfile ? T.amber : T.text4, fontFamily: T.stats, marginTop: 4 }}>
+          {exploitProfile
+            ? "Exploitation : les fréquences du Vilain sont VERROUILLÉES sur un modèle estimé, et les sizings sont comparés contre lui. Le résultat n'est PAS un équilibre — il bat ce joueur-là, et se fait battre par un adversaire correct."
+            : "Équilibre : aucune fréquence n'est imposée au Vilain. C'est le régime par défaut, et le seul dont l'exploitabilité soit mesurable."}
         </div>
       </div>
 
@@ -281,7 +314,7 @@ export default function AdaptiveSizingPanel({
 
       {/* ── Lancement ── */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <button onClick={run} disabled={disabled || busy}
+        <button data-pfase="solve" onClick={run} disabled={disabled || busy}
           title={disabled ? disabledReason : "Génère les candidats, résout les sous-arbres, compare les EV, puis résout l'arbre retenu"}
           style={{
             padding: "7px 14px", borderRadius: 7, border: `1px solid ${T.purple}`,
@@ -295,7 +328,7 @@ export default function AdaptiveSizingPanel({
           <button onClick={stop} style={{ ...chip(true, T.red) }}>Annuler</button>
         )}
         <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: T.text3, fontFamily: T.stats, cursor: "pointer" }}>
-          <input type="checkbox" checked={family} onChange={e => setFamily(e.target.checked)} />
+          <input data-pfase="family-toggle" type="checkbox" checked={family} onChange={e => setFamily(e.target.checked)} />
           FULL → SINGLE (les 4 niveaux)
         </label>
         {disabled && <span style={{ fontSize: 9.5, color: T.amber, fontFamily: T.stats }}>{disabledReason}</span>}
@@ -347,7 +380,7 @@ export default function AdaptiveSizingPanel({
         </>
       )}
       {result && result.ok && family && Array.isArray(result.family) && (
-        <FamilyTable family={result.family} results={result.results} onTrain={onTrainSolution} />
+        <FamilyTable family={result.family} results={result.results} onTrain={onTrainSolution} onTrainMany={onTrainMany} />
       )}
     </div>
   );
@@ -405,7 +438,16 @@ function SolutionCard({ solution, optimization, onTrain, stale }) {
       data-pfase-evloss={m.absoluteEVLoss} data-pfase-floor={floor}
       data-pfase-distinguishable={String(distinguishable)}
       data-pfase-badge={d.badge}
-      style={{ ...box, borderColor: T.purple, background: "rgba(155,92,255,.06)" }}>
+      data-pfase-kind={solution.strategyKind || "EQUILIBRIUM"}
+      data-pfase-exploit={solution.exploit ? solution.exploit.profileId || "custom" : ""}
+      data-pfase-nashconv={solution.convergence ? String(solution.convergence.nashConv) : ""}
+      data-pfase-lockedgap={solution.convergence && solution.convergence.lockedPlayerGap != null ? String(solution.convergence.lockedPlayerGap) : ""}
+      style={{ ...box,
+        /* La couleur du cadre suit la NATURE de la solution : violet pour un
+           équilibre, ambre pour une exploitation. Qui enchaîne les solves doit
+           voir d un coup d oeil laquelle il regarde. */
+        borderColor: solution.strategyKind === "EXPLOIT" ? T.amber : T.purple,
+        background: solution.strategyKind === "EXPLOIT" ? "rgba(255,194,71,.06)" : "rgba(155,92,255,.06)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{
           fontSize: 9, fontWeight: 700, fontFamily: T.stats, padding: "2px 7px", borderRadius: 4,
@@ -423,6 +465,30 @@ function SolutionCard({ solution, optimization, onTrain, stale }) {
         )}
         {stale && <span style={{ ...chip(true, T.red), fontSize: 9 }} title="L'arbre a été modifié depuis ce solve.">PÉRIMÉ</span>}
       </div>
+      {/* ── §45/§46 — CE QUE CETTE SOLUTION EST, ET CE QU'ELLE N'EST PAS ──────
+          La provenance dit COMMENT le résultat a été obtenu (le CFR a tourné) ;
+          elle ne dit pas CE QU'IL DÉCRIT. Une exploitation est un solve à part
+          entière et n'est pas un équilibre — sans cette ligne, le badge « PF
+          SOLVED » suffirait à la faire lire comme du GTO. */}
+      {solution.strategyKind === "EXPLOIT" && solution.exploit && (
+        <div style={{ marginTop: 7, padding: "6px 8px", borderRadius: 5,
+          background: "rgba(255,194,71,.10)", border: `1px solid ${T.amber}55` }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, fontFamily: T.stats }}>
+            🎯 Exploitation — vs {solution.exploit.label} · CE N'EST PAS UN ÉQUILIBRE
+          </div>
+          <div style={{ fontSize: 9, color: T.text3, fontFamily: T.stats, marginTop: 3, lineHeight: 1.45 }}>
+            {solution.exploit.modelNote}
+          </div>
+          <div style={{ fontSize: 9, color: T.text4, fontFamily: T.stats, marginTop: 3, lineHeight: 1.45 }}>
+            Exploitabilité non définie sous verrou : NashConv suppose que les deux camps peuvent dévier.
+            {solution.convergence && solution.convergence.lockedPlayerGap != null && (
+              <> Convergence mesurée autrement — il reste <b style={{ color: T.text2 }}>{solution.convergence.lockedPlayerGap} bb</b> entre
+              la stratégie obtenue et la meilleure réponse au modèle.</>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* Sizings retenus vs candidats */}
       <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 10px", alignItems: "baseline" }}>
@@ -544,7 +610,7 @@ function Metric({ label: l, value, unit, color }) {
 const fmtEv = (v) => (typeof v === "number" ? (Math.round(v * 1000) / 1000).toFixed(3) : "—");
 
 /* ── §110 — le tableau FULL → SINGLE ──────────────────────────────────── */
-function FamilyTable({ family, results, onTrain }) {
+function FamilyTable({ family, results, onTrain, onTrainMany }) {
   return (
     <div data-pfase="family" data-pfase-levels={family.map(d => `${d.complexity}=${d.selected}@${d.evLossBb}`).join("|")}
       style={{ ...box, borderColor: T.cyan, background: "rgba(52,216,255,.05)" }}>
@@ -573,6 +639,20 @@ function FamilyTable({ family, results, onTrain }) {
           </React.Fragment>
         ))}
       </div>
+      {/* ── §67/§69/§110 — LES QUATRE NIVEAUX, CÔTE À CÔTE ──────────────────
+          Lire « perte 0.02 bb, non mesurable » ne dit rien à personne. Jouer les
+          quatre niveaux simultanément, sur quatre tables, dit tout : c'est là
+          qu'on constate qu'un Single Size bien choisi ne se distingue pas de
+          l'arbre complet — ou qu'il se distingue, et où. */}
+      {onTrainMany && family.filter(d => d.solutionId).length > 1 && (
+        <button
+          data-pfase-train-many={family.filter(d => d.solutionId).length}
+          onClick={() => onTrainMany(family.filter(d => d.solutionId).map(d => d.solutionId))}
+          style={{ ...chip(false, T.gold), marginTop: 9, fontSize: 10, padding: "5px 10px" }}
+          title="Ouvre une table par niveau. Chaque table joue SA solution : ses sizings, sa provenance, son coût de simplification — rien n'est partagé entre elles.">
+          🎯 S'entraîner sur les {Math.min(4, family.filter(d => d.solutionId).length)} niveaux — une table par niveau
+        </button>
+      )}
     </div>
   );
 }

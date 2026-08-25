@@ -22,7 +22,7 @@ import { clearStore, storeSize, inspectStore } from "./src/sizing/solutionStore.
 import { prepareTrainerSpot, solutionActsForSpot } from "./src/sizing/trainerBridge.js";
 import { potSizing, geometricSizing, jamSizing, previousBetSizing } from "./src/sizing/sizingSpec.js";
 import { SolveStatus, statusYieldsStrategy } from "./src/sizing/config.js";
-import { mayClaimSolved } from "./src/sizing/solutionSchema.js";
+import { mayClaimSolved, mayClaimEquilibrium } from "./src/sizing/solutionSchema.js";
 import { strategyEV, nodeActionEVs } from "./src/solver/core/multistreet.js";
 import { solveTreeSpec } from "./src/sizing/solverAdapter.js";
 import { normalizeGameState } from "./src/sizing/gameState.js";
@@ -507,6 +507,288 @@ console.log("\n══ CASE J — LE RAKE EST APPLIQUÉ, pas seulement déclaré 
     + " · pots disputés seulement " + disputes.r.ev);
   console.log("   sizings : sans rake " + oSans.solution.selectedSizes.bets.map(b => b.label).join(",")
     + " · avec rake " + oRake.solution.selectedSizes.bets.map(b => b.label).join(","));
+}
+
+console.log("\n══ CASE K — PFASE PRODUIT DES SOLUTIONS D'EXPLOIT (§45/§46/§64) ══");
+{
+  clearStore();
+  const lance = (exploit) => solveOptimizedTree({
+    stateInput: stateInput(), heroRange: HERO, villainRange: VILL, mode: "SINGLE", exploit,
+    userBetSpecs: [potSizing(0.33), potSizing(0.75), potSizing(1.5)], userRaiseSpecs: [],
+    evaluationConfig: { maxIterations: 300, maxCombos: 0, seed: 5, convergenceTarget: 0.02, maxIterationsCeiling: 1200 },
+    finalSolveConfig: { maxIterations: 800, maxCombos: 0, seed: 5 }, persist: false,
+  });
+
+  const gto = lance(null);
+  const station = lance({ profileId: "calling_station" });
+  const nit = lance({ profileId: "nit" });
+  ok(gto.ok && station.ok && nit.ok, "l'équilibre et les deux exploitations aboutissent");
+
+  /* ── 1. CE N'EST PAS LA MÊME QUESTION, DONC PAS LA MÊME RÉPONSE ──────────
+     En équilibre : « quel sizing perd le moins face à quelqu'un qui joue
+     parfaitement contre moi ? ». En exploit : « quel sizing gagne le plus face à
+     CE joueur-là ? ». Contre un adversaire qui paie 83 % du temps, la réponse
+     n'a aucune raison d'être la même — et le test échouerait si PFASE se
+     contentait de rejouer sa sélection d'équilibre en changeant l'étiquette. */
+  const sz = (r) => r.solution.selectedSizes.bets.map(b => b.label).join(",");
+  ok(sz(station) !== sz(gto), "le sizing retenu contre un Calling Station (" + sz(station) + ") diffère de l'équilibre (" + sz(gto) + ")");
+  ok(station.solution.simplificationMetrics.simplifiedEV > gto.solution.simplificationMetrics.simplifiedEV,
+    "et il rapporte davantage contre ce joueur (" + station.solution.simplificationMetrics.simplifiedEV
+    + " contre " + gto.solution.simplificationMetrics.simplifiedEV + " bb)");
+  ok(station.solution.simplificationMetrics.simplifiedEV !== nit.solution.simplificationMetrics.simplifiedEV,
+    "deux profils différents ne donnent pas la même EV — le modèle agit réellement sur le calcul");
+
+  /* ── 2. CE QUI NE DOIT JAMAIS ÊTRE APPELÉ « GTO » ────────────────────────
+     Une solution d'exploit est parfaitement « résolue » : le CFR a tourné. Elle
+     n'est pas pour autant un équilibre. Deux champs, deux questions — et si le
+     second manquait, tout écran qui vérifie la provenance conclurait « GTO » sur
+     une exploitation. */
+  eq(gto.solution.strategyKind, "EQUILIBRIUM", "la solution non verrouillée se déclare équilibre");
+  eq(station.solution.strategyKind, "EXPLOIT", "la solution verrouillée se déclare EXPLOIT");
+  eq(mayClaimSolved(station.solution), true, "elle a bien été RÉSOLUE — le CFR a tourné");
+  eq(mayClaimEquilibrium(station.solution), false, "mais elle ne peut PAS revendiquer un équilibre");
+  eq(mayClaimEquilibrium(gto.solution), true, "là où la solution d'équilibre, elle, le peut");
+
+  /* ── 3. LE MODÈLE EST DÉCLARÉ, ET DÉCLARÉ COMME ESTIMATION ──────────────— */
+  ok(station.solution.exploit, "la solution dit contre QUI elle a été calculée");
+  eq(station.solution.exploit.profileId, "calling_station", "le profil est nommé");
+  eq(station.solution.exploit.model, "HEURISTIC_ESTIMATE", "et le modèle est déclaré heuristique, pas résolu");
+  eq(station.solution.exploit.locks.length, 2, "les verrous concrets voyagent avec la solution");
+  eq(gto.solution.exploit, null, "aucune solution d'équilibre ne porte de modèle d'adversaire");
+
+  /* ── 4. NASHCONV N'EXISTE PAS SOUS VERROU ────────────────────────────────
+     NashConv suppose que les DEUX camps peuvent dévier. Sous nodelock, un camp
+     ne le peut pas : son terme de meilleure réponse ne décroît jamais, la somme
+     ne tend jamais vers zéro, et l'écran lirait « ça ne converge pas » sur une
+     exploitation parfaitement convergée. La bonne mesure est ailleurs. */
+  ok(gto.solution.convergence.nashConv != null, "sans verrou, l'exploitabilité est mesurée");
+  eq(station.solution.convergence.nashConv, null, "avec verrou, elle n'est pas définie — `null`, jamais un nombre");
+  eq(station.solution.convergence.locked, true, "la solution dit qu'elle est verrouillée");
+  ok(station.solution.convergence.lockedNodeCount > 0, "et combien de nœuds le sont");
+  ok(/pas un équilibre/.test(station.solution.convergence.lockedNote || ""), "avec la mise en garde explicite");
+
+  /* ── 5. LA CONVERGENCE PROPRE AU SOLVE VERROUILLÉ ────────────────────────
+     Ce qui se mesure ici : le joueur LIBRE joue-t-il sa meilleure réponse au
+     modèle ? L'écart doit être ≥ 0 — une meilleure réponse ne peut pas être pire
+     que la stratégie qu'elle bat. Il valait −0.26 à −0.58 bb avant correction,
+     parce que `bestResponseEV` et `strategyEV` ne normalisaient pas de la même
+     façon : l'un comptait au dénominateur des paires de mains qui partagent une
+     carte, donc impossibles. Deux conventions, pas un défaut de calcul — et
+     l'incohérence n'était visible que parce qu'on a comparé les deux. */
+  const gap = station.solution.convergence.lockedPlayerGap;
+  ok(gap != null, "l'écart au meilleur jeu contre le modèle est mesuré");
+  ok(gap >= -1e-4, "et il est positif ou nul : une meilleure réponse ne peut pas être pire (" + gap + ")");
+  ok(gap < 0.05, "contre un adversaire entièrement figé, Hero atteint son optimum (" + gap + ")");
+
+  /* ── 6. DEUX ÉTUDES DIFFÉRENTES, DEUX HASHS ─────────────────────────────
+     Sans cela, l'exploitation d'un Nit et celle d'un Maniac partageraient une
+     entrée de cache : l'une serait servie à la place de l'autre, en silence, et
+     le joueur s'entraînerait contre le mauvais adversaire. */
+  const maniac = lance({ profileId: "maniac" });
+  ok(maniac.ok, "un troisième profil se résout");
+  const hashs = new Set([gto, station, nit, maniac].map(r => r.solution.gameStateHash));
+  eq(hashs.size, 4, "équilibre et trois profils : quatre hashs d'état distincts");
+
+  /* ── 7. UN PROFIL INCONNU NE PRODUIT RIEN ───────────────────────────────— */
+  const bidon = lance({ profileId: "profil_inexistant" });
+  eq(bidon.ok, false, "§0 — un profil inconnu ne fabrique aucune solution");
+  ok(/inconnu/.test(bidon.reason), "avec le motif");
+
+  console.log("   sizing : équilibre " + sz(gto) + " (EV " + gto.solution.simplificationMetrics.simplifiedEV + ")"
+    + " · Calling Station " + sz(station) + " (EV " + station.solution.simplificationMetrics.simplifiedEV + ")"
+    + " · Nit " + sz(nit) + " (EV " + nit.solution.simplificationMetrics.simplifiedEV + ")");
+}
+
+console.log("\n══ CASE L — LA MAIN AVANCE : pot, tapis et rue à travers PFASE (§65) ══");
+{
+  clearStore();
+  /* §65 demande que les actions — check, bet, call, raise, fold, jam — soient
+     testées « avec progression du pot, des tapis et des rues ». Les suites
+     historiques du Trainer le font sur leur propre moteur. Ce qui manquait, c'est
+     la même chose À TRAVERS PFASE : que l'état produit par une action jouée
+     contre une solution soit exactement celui que la solution suivante résout.
+
+     C'est le raccord qui casse en silence. Un pot recalculé d'un côté et
+     transporté de l'autre donne deux nombres différents pour la même main, et le
+     joueur voit un SPR qui ne correspond à rien — sans qu'aucun test unitaire ne
+     s'en aperçoive, puisque chaque moitié est juste isolément. */
+
+  const TAPIS = 40, POT_TURN = 12;
+  const turn = {
+    gameType: "CASH", street: "TURN", board: [12, 25, 3, 40],
+    blinds: { sb: 0.5, bb: 1 }, minBet: 1, deadPot: POT_TURN, actorId: "h",
+    players: [
+      { id: "h", position: "BB", stack: TAPIS, committedStreet: 0, isHero: true },
+      { id: "v", position: "BTN", stack: TAPIS, committedStreet: 0 },
+    ],
+  };
+  const solveTurn = solveOptimizedTree({
+    stateInput: turn, heroRange: HERO, villainRange: VILL, mode: "SINGLE",
+    userBetSpecs: [potSizing(0.75)], userRaiseSpecs: [],
+    evaluationConfig: { maxIterations: 200, maxCombos: 0, seed: 5, maxIterationsCeiling: 600 },
+    finalSolveConfig: { maxIterations: 400, maxCombos: 0, seed: 5 }, persist: false,
+  });
+  ok(solveTurn.ok, "la turn se résout");
+  const stTurn = solveTurn.solution;
+  eq(stTurn.pot, POT_TURN, "le pot de départ est celui déclaré");
+  ok(Math.abs(stTurn.spr - TAPIS / POT_TURN) < 1e-3, "et le SPR en découle, il n'est pas saisi");
+
+  /* L'action que la solution recommande, avec son MONTANT — lu sur l'arbre,
+     jamais reconstruit depuis un libellé (§34). */
+  const noeud = getTrainingNode(stTurn, [], { handClass: "AA" });
+  ok(noeud.ok, "le nœud de la turn est exploitable");
+  const mise = noeud.actions.find(a => a.actionType === "BET");
+  ok(mise, "la solution propose une mise");
+  ok(mise.additionalBb > 0, `d'un montant strictement positif (${mise.additionalBb} bb)`);
+
+  /* ── LA PROGRESSION ─────────────────────────────────────────────────────
+     Hero mise, le Vilain paie : le pot gagne DEUX fois la mise, et chaque tapis
+     en perd une. C'est de l'arithmétique — et c'est précisément pour cela que
+     c'est un bon test : le résultat attendu ne dépend d'aucun solveur. */
+  const potRiver = POT_TURN + 2 * mise.additionalBb;
+  const tapisRiver = TAPIS - mise.additionalBb;
+  const river = {
+    ...turn, street: "RIVER", board: [12, 25, 3, 40, 7], deadPot: potRiver,
+    players: [
+      { id: "h", position: "BB", stack: tapisRiver, committedStreet: 0, isHero: true },
+      { id: "v", position: "BTN", stack: tapisRiver, committedStreet: 0 },
+    ],
+  };
+  const solveRiver = solveOptimizedTree({
+    stateInput: river, heroRange: HERO, villainRange: VILL, mode: "SINGLE",
+    userBetSpecs: [potSizing(0.75)], userRaiseSpecs: [],
+    evaluationConfig: { maxIterations: 200, maxCombos: 0, seed: 5, maxIterationsCeiling: 600 },
+    finalSolveConfig: { maxIterations: 400, maxCombos: 0, seed: 5 }, persist: false,
+  });
+  ok(solveRiver.ok, "la river se résout à l'état produit par l'action");
+  const stRiver = solveRiver.solution;
+
+  eq(stRiver.pot, potRiver, `le pot de la river vaut bien ${POT_TURN} + 2 × ${mise.additionalBb} = ${potRiver}`);
+  eq(stRiver.effectiveStacks, tapisRiver, `et le tapis effectif ${TAPIS} − ${mise.additionalBb} = ${tapisRiver}`);
+  ok(stRiver.spr < stTurn.spr, `le SPR a baissé (${stTurn.spr} → ${stRiver.spr}) : miser engage des jetons`);
+  ok(Math.abs(stRiver.spr - tapisRiver / potRiver) < 1e-3, "et il est recalculé, pas transporté");
+
+  /* ── LE SIZING SUIT L'ÉTAT, IL N'EST PAS RECOPIÉ (§38/§39) ─────────────
+     « Le sizing proposé à la turn dépend du nouvel état. Ne pas réutiliser
+     naïvement le sizing flop. » Même fraction de pot demandée, pot différent :
+     le MONTANT doit différer. S'il était identique, c'est qu'il aurait été
+     transporté au lieu d'être recalculé. */
+  const nRiver = getTrainingNode(stRiver, [], { handClass: "AA" });
+  const miseRiver = nRiver.actions.find(a => a.actionType === "BET");
+  ok(miseRiver, "la river propose une mise");
+  ok(Math.abs(miseRiver.additionalBb - mise.additionalBb) > 0.01,
+    `même fraction, montants différents : ${mise.additionalBb} bb à la turn contre ${miseRiver.additionalBb} bb à la river`);
+  eq(stRiver.strategy.coversStreetsAhead, false,
+    "et la solution de la turn ne prétendait PAS couvrir la river — c'est pour cela qu'on a re-résolu");
+
+  /* ── LES TYPES D'ACTION, UN PAR UN (§65) ────────────────────────────────
+     Chaque type doit être reconnu POUR CE QU'IL EST : §37 interdit de qualifier
+     un CALL de BET sous prétexte que les deux engagent des jetons. */
+  const faceMise = getTrainingNode(stRiver, ["B"], { handClass: "AA" });
+  ok(faceMise.ok, "le nœud « face à une mise » existe");
+  const types = faceMise.actions.map(a => a.actionType).sort();
+  ok(types.includes("FOLD"), "FOLD y est proposé");
+  ok(types.includes("CALL"), "CALL aussi — et il n'est pas appelé BET");
+  ok(faceMise.toCallBb > 0, `avec un montant à payer (${faceMise.toCallBb} bb)`);
+  for (const a of faceMise.actions) {
+    if (a.actionType === "FOLD") eq(a.additionalBb, 0, "se coucher n'engage rien");
+    if (a.actionType === "CALL") eq(a.additionalBb, faceMise.toCallBb, "payer engage exactement ce qu'il y a à payer");
+  }
+  /* Et le verdict sait chiffrer chacune d'elles. */
+  for (const t of ["FOLD", "CALL"]) {
+    const c = compareAction({ solution: stRiver, path: ["B"], handClass: "AA", actionType: t });
+    eq(c.ok, true, `${t} se compare`);
+    eq(c.inTree, true, `${t} est reconnu dans l'arbre`);
+    eq(c.matched.actionType, t, `et qualifié ${t}, pas autre chose`);
+  }
+
+  console.log(`   turn : pot ${stTurn.pot} · SPR ${stTurn.spr} · mise ${mise.additionalBb} bb`
+    + ` → river : pot ${stRiver.pot} · SPR ${stRiver.spr} · mise ${miseRiver.additionalBb} bb`);
+}
+
+console.log("\n══ CASE M — TAPIS INÉGAUX ET ALL-IN PARTIEL, en heads-up (§7) ══");
+{
+  clearStore();
+  /* §7 exige une source unique pour pot, SPR, tapis et relances. Le point qui
+     restait à prouver est l'ALL-IN PARTIEL : quand les tapis sont inégaux, la
+     partie du tapis long qui dépasse le court ne peut jamais être jouée. Elle
+     doit disparaître de toutes les grandeurs dérivées — pas seulement du montant
+     du tapis, mais aussi du SPR, de la relance maximale, et du montant réellement
+     proposé par le bouton.
+
+     C'est l'erreur classique : afficher « Tapis 40 bb » à un joueur dont
+     l'adversaire n'en a que 25. Les 15 bb en trop ne peuvent pas être gagnés, et
+     un SPR calculé dessus décrit une partie qui n'existe pas.
+
+     En heads-up il n'y a jamais de SIDE POT : il n'y a qu'un adversaire, donc un
+     seul pot, et l'excédent est simplement rendu. Les side pots exigent au moins
+     trois joueurs, ce que ce moteur ne fait pas (L2) — c'est dit là, et ce n'est
+     pas ce qui est testé ici. */
+  const spot = (sh, sv) => ({
+    gameType: "CASH", street: "RIVER", board: [12, 25, 3, 40, 7],
+    blinds: { sb: 0.5, bb: 1 }, minBet: 1, deadPot: 12, actorId: "h",
+    players: [
+      { id: "h", position: "BB", stack: sh, committedStreet: 0, isHero: true },
+      { id: "v", position: "BTN", stack: sv, committedStreet: 0 },
+    ],
+  });
+
+  /* ── 1. LE TAPIS EFFECTIF EST LE PLUS COURT, DANS LES DEUX SENS ────────── */
+  for (const [sh, sv] of [[40, 25], [25, 40], [8, 60], [60, 8]]) {
+    const st = normalizeGameState(spot(sh, sv)).state;
+    const court = Math.min(sh, sv);
+    eq(st.effectiveStack, court, `tapis ${sh}/${sv} → effectif ${court}`);
+    ok(Math.abs(st.spr - court / 12) < 1e-3, `et le SPR se calcule sur le tapis effectif, pas sur le plus long`);
+    eq(st.maximumRaise, court, "la relance maximale est plafonnée au tapis effectif");
+  }
+
+  /* Symétrie : peu importe qui est court, le jeu est le même. */
+  const a = normalizeGameState(spot(40, 25)).state;
+  const b = normalizeGameState(spot(25, 40)).state;
+  eq(a.effectiveStack, b.effectiveStack, "40/25 et 25/40 ont le même tapis effectif");
+  eq(a.spr, b.spr, "et le même SPR");
+
+  /* ── 2. LE BOUTON TAPIS PROPOSE LE TAPIS COURT ─────────────────────────
+     C'est ici que l'erreur se voit vraiment : un JAM à 40 bb serait un montant
+     que le jeu ne peut pas produire. Le bouton doit dire 25. */
+  const r = solveOptimizedTree({
+    stateInput: spot(40, 25), heroRange: HERO, villainRange: VILL, mode: "FIXED",
+    userBetSpecs: [potSizing(0.75), jamSizing()], userRaiseSpecs: [],
+    evaluationConfig: { maxIterations: 200, maxCombos: 0, seed: 5 },
+    finalSolveConfig: { maxIterations: 400, maxCombos: 0, seed: 5 }, persist: false,
+  });
+  ok(r.ok, "le spot à tapis inégaux se résout");
+  const n = getTrainingNode(r.solution, [], { handClass: "AA" });
+  const jam = n.actions.find(x => x.actionType === "ALL_IN");
+  ok(jam, "un tapis est proposé");
+  eq(jam.additionalBb, 25, "et il vaut 25 bb — le tapis COURT, jamais les 40 bb du tapis long");
+  eq(r.solution.effectiveStacks, 25, "la solution enregistre le tapis effectif");
+
+  /* Toutes les actions dimensionnées restent sous ce plafond : une mise de 75 %
+     d'un pot de 12 vaut 9 bb, donc elle passe ; mais rien ne peut dépasser 25. */
+  for (const act of n.actions) {
+    ok(act.additionalBb <= 25 + 1e-9,
+      `${act.label} engage ${act.additionalBb} bb — au plus le tapis effectif`);
+  }
+
+  /* ── 3. UN TAPIS TROP COURT POUR LE SIZING DEMANDÉ ─────────────────────
+     À 8 bb effectifs, une mise de 150 % d'un pot de 12 vaudrait 18 bb : elle
+     n'existe pas. Elle doit être ÉCARTÉE ou ramenée au tapis — jamais proposée
+     à un montant injouable. */
+  const court = solveOptimizedTree({
+    stateInput: spot(8, 60), heroRange: HERO, villainRange: VILL, mode: "FIXED",
+    userBetSpecs: [potSizing(0.75), potSizing(1.5)], userRaiseSpecs: [],
+    evaluationConfig: { maxIterations: 200, maxCombos: 0, seed: 5 },
+    finalSolveConfig: { maxIterations: 400, maxCombos: 0, seed: 5 }, persist: false,
+  });
+  ok(court.ok, "le spot à tapis très court se résout");
+  const nc = getTrainingNode(court.solution, [], { handClass: "AA" });
+  for (const act of nc.actions) {
+    ok(act.additionalBb <= 8 + 1e-9,
+      `à 8 bb effectifs, ${act.label} engage ${act.additionalBb} bb — jamais plus que le tapis`);
+  }
+  console.log(`   40/25 → effectif ${a.effectiveStack} bb · SPR ${a.spr} · tapis ${jam.additionalBb} bb`
+    + ` | 8/60 → actions ${nc.actions.map(x => x.additionalBb).join("/")} bb`);
 }
 
 console.log(`\n✅ PFASE pipeline complet — CASE A→H + §110 (${Math.round((Date.now() - t0) / 1000)} s) — ${passed} assertions OK\n`);

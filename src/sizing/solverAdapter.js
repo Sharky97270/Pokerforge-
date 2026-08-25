@@ -20,7 +20,7 @@
 
 import { solveMultiStreet } from "../solver/api.js";
 import { treeStats, buildPostflopTree } from "../solver/core/gametree.js";
-import { strategyEV } from "../solver/core/multistreet.js";
+import { strategyEV, lockedPlayerGap } from "../solver/core/multistreet.js";
 import { EQ_RANKVAL, EQ_SUITIDX, rangeComboList } from "../solver/core/combos.js";
 import {
   SolveStatus, EvaluationModel, DEFAULT_EVALUATION_CONFIG, DEFAULT_MEMORY_GUARD,
@@ -165,6 +165,11 @@ export function solveTreeSpec({
       ...(treeSpec.nodeOverrides && Object.keys(treeSpec.nodeOverrides).length ? { nodeOverrides: treeSpec.nodeOverrides } : {}),
       /* §21/§55 — le modèle d'évaluation entre dans le SOLVE, pas seulement dans
          l'affichage. Une solution ChipEV ne peut pas être re-badgée ICM (§55). */
+      /* §45/§46 — les VERROUS de nœud descendent au solveur. Ils voyagent dans
+         le treeSpec (et non à côté) pour une raison précise : le treeSpec est
+         déjà ce qui entre dans le hash et dans la clé de cache, donc un exploit
+         ne peut pas se retrouver servi à la place d'un équilibre. */
+      ...(Array.isArray(treeSpec.locks) && treeSpec.locks.length ? { locks: treeSpec.locks } : {}),
       /* §78 — le rake descend jusqu'à l'utilité terminale. Transmis SEULEMENT
          quand il est déclaré appliqué : sans ce filtre, un état porteur d'un
          rake « pour l'affichage » modifierait silencieusement les EV. */
@@ -253,6 +258,20 @@ export function solveTreeSpec({
         elapsedMs,
         nashConv: out.convergence ? (out.convergence.nashConv ?? null) : null,
         note: out.convergence ? (out.convergence.note ?? null) : null,
+        /* ── CONVERGENCE D'UN SOLVE VERROUILLÉ ─────────────────────────────
+           Sous nodelock, NashConv est `null` par construction : le camp
+           verrouillé ne peut pas dévier, donc son terme de meilleure réponse ne
+           décroît jamais. Ce qui se mesure alors, c'est l'écart entre ce que le
+           joueur LIBRE obtient et sa meilleure réponse au modèle — il tend vers
+           zéro quand l'exploitation est aboutie. Deux grandeurs, deux noms : les
+           confondre ferait lire « ça ne converge pas » sur une exploitation
+           parfaitement convergée. */
+        locked: (sol.lockedNodeCount || 0) > 0,
+        lockedNodeCount: sol.lockedNodeCount || 0,
+        lockedPlayerGap: (sol.lockedNodeCount || 0) > 0 ? lockedPlayerGap(sol, optimizeFor) : null,
+        lockedNote: (sol.lockedNodeCount || 0) > 0
+          ? "solve VERROUILLÉ : ce n'est pas un équilibre. NashConv n'y est pas défini (un camp ne peut pas dévier) ; « lockedPlayerGap » mesure ce qui reste au joueur libre avant sa meilleure réponse au modèle."
+          : null,
         sampled: !!sol.sampled,
         tolerance: cfg.convergenceTarget ?? null,
         seed: out.seed ?? null,

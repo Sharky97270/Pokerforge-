@@ -38,6 +38,7 @@ import { gameStateHash, solutionId as makeSolutionId } from "./canonicalHash.js"
 import { optimizeBettingTree, createEvaluationCache } from "./dynamicOptimizer.js";
 import { solveTreeSpec } from "./solverAdapter.js";
 import { extractStreetStrategy, nodeStrategyFor, legalActionsFromNode, pathKey } from "./strategyExtract.js";
+import { locksForProfile, validateProfile, EXPLOIT_PROFILES } from "../solver/core/exploitProfiles.js";
 import { simplificationMetrics, actionLoss } from "./metrics.js";
 import { buildSolution, deriveProvenance, SolutionProvenance, validateSolution, mayClaimSolved } from "./solutionSchema.js";
 import { saveSolution, getSolutionById, getSolution as storeGet, solutionFamily, complexitiesFor } from "./solutionStore.js";
@@ -91,6 +92,46 @@ export function solveOptimizedTree(request = {}) {
     : mode === BettingTreeMode.FIXED ? SizingComplexity.FULL
       : (request.complexity || SizingComplexity.SIMPLE);
   const optimizeFor = request.optimizeFor ?? 0;
+
+  /* ── MODE EXPLOIT (§45/§46) ──────────────────────────────────────────────
+     Le nodelock existait déjà dans le solveur ; ce qui manquait, c'est que PFASE
+     PRODUISE des solutions d'exploit — c'est-à-dire qu'il choisisse les sizings
+     par comparaison d'EV CONTRE UN MODÈLE d'adversaire, au lieu de les choisir
+     contre un adversaire d'équilibre.
+
+     La question posée change complètement de nature, et c'est le point :
+       · en équilibre  — « quel sizing perd le moins face à quelqu'un qui joue
+         parfaitement contre moi ? » ;
+       · en exploit    — « quel sizing gagne le plus face à ce joueur-là ? ».
+
+     Elles n'ont aucune raison d'avoir la même réponse, et la seconde ne mérite
+     à aucun moment le mot « GTO ». La solution produite le déclare (voir
+     `strategyKind` plus bas), et la validation du schéma le vérifie. */
+  let locks = null, exploitMeta = null;
+  if (request.exploit && request.exploit.profileId) {
+    const v = validateProfile(request.exploit.profileId);
+    if (!v.ok) return { ok: false, status: SolveStatus.FAILED, reason: v.reason };
+    locks = locksForProfile(request.exploit.profileId);
+    exploitMeta = {
+      profileId: request.exploit.profileId,
+      label: v.profile.label,
+      /* Le MODÈLE est une estimation ; la stratégie construite contre lui est,
+         elle, réellement résolue. Les deux mentions cohabitent parce qu'elles
+         disent deux choses différentes et également nécessaires (§0). */
+      model: "HEURISTIC_ESTIMATE",
+      modelNote: "Tendances estimées d'un type de joueur, verrouillées telles quelles dans l'arbre. La stratégie qui les exploite est résolue par CFR ; le modèle qu'elle exploite ne l'est pas.",
+      locks,
+    };
+  } else if (Array.isArray(request.locks) && request.locks.length) {
+    /* Verrous fournis directement (§45) : un nodelock sur mesure, sans profil. */
+    locks = request.locks;
+    exploitMeta = {
+      profileId: null, label: "Verrous personnalisés", model: "USER_DEFINED",
+      modelNote: "Fréquences imposées par l'utilisateur. La stratégie qui les exploite est résolue ; les fréquences imposées ne le sont pas.",
+      locks,
+    };
+  }
+
   const evalCfg = withDefaults(DEFAULT_EVALUATION_CONFIG, request.evaluationConfig);
   const finalCfg = withDefaults(DEFAULT_FINAL_SOLVE_CONFIG, request.finalSolveConfig);
 
@@ -105,6 +146,8 @@ export function solveOptimizedTree(request = {}) {
     restrictPlayers: request.restrictPlayers,
     cache: request.cache, signal: request.signal, onProgress: request.onProgress,
     nodeOverrides: request.nodeOverrides,
+    /* Les verrous s'appliquent à TOUS les sous-arbres, référence comprise. */
+    locks,
     ...(request.solveFn ? { solveFn: request.solveFn } : {}),
   });
   if (!opt.ok) {
@@ -130,6 +173,10 @@ export function solveOptimizedTree(request = {}) {
       ? { nodeOverrides: request.nodeOverrides } : {}),
     allowJam: opt.selected.entry.betSpecs.some(s => s.type === "jam")
       || opt.selected.entry.raiseSpecs.some(s => s.type === "jam"),
+    /* Le solve final affronte le MÊME modèle que la sélection : sans cela, on
+       choisirait les sizings contre un adversaire et on entraînerait contre un
+       autre — la solution servie ne serait plus celle qui a été comparée. */
+    ...(locks ? { locks } : {}),
   };
   const finalSolve = (request.solveFn || solveTreeSpec)({
     state, heroRange, villainRange, treeSpec: finalTreeSpec,
@@ -170,6 +217,10 @@ export function solveOptimizedTree(request = {}) {
      Le hash porte donc l'ENSEMBLE DES CANDIDATS explorés (identique pour les
      quatre) ; c'est `solutionId = hash#COMPLEXITY` qui les distingue. */
   const studySpec = {
+    /* §45 — le modèle d'adversaire fait partie de l'ÉTUDE, pas de la
+       simplification : un exploit contre un Nit et un exploit contre un Maniac
+       sont deux études distinctes, chacune avec ses quatre niveaux. */
+    ...(locks ? { locks } : {}),
     mode,
     betSizes: opt.reference.entry.betSpecs,
     raiseSizes: opt.reference.entry.raiseSpecs,
@@ -224,6 +275,11 @@ export function solveOptimizedTree(request = {}) {
     convergence: finalSolve.convergence,
     status, partialReasons,
     provenance: deriveProvenance({ solvedNow: true }),
+    /* §45/§46 — ce que cette stratégie EST. Le champ n'est pas décoratif : la
+       validation du schéma refuse qu'une solution d'exploit porte une prétention
+       d'équilibre, et les écrans s'y accrochent pour choisir leur vocabulaire. */
+    strategyKind: exploitMeta ? "EXPLOIT" : "EQUILIBRIUM",
+    exploit: exploitMeta,
     evaluationConfig: evalCfg, finalSolveConfig: finalCfg,
     instrumentation: { optimization: opt.instrumentation, finalSolve: finalSolve.instrumentation, totalMs: Date.now() - t0 },
     optimizeFor, noise: opt.noise, plannerReport: opt.planner,

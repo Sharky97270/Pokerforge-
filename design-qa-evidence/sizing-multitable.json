@@ -1,0 +1,34 @@
+{
+  "ok": false,
+  "steps": [
+    {
+      "step": "onglet SharkSolver",
+      "ok": true
+    },
+    {
+      "step": "board saisi",
+      "ok": true,
+      "board": "As7d2c9hKs"
+    },
+    {
+      "step": "mode famille activé",
+      "ok": true,
+      "libelle": true
+    },
+    {
+      "step": "solve lancé",
+      "ok": false,
+      "bouton": {
+        "absent": true
+      }
+    }
+  ],
+  "errors": [
+    "bouton « Optimiser les sizings » introuvable ou désactivé : {\"absent\":true}"
+  ],
+  "console": [],
+  "tables": [],
+  "boutonSolve": {
+    "absent": true
+  }
+}

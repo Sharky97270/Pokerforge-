@@ -38,7 +38,7 @@ import { PAUSE_AFTER, PAUSE_AFTER_OPTIONS, PAUSE_AFTER_DEFAULT, PAUSE_AFTER_HELP
 import { isSolvablePostflop, buildPostflopSolveRequest, mapWorkerResultToStrategy } from "../trainerPostflopSolver.js";
 /* ⚖️ Adaptive Sizing Engine (§29/§87) — le Trainer CONSOMME une solution ; il
    n'en choisit jamais les sizings. Import de la seule API publique de PFASE. */
-import { spotFromSolution } from "../sizing/trainerBridge.js";
+import { spotsFromSolutions, spotFromSolution } from "../sizing/trainerBridge.js";
 /* `getSolutionById` prend un solutionId ; `getSolution` prend (hash, complexité).
    Confondre les deux rendait systématiquement null — la solution existait bien,
    mais on la cherchait avec la mauvaise clé. */
@@ -4115,7 +4115,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         style={{fontFamily:T.stats,fontSize:8,fontWeight:800,letterSpacing:".04em",padding:"2px 7px",borderRadius:20,whiteSpace:"nowrap",
           color:badgeCol,background:isChart?"rgba(255,176,32,.12)":pfase?"rgba(155,92,255,.14)":cfrExp?"rgba(32,207,255,.12)":solved?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
           border:`1px solid ${isChart?"rgba(255,176,32,.35)":pfase?"rgba(155,92,255,.4)":cfrExp?"rgba(32,207,255,.35)":solved?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-        {isChart?"📊 Chart":pfase?`⚖️ ${spot.pfase?.complexity||"Adaptive"}`:cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
+        {isChart?"📊 Chart"
+          :pfase?(spot.pfase?.strategyKind==="EXPLOIT"
+            /* Une exploitation ne porte JAMAIS le symbole de l'équilibre : contre
+               qui elle a été calculée fait partie de ce qu'elle est (§0/§45). */
+            ? `🎯 vs ${spot.pfase?.exploitLabel||"profil"}`
+            : `⚖️ ${spot.pfase?.complexity||"Adaptive"}`)
+          :cfrExp?"🦈 CFR (exp.)":solved?"🦈 Solveur":"≈ Heuristique"}
       </span>
     ):null;
     return(
@@ -5141,11 +5147,26 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   <span title={spot.strategyNote||""} style={{fontFamily:T.stats,fontSize:7.5,fontWeight:800,letterSpacing:".03em",padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
                     color:col,background:ch?"rgba(255,176,32,.12)":pf?"rgba(155,92,255,.14)":cfrExp?"rgba(32,207,255,.12)":sv?"rgba(16,216,122,.12)":"rgba(255,255,255,.05)",
                     border:`1px solid ${ch?"rgba(255,176,32,.35)":pf?"rgba(155,92,255,.4)":cfrExp?"rgba(32,207,255,.35)":sv?"rgba(16,216,122,.35)":"rgba(255,255,255,.12)"}`}}>
-                    {ch?"📊 Chart":pf?`⚖️ Adaptive Sizing · ${spot.pfase?.complexity||""}`:cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
+                    {ch?"📊 Chart"
+                      :pf?(spot.pfase?.strategyKind==="EXPLOIT"
+                        ? `🎯 Exploit · vs ${spot.pfase?.exploitLabel||"profil"}`
+                        : `⚖️ Adaptive Sizing · ${spot.pfase?.complexity||""}`)
+                      :cfrExp?"🦈 CFR (exp.)":sv?"🦈 Solveur":"≈ Heuristique"}
                   </span>
                   {/* §14/§110 — ce que la simplification coûte, AVEC son plancher
                       de mesure. Un « 0.00 bb » sans plancher laisserait croire à
                       une gratuité démontrée. */}
+                  {pf&&spot.pfase?.strategyKind==="EXPLOIT"&&(
+                    /* Sans cette ligne, un joueur pourrait travailler des heures
+                       une stratégie d'exploitation en croyant apprendre l'équilibre.
+                       Le modèle exploité est une ESTIMATION : c'est dit ici, pas
+                       enterré dans une infobulle. */
+                    <span title={spot.pfase.exploitModelNote||""}
+                      style={{marginLeft:6,padding:"1px 6px",borderRadius:4,fontSize:9,fontWeight:800,
+                        color:"#FFC247",background:"rgba(255,194,71,.12)",border:"1px solid rgba(255,194,71,.35)"}}>
+                      exploitation — pas un équilibre
+                    </span>
+                  )}
                   {pf&&spot.pfase&&spot.pfase.evLossBb!=null&&(
                     <span title={`Sizings retenus : ${(spot.pfase.selected||[]).join(" · ")} — comparés à ${(spot.pfase.reference||[]).join(" · ")}`}
                       style={{fontFamily:T.stats,fontSize:7.5,fontWeight:700,padding:"1px 6px",borderRadius:20,whiteSpace:"nowrap",
@@ -8374,6 +8395,40 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
        au spot courant, on CONSTRUIT le spot à partir de la solution. Board, pot,
        tapis, positions, actions et fréquences en sortent tous — donc le spot
        joué est exactement celui qui a été résolu. */
+    /* ── §67/§69 — PLUSIEURS SOLUTIONS, PLUSIEURS TABLES ────────────────────
+       `pfaseSolutionIds` (au pluriel) ouvre une table par solution : quatre
+       spots résolus séparément, ou les quatre NIVEAUX du même état joués côte à
+       côte. Le second cas est le plus parlant — c'est la seule façon de SENTIR
+       ce qu'une simplification coûte, plutôt que de lire une perte d'EV que le
+       plancher de mesure déclare indistinguable. */
+    if(sd&&Array.isArray(sd.pfaseSolutionIds)&&sd.pfaseSolutionIds.length){
+      const sols=sd.pfaseSolutionIds.map(id=>getPfaseSolution(id)).filter(Boolean);
+      if(!sols.length){
+        setPfaseNotice("Aucune des solutions demandées n'a été retrouvée — relance le solve dans SharkSolver.");
+        return;
+      }
+      const built=spotsFromSolutions(sols,{handClass:sd.handClass||null});
+      if(!built.ok){setPfaseNotice("Solutions inexploitables pour l'entraînement : "+built.reason);return;}
+      const valides=[];
+      for(const sp of built.spots){
+        const v=validateTrainerSpot(sp);
+        if(v.valid)valides.push({...sp,ctx:v.ctx});
+      }
+      if(!valides.length){setPfaseNotice("Spots issus des solutions refusés par le validateur.");return;}
+      const q=finalizeTrainingSpots(valides,{config:trainingConfig,meta:{}});
+      setQueue(q);setIdx(0);setResults([]);setTableAns({});setTableSettled({});bumpSession(0);
+      setSmode(valides.length);setNtables(Math.min(4,valides.length));
+      setTrainMode("spot");setStarted(true);setDone(false);setStoppedEarly(false);
+      setDecisionTimes([]);spotStartRef.current=Date.now();setMobSidebar(false);setExpandedT(null);setSheetTab(null);setResume(null);
+      setPfaseNotice(
+        valides.length<sd.pfaseSolutionIds.length
+          /* Ce qui manque est DIT. Ouvrir trois tables au lieu de quatre sans
+             rien signaler laisserait croire à une solution en moins. */
+          ?`${valides.length} table(s) ouverte(s) sur ${sd.pfaseSolutionIds.length} solution(s) demandée(s) — les autres n'étaient pas exploitables.`
+          :null);
+      vibrate(VIB.next);
+      return;
+    }
     if(sd&&sd.pfaseSolutionId){
       const sol=getPfaseSolution(sd.pfaseSolutionId);
       if(!sol){
