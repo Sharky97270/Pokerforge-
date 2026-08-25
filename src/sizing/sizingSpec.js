@@ -119,7 +119,11 @@ export function roundTo(v, decimals) {
   const p = Math.pow(10, decimals);
   const n = num(v);
   if (!Number.isFinite(n)) return 0;
-  return Math.round(n * p) / p;
+  const r = Math.round(n * p) / p;
+  /* `-0` et `0` sont le même nombre, mais pas la même CHAÎNE : un « −0 bb »
+     s'affiche, se sérialise, et casse une comparaison de clé de cache. On le
+     normalise ici plutôt que dans chaque consommateur. */
+  return r === 0 ? 0 : r;
 }
 export function roundAmount(v, rounding = DEFAULT_ROUNDING) {
   const step = rounding.betStepBb;

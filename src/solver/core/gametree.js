@@ -215,6 +215,14 @@ export function buildPostflopTree(opts={}){
           const raiseAllIn=raiseAmt>=rem-EPS;
           // Une « relance » qui n'ajoute rien au-delà du call n'est pas une relance.
           if(raiseAmt<=toCall+EPS)return;
+          /* ── UN SIZING SOUS LE MINIMUM LÉGAL EST ÉCARTÉ, PAS RELEVÉ ────────
+             `resolveSizing` remonte au minimum légal — c'est le bon comportement
+             pour un curseur d'interface, où l'utilisateur veut la valeur la plus
+             proche qui soit jouable. Ici, non : un CANDIDAT « 1.5× la mise » qui
+             deviendrait « 2× » ferait entrer dans l'arbre un sizing que personne
+             n'a demandé, et le ferait ensuite déduplifier contre un vrai « 2× ».
+             §34 interdit précisément cette conversion implicite. */
+          if(r.clamped==="minimum légal")return;
           // Hors all-in, la relance doit être légale.
           if(!raiseAllIn&&myStreet+raiseAmt<facingLevel+ctx.minIncrement-1e-6)return;
           const key=Math.round(raiseAmt*1000);

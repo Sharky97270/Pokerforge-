@@ -46,13 +46,19 @@ export function isAggressiveActionType(t) {
 export const STREETS = Object.freeze(["PREFLOP", "FLOP", "TURN", "RIVER"]);
 export const STREET_BOARD_LENGTH = Object.freeze({ PREFLOP: 0, FLOP: 3, TURN: 4, RIVER: 5 });
 
+/* Les formes acceptées sont ÉNUMÉRÉES, pas devinées par préfixe. Un
+   `/^PRE/` acceptait « PRE-TURN » et le transformait silencieusement en
+   préflop : exactement le genre de rattrapage que §92 interdit. */
+const STREET_ALIASES = new Map(Object.entries({
+  PREFLOP: "PREFLOP", PRE: "PREFLOP", "PRÉFLOP": "PREFLOP", "PRE-FLOP": "PREFLOP",
+  "PRÉ-FLOP": "PREFLOP", PREFLOPPED: "PREFLOP",
+  FLOP: "FLOP",
+  TURN: "TURN",
+  RIVER: "RIVER", RIVIERE: "RIVER", "RIVIÈRE": "RIVER",
+}));
 export function normalizeStreet(s) {
   const t = String(s || "").trim().toUpperCase();
-  if (/^PRE/.test(t)) return "PREFLOP";
-  if (/^FLOP/.test(t)) return "FLOP";
-  if (/^TURN/.test(t)) return "TURN";
-  if (/^RIV/.test(t)) return "RIVER";
-  return null;
+  return STREET_ALIASES.get(t) || null;
 }
 /* Rues de mise restantes À VENIR, celle-ci comprise. Flop → 3, turn → 2,
    river → 1. Alimente le sizing géométrique (§6). */

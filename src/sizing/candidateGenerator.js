@@ -143,8 +143,16 @@ function materialize(entries, ctx, { facing, state, dropped, kind }) {
     const r = resolveSizing(spec, ctx);
     if (!r) { dropped.push({ kind, key: specKey(spec), reason: "non résoluble dans cet état" }); continue; }
     if (r.additionalChips <= EPS.amount) { dropped.push({ kind, key: specKey(spec), reason: "montant nul" }); continue; }
-    /* Une relance doit dépasser le niveau affronté d'au moins l'incrément légal,
-       sauf si elle est le tapis (relance incomplète autorisée). */
+    /* ── SOUS LE MINIMUM LÉGAL : ÉCARTÉ, JAMAIS RELEVÉ (§34) ──────────────
+       `resolveSizing` remonte au minimum légal ; c'est utile pour un curseur,
+       pas pour un candidat. Un « 1.5× la mise » promu en « 2× » ferait évaluer
+       un sizing que l'utilisateur n'a pas proposé, et le rendrait indiscernable
+       d'un vrai « 2× ». On teste donc l'écrêtage lui-même, et pas seulement le
+       montant final — qui, après écrêtage, est légal par construction. */
+    if (facing && r.clamped === "minimum légal") {
+      dropped.push({ kind, key: specKey(spec), reason: `sous la relance minimale (${state.minimumRaise}bb) — écarté plutôt que relevé` });
+      continue;
+    }
     if (facing && !r.allIn && r.computedAmount < state.minimumRaise - EPS.amount) {
       dropped.push({ kind, key: specKey(spec), reason: `sous la relance minimale (${state.minimumRaise}bb)` });
       continue;

@@ -96,6 +96,12 @@ export function optimizeBettingTree({
   restrictPlayers = "optimized",
   noiseProbeSeeds = DEFAULT_NOISE_PROBE_SEEDS,
   cache = null, signal, onProgress,
+  /* Solveur INJECTABLE (§61). Les tests doivent pouvoir fournir des EV connues
+     pour vérifier la LOGIQUE DE SÉLECTION indépendamment du CFR : si l'on ne
+     teste la sélection qu'à travers un vrai solve, on ne sait jamais si un
+     mauvais choix vient de l'algorithme ou du bruit du solveur. Défaut =
+     le vrai solveur. */
+  solveFn = solveTreeSpec,
 } = {}) {
   const t0 = Date.now();
   const cfg = withDefaults(DEFAULT_EVALUATION_CONFIG, evaluationConfig);
@@ -131,7 +137,7 @@ export function optimizeBettingTree({
     const hit = evalCache.get(key);
     if (hit) { evalCache.stats.hits++; return { ...hit, cacheHit: true }; }
     evalCache.stats.misses++;
-    const r = solveTreeSpec({ state, heroRange, villainRange, treeSpec, config: c, optimizeFor, signal });
+    const r = solveFn({ state, heroRange, villainRange, treeSpec, config: c, optimizeFor, signal });
     solves.push({ tag, ok: r.ok, ms: r.instrumentation ? r.instrumentation.elapsedMs : r.elapsedMs, ev: r.ev });
     evalCache.set(key, r);
     return r;
@@ -170,22 +176,24 @@ export function optimizeBettingTree({
     const target = effCfg.convergenceTarget ?? 0.05;
     const ceiling = effCfg.maxIterationsCeiling ?? (effCfg.maxIterations * 8);
     const autoEscalate = effCfg.autoEscalate !== false;
-    for (;;) {
+    /* MESURER la dérive et AGIR dessus sont deux décisions distinctes.
+       `convergenceProbe:false` coupe la mesure (utile quand le solveur est une
+       fixture exacte : la sonde ne mesurerait rien et coûterait un solve).
+       `autoEscalate:false` garde la mesure — donc le plancher honnête — mais
+       laisse la précision demandée telle quelle. Les confondre revenait à
+       doubler en silence la précision que l'appelant avait choisie. */
+    const wantProbe = effCfg.convergenceProbe !== false;
+    while (wantProbe) {
       if (signal && signal.aborted) throw new SolveCancelled();
       const doubled = runSolve(refSpec, { maxIterations: effCfg.maxIterations * 2 }, "convergence-probe");
       if (!doubled.ok) break;
       drift = Math.abs(doubled.ev - refSolve.ev);
-      if (!autoEscalate || drift <= target || effCfg.maxIterations * 2 > ceiling) {
-        /* On adopte la mesure la plus précise disponible comme référence : elle
-           est strictement meilleure que celle qu'on remplace. */
-        effCfg = { ...effCfg, maxIterations: effCfg.maxIterations * 2 };
-        refSolve = doubled;
-        escalations++;
-        break;
-      }
+      if (!autoEscalate) break;                       // mesuré, mais on n'escalade pas
+      /* On adopte la mesure la plus précise : elle est strictement meilleure. */
       effCfg = { ...effCfg, maxIterations: effCfg.maxIterations * 2 };
       refSolve = doubled;
       escalations++;
+      if (drift <= target || effCfg.maxIterations * 2 > ceiling) break;
       progress(SolveStatus.SOLVING, { step: "convergence", iterations: effCfg.maxIterations, drift });
     }
     const referenceEV = refSolve.ev;
@@ -208,11 +216,20 @@ export function optimizeBettingTree({
        précis que la moins bonne de ses sources d'incertitude. */
     const noiseFloor = roundEv(Math.max(seedNoise, drift == null ? 0 : drift));
 
-    /* ── 3. MODE FIXED : aucun sizing n'est supprimé (§4) ────────────────── */
-    if (mode === BettingTreeMode.FIXED) {
+    /* ── 3. AUCUNE SIMPLIFICATION À FAIRE (§4/§5) ─────────────────────────
+       Deux cas distincts mènent au même endroit :
+         · mode FIXED — « Le moteur ne supprime aucun sizing. Il résout l'arbre
+           fourni. » (§4)
+         · complexité FULL — « Arbre fourni entièrement par l'utilisateur ou le
+           preset. Pas de simplification automatique obligatoire. » (§5)
+       Dans les deux cas, la solution EST l'arbre de référence, et sa perte d'EV
+       vaut zéro par définition : elle ne simplifie rien. Sans ce court-circuit,
+       le niveau FULL retenait le meilleur sous-ensemble mesuré et livrait donc
+       une simplification là où l'utilisateur en demandait précisément l'absence. */
+    if (mode === BettingTreeMode.FIXED || effComplexity === SizingComplexity.FULL) {
       const metrics = simplificationMetrics({ referenceEV, simplifiedEV: referenceEV, pot: state.pot });
       return {
-        ok: true, status: refSolve.status, mode, complexity: SizingComplexity.FULL,
+        ok: true, status: refSolve.status, mode, complexity: effComplexity,
         candidates: cand,
         reference: { entry: refEntry, treeSpec: refSpec, ev: referenceEV, solve: refSolve },
         evaluations: [],
@@ -222,8 +239,8 @@ export function optimizeBettingTree({
           distinguishable: true,
         },
         noise: { floor: noiseFloor, seedNoise: roundEv(seedNoise), convergenceDrift: drift==null?null:roundEv(drift), escalations, iterations: effCfg.maxIterations, probes, sampled },
-        planner: { entries: 0, pruned: [], truncated: false, note: "mode FIXED — l'arbre fourni est résolu tel quel, aucun sous-ensemble n'est évalué." },
-        tolerance: { requested: maxAcceptableEVLoss, satisfied: true, note: "mode FIXED — pas de simplification" },
+        planner: { entries: 0, pruned: [], truncated: false, note: mode === BettingTreeMode.FIXED ? "mode FIXED — l'arbre fourni est résolu tel quel, aucun sous-ensemble n'est évalué." : "complexité FULL — aucune simplification automatique ; l'arbre complet des candidats est retenu." },
+        tolerance: { requested: maxAcceptableEVLoss, satisfied: true, note: "aucune simplification — perte d'EV nulle par définition" },
         instrumentation: instrumentation(t0, solves, evalCache, cand, effComplexity, effCfg),
       };
     }
@@ -284,7 +301,8 @@ export function optimizeBettingTree({
     }
     const choice = selectUnderTolerance(
       eligible.map(e => ({ ...e, complexityCost: e.betKeys.length + e.raiseKeys.length })),
-      maxAcceptableEVLoss
+      maxAcceptableEVLoss,
+      { tieToleranceBb: noiseFloor }
     );
     const sel = choice.selected;
 

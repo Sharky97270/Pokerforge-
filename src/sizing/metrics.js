@@ -135,13 +135,29 @@ export function actionLoss(evByAction, { labels } = {}) {
    à coût égal, celui qui perd le moins. Si aucun ne passe, retourne le meilleur
    par perte, en DISANT que la tolérance n'a pas été tenue.
    ══════════════════════════════════════════════════════════════════════════ */
-export function selectUnderTolerance(candidates, maxAcceptableEVLoss) {
+export function selectUnderTolerance(candidates, maxAcceptableEVLoss, { tieToleranceBb = 0 } = {}) {
   const usable = (candidates || []).filter(c => c && c.metrics && typeof c.metrics.absoluteEVLoss === "number");
   if (!usable.length) return { selected: null, satisfied: false, note: "aucun candidat mesuré" };
-  const byLoss = usable.slice().sort((a, b) =>
-    a.metrics.absoluteEVLoss - b.metrics.absoluteEVLoss || a.complexityCost - b.complexityCost);
+  /* ── DÉPARTAGE PAR LA SIMPLICITÉ SOUS LE PLANCHER DE MESURE ────────────
+     Deux sous-arbres dont les pertes diffèrent de moins que le bruit de mesure
+     ne sont pas distinguables : les classer par EV reviendrait à trancher au
+     hasard, et à retenir trois sizings là où deux font aussi bien. Sous le
+     plancher, c'est donc la SIMPLICITÉ qui départage — le sens même de la
+     mission (§110 : « réduire la complexité stratégique sans prétendre qu'une
+     simplification est gratuite lorsque ce n'est pas le cas »). */
+  const tie = Math.max(0, tieToleranceBb);
+  const byLoss = usable.slice().sort((a, b) => {
+    const d = a.metrics.absoluteEVLoss - b.metrics.absoluteEVLoss;
+    if (Math.abs(d) > tie + EPS.ev) return d;
+    return a.complexityCost - b.complexityCost || d;
+  });
   if (maxAcceptableEVLoss == null) {
-    return { selected: byLoss[0], satisfied: true, note: "aucune tolérance imposée — meilleure EV retenue" };
+    return {
+      selected: byLoss[0], satisfied: true,
+      note: tie > 0
+        ? `aucune tolérance imposée — meilleure EV, à simplicité égale sous le plancher de mesure (${tie} bb)`
+        : "aucune tolérance imposée — meilleure EV retenue",
+    };
   }
   const passing = usable
     .filter(c => c.metrics.absoluteEVLoss <= maxAcceptableEVLoss + EPS.ev)
