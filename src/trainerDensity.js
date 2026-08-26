@@ -109,7 +109,7 @@ export const TRAINER_DENSITY_TOKENS = {
     betOffset: 1,
     markerClearance: 0.7,
     markerApproachMax: 1.24,
-    underMaxH: 300,
+    underMaxH: 150,
   },
   compact: {
     avatarSize: 30,
@@ -136,7 +136,7 @@ export const TRAINER_DENSITY_TOKENS = {
     betOffset: 1,
     markerClearance: 0.55,
     markerApproachMax: 1.34,
-    underMaxH: 88,
+    underMaxH: 118,
   },
   dense: {
     avatarSize: 28,
@@ -163,7 +163,7 @@ export const TRAINER_DENSITY_TOKENS = {
     betOffset: 1,
     markerClearance: 0.52,
     markerApproachMax: 1.36,
-    underMaxH: 88,
+    underMaxH: 118,
   },
 };
 

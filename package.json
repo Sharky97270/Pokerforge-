@@ -56,7 +56,9 @@
     "audit:solver:perf": "node scripts/solver-perf-probe.mjs --out=design-qa-evidence/solver-perf.json",
     "audit:solver:cancel": "node scripts/solver-cancel-probe.mjs",
     "bench:solve": "node scripts/solver-solve-bench.mjs --out=design-qa-evidence/solve-bench.json",
-    "audit:geo": "node scripts/trainer-geometry-audit.mjs"
+    "audit:geo": "node scripts/trainer-geometry-audit.mjs",
+    "audit:workspace": "node scripts/trainer-workspace-audit.mjs",
+    "audit:workspace:cycle": "node scripts/trainer-workspace-cycle.mjs"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"

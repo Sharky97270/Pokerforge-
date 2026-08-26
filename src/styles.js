@@ -458,15 +458,19 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 :is(.grid2,.grid3,.grid4)>.mt-slot.table-slot-answered .mtr-actions:hover{opacity:1;filter:none;}
 .mt-table-title.answered i{letter-spacing:.06em;font-size:8.5px;font-weight:900;}
 /* Titre TABLE n (maquette) */
+/* Le titre vit désormais DANS la barre des streets : il n'a plus de bande à lui,
+   donc plus de marge verticale ni de centrage automatique. Il devient une
+   pastille compacte posée à gauche, qui ne peut pas repousser les streets. */
 .mt-table-title{
-  display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
-  height:22px;margin:5px auto 1px;padding:0 12px;border-radius:6px;
-  font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;
+  display:flex;align-items:center;gap:4px;flex-shrink:0;
+  height:19px;margin:0 4px 0 0;padding:0 8px;border-radius:5px;
+  font-family:'Space Grotesk',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:.09em;
+  white-space:nowrap;
   color:#A9B7C9;background:rgba(8,26,45,.75);border:1px solid #12304C;
 }
 .mt-table-title.active{color:#DCEBFF;border-color:#1769FF;background:rgba(23,105,255,.14);}
 .mt-table-title.answered{color:#00E889;border-color:rgba(0,232,137,.4);}
-.mt-table-title i{font-style:normal;color:#00E889;font-size:10px;}
+.mt-table-title i{font-style:normal;color:#00E889;font-size:9px;}
 .mt-table-title em{font-style:normal;color:#00D9FF;font-size:8px;line-height:1;}
 /* Multi-table : la zone d'action ne doit pas dupliquer l'aperçu des cartes Hero
    (déjà sur la table) — on le masque pour compacter et éviter le rognage. */
@@ -6431,7 +6435,12 @@ export const CSS_TABLE=`
    bilan (118px) et sa voisine qui montre sa barre de décision (86px) n'ont pas
    le même ovale, et les objets « bougent » quand on passe d'une street à
    l'autre. La région défile en interne quand son contenu dépasse. */
-:is(.grid3,.grid4) .tw[data-density] .mt-under{
+/* Le 2T rejoint la règle : sa zone de décision était dimensionnée par son
+   CONTENU, donc deux tuiles voisines rendaient 149 px et 93 px selon le spot
+   tiré. Tant que le 2T reste borné par la largeur, le feutre n en souffre pas
+   — mais rien ne garantit qu il le reste, et le §11 exige des tuiles
+   identiques. Une hauteur réservée, comme en 3T/4T, ferme la question. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under{
   flex:0 0 var(--pf-d-under-max-h,110px);height:var(--pf-d-under-max-h,110px);
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under::-webkit-scrollbar{width:5px;}
@@ -6581,5 +6590,82 @@ export const CSS_TABLE=`
 .pf-pot-chip-cluster{display:inline-flex;align-items:flex-end;}
 .pf-pot-chip-cluster>*+*{margin-left:-14px;}
 .pf-pot-chip-cluster.compact>*+*{margin-left:-11px;}
+
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  WORKSPACE DE SESSION — l'espace change de propriétaire (§2/§3/§20)      ║
+   ╚══════════════════════════════════════════════════════════════════════════╝
+   Avant la session, l'espace appartient aux PARAMÈTRES.
+   Pendant la session, il appartient aux TABLES.
+
+   ── CE QUE ÇA REMPLACE ────────────────────────────────────────────────────
+   Le panneau de configuration restait dans le flux pendant toute la partie. Un
+   bouton le repliait à 58 px, et un repli automatique s'en chargeait sur écran
+   étroit — mais 58 px restent 58 px, et le panneau continuait de disputer sa
+   largeur aux tables. Mesuré à 1920x1080, session lancée :
+
+       navigation 186  ·  CONFIGURATION 228  ·  workspace 1186  ·  analyse 320
+
+   soit 228 px — 19 % de la largeur du workspace — immobilisés par des réglages
+   VERROUILLÉS, que l'on ne peut plus modifier tant que la session tourne.
+
+   ── LE MODÈLE ─────────────────────────────────────────────────────────────
+   Pendant la session, le panneau passe en « position:absolute » : il quitte le
+   flux, sa largeur tombe donc à ZÉRO pour le calcul du workspace. Il n'est plus
+   « masqué », il n'est plus là. Le bouton « ⚙ Session » le rappelle en
+   surimpression, et cette surimpression ne touche à aucune géométrie — c'est la
+   règle absolue de l'addendum §10 : pendant une session, position, taille et
+   échelle des tables ne dépendent JAMAIS de l'ouverture d'un panneau.
+
+   Le repère est le conteneur du Trainer, pas la fenêtre : on n'écrit donc nulle
+   part la largeur de la navigation PokerForge, et le drawer commence
+   exactement là où commence le Trainer. */
+.trainer-sidebar.pf-session-drawer{
+  position:absolute;left:0;top:0;bottom:0;
+  width:clamp(280px,22vw,360px);
+  z-index:60;
+  transform:translateX(-102%);
+  transition:transform 210ms cubic-bezier(.4,0,.2,1);
+  border-right:1px solid #1F4899;
+  box-shadow:22px 0 48px rgba(0,0,0,.55);
+  will-change:transform;
+}
+.trainer-sidebar.pf-session-drawer.open{transform:translateX(0);}
+/* Le repli « 58 px » n'a plus cours pendant la session : le panneau est dehors
+   ou il est ouvert en entier, il n'y a plus d'état intermédiaire. */
+.trainer-sidebar.pf-session-drawer.collapsed{width:clamp(280px,22vw,360px);}
+.trainer-sidebar.pf-session-drawer .sb-full{opacity:1;pointer-events:auto;overflow-y:auto;height:auto;}
+.trainer-sidebar.pf-session-drawer .sb-icons{display:none;}
+
+/* Voile discret : l'utilisateur doit continuer à voir OÙ sont ses tables (§7).
+   On assombrit juste assez pour désigner le drawer comme le plan actif. */
+.pf-drawer-backdrop{
+  position:absolute;inset:0;z-index:55;
+  background:rgba(2,8,20,.34);
+  animation:pfDrawerFade 180ms ease both;
+}
+@keyframes pfDrawerFade{from{opacity:0}to{opacity:1}}
+
+.pf-drawer-close{
+  position:absolute;top:8px;right:8px;z-index:5;
+  width:26px;height:26px;border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(31,139,255,.14);border:1px solid rgba(31,139,255,.42);
+  color:#DCE8FF;font-size:12px;font-weight:800;line-height:1;
+  transition:background .15s,border-color .15s;
+}
+.pf-drawer-close:hover{background:rgba(255,69,96,.18);border-color:rgba(255,69,96,.5);}
+
+/* Le contrôle de rappel : compact, dans la barre de session, jamais une colonne. */
+.pf-ws-settings-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 11px;border-radius:20px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:700;
+  color:#9FB6E4;background:rgba(31,139,255,.09);
+  border:1px solid rgba(31,139,255,.3);
+  transition:background .15s,border-color .15s,color .15s;
+}
+.pf-ws-settings-btn:hover{background:rgba(31,139,255,.2);border-color:rgba(31,139,255,.55);color:#DCE8FF;}
+.pf-ws-settings-btn[aria-expanded="true"]{background:rgba(255,194,71,.14);border-color:rgba(255,194,71,.45);color:#FFC247;}
 
 `;

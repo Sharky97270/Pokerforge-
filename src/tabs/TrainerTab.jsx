@@ -3462,7 +3462,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade,paused=null,onResume,onPauseRequest}){
+export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade,paused=null,onResume,onPauseRequest,titleNode=null}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
@@ -3550,9 +3550,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const tightViewport=useMaxWidth(1560);
   const density=useMemo(()=>trainerDensity(numTables,{tight:tightViewport}),[numTables,tightViewport]);
   const densityVars=useMemo(()=>trainerDensityVars(numTables,{tight:tightViewport}),[numTables,tightViewport]);
-  const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
-    ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
-    :null;
+  /* ── OFFSET COMPENSATOIRE SUPPRIMÉ (nettoyage legacy §5) ──────────────────
+     Le 1T se rétrécissait de 170 px quand la sidebar était repliée, pour que la
+     table ne « saute » pas en largeur au moment du repli. C'était un rattrapage
+     de la géométrie par un nombre de pixels écrit en dur.
+     Il n'a plus d'objet : pendant la session, le panneau ne participe plus au
+     layout, et son drawer ne déplace rien. Le garder retirerait 170 px de table
+     à qui a simplement replié ses filtres avant de lancer sa session. */
   // Skin Trainer V2 : jetons vectoriels forcés dans TOUT le Trainer (refonte 1T
   // défigée — même logique que le multi ; le sélecteur de thème reste pour les
   // autres surfaces éventuelles).
@@ -6289,7 +6293,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       );
 
     if(is1T) return(
-      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden",...(oneTableStableShellStyle||{})}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden"}}>
 
         {/* ── BARRE TOP : streets + timeline (desktop) ── */}
         <div className="trainer-topstrip" style={{flexShrink:0,background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",minHeight:34}}>
@@ -6867,7 +6871,17 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       {/* Multi-table : la table ACTIVE projette le VRAI panneau 1T dans la colonne partagée */}
       {/* multi-table : panneau droit rendu par le parent (renderMultiPanel) */}
       {/* ── BARRE TOP compacte : streets + timeline + timer ── */}
-      <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"wrap",minHeight:28,flexShrink:0}}>
+      <div className="pf-tw-head" style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"nowrap",minHeight:28,flexShrink:0,overflow:"hidden"}}>
+        {/* ── LE TITRE DE TABLE VIT ICI (workspace §6) ──────────────────────
+            Il occupait sa PROPRE bande de 28 px juste au-dessus de celle-ci.
+            Deux bandes de chrome empilées, pour 28 px pris à la zone de table
+            de CHAQUE tuile — et en 3T/4T la zone est justement bornée par la
+            hauteur : ces 28 px valaient ~40 px de largeur de feutre en moins
+            sur chaque table.
+            Aucune information n'est perdue : le numéro de table, l'état
+            « terminée » et le point de table active sont tous là, à gauche des
+            streets. */}
+        {titleNode}
         {STREETS.map(s=>{
           const done=STREETS.indexOf(s)<STREETS.indexOf(spot.street);
           const cur=s===spot.street;
@@ -7951,13 +7965,32 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     try{localStorage.setItem("pf_sidebar_collapsed",String(next));}catch{}
   }
   /* ── Panneau droit partagé (multi-table) : escamotable ──
-     Le multi-table vit entre deux colonnes fixes : filtres (228px) et panneau
-     droit (320px). Sous ~1450px de large, ce qui reste pour la mosaïque tombe
-     sous ~300px par table : le feutre n'a plus la place et les grappes de
-     sièges se percutent. On replie donc les DEUX à l'entrée en session multi
-     sur écran étroit — sans toucher à la préférence enregistrée, et sans
-     empêcher de les rouvrir à la main juste après. */
+     Le multi-table vivait entre DEUX colonnes fixes : filtres (228 px) et
+     panneau droit (320 px). Sous ~1450 px de large, ce qui restait à la
+     mosaïque tombait sous ~300 px par table, et on repliait les deux.
+
+     ── LE SEUIL A CHANGÉ PARCE QUE LA COLONNE DE GAUCHE N'EXISTE PLUS ───────
+     Pendant la session, les filtres ne prennent plus aucune largeur : la
+     mosaïque dispose de 228 px de plus à fenêtre égale. Le calcul qui donnait
+     1450 donne maintenant, à marge identique, 1450 − 228 ≈ 1220. Laisser 1450
+     replierait le panneau d'analyse sur des fenêtres qui ont largement de quoi
+     l'afficher — on retirerait à l'utilisateur une information qu'il peut voir.
+     ── RECALIBRAGE ESSAYÉ PUIS REJETÉ, ET VOICI LA MESURE ──────────────
+     On a baissé le seuil à 1220, en se disant que 228 px rendus à la mosaïque
+     rendaient le repli moins nécessaire. Le critère « ≥ 300 px par table »
+     était bien respecté — et le résultat pire. Mesuré à 1366x768 en 2T :
+         panneau replié   : feutre 541.9 x 318.8
+         panneau affiché  : feutre ~394 x 232      (−27 %)
+     Parce qu à cette taille le 2T est borné par la LARGEUR : lui reprendre
+     320 px se paie directement en feutre, quel que soit le seuil théorique.
+     Le seuil reste donc à 1450, qui est une valeur MESURÉE. */
   const[panelHidden,setPanelHidden]=useState(false);
+  /* ── §2/§3 — PENDANT LA SESSION, L'ESPACE APPARTIENT AUX TABLES ──────────
+     Le panneau de configuration sort du FLUX (il devient un drawer hors flux) :
+     il ne réserve donc plus aucune largeur. `drawerOpen` ne pilote que sa
+     visibilité — jamais la géométrie du workspace, qui est figée au lancement
+     de la session (addendum §3/§10). */
+  const[drawerOpen,setDrawerOpen]=useState(false);
   const narrowStage=useMaxWidth(1450);
   const[showSol,setShowSol]=useState(false);
   const[started,setStarted]=useState(false);
@@ -8108,20 +8141,35 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
      pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
      possible. À la sortie du multi (ou en fenêtre large), le panneau droit
      revient et la sidebar retrouve sa préférence enregistrée. */
+  /* ── CE REPLI AUTOMATIQUE N'A PLUS DE PANNEAU À REPLIER ───────────────────
+     Il mettait la sidebar à 58 px et masquait le panneau droit dès qu'on entrait
+     en mosaïque sur écran étroit. Depuis que le panneau de configuration sort
+     ENTIÈREMENT du flux pendant la session (0 px, pas 58), la moitié « sidebar »
+     de cette règle est sans objet : elle ne rendrait plus que les 58 px d'un
+     panneau déjà parti. Reste la moitié utile — replier le panneau d'ANALYSE
+     quand la fenêtre est trop étroite pour loger mosaïque + 320 px. */
   const autoFoldedRef=useRef(false);
   useEffect(()=>{
     if(isMobile)return;
     const shouldFold=narrowStage&&started&&!done&&ntables>1;
     if(shouldFold&&!autoFoldedRef.current){
       autoFoldedRef.current=true;
-      setCollapsed(true);      // volontairement NON persisté (pas de setItem)
       setPanelHidden(true);
     }else if(!shouldFold&&autoFoldedRef.current){
       autoFoldedRef.current=false;
       setPanelHidden(false);
-      try{setCollapsed(localStorage.getItem("pf_sidebar_collapsed")==="true");}catch{setCollapsed(false);}
     }
   },[narrowStage,started,done,ntables,isMobile]);
+  /* Le drawer se ferme à Échap, et il ne survit jamais à la fin d'une session :
+     hors session le panneau redevient une colonne, un drawer resté « ouvert »
+     n'aurait plus de sens. */
+  useEffect(()=>{
+    if(!drawerOpen)return;
+    const onKey=e=>{if(e.key==="Escape"){e.stopPropagation();setDrawerOpen(false);}};
+    window.addEventListener("keydown",onKey,true);
+    return()=>window.removeEventListener("keydown",onKey,true);
+  },[drawerOpen]);
+  useEffect(()=>{if(!(started&&!done)&&drawerOpen)setDrawerOpen(false);},[started,done,drawerOpen]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   /* ── SOURCE UNIQUE DE VÉRITÉ (Mission Master §3) ──
      Assemble le TrainingConfig canonique à partir de `f` + des states frères.
@@ -9130,15 +9178,36 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           </div>
         </div>
       )}
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+      {/* `position:relative` : c'est le repère du drawer de session. On l'ancre
+          ici plutôt qu'en `fixed` sur la fenêtre pour ne pas écrire en dur la
+          largeur de la navigation PokerForge — le drawer commence donc là où
+          commence le Trainer, quoi qu'il arrive à la navigation. */}
+      <div style={{display:"flex",flex:1,overflow:"hidden",position:"relative"}}>
 
-      {/* ══ SIDEBAR COLLAPSIBLE (drawer plein écran sur mobile via mob-open) ══ */}
-      <div className={`trainer-sidebar${collapsed?" collapsed":""}${mobSidebar?" mob-open":""}`}>
+      {/* ══ PANNEAU DE CONFIGURATION ══
+          Hors session : colonne en flux, comme avant.
+          Pendant la session : DRAWER hors flux (cf. bloc CSS « WORKSPACE DE
+          SESSION »). Il ne réserve alors plus aucune largeur, et son ouverture
+          ne déplace aucune table. */}
+      {sessionActive&&drawerOpen&&(
+        <div className="pf-drawer-backdrop" onClick={()=>setDrawerOpen(false)} aria-hidden="true"/>
+      )}
+      <div className={`trainer-sidebar${collapsed?" collapsed":""}${mobSidebar?" mob-open":""}${sessionActive?" pf-session-drawer":""}${sessionActive&&drawerOpen?" open":""}`}
+        aria-hidden={sessionActive&&!drawerOpen?"true":undefined}>
 
-        {/* ── Bouton toggle ── */}
-        <div className="sb-toggle" onClick={toggleSidebar} title={collapsed?"Ouvrir les filtres":"Masquer les filtres"}>
-          {collapsed?"▶":"◀"}
-        </div>
+        {/* ── Bouton toggle — HORS SESSION uniquement ──
+            Pendant la session, le repli « 58 px » de ce bouton n'a plus d'objet :
+            le panneau ne participe plus au layout, et c'est « ⚙ Session » dans la
+            barre qui le rappelle. Laisser les deux mécanismes cohabiter rouvrirait
+            une colonne pendant le jeu. */}
+        {!sessionActive&&(
+          <div className="sb-toggle" onClick={toggleSidebar} title={collapsed?"Ouvrir les filtres":"Masquer les filtres"}>
+            {collapsed?"▶":"◀"}
+          </div>
+        )}
+        {sessionActive&&(
+          <button className="pf-drawer-close" onClick={()=>setDrawerOpen(false)} title="Fermer les paramètres" aria-label="Fermer les paramètres">✕</button>
+        )}
 
         {/* ── Mode EXPANDED : contenu complet ── */}
         <div className="sb-full">
@@ -9617,6 +9686,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
 
         {started&&!done&&(
           <div className="trainer-topstrip" style={{background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            {/* ── RAPPEL DES PARAMÈTRES (§4 / addendum §9) ────────────────────
+                Un contrôle compact, pas une colonne. Il ouvre le panneau de
+                configuration EN SURIMPRESSION : les tables ne bougent pas d'un
+                pixel, ce qui est la règle absolue de l'addendum §10. */}
+            <button className="pf-ws-settings-btn" onClick={()=>setDrawerOpen(v=>!v)}
+              aria-expanded={drawerOpen} title="Voir les paramètres de la session (les tables ne bougent pas)">
+              <span aria-hidden="true">⚙</span> Session
+            </button>
             {/* Mode badge */}
             <div style={{
               display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,
@@ -9795,17 +9872,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     onTouchStart={isMobile&&ntables>1?slotTouchStart:undefined}
                     onTouchMove={isMobile&&ntables>1?slotTouchMove:undefined}
                     onTouchEnd={isMobile&&ntables>1?()=>slotTouchEnd(t):undefined}>
-                    {/* Titre TABLE n + état (multi-table) */}
-                    {ntables>1&&(
-                      <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
-                        <span>TABLE {t+1}</span>
-                        {/* §32 — le statut se LIT, il ne se devine pas à la couleur
-                            d'une bordure. Un coche seul laissait « répondue » et
-                            « en attente » à distinguer au vert du cadre. */}
-                        {isAns&&<i title="Cette table est terminée">✓ TERMINÉE</i>}
-                        {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
-                      </div>
-                    )}
+                    {/* Le titre TABLE n est passé à la table (prop `titleNode`) :
+                        il se peint DANS la barre des streets, plus dans une bande
+                        à lui. Cf. le commentaire de `.pf-tw-head`. */}
                     {/* ══ Lot 4 bis — BANDEAU DE PAUSE ══
                        Rendu ici, dans le conteneur de table, parce que c'est le seul
                        point de montage traversé par les TROIS rendus (1T, mosaïque,
@@ -9849,7 +9918,16 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined} paused={pausedTables[t]||null} onResume={()=>resumeTable(t)} onPauseRequest={info=>requestPause(t,spot,info)}/>
+                    <SingleTable titleNode={ntables>1?(
+                      <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
+                        <span>TABLE {t+1}</span>
+                        {/* §32 — le statut se LIT, il ne se devine pas à la couleur
+                            d une bordure. Un coche seul laissait « répondue » et
+                            « en attente » à distinguer au vert du cadre. */}
+                        {isAns&&<i title="Cette table est terminée">✓</i>}
+                        {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
+                      </div>
+                    ):null} spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1&&!sessionActive?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined} paused={pausedTables[t]||null} onResume={()=>resumeTable(t)} onPauseRequest={info=>requestPause(t,spot,info)}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -9906,10 +9984,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div style={{flexShrink:0,height:33,boxSizing:"border-box",padding:"5px 14px",
             background:"linear-gradient(90deg,#030D2A,#040B1F)",borderTop:"1px solid #152D6E",
             display:"flex",alignItems:"center",gap:6,flexWrap:"nowrap",
-            overflowX:"auto",overflowY:"hidden",
-            visibility:results.length>0?"visible":"hidden"}}>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,marginRight:2,flexShrink:0}}>Historique :</span>
-            <div style={{display:"flex",gap:3,alignItems:"center"}}>
+            overflowX:"auto",overflowY:"hidden"}}>
+            {/* La bande reste VISIBLE (elle héberge désormais le raccourci de
+                lot) ; c'est le contenu d'historique qui s'efface tant qu'il n'y
+                a rien à montrer. La hauteur, elle, n'a jamais bougé. */}
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,marginRight:2,flexShrink:0,visibility:results.length>0?"visible":"hidden"}}>Historique :</span>
+            <div style={{display:"flex",gap:3,alignItems:"center",visibility:results.length>0?"visible":"hidden"}}>
               {results.slice(-8).map((r,i)=>{
                 const approxFreq=r.spot?.freq?.[r.spot?.acts?.[r.ua]?.id]||0;
                 const isApprox=!r.correct&&approxFreq>=20;
@@ -9927,8 +10007,31 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 );
               })}
             </div>
-            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text3}}>
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+              {/* ── RACCOURCI DE LOT — RAPATRIÉ ICI (workspace §6) ────────────
+                  Il occupait sa PROPRE bande de 34 px, juste sous celle-ci. Deux
+                  bandes à hauteur fixe l'une sur l'autre, vides la plupart du
+                  temps, pour 67 px pris à la rangée de jeu — soit 33 px par
+                  rangée en 3T/4T, et autant de feutre en moins sur CHAQUE table.
+                  Il vit maintenant dans la bande d'historique, à droite. Sa
+                  garantie d'origine tient : la bande est montée en permanence et
+                  à hauteur fixe, son apparition ne décale donc rien (§17). */}
+              {ntables>1&&allSettled&&(()=>{
+                const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+                const busy=!!nextLoading.all;
+                return(
+                  <button className="btn btns" data-state={busy?"LOADING":"READY"}
+                    disabled={busy} onClick={()=>nextHand({all:true})}
+                    title={`Charge une nouvelle main sur les ${ntables} tables d'un coup`}
+                    style={{fontSize:9.5,padding:"3px 10px",opacity:busy?.6:.9,flexShrink:0}}>
+                    {busy?"Chargement..."
+                      :nextError?"Reessayer"
+                      :isLastBatch?"⏭ Voir les resultats"
+                      :`⏭ Avancer les ${ntables} tables`}
+                  </button>
+                );
+              })()}
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text3,flexShrink:0}}>
                 <span style={{color:T.green}}>{sc}✓</span>
                 <span style={{color:T.text4,margin:"0 3px"}}>·</span>
                 <span style={{color:T.red}}>{st-sc-approx}✗</span>
@@ -9971,38 +10074,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           );
         })()}
-        {/* ══ RACCOURCI DE LOT — action SECONDAIRE, jamais une seconde CTA ══
-            L'ancien « Tables suivantes » était un bouton primaire actif EN MÊME
-            TEMPS que « Table N suivante » : deux CTA d'avance à l'écran, mesuré
-            en 2T/3T/4T. C'était le doublon signalé.
-
-            Il revient sous une forme qui ne peut pas se confondre avec la CTA
-            principale : libellé explicite sur le NOMBRE de tables (jamais le mot
-            « suivante »), style secondaire, taille réduite. Et il n'apparaît que
-            si TOUTES les tables sont réglées — il ne peut donc jamais emporter
-            une table qui attend encore une décision (§6).
-
-            La zone est réservée en permanence (hauteur fixe) : son apparition ne
-            décale pas la grille de tables. */}
-        {started&&!done&&ntables>1&&(
-          <div style={{height:34,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            {allSettled&&(()=>{
-              const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
-              const busy=!!nextLoading.all;
-              return(
-                <button className="btn btns" data-state={busy?"LOADING":"READY"}
-                  disabled={busy} onClick={()=>nextHand({all:true})}
-                  title={`Charge une nouvelle main sur les ${ntables} tables d'un coup`}
-                  style={{fontSize:10,padding:"5px 12px",opacity:busy?.6:.9}}>
-                  {busy?"Chargement..."
-                    :nextError?"Reessayer"
-                    :isLastBatch?"⏭ Voir les resultats"
-                    :`⏭ Avancer les ${ntables} tables`}
-                </button>
-              );
-            })()}
-          </div>
-        )}
+        {/* ══ RACCOURCI DE LOT — DÉMÉNAGÉ DANS LA BANDE D'HISTORIQUE ══
+            Il avait ici sa propre bande de 34 px, à hauteur fixe pour ne pas
+            décaler la grille. La garantie était bonne, le prix ne l'était pas :
+            deux bandes réservées empilées coûtaient 67 px à la rangée de jeu,
+            soit 33 px par rangée en 3T/4T — et autant de feutre en moins sur
+            chaque table. Le bouton vit maintenant à droite de l'historique, qui
+            était déjà monté en permanence et à hauteur fixe : même garantie
+            contre le décalage, une bande au lieu de deux. */}
       </div>
       </div>{/* end flex:1 row wrapper */}
 
