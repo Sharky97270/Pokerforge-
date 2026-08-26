@@ -117,6 +117,18 @@ function sync(s) {
   /* Vue par siège, seule forme utilisable au-delà de deux joueurs. */
   s.seatContrib = Object.fromEntries(s.seats.map(id => [id, s.players[id].contrib]));
   s.seatStacks = Object.fromEntries(s.seats.map(id => [id, s.players[id].stack]));
+  /* ── LE POT QU'ON PEINT N'EST PAS TOUJOURS LE POT QU'ON DOIT (§13) ────────
+     `s.pot` est la COMPTABILITÉ : à la fin d'un coup il vaut 0, parce que les
+     jetons ont été versés aux gagnants. Le rendu, lui, lisait ce zéro et
+     peignait « POT 0bb » pendant que le bilan de la même main annonçait
+     « Pot disputé 6bb » — deux nombres pour un seul coup, dont un faux.
+
+     La correction ne peut pas vivre côté rendu : ce serait un SECOND calcul du
+     pot, et c'est précisément ce que la mission interdit (§13). Le moteur
+     publie donc lui-même le nombre à afficher — pot courant tant que le coup se
+     joue, pot DISPUTÉ une fois abattu. La comptabilité ne bouge pas d'un jeton
+     et `auditLedger` continue d'exiger qu'elle retombe à zéro. */
+  s.potAffiche = roundBb(s.done && s.result ? (s.result.potAwarded ?? 0) : s.pot);
   return s;
 }
 
@@ -521,6 +533,25 @@ function finish(s, winner, reason, extra = {}) {
     potAfter: 0,
   });
   s.street = "done"; s.done = true; s.toAct = null;
+
+  /* ── §14 — QUI ABAT SA MAIN, ET QUAND ────────────────────────────────────
+     Le rendu masquait les cartes des adversaires DÈS que la main était finie,
+     quelle qu'en soit la raison. Un coup checké jusqu'à la river se terminait
+     donc sur deux dos de cartes : l'élève voyait qu'il avait perdu sans jamais
+     savoir contre quoi — la seule information qui rendait le coup instructif.
+
+     La règle du poker tranche, et elle ne dépend que de la RAISON de fin :
+       • tout le monde s'est couché sauf un  → personne n'abat, le vainqueur
+         emporte le pot sans montrer (le muck est ici la règle, pas une
+         permission) ;
+       • le coup va au SHOWDOWN → tous ceux qui sont encore là abattent.
+     Un joueur couché n'abat jamais, dans les deux cas.
+
+     On publie la liste plutôt qu'un booléen : au-delà de deux joueurs, savoir
+     « il y a eu showdown » ne dit pas QUI montre. */
+  s.revealed = reason === "showdown"
+    ? Object.fromEntries(s.seats.filter(id => !s.players[id].folded).map(id => [id, s.players[id].hand]))
+    : {};
 
   /* Résultat net du COUP COMPLET, préflop inclus : tapis final moins ce que le
      joueur avait avant de s'asseoir au flop, engagements préflop compris. */

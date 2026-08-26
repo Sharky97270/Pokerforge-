@@ -630,6 +630,23 @@ const trainingTableLayout1TMobile=createTrainingTableLayout("1T-mobile",TRAINER_
 const trainingTableLayout2TMobile=createTrainingTableLayout("2T-mobile",TRAINER_VISUAL_2T_MOBILE.seatPositions,TRAINER_VISUAL_2T_MOBILE);
 const trainingTableLayout3TMobile=createTrainingTableLayout("3T-mobile",TRAINER_VISUAL_3T_MOBILE.seatPositions,TRAINER_VISUAL_3T_MOBILE);
 const trainingTableLayout4TMobile=createTrainingTableLayout("4T-mobile",TRAINER_VISUAL_4T_MOBILE.seatPositions,TRAINER_VISUAL_4T_MOBILE);
+/* ── §14 — LES CARTES D'UN ADVERSAIRE : DOS, OU MAIN ABATTUE ───────────────
+   Un seul composant pour les deux états, et un seul conteneur `.pf-hole-cards`
+   dans les deux cas : un siège ne doit JAMAIS porter deux jeux de cartes (§15),
+   pas même une fraction de seconde pendant la bascule.
+
+   La décision « ce siège montre-t-il ? » n'appartient pas au rendu : elle vient
+   de `state.revealed`, que le moteur ne remplit qu'au showdown (fullHandEngine).
+   Ici on ne fait que peindre ce qu'on a reçu. */
+function SeatOpponentCards({revealed=null,size="md",gap=2,...rest}){
+  if(Array.isArray(revealed)&&revealed.length===2&&revealed.every(c=>c&&c.r&&c.s))
+    return(
+      <div className="pf-hole-cards pf-showdown-hand" style={{display:"flex",gap}}>
+        {revealed.map((c,i)=><Card key={`${c.r}${c.s}`} r={c.r} s={c.s} size={size} delay={i*.06} revealed/>)}
+      </div>
+    );
+  return <VillainBackCards size={size} gap={gap} {...rest}/>;
+}
 const TRAINING_SEAT_LAYOUTS={
   1:trainingTableLayout1T,
   2:trainingTableLayout2T,
@@ -3551,6 +3568,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const[fhVilAct,setFhVilAct]=useState(null);
   const[fhVilThink,setFhVilThink]=useState(false);
   const[fhResult,setFhResult]=useState(null);   // "win" | "lose" | "split"
+  /* §14 — mains ABATTUES, par position. Vide tant que le coup se joue, et vide
+     aussi quand il se termine sur un fold : c'est le moteur qui décide qui
+     montre (fullHandEngine → `state.revealed`), jamais le rendu. */
+  const[fhRevealed,setFhRevealed]=useState(null);
   const[fhNet,setFhNet]=useState(null);         // résultat net en bb, dérivé du ledger
   /* Configuration hors du domaine jouable du coup complet — affichée, pas subie. */
   const[fhUnsupported,setFhUnsupported]=useState(null);
@@ -3805,7 +3826,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     setSolOpen(false); // ferme l'overlay solution mobile
     // Reset full-hand state quand le spot change
     setPlayingFull(false);setFhBoardRef([]);setFhStreet("flop");setFhPhase("hero");
-    setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);setFhNet(null);setFhUnsupported(null);
+    setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);setFhNet(null);setFhRevealed(null);setFhUnsupported(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport par street (§ cycle)
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // reset moteur main complète au changement de spot
@@ -4367,7 +4388,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     }
     setFhBoardRef(st.board);
-    setFhPot(roundBb(st.pot));
+    /* §13 — LE POT AFFICHÉ VIENT DU MOTEUR, JAMAIS D'UN CALCUL LOCAL.
+       `st.pot` est la comptabilité et vaut 0 dès que le coup est abattu ; c'est
+       ce zéro qui peignait « POT 0bb » sous un bilan « Pot disputé 6bb ». Le
+       moteur publie `potAffiche` pour cet usage précis (cf. fullHandEngine). */
+    setFhPot(roundBb(st.potAffiche??st.pot));
     setFhStreet(st.street==="done"?(st.board.length>=5?"river":st.board.length>=4?"turn":"flop"):st.street);
     /* Le libellé d'un acteur n'est plus « Hero ou Villain » : au-delà de deux
        joueurs, un siège supplémentaire doit être nommé par SA position, sinon
@@ -4391,6 +4416,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         ||(st.result.winner==="split"&&(st.result.gagnants||[]).includes("hero"));
       setFhResult(net!=null?(net>0.001?"win":net<-0.001?"lose":"split"):(gagne?"win":"lose"));
       setFhNet(net);
+      /* §14 — on projette la décision du moteur (qui abat) sur les POSITIONS,
+         seul repère que connaît le rendu des sièges. Un coup gagné sur un fold
+         rend `{}` : les dos de cartes restent, et c'est la règle du poker. */
+      setFhRevealed(Object.keys(st.revealed||{}).length
+        ?Object.fromEntries(Object.entries(st.revealed).map(([id,main])=>[fhPosForId(id)||id,main]))
+        :null);
       setActivePlayerId(null);
     }else if(st.toAct==="hero"){
       const toCall=fhAmountToCall(st,"hero");
@@ -4405,7 +4436,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     }
     // §P0-C : remonte l'état Full Hand au parent (panneau droit : Street/Pot/SPR + analyse).
     const streetLabel=st.street==="done"?(st.board.length>=5?"River":st.board.length>=4?"Turn":"Flop"):(st.street.charAt(0).toUpperCase()+st.street.slice(1));
-    onFhState&&onFhState({active:true,street:streetLabel,pot:roundBb(st.pot),heroStack:roundBb(st.heroStack),done:!!st.done});
+    onFhState&&onFhState({active:true,street:streetLabel,pot:roundBb(st.potAffiche??st.pot),heroStack:roundBb(st.heroStack),done:!!st.done});
   }
 
   /* Fait jouer l'ADVERSAIRE dont c'est le tour — pas « le Villain ». Le test
@@ -4590,7 +4621,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           timestamp:new Date().toISOString(),
         }))]);
     }
-    setPlayingFull(true);setFhVilAct(null);setFhResult(null);setFhNet(null);
+    setPlayingFull(true);setFhVilAct(null);setFhResult(null);setFhNet(null);setFhRevealed(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport de la main précédente
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // force le prochain fhSync à ne pas croire à un changement de street
@@ -5035,6 +5066,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       aParler:st.toAct?(fhPosForId(st.toAct)||st.toAct):null,
       street:st.street,
       pot:roundBb(st.pot),
+      /* Le pot PEINT, publié à côté de la comptabilité : c'est la seule façon
+         de vérifier au navigateur que les deux ne divergent pas (§13). */
+      potAffiche:roundBb(st.potAffiche??st.pot),
       totalJetons:st.totalChips,
       engagements:parSiege(id=>roundBb((st.seatContrib||{})[id]||0)),
       /* Engagement TOTAL du coup, préflop compris : c'est lui qui définit les
@@ -6410,6 +6444,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             const seatState=seatStates[pos]||{};
             const seatFolded=!!seatState.folded;
             const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
+            /* §14 — main abattue de ce siège, s'il y en a une. Un joueur couché ne
+               montre jamais : la garde reste ici même si le moteur est déjà d'accord. */
+            const seatRevealedHand=(!isH&&!seatFolded&&fhRevealed)?(fhRevealed[pos]||null):null;
             const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV)||(!!activePlayerId&&activePlayerId===pos);
             const isDone=answered!==null;
             const col=isH?T.gold:isV?"#c090ff":T.text3;
@@ -6499,7 +6536,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
                   {isV&&!seatFolded&&(
                     <div style={{marginBottom:5,position:"relative"}}>
-                      <VillainBackCards size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
+                      <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
                       {(thinking||(playingFull&&fhVilThink))&&(
                         <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
                           <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
@@ -6509,7 +6546,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   )}
                   {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
                     <div style={{marginBottom:3}}>
-                      <VillainBackCards size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
+                      <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
                     </div>
                   )}
 
@@ -6626,7 +6663,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
             const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom,heroPos:spot?.hpos});
             return(
-              <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
+              <div key={`blind-1t-${bp}`} data-seat={bp} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
                 <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
               </div>
             );
@@ -6910,7 +6947,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const bx=x+(50-x)*bp;
           const by=y+(50-y)*bp;
           return(
-            <div key={`blind-mt-${pos}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
+            <div key={`blind-mt-${pos}`} data-seat={pos} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
               <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
             </div>
           );
@@ -6924,6 +6961,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const seatState=seatStates[pos]||{};
           const seatFolded=!!seatState.folded;
           const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
+          /* §14 — main abattue de ce siège, s'il y en a une. Un joueur couché ne
+             montre jamais : la garde reste ici même si le moteur est déjà d'accord. */
+          const seatRevealedHand=(!isH&&!seatFolded&&fhRevealed)?(fhRevealed[pos]||null):null;
           const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV)||(!!activePlayerId&&activePlayerId===pos);
           const sz=cfg.seat;
           const col=isH?T.gold:isV?"#c090ff":T.text3;
@@ -7041,7 +7081,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                   <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3}/>
                 )}
                 {!isH&&(
-                  <VillainBackCards size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway} folded={seatFolded}/>
+                  <SeatOpponentCards revealed={seatRevealedHand} size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway} folded={seatFolded}/>
                 )}
               </div>
 
