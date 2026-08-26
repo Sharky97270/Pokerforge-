@@ -1,0 +1,36 @@
+{
+  "label": "apres2",
+  "when": "2026-08-26T00:52:23.930Z",
+  "cas": [
+    {
+      "nom": "CFR sous-jeu · river",
+      "ms": 2409,
+      "ok": true,
+      "note": "CFR_SOLVE"
+    },
+    {
+      "nom": "CFR sous-jeu · flop",
+      "ms": 8693,
+      "ok": true,
+      "note": "CFR_SOLVE"
+    },
+    {
+      "nom": "CFR multi-rue · river",
+      "ms": 2224,
+      "ok": true,
+      "note": "CFR_SOLVE"
+    },
+    {
+      "nom": "CFR multi-rue · flop (3 rues)",
+      "ms": 13799,
+      "ok": true,
+      "note": "CFR_SOLVE"
+    },
+    {
+      "nom": "PFASE SINGLE · river",
+      "ms": 40091,
+      "ok": true,
+      "note": "COMPLETE"
+    }
+  ]
+}

@@ -53,7 +53,9 @@
     "audit:sizing:persistence": "node scripts/sizing-persistence-shot.mjs",
     "audit:sizing:all": "npm run audit:sizing:ui && npm run audit:sizing:trainer && npm run audit:sizing:multitable && npm run audit:sizing:persistence",
     "test:perf": "node test-solver-evaluator-identity.mjs && node test-solver-equity-perf.mjs",
-    "audit:solver:perf": "node scripts/solver-perf-probe.mjs --out=design-qa-evidence/solver-perf.json"
+    "audit:solver:perf": "node scripts/solver-perf-probe.mjs --out=design-qa-evidence/solver-perf.json",
+    "audit:solver:cancel": "node scripts/solver-cancel-probe.mjs",
+    "bench:solve": "node scripts/solver-solve-bench.mjs --out=design-qa-evidence/solve-bench.json"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"

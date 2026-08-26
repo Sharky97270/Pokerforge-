@@ -1,0 +1,80 @@
+{
+  "url": "http://localhost:7802",
+  "when": "2026-08-26T00:59:21.165Z",
+  "steps": [
+    {
+      "step": "onglet SharkSolver ouvert",
+      "ok": true
+    },
+    {
+      "step": "board river saisi (As7d2c9hKs)",
+      "ok": true
+    },
+    {
+      "step": "solve lancé",
+      "ok": true
+    },
+    {
+      "step": "le solve tourne (indicateur « Calcul… »)",
+      "ok": true,
+      "calcul": true,
+      "annule": false,
+      "solution": false,
+      "stale": false,
+      "staleRaison": null,
+      "perime": false,
+      "spotModifie": false
+    },
+    {
+      "step": "le calcul du board précédent est ANNULÉ",
+      "ok": true,
+      "calcul": false,
+      "annule": true,
+      "solution": false,
+      "stale": false,
+      "staleRaison": null,
+      "perime": false,
+      "spotModifie": false
+    },
+    {
+      "step": "aucun résultat périmé n'apparaît en 90 s",
+      "ok": true,
+      "surveillanceMs": 90726
+    },
+    {
+      "step": "2e solve lancé sur le board courant",
+      "ok": true
+    },
+    {
+      "step": "solution affichée",
+      "ok": true,
+      "ms": 66949
+    },
+    {
+      "step": "la solution n'est PAS marquée périmée tant que le spot ne bouge pas",
+      "ok": true,
+      "calcul": false,
+      "annule": false,
+      "solution": true,
+      "stale": false,
+      "staleRaison": null,
+      "perime": false,
+      "spotModifie": false
+    },
+    {
+      "step": "changer le board marque la solution PÉRIMÉE, avec le bon motif",
+      "ok": true,
+      "calcul": false,
+      "annule": false,
+      "solution": true,
+      "stale": true,
+      "staleRaison": "spot",
+      "perime": true,
+      "spotModifie": true
+    }
+  ],
+  "errors": [],
+  "solveMs": 66949,
+  "screenshot": "D:\\Projet 2026\\APP Poker\\design-qa-evidence\\solver-cancel.png",
+  "ok": true
+}
