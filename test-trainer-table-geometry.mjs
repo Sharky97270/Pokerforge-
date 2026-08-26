@@ -12,7 +12,7 @@
 import assert from "node:assert";
 import {
   TRAINER_FELT_ASPECT, trainerZoneAspect, trainerMarkerPoint, trainerDealerPoint,
-  trainerCentreZonePct, trainerCentralExclusionZone, trainerBoardSizePx, trainerPotSizePx,
+  trainerCentreZonePct, trainerCentralExclusionZone, trainerBoardSizePx, trainerCorridorPx, trainerPotSizePx,
   pointInsideZone, feltPctToZonePct, zonePctToFeltPct, feltHeightPx, MARKER_MIN_ATTRIBUTION,
 } from "./src/trainerTableGeometry.js";
 import { trainerTableGeometry } from "./src/trainerVisualConfig.js";
@@ -193,7 +193,11 @@ for (const m of modes) {
   /* La taille du board dépend de la hauteur du FEUTRE (§21/§34) : l'interroger
      sans cette hauteur rendrait le board du mode, pas celui de cette table — et
      le test croirait à un chevauchement là où le rendu n'en a pas. */
-  const board = trainerBoardSizePx(m, { feltH: feltHeightPx(area, m, GEOM[m]) });
+  /* Le board dépend aussi du COULOIR réellement libre entre le siège du haut
+     et le Hero : interroger sa taille sans lui rendrait un board qui n'est pas
+     celui de cette table. */
+  const couloir = trainerCorridorPx({ seats, heroPos: heroOf(m), numTables: m, ringGeom: area, geometry: GEOM[m] });
+  const board = trainerBoardSizePx(m, { feltH: feltHeightPx(area, m, GEOM[m]), corridorPx: couloir });
   const pot = trainerPotSizePx(m);
   const potBottom = c.potY * area.areaH / 100 + pot.h / 2;
   const boardTop = c.boardY * area.areaH / 100 - board.cardH / 2;

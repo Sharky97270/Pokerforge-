@@ -242,6 +242,23 @@ const PROBE = (minArea) => {
     if (boardBox) feuilles.push({ id: 'board', ...boardBox });
     if (potBox) feuilles.push({ id: 'pot', ...potBox });
 
+    /* ── SORTIE DE ZONE (§18/§19) ────────────────────────────────────────
+       Un élément peut très bien n'être rogné par personne et se peindre quand
+       même HORS de la table — sur le bandeau de street au-dessus, sur les
+       boutons de décision en dessous. Le test de rognage ne le voit pas (aucun
+       ancêtre ne coupe) ; celui-ci si. C'est la contrainte qui décide jusqu'où
+       on peut repousser un siège vers l'anneau. */
+    const horsZone = feuilles.map(f => {
+      const d = {
+        haut: +Math.max(0, zb.y - f.y).toFixed(1),
+        bas: +Math.max(0, (f.y + f.h) - (zb.y + zb.h)).toFixed(1),
+        gauche: +Math.max(0, zb.x - f.x).toFixed(1),
+        droite: +Math.max(0, (f.x + f.w) - (zb.x + zb.w)).toFixed(1),
+      };
+      const total = d.haut + d.bas + d.gauche + d.droite;
+      return total > 1.5 ? { quoi: f.id, ...d, total: +total.toFixed(1) } : null;
+    }).filter(Boolean);
+
     /* §18/§19 — toutes les paires. On ignore les paires d'un MÊME siège
        (avatar/plaque/cartes se touchent par construction : c'est un bloc). */
     const recouvrements = [];
@@ -257,10 +274,16 @@ const PROBE = (minArea) => {
     const anneau = Object.fromEntries(Object.entries(seats).map(([p, s]) => [p, +Math.hypot(
       (s.box.cx - fb.cx) / (fb.w / 2), (s.box.cy - fb.cy) / (fb.h / 2)).toFixed(3)]));
 
-    /* §4/§5 — radialité des CARTES. Le vecteur de référence est siège→pot ;
+    /* §4/§5 — radialité des CARTES. La référence est le CENTRE DU FEUTRE, pas
+       le pot : le §5 l'écrit ainsi (« directionToCenter = tableCenter −
+       seatCenter »), et pour une bonne raison. Le pot se déplace d'une street à
+       l'autre ; mesurer contre lui rendrait une grappe « non radiale » au
+       préflop et « radiale » au flop sans que rien n'ait bougé. Mesuré, la
+       confusion coûtait jusqu'à 98.8° sur un siège pourtant correctement
+       orienté. Le pot reste la référence des MISES (§1/§2), et lui seul.
        0° ⇒ les cartes sont entre le joueur et le centre. */
     const cartes = Object.entries(seats).filter(([, s]) => s.cartes).map(([p, s]) => {
-      const vPot = { x: pot.cx - s.box.cx, y: pot.cy - s.box.cy };
+      const vPot = { x: fb.cx - s.box.cx, y: fb.cy - s.box.cy };
       const vC = { x: s.cartes.cx - s.box.cx, y: s.cartes.cy - s.box.cy };
       return {
         pos: p, hero: s.hero,
@@ -289,7 +312,7 @@ const PROBE = (minArea) => {
          d'un mode à l'autre. */
       avatarSurFeutre: tailles.avatar ? +(tailles.avatar.w / fb.w).toFixed(4) : null,
       potSurFeutre: tailles.pot ? +(tailles.pot.w / fb.w).toFixed(4) : null,
-      anneau, cartes, bets, blinds, dealer, recouvrements, tailles,
+      anneau, cartes, bets, blinds, dealer, recouvrements, tailles, horsZone,
       potTexte: potEl ? (potEl.textContent || '').trim().replace(/\s+/g, ' ') : null,
       /* §13 — l'état du moteur, publié au DOM par la table elle-même. Sans lui
          on compare un nombre peint à… rien. */
@@ -335,7 +358,20 @@ try {
     if (el) { el.click(); return true; } return false;
   }, txt, exact);
 
-  await click('Entraineur GTO'); await sleep(900);
+  /* L'application rouvre l'onglet où l'utilisateur l'avait laissée — souvent
+     SharkSolver, dont le montage n'est pas instantané. Attendre une durée fixe
+     après le clic faisait rater TOUTE la séquence en silence : les clics
+     suivants ne trouvaient pas leur bouton, la session ne démarrait pas, et le
+     script rendait « AUCUN RELEVE » sans dire pourquoi. On attend donc l'écran,
+     pas le chronomètre. */
+  await click('Entraineur GTO');
+  let pret = false;
+  for (let i = 0; i < 40; i++) {
+    pret = await page.evaluate(() => [...document.querySelectorAll('button')].some(b => /Lancer la session/i.test(b.textContent || '')));
+    if (pret) break;
+    await sleep(300);
+  }
+  if (!pret) { console.error("L'onglet Entraineur ne s'est pas monté (bouton « Lancer la session » absent)."); process.exit(4); }
   await click(TABLES); await sleep(200);
   await click(STRUCT); await sleep(300);
   if (flag('fh')) {
@@ -445,6 +481,14 @@ try {
 
     /* §15 */
     cartesDupliquees: T.flatMap(t => t.cartesDupliquees),
+
+    /* §18/§19 — sortie de zone */
+    horsZone: (() => {
+      const h = T.flatMap(t => t.horsZone);
+      const m = {};
+      h.forEach(x => { m[x.quoi] = Math.max(m[x.quoi] || 0, x.total); });
+      return { total: h.length, pireParElement: m };
+    })(),
 
     /* §18/§19 */
     recouvrements: (() => {

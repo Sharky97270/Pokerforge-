@@ -13,8 +13,9 @@ import { useRangeTheme } from "../components/range/useRangeTheme.js";
 import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorSettings.jsx";
 import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
-import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
-import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
+import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, trainerSeatBlockPx, trainerAvatarSizeVar, trainerAvatarPaintedPx, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
+import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerCentralExclusionZone, trainerCorridorPx, betBadgeMaxWidthPx, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
+import { seatAxis, seatAxisClear, seatFlexDirection, trainerSeatZones } from "../trainerSeatAnchors.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision, spotVerdict } from "../trainerRoundEngine.js";
@@ -921,11 +922,11 @@ function resolveTrainerBlindPoint(layout,pos,numTables=1,ringGeom=null){
    ci-dessus restent le détail d'implémentation ; c'est par ici qu'on passe.
    Tout ce qui affiche la table du Trainer — 1T comme multi, GTO comme Exploit,
    Spot / Street / Full Hand / Session / Mix — hérite donc du même placement. */
-function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null,heroPos=null}={}){
+function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null,heroPos=null,avatarPx=0,avatarHeroPx=0}={}){
   if(!layout)return {x:50,y:50};
   const seats=layout.seats||{};
   const common={
-    seats,numTables,hasBoard,ringGeom,heroPos,
+    seats,numTables,hasBoard,ringGeom,heroPos,avatarPx,avatarHeroPx,
     geometry:layout.tableGeometry,
     isMobile:/mobile/i.test(layout.name||""),
     potYByCount:WEB_POT_Y_BY_COUNT,
@@ -4921,6 +4922,37 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
+  /* ── CENTRE DE LA TABLE ET TAILLE DE LA ZONE (§5) ────────────────────────
+     La direction « vers le centre » d'un siège se calcule contre le centre du
+     FEUTRE, pas contre celui du pot : le pot se déplace d'une street à l'autre
+     (préflop il est plus bas, postflop il remonte au-dessus du board), et une
+     grappe de siège qui pivoterait au changement de street serait illisible.
+     Le feutre, lui, ne bouge pas.
+
+     La taille de la zone en PIXELS est indispensable : un vecteur unitaire
+     exprimé en pourcentages d'un conteneur non carré ne pointe pas là où on
+     croit (piège déjà documenté dans trainerTableGeometry). */
+  const feltCentrePct=useMemo(()=>{
+    const g=trainingLayout.tableGeometry||{};
+    return {x:((g.left||0)+(100-(g.right||0)))/2,y:((g.top||0)+(100-(g.bottom||0)))/2};
+  },[trainingLayout.tableGeometry]);
+  /* Largeur du FEUTRE en px — la grandeur à laquelle se rapportent les objets
+     qu'on pose dessus (§22/§23 : des ratios, pas des pixels). */
+  const feltWidthPx=useMemo(()=>{
+    const g=trainingLayout.tableGeometry||{};
+    const w=ringGeom?.areaW>0?ringGeom.areaW:0;
+    return w>0?w*(100-(g.left||0)-(g.right||0))/100:0;
+  },[ringGeom?.areaW,trainingLayout.tableGeometry]);
+  /* Taille PEINTE du médaillon, telle qu'elle sera rendue. La géométrie doit
+     décrire le même objet que le rendu : c'est le sens de §7/§23, et l'écart
+     entre les deux se paie en mises repoussées vers le pot. En mosaïque le
+     médaillon suit encore son jeton de densité, donc on ne passe rien. */
+  const avatarPaintedPx=useMemo(()=>numTables===1?trainerAvatarPaintedPx({feltW:feltWidthPx}):0,[numTables,feltWidthPx]);
+  const avatarHeroPaintedPx=useMemo(()=>numTables===1?trainerAvatarPaintedPx({feltW:feltWidthPx,hero:true}):0,[numTables,feltWidthPx]);
+  const seatAreaPx=useMemo(()=>({
+    w:ringGeom?.areaW>0?ringGeom.areaW:800,
+    h:ringGeom?.areaH>0?ringGeom.areaH:800/trainerZoneAspect(numTables,trainingLayout.tableGeometry),
+  }),[ringGeom?.areaW,ringGeom?.areaH,numTables,trainingLayout.tableGeometry]);
   /* Ancres du CENTRE — resolues une seule fois : le pot et le board sont peints
      ici, et la geometrie des mises vise exactement le meme point. Le couloir est
      calcule a partir du bloc du siege haut et de celui du Hero (cf.
@@ -4928,9 +4960,36 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
      au tout premier rendu, avant la premiere mesure. */
   const centreAnchors=trainerCentreAnchorsFelt({
     seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,hasBoard:hasVisibleBoard,
-    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,
+    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx,
     potYByCount:WEB_POT_Y_BY_COUNT,potYPreflopByCount:WEB_POT_Y_PREFLOP_BY_COUNT,boardYByCount:WEB_BOARD_Y_BY_COUNT,
   });
+  /* Couloir libre entre le siège du haut et le Hero. Il ne dépend que des
+     sièges, donc il se calcule AVANT le board — et c est lui qui borne la
+     taille du board (§21). */
+  const corridorPx=useMemo(()=>trainerCorridorPx({
+    seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,ringGeom,
+    geometry:trainingLayout.tableGeometry,tight:tightViewport,
+    avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx,
+  }),[trainingLayout,spot?.hpos,numTables,ringGeom,tightViewport,avatarPaintedPx,avatarHeroPaintedPx]);
+  /* ── BANDE CENTRALE DE RÉFÉRENCE POUR LE CHOIX DES AXES (§26) ────────────
+     On la calcule TOUJOURS avec un board, même au préflop. Sinon l'axe d'un
+     siège de flanc changerait à l'arrivée du flop — ses cartes sauteraient
+     d'à-côté de lui à au-dessus de lui en pleine main. Une disposition de
+     table se décide pour le COUP, pas pour la street. */
+  const centreExclusion=useMemo(()=>trainerCentralExclusionZone({
+    seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,hasBoard:true,
+    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,tight:tightViewport,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx,
+    potYByCount:WEB_POT_Y_BY_COUNT,potYPreflopByCount:WEB_POT_Y_PREFLOP_BY_COUNT,boardYByCount:WEB_BOARD_Y_BY_COUNT,
+  }),[trainingLayout,spot?.hpos,numTables,ringGeom,isMobile,seatOrder.length,tightViewport]);
+  /* Encombrement de la PAIRE de cartes d'un siège, dérivé du même bloc que la
+     zone de sécurité du joueur (trainerSeatBlockPx) : une seule description du
+     siège sert au placement des marqueurs ET au choix de l'axe. */
+  const seatCardsPx=useCallback(hero=>{
+    const b=trainerSeatBlockPx(numTables,{hero,opts:{tight:tightViewport}});
+    const z=density.seatZoom||1;
+    const r=(density.avatarSize||40)/2*z, g=(density.seatGap||2)*z;
+    return {w:2*b.halfW,h:Math.max(10,b.towardPot-r-g)};
+  },[numTables,tightViewport,density]);
   const oneTableBoardSize=TRAINER_VISUAL_CONFIG.boardSize?.oneTable||"1t-hero";
   const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):oneTableBoardSize):cfg.board;
   const boardGap=numTables===1?(isMobile?(boardCount>=5?3:4):(boardCount>=5?5:6)):cfg.boardGap;
@@ -5103,7 +5162,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   })();
   const anchorForSeat=useCallback(pos=>{
     if(!pos)return null;
-    return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
+    return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
   },[trainingLayout,hasVisibleBoard,numTables,ringGeom,spot?.hpos]);
   /* Le panneau de droite décrit CETTE table : il doit recevoir les mêmes
      nombres qu'elle peint — tapis restant d'Hero, tapis effectif, SPR et cotes
@@ -6333,7 +6392,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
          })()}>
          <div className="t1-table-area" ref={ringScaleRef} data-pf-spot={spotProbe} data-pf-ledger={ledgerProbe} data-pf-fullhand={fullHandProbe} style={{
            position:"relative",minHeight:0,overflow:"hidden",
-           "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport}),
+           "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport,corridorPx}),
+           /* §23/§36 — plafond du badge de mise, en fraction de la table. La
+              géométrie borne ses dégagements avec la MÊME valeur : décrire un
+              badge plus large que celui qu'on peint, ou l'inverse, remet le tas
+              sur le board. */
+           "--pf-bet-max-w":`${betBadgeMaxWidthPx(1,feltWidthPx)}px`,
          }}>
 
           {/* Focus Mode button */}
@@ -6479,7 +6543,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             // Le Hero garde sa taille pleine : sa grappe est seule en bas-centre et
             // c'est la main qu'on doit lire.
             const webDense=isMobile||isH||nSeats<=6?1:nSeats===7?0.94:nSeats===8?0.88:0.82;
-            const avSz=isMobile?Math.round((isH?41:35)*denseScale):Math.round((isH?70:64)*webDense);
+            /* §7/§23 — taille du médaillon : une FRACTION du feutre, plus un nombre
+               de pixels corrigé par point de rupture. Voir trainerAvatarPaintedPx. */
+            const avSz=isMobile?Math.round((isH?41:35)*denseScale):trainerAvatarSizeVar({feltW:feltWidthPx,hero:isH,dense:webDense});
             const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
             const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
             const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
@@ -6507,79 +6573,83 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             const chipLabel=trainerChipVerb((hasBet||hasVilBet)
               ?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct))
               :(preChipLabel||seatState.lastLabel||null));
-            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom,heroPos:spot?.hpos});
+            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
             const cpx=actionPt.x;
             const cpy=actionPt.y;
             const isTopSeat1T=coord.y<=24;
             const isBottomSeat1T=coord.y>=68;
-            const seatTransform1T=isMobile
-              ?(isTopSeat1T?"translate(-50%,-35%)":isBottomSeat1T?"translate(-50%,-58%)":"translate(-50%,-50%)")
-              :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
+            /* ── §4/§5/§6 — LE CÔTÉ INTÉRIEUR D'UN SIÈGE SE CALCULE ──────────
+               Il était décidé par un seuil vertical (`coord.y<=40`), qui ne
+               connaît que « en haut » et « en bas ». Un joueur de FLANC recevait
+               donc ses cartes AU-DESSUS de sa tête alors que le centre est à son
+               côté — c'est le défaut signalé sur le BB. Mesuré, écart angulaire
+               entre l'axe siège→pot et l'axe avatar→cartes : moyenne 29.6°,
+               maximum 81.8°, SB à 60.6°.
+               `seatAxis` rend la direction du centre, quantifiée sur quatre axes
+               (cf. trainerSeatAnchors pour l'arbitrage diagonale). */
+            const axis1T=seatAxisClear({seat:coord,centre:feltCentrePct,area:seatAreaPx,forbidden:centreExclusion,cardsPx:seatCardsPx(isH),avatarPx:avSz,gapPx:isMobile?2:5});
             const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
             const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
-            // Écart cartes Hero -> avatar Hero : cible 6-8px. 6-max et 7-max calibrés à 7.
-            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?((seatOrder.length===7||seatOrder.length===6)?7:5):6);
+            /* Écart avatar ↔ cartes. Il n'est plus une marge du flux (les cartes
+               sont hors flux) mais l'écart de la zone intérieure, publié en
+               variable CSS : une seule valeur, quel que soit l'axe. */
+            const inwardGap1T=isMobile?2:(isH?((seatOrder.length===7||seatOrder.length===6)?7:5):5);
+            /* Le zoom des cartes du Hero doit partir du bord COLLÉ à l'avatar,
+               sinon réduire les cartes ouvre un trou entre elles et lui. */
+            const inwardOrigin1T=axis1T==="up"?"bottom center":axis1T==="down"?"top center":axis1T==="left"?"right center":"left center";
             return(
               <React.Fragment key={pos}>
 
-                {/* ── SEAT CARD ── */}
-                {/* Sièges HAUTS : grappe rendue en ordre inverse (plaque à l'extérieur,
-                    cartes vers le centre). C'est d'abord la disposition RÉELLE d'une
-                    table — les cartes d'un joueur sont devant lui, côté board. Et ça
-                    règle la cause dominante des chevauchements mesurée sur 30 tirages
-                    (5 occurrences « plaque ↔ tas de mise ») : pour un siège haut, le
-                    bord INTERNE du bloc était la plaque, large de 88px ; ce sont
-                    désormais les cartes, larges de 60px. Le tas posé sur l'anneau
-                    dispose donc de ~28px de dégagement latéral en plus. */}
-                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:TABLE_Z.seat}}>
+                {/* ── LE SIÈGE EST UN POINT, ET CE POINT EST L'AVATAR (§3/§8) ──
+                    Trois zones, indépendantes entre elles et toutes liées au même
+                    point d'anneau :
+                      · EN FLUX      le slot avatar, et lui seul → la boîte du
+                                     siège se réduit au médaillon, si bien qu'un
+                                     translate(-50%,-50%) pose son CENTRE sur
+                                     l'anneau doré quels que soient le contenu,
+                                     la street et la structure de table ;
+                      · HORS FLUX    la zone INTÉRIEURE (les cartes), du côté du
+                                     centre de la table ;
+                      · HORS FLUX    la zone EXTÉRIEURE (identité, statut,
+                                     action), à l'opposé — donc jamais entre le
+                                     joueur et le board (§19).
+                    Avant, le point d'anneau positionnait le BLOC entier et un
+                    `translate(…,-40%)` réglé à la main tentait de rattraper le
+                    décalage. Il ne pouvait pas : la hauteur du bloc change avec
+                    la street. Mesuré, rayon normalisé du centre d'avatar sur
+                    l'ellipse (ρ=1 ⇒ sur l'anneau) : moyenne 0.88, minimum 0.64 —
+                    CO 0.68, BTN 0.69, BB 0.71, soit un tiers du rayon À
+                    L'INTÉRIEUR du tapis. C'est la mesure du défaut « SB et BB
+                    trop centrés ».
+                    La mosaïque avait déjà cette architecture ; le 1T la rejoint,
+                    et les deux passent d'un axe vertical à un axe RADIAL. */}
+                <PlayerSeat pos={pos} mode="1T" radial={axis1T}
+                  className={`pf-seat-avatar-anchored${axis1T==="down"?" pf-seat-inverted":""}`}
+                  style={{left:`${coord.x}%`,top:`${coord.y}%`,zIndex:TABLE_Z.seat,"--pf-seat-gap":`${inwardGap1T}px`}}>
 
-                  {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
-                  {isV&&!seatFolded&&(
-                    <div style={{marginBottom:5,position:"relative"}}>
-                      <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
-                      {(thinking||(playingFull&&fhVilThink))&&(
-                        <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
-                          <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
-                    <div style={{marginBottom:3}}>
+                  {/* ── ZONE INTÉRIEURE : les cartes, entre le joueur et le board ── */}
+                  <div className="pf-seat-inward pf-seat-above">
+                    {isV&&!seatFolded&&(
+                      <div style={{position:"relative"}}>
+                        <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
+                        {(thinking||(playingFull&&fhVilThink))&&(
+                          <div className="pf-seat-think" style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
+                            <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
                       <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
-                    </div>
-                  )}
+                    )}
+                    {isH&&(
+                      <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:inwardOrigin1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
+                    )}
+                  </div>
 
-                  {/* ── Cartes Hero ABOVE seat — hero en position basse (SB/BB, y>50) ──
-                       transform scale (§1) ancré en bas : réduit → le HAUT descend,
-                       l'avatar (posé plus bas dans le flux) ne bouge pas. */}
-                  {isH&&(
-                    <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{marginBottom:heroCardMarginForSeat1T,transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:"bottom center",filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
-                  )}
-
-                  {isV&&isActive&&(
-                    <div style={{
-                      marginBottom:3,padding:"2px 10px",borderRadius:20,
-                      background:"rgba(155,92,255,.16)",border:"1px solid rgba(155,92,255,.42)",
-                      fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
-                      color:"#c090ff",letterSpacing:".06em",
-                      boxShadow:"0 0 10px rgba(155,92,255,.28)",
-                    }}>Vilain reflechit...</div>
-                  )}
-
-                  {/* Player card */}
-                  <div className={`player-card-1t${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-dense={denseScale<1?"1":undefined} data-webdense={webDense<1?String(nSeats):undefined} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
+                  {/* ── EN FLUX : le slot avatar. C'est la boîte du siège. ── */}
+                  <div className={`player-card-1t pf-seat-avatar-slot${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-dense={denseScale<1?"1":undefined} data-webdense={webDense<1?String(nSeats):undefined} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
                     <PlayerAvatarPremium isHero={isH} isVillain={isV} profile={isV?spot.vtype:isH?"Hero":seatState.profile||trainerSeatAvatarProfile(pos)} size={avSz} active={isActive||seatMultiway}/>
-                    {isH&&<span className="pf-seat-hero-chip">HERO</span>}
-                    <div className="pf-seat-nameplate">
-                      <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{pos}</span>
-                      <span className="seat-card-stack" style={{fontSize:isH?11:9.5,color:isH?T.gold:T.text3}}>{fmt(displayStack)}</span>
-                    </div>
-                    <div className="seat-card-stats">
-                      <span>VPIP {vp.vpip}</span>
-                      <span style={{color:"rgba(111,129,168,.4)"}}>·</span>
-                      <span>PFR {vp.pfr}</span>
-                    </div>
                     {/* Range button */}
                     {(isH||isV)&&(
                       <div className={`seat-range-btn${isV?" vil":""}`}
@@ -6588,30 +6658,55 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                         R
                       </div>
                     )}
+
+                    {/* ── ZONE EXTÉRIEURE : identité, statut, action. Elle vit DANS
+                        `.player-card-1t` pour que les règles de style qui la
+                        ciblent par descendance (plaque compacte des non-Hero,
+                        échelle « dense ») continuent de s'appliquer. Hors flux,
+                        elle ne compte donc pas dans la boîte du siège. */}
+                    <div className="pf-seat-outward pf-seat-below">
+                      {isH&&<span className="pf-seat-hero-chip">HERO</span>}
+                      <div className="pf-seat-nameplate">
+                        <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{pos}</span>
+                        <span className="seat-card-stack" style={{fontSize:isH?11:9.5,color:isH?T.gold:T.text3}}>{fmt(displayStack)}</span>
+                      </div>
+                      <div className="seat-card-stats">
+                        <span>VPIP {vp.vpip}</span>
+                        <span style={{color:"rgba(111,129,168,.4)"}}>·</span>
+                        <span>PFR {vp.pfr}</span>
+                      </div>
+                      {isV&&isActive&&(
+                        <div className="pf-seat-thinking-badge" style={{
+                          padding:"2px 10px",borderRadius:20,
+                          background:"rgba(155,92,255,.16)",border:"1px solid rgba(155,92,255,.42)",
+                          fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
+                          color:"#c090ff",letterSpacing:".06em",whiteSpace:"nowrap",
+                          boxShadow:"0 0 10px rgba(155,92,255,.28)",
+                        }}>Vilain reflechit...</div>
+                      )}
+                      {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip">Fold</span>}
+                      {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
+                      {/* Action badge */}
+                      {lastAct&&!playingFull&&!(betAmt>0)&&(
+                        <span className={`seat-action-badge ${actCls}`} style={{fontSize:9,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>
+                      )}
+                      {playingFull&&isV&&fhVilAct&&(
+                        <span className={`seat-action-badge ${trainerActionCssClass(fhVilAct.action)}`}>
+                          {fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action,fhVilAct)}
+                        </span>
+                      )}
+                      {/* Badge action Hero en main complète (street courante) — symétrie avec le vilain */}
+                      {playingFull&&isH&&(()=>{
+                        const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet);
+                        if(!ha)return null;
+                        return(
+                          <span className={`seat-action-badge ${trainerActionCssClass(ha.action)}`}>
+                            {trainerActionDisplayVerb(ha.action)}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
-                  {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip">Fold</span>}
-                  {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
-
-
-                  {/* Action badge */}
-                  {lastAct&&!playingFull&&!(betAmt>0)&&(
-                    <span className={`seat-action-badge ${actCls}`} style={{marginTop:4,fontSize:9,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>
-                  )}
-                  {playingFull&&isV&&fhVilAct&&(
-                    <span className={`seat-action-badge ${trainerActionCssClass(fhVilAct.action)}`} style={{marginTop:4}}>
-                      {fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action,fhVilAct)}
-                    </span>
-                  )}
-                  {/* Badge action Hero en main complète (street courante) — symétrie avec le vilain */}
-                  {playingFull&&isH&&(()=>{
-                    const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet);
-                    if(!ha)return null;
-                    return(
-                      <span className={`seat-action-badge ${trainerActionCssClass(ha.action)}`} style={{marginTop:4}}>
-                        {trainerActionDisplayVerb(ha.action)}
-                      </span>
-                    );
-                  })()}
                 </PlayerSeat>
 
                 {/* §3 — Jetons de mise Full Hand : la mise engagée sur la street
@@ -6661,7 +6756,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
           {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
           {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
-            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom,heroPos:spot?.hpos});
+            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
             return(
               <div key={`blind-1t-${bp}`} data-seat={bp} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
                 <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
@@ -6670,7 +6765,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           })}
 
           {(()=>{
-            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos});
+            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
             return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
@@ -6824,7 +6919,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
            un board de 37px y repassait sur les cartes du Hero (mesure -18.6px).
            La variable est posee ICI parce que c'est le seul noeud qui connait la
            mesure ; elle est heritee, donc elle prime sur celle de la tuile. */
-        "--pf-d-board-zoom":trainerBoardZoom(numTables,{feltH:feltHeightPx(ringGeom,numTables,trainingLayout.tableGeometry),tight:tightViewport}),
+        "--pf-d-board-zoom":trainerBoardZoom(numTables,{feltH:feltHeightPx(ringGeom,numTables,trainingLayout.tableGeometry),tight:tightViewport,corridorPx}),
+        "--pf-bet-max-w":`${betBadgeMaxWidthPx(numTables,feltWidthPx)}px`,
         ...(isMobile?{paddingBottom:cfg.pb}:null),
       }}>
 
@@ -6927,7 +7023,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
         {/* DEALER BUTTON — taille cfg.dbtnSz (aligné sur le siège BTN multi-table) */}
         {(()=>{
-          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos});
+          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
           /* Taille pilotée par la DENSITÉ (§3). `cfg.dbtnSz` était du code mort :
              `.dealer-btn{width:22px!important}` gagnait sur l'inline, si bien que
              le bouton D mesurait 22px sur les quatre modes — 13 % de la hauteur du
@@ -6942,7 +7038,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
         {showStaticBlindMarkers&&["SB","BB"].filter(pos=>!seatShowsChips(pos)).map(pos=>{
           const {x,y}=trainingLayout.seats[pos]||{x:50,y:50};
-          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom,heroPos:spot?.hpos});
+          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
           const bp=y>=76?0.62:0.34; // marqueurs blinds au-dessus des cartes (sièges bas)
           const bx=x+(50-x)*bp;
           const by=y+(50-y)*bp;
@@ -7039,7 +7135,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
             :trainerVisualActionType(vilChipLabel||vact?.action||seatState.lastAction||"BET");
           // Jetons poussés vers le centre (au-dessus des cartes) — sièges bas plus loin (anti-chevauchement)
-          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
+          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
@@ -7053,6 +7149,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
              flanc à l'autre au moindre changement de structure. */
           const isLeftSeatMt=x<42;
           const isRightSeatMt=x>58;
+          /* §4/§5 — l'AXE RADIAL remplace le couple haut/bas pour disposer les
+             zones du siège. Les quatre flags ci-dessus restent : ils servent
+             encore aux tailles de carte et aux règles héritées. */
+          const axisMt=seatAxisClear({seat:{x,y},centre:feltCentrePct,area:seatAreaPx,forbidden:centreExclusion,cardsPx:seatCardsPx(isH),avatarPx:Math.max(24,sz),gapPx:density.seatGap||2});
           /* ── ANCRAGE PAR LE CENTRE DE L'AVATAR (§1) ──
              Ce qu'on pose sur l'anneau est un BLOC (cartes ▸ avatar ▸ plaque), pas
              un avatar. L'ancrer par une fraction arbitraire de sa propre hauteur
@@ -7073,10 +7173,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} radial={axisMt} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
 
               {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
-              <div className="pf-seat-above">
+              <div className="pf-seat-inward pf-seat-above">
                 {isH&&(
                   <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3}/>
                 )}
@@ -7108,7 +7208,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               </div>
 
               {/* HORS FLUX — sous l'avatar : plaque, statut, badge d'action */}
-              <div className="pf-seat-below">
+              <div className="pf-seat-outward pf-seat-below">
               <div className="pf-mt-nameplate" style={{fontSize:cfg.fstk-1,color:isH?T.gold:isV?"#c090ff":T.text4}}>
                 {isH&&<span className="pf-seat-hero-chip" style={{fontSize:numTables>=3?5:6,padding:"1px 5px",margin:0}}>HERO</span>}
                 <span style={{fontFamily:"'Space Grotesk',sans-serif",fontWeight:900,lineHeight:1}}>{pos}</span>

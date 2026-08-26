@@ -1,14 +1,32 @@
 import React from "react";
 import ChipStack from "./ChipStack.jsx";
 
+/* ── LE POT NE DOIT PAS S'ÉTALER (§27) ────────────────────────────────────
+   Le nombre de piles encodait la taille du pot jusqu'à SIX piles côte à côte.
+   Mesuré en 1T sur 16 tirages, la largeur du bloc « POT » allait de 115 px à
+   278 px — soit, sur un feutre de 483 px, de 24 % à 58 % de la table pour un
+   seul objet, et une emprise qui CHANGE à chaque main.
+
+   Deux conséquences, l'une visuelle et l'autre géométrique :
+     · on ne distingue plus « ce que ce joueur a mis » de « ce qu'il y a au
+       centre » — c'est exactement le §27 ;
+     · la bande centrale interdite décrit un pot de largeur fixe ; un pot qui
+       double de largeur en sort, et les tas de mise viennent s'y coller
+       (mesuré : jusqu'à 4 px du bloc du pot).
+
+   Le nombre de piles est une DÉCORATION : le montant est déjà écrit en toutes
+   lettres à côté. On le plafonne donc à trois, et le CSS les fait se
+   chevaucher — la magnitude reste lisible (une pile, deux, trois), l'emprise
+   devient bornée. */
+export const POT_MAX_PILES = 3;
 function potPileProfile(value = 0) {
   const amount = Math.max(0, Number(value) || 0);
-  const pileCount =
+  const pileCount = Math.min(POT_MAX_PILES,
     amount <= 2 ? 1 :
     amount <= 8 ? 2 :
     amount <= 25 ? 3 :
     amount <= 80 ? 4 :
-    amount <= 160 ? 5 : 6;
+    amount <= 160 ? 5 : 6);
   const denoms =
     amount <= 2 ? [0.5, 1] :
     amount <= 8 ? [1, 2.5, 5] :
