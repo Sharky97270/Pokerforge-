@@ -1,5 +1,5 @@
 // PokerForge — Shark Solver : moteur CFR+, equite, exploit/ICM/PKO + UI (extrait de App.jsx, Phase 3.3)
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { T } from "../theme.js";
 import { ResultSource, resultMeta, RESULT_SOURCE_LEGEND, RangeSource, rangeMeta, isCalculated } from "../solver/provenance.js";
 // SharkSolver Core — moteur isolé (Phases 6-13) : Card/Combo/Evaluator/Equity/CFR.
@@ -3133,17 +3133,42 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
     ?"Saisis un board (3 cartes minimum) : l'Adaptive Sizing Engine résout le postflop."
     :null;
 
+  /* ══════════════════════════════════════════════════════════════════════
+     JETON DE FRAÎCHEUR — un solve ne peut écrire que dans l'état qui l'a lancé
+
+     `runCFR` et `runMultiStreet` diffèrent leur calcul d'un tour de boucle
+     (setTimeout 30 ms) pour laisser l'indicateur « Calcul… » s'afficher. Leurs
+     fermetures capturent donc le board, le pot et les ranges DU MOMENT DU CLIC.
+     Si l'utilisateur change une carte entre-temps, l'effet ci-dessous efface bien
+     le résultat courant — mais le calcul en attente se réveillait ensuite et
+     écrivait son résultat, calculé sur l'ANCIEN board, dans un écran qui en
+     affiche un nouveau. Aucun badge ne le disait.
+
+     Le jeton est incrémenté dès qu'une grandeur dont dépend un solve change. Un
+     résultat qui revient avec un jeton périmé est JETÉ, jamais affiché.
+     ══════════════════════════════════════════════════════════════════════ */
+  const solveTokenRef=useRef(0);
+  useEffect(()=>{solveTokenRef.current++;},
+    [boardInput,heroFreqs,villainFreqs,math.pot,cfrBetFrac,effective,msTourney,exploitProfileId,tourneyCtx]);
+
   /* ── Lancement du moteur CFR (à la demande) ── */
   function runCFR(){
     setCfrBusy(true);
+    const jeton=solveTokenRef.current;
     setTimeout(()=>{
+      /* Le spot a changé pendant l'attente : ce calcul ne concerne plus
+         personne — on ne le lance même pas. */
+      if(solveTokenRef.current!==jeton){setCfrBusy(false);return;}
       try{
         // §17 : passe par la Solver API ; s.result garde la forme attendue (+ convergence).
         // maxCombos 200 (était 50) : en dessous de 169 classes de mains, la réduction
         // en supprime — à 50, ~100 classes disparaissaient, dont TOUS les offsuit (§8).
         const s=solveSubgame(heroFreqs,villainFreqs,board,math.pot,cfrBetFrac,{maxCombos:200,iters:400,runouts:board.length===5?0:60});
+        /* Le solve est SYNCHRONE : le spot a pu changer pendant qu'il tournait,
+           les événements de saisie ayant été mis en file. On revérifie. */
+        if(solveTokenRef.current!==jeton){setCfrBusy(false);return;}
         setCfrResult(s.result);setCfrSource(s.source); // §16 : CFR_SOLVE ou PRESOLVED_LIBRARY
-      }catch(e){setCfrResult(null);}
+      }catch(e){if(solveTokenRef.current===jeton)setCfrResult(null);}
       setCfrBusy(false);
     },30);
   }
@@ -3155,7 +3180,9 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
   function runMultiStreet(exploit=false){
     if(board.length<3)return;
     setMsBusy(true);setMsPath([]);
+    const jeton=solveTokenRef.current;
     setTimeout(()=>{
+      if(solveTokenRef.current!==jeton){setMsBusy(false);return;}
       try{
         const opts={
           iters:board.length===5?400:180,
@@ -3173,9 +3200,12 @@ export default function SharkSolverTab({initialScenario=null,onGoTrainer=null,on
         const s=exploit
           ? solveNodeLocked(heroFreqs,villainFreqs,board,profileToLocks(exploitProfile),opts)
           : solveMultiStreet(heroFreqs,villainFreqs,board,opts);
+        /* Même vérification qu'au CFR : le solve multi-rue est synchrone et dure
+           plusieurs centaines de millisecondes. */
+        if(solveTokenRef.current!==jeton){setMsBusy(false);return;}
         setMsResult(s.source==="NO_SOLUTION"?null:s);
         setMsExploit(exploit?exploitProfile.label:null);
-      }catch(e){setMsResult(null);setMsExploit(null);}
+      }catch(e){if(solveTokenRef.current===jeton){setMsResult(null);setMsExploit(null);}}
       setMsBusy(false);
     },30);
   }

@@ -21,7 +21,7 @@
     "shot": "node scripts/trainer-shot.mjs",
     "shot:replayer": "node scripts/replayer-shot.mjs",
     "shot:ai": "node scripts/replayer-ai-shot.mjs",
-    "test:certify": "node test-solver-trust-badge.mjs && node test-solver-evaluator.mjs && node test-solver-equity-exact.mjs && node test-solver-equity-invariants.mjs && node test-solver-equity-mc.mjs && node test-solver-equity-differential.mjs && node test-solver-reduced-games.mjs && node test-solver-properties.mjs && node test-solver-pushfold.mjs && node test-solver-equilibrium-scope.mjs && node test-solver-icm-pko.mjs",
+    "test:certify": "node test-solver-trust-badge.mjs && node test-solver-evaluator.mjs && node test-solver-equity-exact.mjs && node test-solver-equity-invariants.mjs && node test-solver-equity-mc.mjs && node test-solver-equity-differential.mjs && node test-solver-reduced-games.mjs && node test-solver-properties.mjs && node test-solver-pushfold.mjs && node test-solver-equilibrium-scope.mjs && node test-solver-icm-pko.mjs && node test-solver-evaluator-identity.mjs && node test-solver-equity-perf.mjs",
     "test:solver": "node src/solver/core/validate.mjs",
     "bench:solver": "node src/solver/core/benchmark.mjs",
     "audit:bets": "node scripts/replayer-bet-audit.mjs",
@@ -51,7 +51,11 @@
     "bench:sizing": "node scripts/sizing-bench.mjs",
     "audit:sizing:multitable": "node scripts/sizing-multitable-shot.mjs",
     "audit:sizing:persistence": "node scripts/sizing-persistence-shot.mjs",
-    "audit:sizing:all": "npm run audit:sizing:ui && npm run audit:sizing:trainer && npm run audit:sizing:multitable && npm run audit:sizing:persistence"
+    "audit:sizing:all": "npm run audit:sizing:ui && npm run audit:sizing:trainer && npm run audit:sizing:multitable && npm run audit:sizing:persistence",
+    "test:perf": "node test-solver-evaluator-identity.mjs && node test-solver-equity-perf.mjs",
+    "audit:solver:perf": "node scripts/solver-perf-probe.mjs --out=design-qa-evidence/solver-perf.json",
+    "audit:solver:cancel": "node scripts/solver-cancel-probe.mjs",
+    "bench:solve": "node scripts/solver-solve-bench.mjs --out=design-qa-evidence/solve-bench.json"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"

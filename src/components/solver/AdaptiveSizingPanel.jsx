@@ -31,6 +31,7 @@ import { EXPLOIT_PROFILES } from "../../solver/core/exploitProfiles.js";
 import { normalizeGameState } from "../../sizing/gameState.js";
 import { describeCapabilities, CapabilityLevel } from "../../sizing/capabilities.js";
 import { describeSolution } from "../../sizing/pfase.js";
+import { canonicalize, hash64 } from "../../sizing/canonicalHash.js";
 
 /* ── §27 — PRÉRÉGLAGES POKERFORGE ─────────────────────────────────────────
    « Les presets ne doivent pas être des vérités stratégiques. Ils décrivent le
@@ -168,9 +169,64 @@ export default function AdaptiveSizingPanel({
     return { bets, raises };
   }, [betSel, raiseSel, useGeometric, useJam]);
 
+  /* ══════════════════════════════════════════════════════════════════════
+     §59 — UN RÉSULTAT NE VAUT QUE POUR L'ÉTAT QUI L'A DEMANDÉ
+
+     Le scénario à couvrir : on lance un solve sur `Ah Kd 7c`, puis on change
+     `7c` en `7d` pendant qu'il tourne. Sans garde, la promesse du premier solve
+     se résolvait plus tard et écrivait sa solution dans le panneau — solution
+     calculée sur un board que l'écran n'affiche plus. Rien ne le signalait :
+     l'utilisateur lisait des sizings d'un autre spot.
+
+     La clé est calculée sur les VALEURS, pas sur les identités d'objets : deux
+     rendus successifs qui décrivent le même spot donnent la même clé, donc un
+     re-rendu anodin n'annule aucun calcul. C'est la canonicalisation de §19,
+     déjà utilisée pour identifier les solutions.
+
+     Deux verrous, parce qu'un seul ne suffit pas :
+       1. ANNULER — dès que la clé change, on demande l'arrêt au Worker (§59) ;
+          inutile de laisser tourner un CFR pour un spot que plus personne ne
+          regarde.
+       2. REJETER — si le résultat arrive quand même (l'annulation est
+          coopérative, elle peut arriver trop tard), il est jeté parce que sa
+          clé de départ ne correspond plus. Un vieux résultat ne remplace
+          JAMAIS l'état d'un spot plus récent.
+     ══════════════════════════════════════════════════════════════════════ */
+  const requestKey = useMemo(() => hash64(canonicalize({
+    stateInput, heroRange, villainRange, mode, complexity, profile,
+    maxEvLoss, nodeOverrides, exploitProfile, family,
+    ...(manualCandidates ? buildSpecs() : {}),
+  })), [stateInput, heroRange, villainRange, mode, complexity, profile,
+    maxEvLoss, nodeOverrides, exploitProfile, family, manualCandidates, buildSpecs]);
+  /* Un résultat DÉJÀ AFFICHÉ décrit lui aussi un spot précis. Changer le board
+     après un solve réussi laissait la carte de solution en place, telle quelle :
+     des sizings mesurés sur `Ah Kd 7c` restaient lisibles au-dessus d'un board
+     `Ah Kd 7d`, sans le moindre signe. Le même marquage PÉRIMÉ que pour une
+     édition d'arbre (§26) s'applique donc au changement de spot. */
+  const [spotDirty, setSpotDirty] = useState(false);
+  const latestKeyRef = useRef(requestKey);
+  /* Écrit aussi PENDANT le rendu : un message du Worker peut arriver avant que
+     les effets du rendu courant ne soient purgés. L'écriture est idempotente,
+     donc sans effet de bord même sous StrictMode (double rendu). */
+  latestKeyRef.current = requestKey;
+  useEffect(() => { latestKeyRef.current = requestKey; }, [requestKey]);
+  const runningKeyRef = useRef(null);
+  const prevKeyRef = useRef(requestKey);
+  useEffect(() => {
+    if (prevKeyRef.current === requestKey) return;   // premier rendu, ou rien n'a bougé
+    prevKeyRef.current = requestKey;
+    setSpotDirty(true);
+    if (runningKeyRef.current == null) return;
+    if (cancelRef.current) { cancelRef.current(); cancelRef.current = null; }
+    runningKeyRef.current = null;
+    setBusy(false); setProgress(null); setPhase(SolveStatus.CANCELLED);
+  }, [requestKey]);
+
   const run = useCallback(() => {
     if (disabled || busy) return;
-    setError(null); setResult(null); setBusy(true); setPhase(SolveStatus.QUEUED); setProgress(null);
+    setError(null); setResult(null); setBusy(true); setPhase(SolveStatus.QUEUED); setProgress(null); setSpotDirty(false);
+    const keyAtStart = latestKeyRef.current;
+    runningKeyRef.current = keyAtStart;
     const { bets, raises } = buildSpecs();
     const request = {
       stateInput, heroRange, villainRange,
@@ -189,15 +245,28 @@ export default function AdaptiveSizingPanel({
     });
     cancelRef.current = cancel;
     promise.then((r) => {
-      setBusy(false); cancelRef.current = null; setPhase(r.status || null);
+      cancelRef.current = null;
+      /* Verrou 2 — le spot a changé pendant le calcul : ce résultat décrit un
+         état que l'écran n'affiche plus. On le jette sans rien afficher. */
+      if (latestKeyRef.current !== keyAtStart) {
+        runningKeyRef.current = null;
+        setBusy(false); setProgress(null); setPhase(SolveStatus.CANCELLED);
+        return;
+      }
+      runningKeyRef.current = null;
+      setBusy(false); setPhase(r.status || null);
       if (!r.ok) { setError(r.reason || "solve échoué"); setResult(r); return; }
       setResult(r);
-      /* Le résultat correspond de nouveau à l'arbre courant. */
+      /* Le résultat correspond de nouveau à l'arbre ET au spot courants. */
       setTreeDirty(false);
+      setSpotDirty(false);
       setNodePath([]);
       try { onSolution && onSolution(r); } catch { /* l'appelant ne casse pas le panneau */ }
     });
   }, [disabled, busy, buildSpecs, stateInput, heroRange, villainRange, mode, complexity, profile, maxEvLoss, manualCandidates, family, onSolution, nodeOverrides, exploitProfile]);
+
+  /* Un résultat affiché est PÉRIMÉ dès que l'arbre OU le spot a changé. */
+  const perime = treeDirty || spotDirty;
 
   const stop = () => { if (cancelRef.current) { cancelRef.current(); setPhase(SolveStatus.CANCELLED); } };
   useEffect(() => () => { if (cancelRef.current) cancelRef.current(); }, []);
@@ -435,21 +504,25 @@ export default function AdaptiveSizingPanel({
         </div>
       )}
 
-      {treeDirty && result && result.ok && (
-        <div style={{ ...box, borderColor: T.amber, background: T.amberDim }}>
+      {perime && result && result.ok && (
+        <div data-pfase="stale" data-pfase-stale-reason={treeDirty ? "tree" : "spot"}
+          style={{ ...box, borderColor: T.amber, background: T.amberDim }}>
           <div style={{ fontSize: 10.5, color: T.amber, fontFamily: T.stats, fontWeight: 700 }}>
-            Arbre modifié — les résultats ci-dessous ne le décrivent plus
+            {treeDirty
+              ? "Arbre modifié — les résultats ci-dessous ne le décrivent plus"
+              : "Spot modifié — les résultats ci-dessous décrivent le spot PRÉCÉDENT"}
           </div>
           <div style={{ fontSize: 9.5, color: T.text3, fontFamily: T.stats, marginTop: 3 }}>
-            Les fréquences et la perte d'EV affichées ont été mesurées sur l'arbre PRÉCÉDENT.
-            Relancez l'optimisation pour qu'elles décrivent celui-ci.
+            {treeDirty
+              ? "Les fréquences et la perte d'EV affichées ont été mesurées sur l'arbre PRÉCÉDENT. Relancez l'optimisation pour qu'elles décrivent celui-ci."
+              : "Board, pot, tapis ou ranges ont changé depuis ce solve. Les sizings affichés ont été mesurés sur l'état précédent — relancez l'optimisation."}
           </div>
         </div>
       )}
 
       {result && result.ok && !family && result.solution && (
         <>
-          <SolutionCard solution={result.solution} optimization={result.optimization} onTrain={onTrainSolution} stale={treeDirty} />
+          <SolutionCard solution={result.solution} optimization={result.optimization} onTrain={onTrainSolution} stale={perime} />
           <TreeEditor
             solution={result.solution}
             path={nodePath} setPath={setNodePath}
@@ -457,7 +530,7 @@ export default function AdaptiveSizingPanel({
             setOverride={(key, ov) => { setNodeOverrides(o => ({ ...o, [key]: ov })); setTreeDirty(true); }}
             clearOverride={(key) => { setNodeOverrides(o => { const n = { ...o }; delete n[key]; return n; }); setTreeDirty(true); }}
             clearAll={() => { setNodeOverrides({}); setTreeDirty(true); }}
-            stale={treeDirty}
+            stale={perime}
           />
         </>
       )}
