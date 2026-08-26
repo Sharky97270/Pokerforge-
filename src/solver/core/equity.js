@@ -48,7 +48,9 @@ function enumRunouts(dead,k,cb){
   })(0,0);
 }
 
-/* Équité EXACTE d'un affrontement combo vs combo par énumération des runouts. */
+/* Équité EXACTE d'un affrontement combo vs combo par énumération des runouts.
+   Conservée pour un usage ponctuel (une paire) ; le chemin de range passe
+   désormais par `_exactRangeEquity`, qui mémorise les scores. */
 function exactMatchup(h,v,fixed){
   const dead=[h[0],h[1],v[0],v[1],...fixed];
   const need=5-fixed.length;
@@ -60,6 +62,140 @@ function exactMatchup(h,v,fixed){
     if(hv>vv)win++;else if(hv===vv)half++;tot++;
   });
   return tot?(win+half*0.5)/tot:0.5;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   P0 PERFORMANCE — ÉNUMÉRATION EXACTE PAR RUNOUT, SCORES MÉMORISÉS
+
+   CE QUI N'ALLAIT PAS : le chemin exact appelait `exactMatchup` pour CHAQUE
+   paire (main Hero, main Vilain), et chaque appel réévaluait DEUX mains de sept
+   cartes par runout. Or, à board donné, le score d'une main ne dépend que de ses
+   deux cartes : le même A♠K♦ était réévalué contre les 1 326 mains adverses.
+
+   Mesuré (navigateur, profil CPU) : saisie de la 5e carte du board, range pleine
+   contre range pleine → 1 326 × 1 326 × 2 = 3 516 552 évaluations, 166 s de
+   thread principal BLOQUÉ. Le nombre d'évaluations réellement nécessaire est
+   1 326 + 1 326 = 2 652, soit 1 326 fois moins.
+
+   CE QU'ON FAIT : on boucle sur les RUNOUTS (un seul sur la river), on calcule
+   le score de chaque main une fois par runout, puis on compare des ENTIERS.
+   Coût : runouts × (nH + nV) évaluations au lieu de runouts × nH × nV × 2.
+   Comme nH + nV ≤ 2·nH·nV dès que nH,nV ≥ 1, ce chemin n'est JAMAIS plus lent
+   que l'ancien, quelle que soit la taille des ranges.
+   C'est exactement le schéma déjà employé par `multistreet.js` (« scores PAR
+   MAIN puis comparaisons ») ; l'équité était le dernier endroit à ne pas l'avoir.
+
+   NEUTRALITÉ NUMÉRIQUE : mêmes valeurs, mêmes poids, même ordre d'accumulation
+   (Hero majeur, Vilain mineur) — donc le même résultat au bit près. Les compteurs
+   win/half/tot sont entiers : l'ordre des runouts n'a aucun effet.
+
+   UNE CORRECTION ASSUMÉE, ET SEULEMENT UNE — LE CARD REMOVAL DU BOARD.
+   L'ancien chemin exact ne retirait PAS les combos partageant une carte avec le
+   board. eval7i([A♠,K♦, A♠,7♦,2♣,9♥,K♠]) évaluait alors une main de sept cartes
+   contenant DEUX A♠ : une main impossible, dont le score ne veut rien dire. Le
+   chemin Monte-Carlo du même fichier écartait déjà ces combos, et multistreet.js
+   aussi (score −1). Le chemin exact était le seul à les compter, et le seul à
+   avoir tort. Ils sont désormais écartés. L'écart que cela produit est mesuré,
+   cas par cas, par `test-solver-equity-perf.mjs`.
+════════════════════════════════════════════════════════════════════════════ */
+function _exactRangeEquity(heroList,villList,fixed){
+  const need=5-fixed.length;
+  const nH=heroList.length,nV=villList.length;
+  const hc=new Int32Array(nH*2),vc=new Int32Array(nV*2);
+  for(let i=0;i<nH;i++){hc[i*2]=heroList[i].cards[0];hc[i*2+1]=heroList[i].cards[1];}
+  for(let j=0;j<nV;j++){vc[j*2]=villList[j].cards[0];vc[j*2+1]=villList[j].cards[1];}
+  const wH=new Float64Array(nH),wV=new Float64Array(nV);
+  for(let i=0;i<nH;i++)wH[i]=heroList[i].w||1;
+  for(let j=0;j<nV;j++)wV[j]=villList[j].w||1;
+
+  /* Cartes du BOARD — une main qui en contient une n'existe pas. */
+  const onBoard=new Uint8Array(52);
+  for(const c of fixed)onBoard[c]=1;
+
+  const sH=new Float64Array(nH),sV=new Float64Array(nV);     // −1 = main impossible
+  /* RIVER (need === 0) : un seul runout, donc pas de compteurs par paire à tenir.
+     Les allouer quand même coûtait 3 × 1 326² × 8 octets = 42 Mo par appel, à
+     remplir de zéros puis à ramasser — pour n'y écrire qu'une fois. On accumule
+     directement, dans le même ordre (Hero majeur, Vilain mineur) : même somme,
+     mêmes bits, sans le tas. */
+  const parPaire=need>0;
+  const win=parPaire?new Float64Array(nH*nV):null;
+  const half=parPaire?new Float64Array(nH*nV):null;
+  const tot=parPaire?new Float64Array(nH*nV):null;
+  let numDirect=0,denDirect=0;
+  const b=[0,0,0,0,0];
+  for(let k=0;k<fixed.length;k++)b[k]=fixed[k];
+  const dead=new Uint8Array(52);
+  const h7=[0,0,0,0,0,0,0];
+
+  const scoreRunout=()=>{
+    for(let i=0;i<nH;i++){
+      const a=hc[i*2],d=hc[i*2+1];
+      if(dead[a]||dead[d]){sH[i]=-1;continue;}
+      h7[0]=a;h7[1]=d;h7[2]=b[0];h7[3]=b[1];h7[4]=b[2];h7[5]=b[3];h7[6]=b[4];
+      sH[i]=eval7i(h7);
+    }
+    for(let j=0;j<nV;j++){
+      const a=vc[j*2],d=vc[j*2+1];
+      if(dead[a]||dead[d]){sV[j]=-1;continue;}
+      h7[0]=a;h7[1]=d;h7[2]=b[0];h7[3]=b[1];h7[4]=b[2];h7[5]=b[3];h7[6]=b[4];
+      sV[j]=eval7i(h7);
+    }
+    for(let i=0;i<nH;i++){
+      const hs=sH[i];if(hs<0)continue;
+      const h0=hc[i*2],h1=hc[i*2+1],row=i*nV;
+      if(parPaire){
+        for(let j=0;j<nV;j++){
+          const vs=sV[j];if(vs<0)continue;
+          const v0=vc[j*2],v1=vc[j*2+1];
+          if(h0===v0||h0===v1||h1===v0||h1===v1)continue;
+          const p=row+j;
+          if(hs>vs)win[p]++;else if(hs===vs)half[p]++;
+          tot[p]++;
+        }
+      }else{
+        const hw=wH[i];
+        for(let j=0;j<nV;j++){
+          const vs=sV[j];if(vs<0)continue;
+          const v0=vc[j*2],v1=vc[j*2+1];
+          if(h0===v0||h0===v1||h1===v0||h1===v1)continue;
+          const w=hw*wV[j];
+          numDirect+=w*(hs>vs?1:hs===vs?0.5:0);denDirect+=w;
+        }
+      }
+    }
+  };
+
+  if(need===0){
+    for(let c=0;c<52;c++)dead[c]=onBoard[c];
+    scoreRunout();
+  }else{
+    /* Runouts tirés des cartes hors board. Une paire dont une main touche le
+       runout est ignorée POUR CE RUNOUT — exactement ce que faisait l'énumération
+       par paire, qui excluait déjà ces cartes de son `avail`. */
+    enumRunouts(fixed,need,(nc)=>{
+      for(let c=0;c<52;c++)dead[c]=onBoard[c];
+      for(let k=0;k<need;k++){b[fixed.length+k]=nc[k];dead[nc[k]]=1;}
+      scoreRunout();
+    });
+  }
+
+  if(!parPaire)return denDirect?numDirect/denDirect*100:50;
+
+  let num=0,den=0;
+  for(let i=0;i<nH;i++){
+    const h0=hc[i*2],h1=hc[i*2+1],hw=wH[i],row=i*nV;
+    for(let j=0;j<nV;j++){
+      if(h0===vc[j*2]||h0===vc[j*2+1]||h1===vc[j*2]||h1===vc[j*2+1])continue;
+      const p=row+j,t=tot[p];
+      /* t === 0 : aucune configuration possible (main sur le board, ou tous les
+         runouts bloqués). La paire ne pèse pas — on ne lui invente pas 50 %. */
+      if(t===0)continue;
+      const w=hw*wV[j];
+      num+=w*((win[p]+half[p]*0.5)/t);den+=w;
+    }
+  }
+  return den?num/den*100:50;
 }
 
 /* ── computeEquity — choisit AUTOMATIQUEMENT énumération exacte vs Monte-Carlo (§10).
@@ -75,15 +211,13 @@ export function computeEquity(heroList,villList,boardFixed=[],opts={}){
   // parcourir toutes les paires (évite un double-loop coûteux sur grosses ranges).
   const runoutCombos=need===0?1:comb(52-4-fixed.length,need);
   const evalCost=heroList.length*villList.length*runoutCombos;
+  /* Aiguillage INCHANGÉ (exact vs Monte-Carlo) : le prédicat porte sur le même
+     coût estimé qu'avant. Seule l'IMPLÉMENTATION du chemin exact change — ainsi
+     aucun spot ne bascule d'un régime à l'autre du fait de cette optimisation,
+     et la provenance affichée (EXACT vs APPROXIMATION) reste la même. */
   if(need===0||evalCost<=budget){
-    let num=0,den=0;
-    for(const h of heroList)for(const v of villList){
-      const hc=h.cards,vc=v.cards,w=(h.w||1)*(v.w||1);
-      if(hc[0]===vc[0]||hc[0]===vc[1]||hc[1]===vc[0]||hc[1]===vc[1])continue;
-      num+=w*exactMatchup(hc,vc,fixed);den+=w;
-    }
     // Équité NON ARRONDIE — cf. note de précision au-dessus de monteCarloEquity.
-    return{equity:den?num/den*100:50,exact:true,evals:evalCost};
+    return{equity:_exactRangeEquity(heroList,villList,fixed),exact:true,evals:evalCost};
   }
   const iters=opts.iters||2500;
   // Seed déterministe dérivé du spot (ou fourni) → équité stable & reproductible (§15).

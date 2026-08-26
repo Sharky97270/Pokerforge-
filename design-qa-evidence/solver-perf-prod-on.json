@@ -1,0 +1,216 @@
+{
+  "label": "prod-sizing-on",
+  "url": "http://localhost:7802",
+  "adaptiveSizing": "on",
+  "when": "2026-08-26T00:16:38.606Z",
+  "steps": [
+    {
+      "step": "charge initiale (goto + onglet)",
+      "totalMs": 5399,
+      "blockingMs": null
+    },
+    {
+      "step": "1 car. « A »",
+      "value": "A",
+      "ok": true,
+      "syncMs": 50,
+      "settledMs": 76
+    },
+    {
+      "step": "carte 1 « As »",
+      "value": "As",
+      "ok": true,
+      "syncMs": 51,
+      "settledMs": 77
+    },
+    {
+      "step": "2e rang « As7 »",
+      "value": "As7",
+      "ok": true,
+      "syncMs": 37,
+      "settledMs": 58
+    },
+    {
+      "step": "carte 2 « As7d »",
+      "value": "As7d",
+      "ok": true,
+      "syncMs": 38,
+      "settledMs": 54
+    },
+    {
+      "step": "3e rang « As7d2 »",
+      "value": "As7d2",
+      "ok": true,
+      "syncMs": 34,
+      "settledMs": 50
+    },
+    {
+      "step": "FLOP « As7d2c »",
+      "value": "As7d2c",
+      "ok": true,
+      "syncMs": 48,
+      "settledMs": 94
+    },
+    {
+      "step": "4e rang « …9 »",
+      "value": "As7d2c9",
+      "ok": true,
+      "syncMs": 36,
+      "settledMs": 61
+    },
+    {
+      "step": "TURN « …9h »",
+      "value": "As7d2c9h",
+      "ok": true,
+      "syncMs": 36,
+      "settledMs": 73
+    },
+    {
+      "step": "5e rang « …K »",
+      "value": "As7d2c9hK",
+      "ok": true,
+      "syncMs": 50,
+      "settledMs": 81
+    },
+    {
+      "step": "RIVER « …Ks »",
+      "value": "As7d2c9hKs",
+      "ok": true,
+      "syncMs": 53,
+      "settledMs": 85
+    },
+    {
+      "step": "modifier la river (Ks→Kd)",
+      "value": "As7d2c9hKd",
+      "ok": true,
+      "syncMs": 36,
+      "settledMs": 55
+    },
+    {
+      "step": "modifier le turn (9h→9c)",
+      "value": "As7d2c9cKd",
+      "ok": true,
+      "syncMs": 36,
+      "settledMs": 57
+    },
+    {
+      "step": "retirer la river",
+      "value": "As7d2c9c",
+      "ok": true,
+      "syncMs": 35,
+      "settledMs": 57
+    },
+    {
+      "step": "reset du board",
+      "value": "",
+      "ok": true,
+      "syncMs": 40,
+      "settledMs": 72
+    }
+  ],
+  "errors": [],
+  "hotspots": [
+    {
+      "name": "(idle) — :0",
+      "selfMs": 520,
+      "pct": 56.9
+    },
+    {
+      "name": "(program) — :0",
+      "selfMs": 146,
+      "pct": 16
+    },
+    {
+      "name": "rx — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 67,
+      "pct": 7.3
+    },
+    {
+      "name": "p8 — /assets/index-CWG9-18G.js:40",
+      "selfMs": 24,
+      "pct": 2.6
+    },
+    {
+      "name": "hs — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 20,
+      "pct": 2.2
+    },
+    {
+      "name": "N — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 17,
+      "pct": 1.9
+    },
+    {
+      "name": "lI — /assets/index-CWG9-18G.js:40",
+      "selfMs": 14,
+      "pct": 1.6
+    },
+    {
+      "name": "(anonyme) — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 12,
+      "pct": 1.4
+    },
+    {
+      "name": "(garbage collector) — :0",
+      "selfMs": 9,
+      "pct": 1
+    },
+    {
+      "name": "FP — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 7,
+      "pct": 0.7
+    },
+    {
+      "name": "T4 — /assets/index-CWG9-18G.js:17",
+      "selfMs": 6,
+      "pct": 0.7
+    },
+    {
+      "name": "lb — /assets/index-CWG9-18G.js:38",
+      "selfMs": 5,
+      "pct": 0.5
+    },
+    {
+      "name": "Lv — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 4,
+      "pct": 0.4
+    },
+    {
+      "name": "k8 — /assets/index-CWG9-18G.js:40",
+      "selfMs": 4,
+      "pct": 0.5
+    },
+    {
+      "name": "A8 — /assets/index-CWG9-18G.js:40",
+      "selfMs": 3,
+      "pct": 0.3
+    },
+    {
+      "name": "b — /assets/index-CWG9-18G.js:38",
+      "selfMs": 3,
+      "pct": 0.4
+    },
+    {
+      "name": "ea — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 3,
+      "pct": 0.3
+    },
+    {
+      "name": "Ka — /assets/index-CWG9-18G.js:40",
+      "selfMs": 2,
+      "pct": 0.2
+    },
+    {
+      "name": "N5 — /assets/index-CWG9-18G.js:38",
+      "selfMs": 2,
+      "pct": 0.2
+    },
+    {
+      "name": "IP — /assets/index-CWG9-18G.js:6507",
+      "selfMs": 2,
+      "pct": 0.2
+    }
+  ],
+  "profileTotalMs": 914,
+  "ok": true
+}

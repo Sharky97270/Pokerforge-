@@ -1,0 +1,112 @@
+[
+ {
+  "name": "riv-petit",
+  "nH": 50,
+  "nV": 74,
+  "board": 5,
+  "exact": true,
+  "equity": 49.056870690255295,
+  "samples": null,
+  "evals": 3700,
+  "ms": 7
+ },
+ {
+  "name": "riv-moyen",
+  "nH": 258,
+  "nV": 278,
+  "board": 5,
+  "exact": true,
+  "equity": 40.094323602914315,
+  "samples": null,
+  "evals": 71724,
+  "ms": 10
+ },
+ {
+  "name": "riv-main",
+  "nH": 4,
+  "nV": 332,
+  "board": 5,
+  "exact": true,
+  "equity": 88.69997435846872,
+  "samples": null,
+  "evals": 1328,
+  "ms": 13
+ },
+ {
+  "name": "riv-collision",
+  "nH": 6,
+  "nV": 6,
+  "board": 5,
+  "exact": true,
+  "equity": 50,
+  "samples": null,
+  "evals": 36,
+  "ms": 1
+ },
+ {
+  "name": "turn-petit",
+  "nH": 16,
+  "nV": 24,
+  "board": 4,
+  "exact": true,
+  "equity": 43.8490996851062,
+  "samples": null,
+  "evals": 16896,
+  "ms": 38
+ },
+ {
+  "name": "turn-gros",
+  "nH": 450,
+  "nV": 456,
+  "board": 4,
+  "exact": false,
+  "equity": 56.58,
+  "samples": 2500,
+  "evals": null,
+  "ms": 68
+ },
+ {
+  "name": "flop-petit",
+  "nH": 16,
+  "nV": 24,
+  "board": 3,
+  "exact": false,
+  "equity": 59.440000000000005,
+  "samples": 2500,
+  "evals": null,
+  "ms": 51
+ },
+ {
+  "name": "flop-gros",
+  "nH": 624,
+  "nV": 628,
+  "board": 3,
+  "exact": false,
+  "equity": 50.88,
+  "samples": 2500,
+  "evals": null,
+  "ms": 54
+ },
+ {
+  "name": "preflop",
+  "nH": 372,
+  "nV": 376,
+  "board": 0,
+  "exact": false,
+  "equity": 48.64,
+  "samples": 2500,
+  "evals": null,
+  "ms": 77
+ },
+ {
+  "name": "mainVmain-riv",
+  "nH": 1,
+  "nV": 1,
+  "board": 5,
+  "exact": true,
+  "equity": 100,
+  "samples": null,
+  "evals": 1,
+  "ms": 0
+ }
+]

@@ -1,0 +1,215 @@
+{
+  "label": "AVANT",
+  "url": "http://localhost:7788",
+  "when": "2026-08-25T23:41:12.521Z",
+  "steps": [
+    {
+      "step": "charge initiale (goto + onglet)",
+      "totalMs": 6470,
+      "blockingMs": null
+    },
+    {
+      "step": "1 car. « A »",
+      "value": "A",
+      "ok": true,
+      "syncMs": 400,
+      "settledMs": 463
+    },
+    {
+      "step": "carte 1 « As »",
+      "value": "As",
+      "ok": true,
+      "syncMs": 364,
+      "settledMs": 408
+    },
+    {
+      "step": "2e rang « As7 »",
+      "value": "As7",
+      "ok": true,
+      "syncMs": 366,
+      "settledMs": 411
+    },
+    {
+      "step": "carte 2 « As7d »",
+      "value": "As7d",
+      "ok": true,
+      "syncMs": 346,
+      "settledMs": 380
+    },
+    {
+      "step": "3e rang « As7d2 »",
+      "value": "As7d2",
+      "ok": true,
+      "syncMs": 353,
+      "settledMs": 388
+    },
+    {
+      "step": "FLOP « As7d2c »",
+      "value": "As7d2c",
+      "ok": true,
+      "syncMs": 368,
+      "settledMs": 427
+    },
+    {
+      "step": "4e rang « …9 »",
+      "value": "As7d2c9",
+      "ok": true,
+      "syncMs": 344,
+      "settledMs": 390
+    },
+    {
+      "step": "TURN « …9h »",
+      "value": "As7d2c9h",
+      "ok": true,
+      "syncMs": 359,
+      "settledMs": 402
+    },
+    {
+      "step": "5e rang « …K »",
+      "value": "As7d2c9hK",
+      "ok": true,
+      "syncMs": 341,
+      "settledMs": 384
+    },
+    {
+      "step": "RIVER « …Ks »",
+      "value": "As7d2c9hKs",
+      "ok": true,
+      "syncMs": 166637,
+      "settledMs": 166685
+    },
+    {
+      "step": "modifier la river (Ks→Kd)",
+      "value": "As7d2c9hKd",
+      "ok": true,
+      "syncMs": 175814,
+      "settledMs": 175875
+    },
+    {
+      "step": "modifier le turn (9h→9c)",
+      "value": "As7d2c9cKd",
+      "ok": true,
+      "syncMs": 161944,
+      "settledMs": 162016
+    },
+    {
+      "step": "retirer la river",
+      "value": "As7d2c9c",
+      "ok": true,
+      "syncMs": 415,
+      "settledMs": 466
+    },
+    {
+      "step": "reset du board",
+      "value": "",
+      "ok": true,
+      "syncMs": 426,
+      "settledMs": 561
+    }
+  ],
+  "errors": [],
+  "hotspots": [
+    {
+      "name": "eval5i — /src/solver/core/evaluator.js:11",
+      "selfMs": 123468,
+      "pct": 84.5
+    },
+    {
+      "name": "eval7i — /src/solver/core/evaluator.js:40",
+      "selfMs": 9087,
+      "pct": 6.2
+    },
+    {
+      "name": "(anonyme) — /src/solver/core/evaluator.js:23",
+      "selfMs": 3945,
+      "pct": 2.7
+    },
+    {
+      "name": "(garbage collector) — :0",
+      "selfMs": 2420,
+      "pct": 1.7
+    },
+    {
+      "name": "computeEquity — /src/solver/core/equity.js:69",
+      "selfMs": 2203,
+      "pct": 1.5
+    },
+    {
+      "name": "(anonyme) — /src/solver/core/evaluator.js:14",
+      "selfMs": 2052,
+      "pct": 1.4
+    },
+    {
+      "name": "exactMatchup — /src/solver/core/equity.js:52",
+      "selfMs": 1139,
+      "pct": 0.8
+    },
+    {
+      "name": "(idle) — :0",
+      "selfMs": 558,
+      "pct": 0.4
+    },
+    {
+      "name": "enumRunouts — /src/solver/core/equity.js:40",
+      "selfMs": 318,
+      "pct": 0.2
+    },
+    {
+      "name": "(program) — :0",
+      "selfMs": 297,
+      "pct": 0.2
+    },
+    {
+      "name": "(anonyme) — /src/solver/core/equity.js:56",
+      "selfMs": 209,
+      "pct": 0.1
+    },
+    {
+      "name": "ReactElement — /node_modules/.vite/deps/react_jsx-dev-runtime.js:566",
+      "selfMs": 48,
+      "pct": 0
+    },
+    {
+      "name": "diffProperties — /node_modules/.vite/deps/chunk-NGODP64W.js:7618",
+      "selfMs": 30,
+      "pct": 0
+    },
+    {
+      "name": "computeEquity — /src/solver/api.js:36",
+      "selfMs": 22,
+      "pct": 0
+    },
+    {
+      "name": "monteCarloEquityDetailed — /src/solver/core/equity.js:157",
+      "selfMs": 18,
+      "pct": 0
+    },
+    {
+      "name": "now — :0",
+      "selfMs": 18,
+      "pct": 0
+    },
+    {
+      "name": "(anonyme) — /src/tabs/SharkSolverTab.jsx:1442",
+      "selfMs": 13,
+      "pct": 0
+    },
+    {
+      "name": "(anonyme) — /src/solver/core/evaluator.js:31",
+      "selfMs": 11,
+      "pct": 0
+    },
+    {
+      "name": "validateProperty$1 — /node_modules/.vite/deps/chunk-NGODP64W.js:3361",
+      "selfMs": 11,
+      "pct": 0
+    },
+    {
+      "name": "_sample — /src/solver/core/equity.js:16",
+      "selfMs": 10,
+      "pct": 0
+    }
+  ],
+  "profileTotalMs": 146050,
+  "ok": true
+}
