@@ -658,18 +658,27 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
   margin-top:0!important;white-space:nowrap;
 }
-/* Puis un dernier cran de mise à l'échelle (zoom : il préserve le centre du siège,
-   donc les ancres mises/blindes/dealer restent calées sur l'anneau). */
-.grid2 .pf-mt-seat{zoom:.95;}
-.grid3 .pf-mt-seat{zoom:.78;}
-.grid4 .pf-mt-seat{zoom:.86;}
+/* ── CES RÈGLES ONT ÉTÉ SUPPRIMÉES, ET VOICI CE QU'ELLES FAISAIENT ────────
+   Elles portaient ce commentaire : « zoom : il préserve le centre du siège,
+   donc les ancres mises/blindes/dealer restent calées sur l'anneau ». C'est
+   FAUX, et c'est mesurable : « zoom » met à l'échelle la boîte ET les décalages
+   left/top. Relevé en 3T à 1366x768, zoom 0.8 :
+       siège déclaré  x=105.85 %  y=83.07 %
+       siège PEINT    x= 82.34 %  y=64.24 %   (exactement 0.8 x le déclaré)
+   Tous les sièges de la mosaïque étaient donc tirés vers le coin haut-gauche,
+   pendant que les mises, les blindes et le bouton D visaient le point DÉCLARÉ.
+   Aucun réglage ne pouvait rattraper ça : le modèle et le rendu ne parlaient
+   pas du même siège (mesuré : ratio d'attribution jusqu'à 0.97, un tas plus
+   près du voisin que de son propriétaire).
+   La mise à l'échelle vit maintenant dans le transform du bloc DENSITÉ, en
+   scale() autour du centre — même effet visuel, ancre intacte — et sa valeur
+   est le jeton --pf-d-seat-zoom, lu par le CSS ET par le JS. */
 /* Écrans étroits : la mosaïque garde le même nombre de colonnes, mais chaque
    cellule perd ~110px de large et autant de feutre. Un cran de plus sur les
    grappes ET sur le board (mesuré : sans ça, en 1440×900, les cartes du board
    touchent les sièges latéraux et le Hero). */
 @media(max-width:1560px){
-  .grid2 .pf-mt-seat{zoom:.87;}
-  .grid3 .pf-mt-seat{zoom:.74;}
+  /* idem : le cran « écran étroit » passe par le jeton de densité (TRAINER_DENSITY_TIGHT). */
   .grid2 .mt-board-zone{zoom:.52;}
   .grid3 .mt-board-zone,.grid4 .mt-board-zone{zoom:.52;}
 }
@@ -6146,11 +6155,31 @@ export const CSS_TABLE=`
    Avant : ρ (rayon normalisé sur l'ellipse) 0.64 → 0.95 selon le siège ;
    la position dépendait de la hauteur du contenu, donc changeait de street en
    street — d'où les éléments « qui bougent » entre préflop et river. */
+/* ── « zoom » DÉPLAÇAIT LE SIÈGE, IL NE FAISAIT PAS QUE LE RÉDUIRE ─────────
+   Mesuré en 3T à 1366x768, avec zoom 0.8 :
+
+       siège déclaré  x=105.85 %  y=83.07 %
+       siège peint    x= 82.34 %  y=64.24 %      (exactement 0.8 x le déclaré)
+
+   « zoom » met à l'échelle la boîte ET les décalages « left/top » de
+   l'élément. Tous les sièges de la mosaïque étaient donc tirés vers le coin
+   haut-gauche, dans un rapport de 0.8 — pendant que les mises, les blindes et
+   le bouton D, eux, visaient le point DÉCLARÉ, puisque le placement les calcule
+   depuis les coordonnées du layout.
+
+   Aucun réglage ne pouvait rattraper ça : le modèle et le rendu ne parlaient pas
+   du même siège. C'est la cause de fond des tas mal attribués en mosaïque
+   (mesuré : ratio d'attribution jusqu'à 0.97, un tas plus près du voisin que de
+   son propriétaire) et des recouvrements mise/bouton.
+
+   « scale() » sur le transform fait le même travail visuel — même réduction,
+   même netteté — mais s'applique AUTOUR du centre de l'élément, qui est
+   justement le point d'anneau. Le siège reste donc exactement où il est
+   déclaré. */
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-seat-avatar-anchored{
   display:block!important;
-  transform:translate(-50%,-50%)!important;
+  transform:translate(-50%,-50%) scale(var(--pf-d-seat-zoom,1))!important;
   gap:0!important;
-  zoom:var(--pf-d-seat-zoom,1);
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-avatar-slot{margin:0 auto!important;}
 /* Le PLACEMENT des deux zones ne vit plus ici : il dépend de l'axe radial du

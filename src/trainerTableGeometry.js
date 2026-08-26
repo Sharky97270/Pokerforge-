@@ -64,6 +64,7 @@ import {
   BOARD_CARD_SIZE_BY_TABLES,
 } from "./trainerDensity.js";
 import { trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "./trainerVisualConfig.js";
+import { seatAxisClear } from "./trainerSeatAnchors.js";
 
 /* Toutes les tailles de carte de styles.js partagent la même proportion
    (19/26, 24/33, 34/47, 48/66, 60/83, 76/104, 95/130) à ±1 % près. */
@@ -442,6 +443,16 @@ export function betBadgeMaxWidthPx(numTables = 1, feltW = 0) {
   return +Math.max(BET_BADGE_MIN_W, Math.min(nominal, feltW * BET_BADGE_FELT_RATIO)).toFixed(1);
 }
 
+/* Encombrement de la PAIRE de cartes d un siège, dérivé du bloc vertical : une
+   seule description du siège sert au choix de l axe ET au dégagement. */
+function seatCardsBoxPx(numTables, hero, tight, avatarPx) {
+  const b = trainerSeatBlockPx(numTables, { hero, opts: { tight }, avatarPx });
+  const d = trainerDensity(numTables, { tight });
+  const z = d.seatZoom || 1;
+  const r = ((avatarPx > 0 ? avatarPx : (d.avatarSize || 40)) / 2) * z, g = (d.seatGap || 2) * z;
+  return { w: 2 * b.halfW, h: Math.max(10, b.towardPot - r - g) };
+}
+
 export const MARKER_HALF_PX = {
   BET: { w: 52, h: 22 },
   BLIND: { w: 31, h: 24 },
@@ -550,7 +561,20 @@ export function trainerMarkerPoint({
      bloc : c'est ce qui posait le bouton D SUR sa main (vu à l'image). Le bloc
      entre donc dans la recherche au même titre que le board. */
   const estHero = heroPos != null && pos === heroPos;
-  const block = trainerSeatBlockPx(numTables, { hero: estHero, opts: { tight }, avatarPx: estHero ? (avatarHeroPx || avatarPx) : avatarPx });
+  /* ── LE BLOC DU JOUEUR A LA FORME DE SON AXE (§17) ───────────────────────
+     On demande au MÊME calcul que le rendu de quel côté partent les cartes de
+     ce siège. Un siège de flanc étale sa paire À CÔTÉ de lui : sa profondeur
+     vers le centre vaut alors la LARGEUR de la paire, pas la hauteur d une
+     carte. La bande de référence est celle du POSTFLOP dans les deux cas,
+     comme pour le rendu — un axe qui changerait à l arrivée du flop ferait
+     pivoter la grappe en pleine main. */
+  const blockAxis = seatAxisClear({
+    seat, centre: { x: centre.x, y: centre.potY }, area,
+    forbidden: trainerCentralExclusionZone({ ...centreOpts, hasBoard: true }),
+    cardsPx: seatCardsBoxPx(numTables, estHero, tight, estHero ? (avatarHeroPx || avatarPx) : avatarPx),
+    avatarPx: (estHero ? (avatarHeroPx || avatarPx) : avatarPx) || 40,
+  });
+  const block = trainerSeatBlockPx(numTables, { hero: estHero, opts: { tight }, avatarPx: estHero ? (avatarHeroPx || avatarPx) : avatarPx, axis: blockAxis });
   const needAlong = block.towardPot + halfH + 6;      // dégager le bloc EN PROFONDEUR
   const needSide = block.halfW + halfW + 6;           // …ou le contourner PAR LE CÔTÉ
 
@@ -583,8 +607,8 @@ export function trainerMarkerPoint({
      du joueur est derrière) ou S'ÉCARTER (le board est devant). On balaie donc
      le plan (l, écart) et on garde le point le PLUS AXIAL — l'écart est un coût,
      jamais un but. */
-  const ok = (l, off) => {
-    if (off < needSide && l < needAlong) return false;              // dans son propre bloc
+  const ok = (l, off, tolereSonBloc = false) => {
+    if (!tolereSonBloc && off < needSide && l < needAlong) return false;              // dans son propre bloc
     if (l > lMax) return false;                                     // sur le pot
     if (attribution(l, off) < MARKER_MIN_ATTRIBUTION) return false; // chez le voisin (§43)
     const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
@@ -609,6 +633,20 @@ export function trainerMarkerPoint({
   const bias = Math.min(sideBiasPx, maxOff);
   for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias)) return emit(l, bias, l <= lWish + 1e-6 ? "axial" : "avance");
   for (let l = lWish - step; l >= needAlong; l -= step) if (ok(l, bias)) return emit(l, bias, "recule");
+
+  /* 1 bis) L'AXE EST BOUCHÉ, MAIS PAR SES PROPRES CARTES ───────────────────
+     Entre le bloc du joueur et le bord du board il peut ne rester AUCUNE place
+     pour un badge — mesuré en 3T : le tas devrait se poser à l >= 64 px pour
+     dégager la paire de son joueur, et à l <= 43 px pour ne pas toucher le
+     board. La fenêtre est vide.
+     Il faut alors lâcher quelque chose. Ce qui se lâche est le chevauchement de
+     SES PROPRES cartes : un tas posé sur la main de son propriétaire reste
+     attribuable sans hésiter, un tas parti de côté chez le voisin ne l'est
+     plus. C'est l'arbitrage déjà retenu pour la main du Hero en 1T ; il vaut
+     pour tous les sièges dès lors que la place n'existe pas.
+     Ce qui ne se lâche JAMAIS : le board, le pot, et l attribution. */
+  for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias, true)) return emit(l, bias, "surSesCartes");
+  for (let l = lWish - step; l >= 12; l -= step) if (ok(l, bias, true)) return emit(l, bias, "surSesCartes");
 
   // 2) l'axe est bouché de bout en bout (Hero et siège haut-centre : le board
   //    barre la route, leurs propres cartes aussi) → POCHE LATÉRALE, du strict

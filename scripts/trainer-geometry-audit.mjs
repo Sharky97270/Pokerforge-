@@ -216,8 +216,14 @@ const PROBE = (minArea) => {
     const dealerEl = zone.querySelector('.dealer-btn');
     if (dealerEl && painted(dealerEl)) {
       const b = R(dealerEl);
-      feuilles.push({ id: 'D:bouton', ...b });
       const owner = seats.BTN ? 'BTN' : (seats.SB ? 'SB' : Object.keys(seats)[0]);
+      /* Le bouton porte le nom de SON joueur. Un recouvrement entre le bouton
+         et les cartes de son propre BTN est une superposition VOULUE (§18
+         « sauf superposition volontaire ») : le §10 demande justement de le
+         coller à son joueur. Le compter comme un défaut ferait chercher un
+         problème là où il n'y en a pas, et masquerait le vrai — un bouton posé
+         sur les cartes d'un AUTRE siège. */
+      feuilles.push({ id: owner + ':bouton', ...b });
       const oS = seats[owner];
       let dAutre = Infinity, plusProche = null;
       Object.entries(seats).forEach(([p, s]) => {
@@ -336,7 +342,7 @@ const PROBE = (minArea) => {
         ...Object.entries(seats).filter(([, s]) => s.rogneAvatar).map(([p, s]) => ({ quoi: `${p}:avatar`, ...s.rogneAvatar })),
         ...bets.filter(b => b.rogne).map(b => ({ quoi: `${b.pos}:mise`, ...b.rogne })),
         ...blinds.filter(b => b.rogne).map(b => ({ quoi: `${b.pos}:blinde`, ...b.rogne })),
-        ...(dealer && dealer.rogne ? [{ quoi: 'D:bouton', ...dealer.rogne }] : []),
+        ...(dealer && dealer.rogne ? [{ quoi: (dealer.proprietaire || 'D') + ':bouton', ...dealer.rogne }] : []),
       ],
     });
   });

@@ -315,7 +315,7 @@ export const HERO_SEAT_CARD_SIZE_BY_TABLES = { 1: "1t-hero-bottom", 2: "smp", 3:
  * C'est la « PLAYER_SAFE_ZONE » du §17, exprimée là où elle sert : dans le calcul
  * du placement des marqueurs.
  */
-export function trainerSeatBlockPx(numTables = 1, { hero = false, opts = {}, avatarPx = 0 } = {}) {
+export function trainerSeatBlockPx(numTables = 1, { hero = false, opts = {}, avatarPx = 0, axis = null } = {}) {
   const d = trainerDensity(numTables, opts);
   const key = (hero ? HERO_SEAT_CARD_SIZE_BY_TABLES : VILLAIN_CARD_SIZE_BY_TABLES)[numTables] || "sm";
   const cw = CARD_BASE_WIDTH[key] || 24;
@@ -329,9 +329,23 @@ export function trainerSeatBlockPx(numTables = 1, { hero = false, opts = {}, ava
      d'autant vers le centre — mesuré, 4 mises revenues sur le board pour 24 px
      d'écart entre l'avatar décrit (68) et l'avatar peint (44). */
   const avatarR = (avatarPx > 0 ? avatarPx : (d.avatarSize || 40)) / 2;
+  /* ── UN BLOC DE SIÈGE N'A PLUS LA MÊME FORME SELON SON AXE ───────────────
+     Ce calcul décrivait une pile VERTICALE : profondeur = rayon d'avatar +
+     écart + HAUTEUR d'une carte, largeur = la paire côte à côte. C'était vrai
+     tant que toutes les grappes étaient empilées de haut en bas.
+
+     Depuis que les zones suivent l'axe radial, un siège de FLANC pose sa paire
+     de cartes À CÔTÉ de son avatar : sa profondeur vers le centre n'est plus la
+     hauteur d'une carte mais la LARGEUR DE LA PAIRE — deux fois plus — et sa
+     largeur perpendiculaire n'est plus que la hauteur d'une carte.
+     Décrire le bloc de travers revient à autoriser un tas de mise ou un bouton
+     D à se poser sur les cartes de leur propre joueur : mesuré en 4T,
+     « cartes ↔ bouton » 23 fois et « cartes ↔ mise » 14 fois. */
+  const paireW = 2 * cw + gap;
+  const horizontal = axis === "left" || axis === "right";
   return {
-    halfW: +(Math.max(cw + gap / 2, avatarR * 1.15) * zoom).toFixed(1),
-    towardPot: +((avatarR + gap + ch) * zoom).toFixed(1),
+    halfW: +((horizontal ? Math.max(ch / 2, avatarR * 1.15) : Math.max(cw + gap / 2, avatarR * 1.15)) * zoom).toFixed(1),
+    towardPot: +((avatarR + gap + (horizontal ? paireW : ch)) * zoom).toFixed(1),
   };
 }
 
