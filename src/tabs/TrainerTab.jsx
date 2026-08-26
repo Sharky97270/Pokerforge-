@@ -5979,26 +5979,36 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
           return(
           <div style={{flexShrink:0,padding:fhC?"8px 8px 10px":"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:fhC?"38vh":"46vh",overflowY:"auto"}}>
             {/* En-tête : verdict + score main */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
+            {/* ── §14 — L ESSENTIEL NE SE MÉRITE PAS AU DÉFILEMENT ──────────
+                Mesuré en 4T : le bilan réclame 230 px pour 118 réservés à la
+                zone de décision. La moitié était donc hors champ, et le verdict
+                lui-même pouvait sortir de vue dès qu on faisait défiler pour
+                lire l analyse. On épingle l en-tête — verdict et score — en
+                haut du bloc : il reste lu sans manipulation, le détail se
+                déroule dessous. Aucune hauteur n est prise à la table. */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:fhC?6:8,position:"sticky",top:fhC?-8:-10,zIndex:2,background:"linear-gradient(180deg,#040B22 72%,rgba(4,11,34,0))",paddingBottom:4}}>
               {(()=>{
                 /* Trois issues, trois libellés. Le partage était compté comme
                    une victoire ; il a désormais sa couleur et son mot. */
                 const col=fhResult==="win"?T.green:fhResult==="split"?T.amber:T.red;
                 const glow=fhResult==="win"?T.greenGlow:fhResult==="split"?"rgba(255,194,71,.45)":T.redGlow;
                 const txt=fhResult==="win"?"🏆 MAIN GAGNÉE":fhResult==="split"?"🤝 POT PARTAGÉ":"❌ MAIN PERDUE";
-                return <div style={{fontFamily:T.brand,fontSize:15,fontWeight:900,color:col,textShadow:`0 0 18px ${glow}`}}>{txt}</div>;
+                return <div style={{fontFamily:T.brand,fontSize:fhC?16:17,fontWeight:900,color:col,textShadow:`0 0 18px ${glow}`}}>{txt}</div>;
               })()}
-              <span style={{fontFamily:T.mono,fontSize:11,fontWeight:800,color:recap.scoreCol,background:`${recap.scoreCol}1a`,border:`1px solid ${recap.scoreCol}55`,borderRadius:7,padding:"3px 9px"}}>{recap.score}/100</span>
+              <span style={{fontFamily:T.mono,fontSize:fhC?11.5:12,fontWeight:800,color:recap.scoreCol,background:`${recap.scoreCol}1a`,border:`1px solid ${recap.scoreCol}55`,borderRadius:7,padding:"3px 9px"}}>{recap.score}/100</span>
             </div>
             {/* Analyse street par street (EV estimée par décision Héro) */}
-            <div style={{fontFamily:T.brand,fontSize:8.5,color:T.text4,letterSpacing:".12em",marginBottom:6,textAlign:"center"}}>ANALYSE PAR STREET <span style={{color:T.text4,opacity:.7}}>(≈ estimation)</span></div>
-            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
+            {/* En mosaïque, ce titre coûte 20 px de hauteur pour ne rien
+                apprendre : les lignes qui suivent portent déjà le nom de leur
+                street. Il reste en 1T, où la place existe. */}
+            {!fhC&&<div style={{fontFamily:T.brand,fontSize:8.5,color:T.text4,letterSpacing:".12em",marginBottom:6,textAlign:"center"}}>ANALYSE PAR STREET <span style={{color:T.text4,opacity:.7}}>(≈ estimation)</span></div>}
+            <div style={{display:"flex",flexDirection:"column",gap:fhC?3:5,marginBottom:fhC?6:10}}>
               {recap.streets.map((st,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 9px",background:"rgba(255,255,255,.025)",border:`1px solid ${st.col}33`,borderLeft:`3px solid ${st.col}`,borderRadius:7}}>
-                  <span style={{fontFamily:T.brand,fontSize:9,fontWeight:800,color:st.col,minWidth:42,letterSpacing:".06em"}}>{st.label}</span>
+                <div key={i} style={{display:"flex",alignItems:"center",gap:fhC?6:8,padding:fhC?"3px 7px":"6px 9px",background:"rgba(255,255,255,.025)",border:`1px solid ${st.col}33`,borderLeft:`3px solid ${st.col}`,borderRadius:7}}>
+                  <span style={{fontFamily:T.brand,fontSize:fhC?9.5:9,fontWeight:800,color:st.col,minWidth:40,letterSpacing:".06em"}}>{st.label}</span>
                   <span style={{fontFamily:T.mono,fontSize:9.5,color:T.text2,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.line}{st.best&&<span style={{color:T.text4}}> · opt: {st.best}</span>}</span>
-                  {st.evTxt&&<span style={{fontFamily:T.mono,fontSize:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.evTxt}</span>}
-                  <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.verdict}</span>
+                  {st.evTxt&&<span style={{fontFamily:T.mono,fontSize:fhC?9.5:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.evTxt}</span>}
+                  <span style={{fontFamily:T.stats,fontSize:fhC?9.5:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.verdict}</span>
                 </div>
               ))}
             </div>
@@ -6133,7 +6143,18 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
               );
             })()}
 
-            {answered!==null&&renderHeroFeedback()}
+            {/* ── §15 — UN VERDICT NE SURVIT PAS À SA STREET ────────────────
+                `heroFeedback` est le verdict de la décision NOTÉE, posée une
+                fois pour le spot. En coup complet, cette décision est la
+                première d'une série : le badge vert ou rouge du préflop restait
+                collé au panneau pendant le flop, le turn et la river, à côté
+                d'un en-tête qui annonce pourtant « ANALYSE — RIVER ». Deux
+                lectures contradictoires au même endroit.
+                Le coup complet a son propre retour par street (`fhFeedback`,
+                remis à zéro à chaque changement de street) et son bilan à la
+                fin. L'autre point de rendu de ce même bloc porte déjà cette
+                garde : on l'aligne. */}
+            {answered!==null&&!playingFull&&renderHeroFeedback()}
 
             {/* ANALYSE GTO */}
             {(()=>{
@@ -6635,7 +6656,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                   <div className="pf-seat-inward pf-seat-above">
                     {isV&&!seatFolded&&(
                       <div style={{position:"relative"}}>
-                        <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
+                        <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3}/>
                         {(thinking||(playingFull&&fhVilThink))&&(
                           <div className="pf-seat-think" style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
                             <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
@@ -6644,7 +6665,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                       </div>
                     )}
                     {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
-                      <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
+                      <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} gap={2} muted={!seatMultiway}/>
                     )}
                     {isH&&(
                       <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:inwardOrigin1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
@@ -6688,7 +6709,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                           boxShadow:"0 0 10px rgba(155,92,255,.28)",
                         }}>Vilain reflechit...</div>
                       )}
-                      {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip">Fold</span>}
+                      {/* Le VILAIN aussi : son repli n était dit que par les cartes en « muck »,
+                          qui viennent de disparaître. Sans ce badge, il ne resterait que
+                          la dégradation du siège pour le signaler. */}
+                      {seatFolded&&!isH&&<span className="pf-fold-chip">Fold</span>}
                       {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
                       {/* Action badge */}
                       {lastAct&&!playingFull&&!(betAmt>0)&&(
@@ -7194,8 +7218,16 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                 {isH&&(
                   <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3}/>
                 )}
-                {!isH&&(
-                  <SeatOpponentCards revealed={seatRevealedHand} size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway} folded={seatFolded}/>
+                {/* §4 — UN SIÈGE COUCHÉ NE PORTE PLUS DE MAIN.
+                    La mosaïque peignait un « muck » : deux dos grisés, tournés,
+                    avec un tampon FOLD. Le 1T, lui, les retirait. Deux réponses
+                    au même état, et la mosaïque gardait à l écran des cartes
+                    qui ne sont plus dans le coup — mesuré, 179 relevés sur une
+                    session 4T, jusque dans les streets suivantes.
+                    L information n est pas perdue : le siège entier est dégradé
+                    (.pf-mt-seat-folded) et porte son badge « Fold ». */}
+                {!isH&&!seatFolded&&(
+                  <SeatOpponentCards revealed={seatRevealedHand} size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway}/>
                 )}
               </div>
 
@@ -7230,7 +7262,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                     mosaïque affichait « 60bb » sur les quatre tables. */}
                 <span className="seat-card-stack" style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:800,lineHeight:1,color:isH?T.gold:T.text3}}>{fmt(seatRemainingStack(pos))}</span>
               </div>
-              {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip" style={{fontSize:numTables>=3?5.5:6.5,padding:numTables>=3?"1px 5px":"2px 6px",marginTop:1}}>Fold</span>}
+              {seatFolded&&!isH&&<span className="pf-fold-chip" style={{fontSize:numTables>=3?5.5:6.5,padding:numTables>=3?"1px 5px":"2px 6px",marginTop:1}}>Fold</span>}
               {seatMultiway&&<span className="pf-multiway-chip" style={{fontSize:numTables>=3?5.5:6.5,padding:numTables>=3?"1px 5px":"2px 6px",marginTop:1}}>In pot</span>}
               {/* Badge action */}
               {lastAct&&!playingFull&&!(seatActionAmount>0)&&(()=>{
@@ -8113,7 +8145,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
      joueur. On ne bouge que lorsqu elle n attend plus rien. */
   useEffect(()=>{
     if(ntables<2)return;
-    const attend=t=>!tableAns[t]&&!tableSettled[t];
+    /* Une table « attend » quand elle a encore quelque chose à demander. En coup
+       complet, avoir répondu au premier choix ne clôt rien : le flop, le turn et
+       la river restent à jouer. Sans cette seconde condition, le focus ne
+       migrerait jamais vers une table qui réclame une décision de turn (§10/§11). */
+    const attend=t=>(!tableAns[t]&&!tableSettled[t])||!!(fhLive[t]&&fhLive[t].active&&!fhLive[t].done);
     /* ── Lot 4 / Lot 4 bis — priorité au verdict qu'on vient de produire ──
        Mesuré le 2026-08-21 en 2T : après une réponse sur la table 1, le focus
        partait aussitôt sur la table 2 et le panneau droit — seul endroit où la
@@ -8135,7 +8171,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(attend(activeTable)||aUnVerdictALire(activeTable))return;
     const suivante=Array.from({length:ntables},(_,i)=>i).find(i=>i!==activeTable&&attend(i));
     if(suivante!=null)setActiveTable(suivante);
-  },[ntables,activeTable,tableAns,tableSettled,pausedTables]);
+  },[ntables,activeTable,tableAns,tableSettled,pausedTables,fhLive]);
   /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
      table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
      pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
@@ -9859,7 +9895,20 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     </div>
                   );
                 }
-                const isAns=!!tableAns[t];
+                /* ── « RÉPONDUE » N'EST PAS « TERMINÉE » (§10) ─────────────────
+                   `tableAns[t]` dit qu'une décision a été NOTÉE. En coup complet
+                   c'est la première d'une série : le joueur a encore le flop, le
+                   turn et la river à jouer sur cette même table. La tuile passait
+                   pourtant aussitôt en « terminée » — désaturée, opacité 0.72,
+                   pastille ✓ — pendant qu'elle réclamait encore trois décisions.
+                   Mesuré en jouant : classes « table-slot-answered » ET
+                   « mt-slot-focus » ensemble au flop puis à la river, boutons
+                   d'action actifs. C'est le défaut « la table s'éteint après la
+                   première street ».
+                   Une table n'est terminée que lorsqu'elle n'a plus rien à
+                   demander : le coup complet doit être fini, ou ne pas exister. */
+                const fhT=fhLive[t];
+                const isAns=!!tableAns[t]&&!(fhT&&fhT.active&&!fhT.done);
                 const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
                 const isActiveT=ntables>1&&activeTable===t;

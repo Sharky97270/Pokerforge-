@@ -238,7 +238,21 @@ export function trainerCentreLayout({
    (jamais illisible). C'est le §21 appliqué littéralement : les décorations se
    réduisent avant les informations poker, et le board ne descend jamais sous le
    seuil où on ne lit plus les rangs. */
-export const BOARD_HEIGHT_RATIO = 0.21;
+/* ── LE BOARD EST UNE FRACTION DU FEUTRE, ET C'EST LE 1T QUI LA DONNE ──────
+   Ce ratio valait 0.21. Il n'a jamais mordu en 1T, dont le plafond de mode le
+   ramenait à 79 px pour un feutre de 521 — soit 0.152. Le 1T étant la référence
+   VALIDÉE, c'est sa valeur effective qu'on retient : le ratio décrit désormais
+   ce qui est peint au lieu de le dépasser.
+
+   Conséquence mesurée, hauteur de carte de board par mode AVANT :
+       1T 79.0   2T 37.4   3T 37.0   4T 37.1
+   Trois modes de mosaïque, trois tailles de tuile très différentes, et un board
+   IDENTIQUE à 37 px : ce n'était plus une fraction de quoi que ce soit, c'était
+   un nombre de pixels. D'où le board du 2T « trop petit » — sa tuile est presque
+   deux fois plus grande que celle du 4T pour le même board.
+   Avec le ratio, le 2T passe à ~58 px et le 3T/4T ne bougent pratiquement pas
+   (35.7 et 35.4) : exactement ce que demandent les §12 et §13. */
+export const BOARD_HEIGHT_RATIO = 0.152;
 export const BOARD_MIN_CARD_H = 20;
 
 /* ── LE COULOIR LIBRE, MESURÉ SANS LE BOARD ────────────────────────────────

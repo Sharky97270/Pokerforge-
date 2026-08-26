@@ -80,7 +80,12 @@ export const TRAINER_DENSITY_TOKENS = {
     dealerSize: 17,
     blindScale: 0.84,
     betScale: 0.88,
-    boardZoom: 0.45,
+    /* PLAFOND du mode, pas la taille : c est le ratio au feutre qui décide
+       (BOARD_HEIGHT_RATIO). À 0.45 ce plafond mordait toujours, et le board du
+       2T restait figé à 37 px sur une tuile presque deux fois plus grande que
+       celle du 4T. Relevé au plafond, il ne borne plus que les très grands
+       écrans. */
+    boardZoom: 0.78,
     boardGap: 5,
     potH: 24,
     /* ── ZONE DE DÉCISION DU 2T — ÉLARGIE, ET VOICI SUR QUOI (§6) ──────────

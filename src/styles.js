@@ -2778,22 +2778,9 @@ body::before{
 .pf-hole-cards.compact{filter:drop-shadow(0 3px 8px rgba(0,0,0,.72));}
 .pf-villain-backs{filter:drop-shadow(0 7px 16px rgba(0,191,255,.38)) drop-shadow(0 7px 18px rgba(0,0,0,.82));}
 .pf-villain-backs.muted{opacity:.78;filter:drop-shadow(0 5px 12px rgba(0,191,255,.2)) drop-shadow(0 4px 12px rgba(0,0,0,.72));}
-.pf-villain-backs.folded{
-  opacity:.42;
-  filter:grayscale(.95) saturate(.4) brightness(.72) drop-shadow(0 3px 10px rgba(0,0,0,.72));
-  transform:rotate(-9deg) translateY(3px) scale(.94);
-  transform-origin:center bottom;
-}
-.pf-villain-backs.folded .card:nth-child(1){transform:rotate(-18deg) translateX(3px);}
-.pf-villain-backs.folded .card:nth-child(2){transform:rotate(16deg) translateX(-3px);}
-.pf-villain-backs.folded::after{
-  content:"FOLD";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg);
-  padding:2px 6px;border-radius:999px;
-  font-family:'Space Grotesk',sans-serif;font-size:7px;font-weight:900;letter-spacing:.14em;
-  color:#E7ECF3;background:rgba(1,8,22,.72);border:1px solid rgba(192,199,209,.36);
-  box-shadow:0 0 12px rgba(0,0,0,.68),0 0 9px rgba(0,191,255,.12);
-  pointer-events:none;
-}
+/* Le style « muck » des cartes couchées (dos grisés, tournés, tampon FOLD) a
+   été retiré : un siège couché ne rend plus de cartes du tout (§4). Il ne
+   restait ici que du CSS sans élément à styler. */
 .pf-avatar-premium{
   width:calc(var(--avatar-size) + 14px);height:calc(var(--avatar-size) + 14px);
   border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;isolation:isolate;
@@ -6667,5 +6654,22 @@ export const CSS_TABLE=`
 }
 .pf-ws-settings-btn:hover{background:rgba(31,139,255,.2);border-color:rgba(31,139,255,.55);color:#DCE8FF;}
 .pf-ws-settings-btn[aria-expanded="true"]{background:rgba(255,194,71,.14);border-color:rgba(255,194,71,.45);color:#FFC247;}
+
+
+/* ── §5 — UNE CARTE NE PASSE JAMAIS SOUS L'AVATAR ─────────────────────────
+   Les deux zones du siège sont positionnées, sans z-index : elles se peignent
+   donc dans l'ORDRE DU DOCUMENT. Or l'ordre du DOM est « cartes ▸ avatar ▸
+   plaque » — l'avatar passe structurellement PAR-DESSUS les cartes. Tant que
+   rien ne se chevauche, personne ne le voit ; dès qu'un siège serré fait se
+   toucher les deux (mesuré : 246 px² sur UTG au préflop), la carte disparaît
+   derrière le médaillon.
+
+   On ne compte pas sur l'absence de chevauchement pour rester lisible : les
+   cartes sont de l'INFORMATION, le médaillon est une identité. L'ordre de
+   peinture est donc écrit, et il ne dépend plus de l'ordre du DOM.
+   Ordre retenu, du dessous vers le dessus : plaque et statut, avatar, cartes. */
+.pf-player-seat[data-radial] .pf-seat-outward{z-index:1;}
+.pf-player-seat[data-radial]>.pf-seat-avatar-slot{z-index:2;}
+.pf-player-seat[data-radial] .pf-seat-inward{z-index:3;}
 
 `;

@@ -46,9 +46,11 @@ export function HeroHoleCards({cards=[],size="md",gap=6,compact=false,style}){
     </div>
   );
 }
-export function VillainBackCards({size="md",animated=false,gap=2,compact=false,muted=false,folded=false,style}){
+/* Plus de prop « folded » : un siège couché ne rend plus de cartes du tout
+   (cf. §4 — le muck grisé a été retiré, le badge Fold porte l état). */
+export function VillainBackCards({size="md",animated=false,gap=2,compact=false,muted=false,style}){
   return(
-    <div className={`pf-hole-cards pf-villain-backs${compact?" compact":""}${muted?" muted":""}${folded?" folded":""}`} style={{gap, ...style}}>
+    <div className={`pf-hole-cards pf-villain-backs${compact?" compact":""}${muted?" muted":""}`} style={{gap, ...style}}>
       <CardBack size={size} animated={animated}/>
       <CardBack size={size} animated={animated}/>
     </div>
