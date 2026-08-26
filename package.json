@@ -10,7 +10,7 @@
     "test:trainer": "node test-trainer-engine.mjs",
     "test:coach-engine": "node test-coach-engine.mjs",
     "test:coach-agents": "node test-coach-agents.mjs",
-    "test:refonte": "node test-preflop-line.mjs && node test-training-config.mjs && node test-constraint-engine.mjs && node test-spot-schema.mjs && node test-spot-recovery.mjs && node test-immersion-engine.mjs && node test-ai-orchestrator.mjs && node test-full-hand-engine.mjs && node test-spot-similarity.mjs && node test-trainer-matrix.mjs && node test-immersion-amounts.mjs && node test-next-hand.mjs && node test-chip-display.mjs && node test-strategy-provider.mjs && node test-replayer-state-engine.mjs && node test-replayer-decision-analysis.mjs && node test-range-color-theme.mjs && node test-replayer-formats.mjs && node test-replayer-anchors.mjs && node test-postflop-heuristic.mjs && node test-trainer-postflop-solver.mjs && node test-preflop-charts.mjs && node test-trainer-multitable.mjs && node test-trainer-density.mjs && node test-trainer-table-geometry.mjs && node test-trainer-cinematics.mjs && node test-replayer-ai-analysis.mjs && node test-supabase-config.mjs && node test-replayer-cfr.mjs && node test-replayer-poker-state.mjs && node test-format-numbers.mjs && node test-trainer-solution-scope.mjs && node test-trainer-pause-policy.mjs && node test-evaluator-card-count.mjs && node test-full-hand-rules.mjs && node test-full-hand-multiway.mjs && node test-trainer-hand-ledger.mjs && node test-trainer-sizing.mjs && node test-trainer-seat-status.mjs && node test-trainer-honesty.mjs && node test-pot-distribution.mjs && node test-trainer-villain-hand.mjs && node test-trainer-extra-callers.mjs",
+    "test:refonte": "node test-preflop-line.mjs && node test-training-config.mjs && node test-constraint-engine.mjs && node test-spot-schema.mjs && node test-spot-recovery.mjs && node test-immersion-engine.mjs && node test-ai-orchestrator.mjs && node test-full-hand-engine.mjs && node test-spot-similarity.mjs && node test-trainer-matrix.mjs && node test-immersion-amounts.mjs && node test-next-hand.mjs && node test-chip-display.mjs && node test-strategy-provider.mjs && node test-replayer-state-engine.mjs && node test-replayer-decision-analysis.mjs && node test-range-color-theme.mjs && node test-replayer-formats.mjs && node test-replayer-anchors.mjs && node test-postflop-heuristic.mjs && node test-trainer-postflop-solver.mjs && node test-preflop-charts.mjs && node test-trainer-multitable.mjs && node test-trainer-density.mjs && node test-trainer-table-geometry.mjs && node test-trainer-seat-anchors.mjs && node test-trainer-cinematics.mjs && node test-replayer-ai-analysis.mjs && node test-supabase-config.mjs && node test-replayer-cfr.mjs && node test-replayer-poker-state.mjs && node test-format-numbers.mjs && node test-trainer-solution-scope.mjs && node test-trainer-pause-policy.mjs && node test-evaluator-card-count.mjs && node test-full-hand-rules.mjs && node test-full-hand-multiway.mjs && node test-trainer-hand-ledger.mjs && node test-trainer-sizing.mjs && node test-trainer-seat-status.mjs && node test-trainer-honesty.mjs && node test-pot-distribution.mjs && node test-trainer-villain-hand.mjs && node test-trainer-extra-callers.mjs",
     "test": "node test-trainer-engine.mjs && node test-coach-engine.mjs && node test-coach-agents.mjs && node test-mental-diagnostic.mjs && npm run test:refonte && npm run test:certify && npm run test:sizing",
     "db:migrate": "prisma migrate dev",
     "db:seed": "ts-node --esm prisma/seed.ts",
@@ -55,7 +55,11 @@
     "test:perf": "node test-solver-evaluator-identity.mjs && node test-solver-equity-perf.mjs",
     "audit:solver:perf": "node scripts/solver-perf-probe.mjs --out=design-qa-evidence/solver-perf.json",
     "audit:solver:cancel": "node scripts/solver-cancel-probe.mjs",
-    "bench:solve": "node scripts/solver-solve-bench.mjs --out=design-qa-evidence/solve-bench.json"
+    "bench:solve": "node scripts/solver-solve-bench.mjs --out=design-qa-evidence/solve-bench.json",
+    "audit:geo": "node scripts/trainer-geometry-audit.mjs",
+    "audit:workspace": "node scripts/trainer-workspace-audit.mjs",
+    "audit:workspace:cycle": "node scripts/trainer-workspace-cycle.mjs",
+    "audit:goldmaster": "node scripts/trainer-gold-master-audit.mjs"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"

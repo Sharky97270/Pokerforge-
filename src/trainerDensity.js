@@ -80,7 +80,12 @@ export const TRAINER_DENSITY_TOKENS = {
     dealerSize: 17,
     blindScale: 0.84,
     betScale: 0.88,
-    boardZoom: 0.45,
+    /* PLAFOND du mode, pas la taille : c est le ratio au feutre qui décide
+       (BOARD_HEIGHT_RATIO). À 0.45 ce plafond mordait toujours, et le board du
+       2T restait figé à 37 px sur une tuile presque deux fois plus grande que
+       celle du 4T. Relevé au plafond, il ne borne plus que les très grands
+       écrans. */
+    boardZoom: 0.78,
     boardGap: 5,
     potH: 24,
     /* ── ZONE DE DÉCISION DU 2T — ÉLARGIE, ET VOICI SUR QUOI (§6) ──────────
@@ -109,7 +114,7 @@ export const TRAINER_DENSITY_TOKENS = {
     betOffset: 1,
     markerClearance: 0.7,
     markerApproachMax: 1.24,
-    underMaxH: 300,
+    underMaxH: 150,
   },
   compact: {
     avatarSize: 30,
@@ -136,7 +141,7 @@ export const TRAINER_DENSITY_TOKENS = {
     betOffset: 1,
     markerClearance: 0.55,
     markerApproachMax: 1.34,
-    underMaxH: 88,
+    underMaxH: 118,
   },
   dense: {
     avatarSize: 28,
@@ -163,7 +168,7 @@ export const TRAINER_DENSITY_TOKENS = {
     betOffset: 1,
     markerClearance: 0.52,
     markerApproachMax: 1.36,
-    underMaxH: 88,
+    underMaxH: 118,
   },
 };
 
@@ -267,9 +272,20 @@ export function trainerMarkerApproachMax(numTables = 1, markerType = "BET", opts
    à l'autre — un zoom plus grand sur une base plus petite peut rendre une carte
    plus petite. La grandeur qui compte, et la seule qu'on peut contrôler, est la
    hauteur RENDUE. */
-export const CARD_BASE_HEIGHT = { xs: 26, sm: 33, smp: 39, md: 47, lg: 66, xl: 83, "2xl": 104, "3xl": 130, "1t-hero-bottom": 66, "1t-hero-top": 61 };
-export const CARD_BASE_WIDTH = { xs: 19, sm: 24, smp: 28, md: 34, lg: 48, xl: 60, "2xl": 76, "3xl": 95, "1t-hero-bottom": 48, "1t-hero-top": 44 };
-export const BOARD_CARD_SIZE_BY_TABLES = { 1: "2xl", 2: "xl", 3: "lg", 4: "md" };
+export const CARD_BASE_HEIGHT = { xs: 26, sm: 33, smp: 39, md: 47, lg: 66, xl: 83, "2xl": 104, "3xl": 130, "1t-hero-bottom": 66, "1t-hero-top": 61, "1t-board": 79, "1t-villain-back": 41 };
+export const CARD_BASE_WIDTH = { xs: 19, sm: 24, smp: 28, md: 34, lg: 48, xl: 60, "2xl": 76, "3xl": 95, "1t-hero-bottom": 48, "1t-hero-top": 44, "1t-board": 57, "1t-villain-back": 30 };
+/* ── LE BOARD DU 1T N'EST PAS UN « 2xl » MIS À L'ÉCHELLE ───────────────────
+   Le rendu 1T donne au board la taille dédiée `.card-1t-board` (57x79 px,
+   gouttière 5) et NE lui applique aucun zoom de densité : la variable
+   `--pf-d-board-zoom` n'est consommée que par `.grid2/3/4`. Déclarer « 2xl »
+   ici faisait décrire un board de 235x60 px là où on en peignait un de 305x79.
+
+   Ce n'est pas une imprécision d'affichage : cette taille alimente la BANDE
+   CENTRALE INTERDITE et le couloir pot/board. Une erreur de 70 px en largeur
+   et 19 px en hauteur, c'est un board qui déborde de 35 px de chaque côté de sa
+   propre zone d'exclusion — d'où, mesuré, les cartes d'un siège de flanc posées
+   dessus (2578 px²) et le pot qui le chevauche (562 px²). */
+export const BOARD_CARD_SIZE_BY_TABLES = { 1: "1t-board", 2: "xl", 3: "lg", 4: "md" };
 /* Cartes posées SUR UN SIÈGE. Elles décident de l'encombrement du bloc de
    joueur, donc de la place qui reste pour son tas de mise — le Hero, seul à
    avoir ses cartes ouvertes au grand format, occupe bien plus que ses voisins
@@ -284,7 +300,11 @@ export const BOARD_CARD_SIZE_BY_TABLES = { 1: "2xl", 2: "xl", 3: "lg", 4: "md" }
    main mangeait le couloir central et le board revenait dessus (mesure : 1.7 px
    d ecart, soit un contact a l image). */
 export const HERO_CARD_SIZE_BY_TABLES = { 1: "3xl", 2: "smp", 3: "smp", 4: "smp" };
-export const VILLAIN_CARD_SIZE_BY_TABLES = { 1: "lg", 2: "sm", 3: "xs", 4: "xs" };
+/* 1T : le rendu passe `1t-villain-back` (30x41), pas « lg » (48x66). Décrire un
+   dos de carte 60 % trop profond gonfle la zone de sécurité du joueur, donc
+   repousse son tas de 25 px vers le pot et fait démarrer le couloir central
+   25 px trop bas — deux défauts pour une seule ligne fausse. */
+export const VILLAIN_CARD_SIZE_BY_TABLES = { 1: "1t-villain-back", 2: "sm", 3: "xs", 4: "xs" };
 /* Le siège Hero du BAS en 1T n'utilise PAS cfg.heroCard : le rendu lui donne une
    taille dediee (.card-1t-hero-bottom, 48x66). C'est elle qui decide de
    l'encombrement reel de sa main, donc de la place qui reste pour son tas et
@@ -300,18 +320,68 @@ export const HERO_SEAT_CARD_SIZE_BY_TABLES = { 1: "1t-hero-bottom", 2: "smp", 3:
  * C'est la « PLAYER_SAFE_ZONE » du §17, exprimée là où elle sert : dans le calcul
  * du placement des marqueurs.
  */
-export function trainerSeatBlockPx(numTables = 1, { hero = false, opts = {} } = {}) {
+export function trainerSeatBlockPx(numTables = 1, { hero = false, opts = {}, avatarPx = 0, axis = null } = {}) {
   const d = trainerDensity(numTables, opts);
   const key = (hero ? HERO_SEAT_CARD_SIZE_BY_TABLES : VILLAIN_CARD_SIZE_BY_TABLES)[numTables] || "sm";
   const cw = CARD_BASE_WIDTH[key] || 24;
   const ch = CARD_BASE_HEIGHT[key] || 33;
   const gap = d.seatGap || 2;
   const zoom = d.seatZoom || 1;
-  const avatarR = (d.avatarSize || 40) / 2;
+  /* `avatarPx` porte la taille RÉELLEMENT peinte, quand l'appelant la connaît.
+     Depuis que le médaillon est une fraction du feutre (§7), le jeton de
+     densité n'en est plus que le PLAFOND. S'en servir ici décrirait un bloc de
+     joueur plus profond que celui qu'on peint, et repousserait le tas de mise
+     d'autant vers le centre — mesuré, 4 mises revenues sur le board pour 24 px
+     d'écart entre l'avatar décrit (68) et l'avatar peint (44). */
+  const avatarR = (avatarPx > 0 ? avatarPx : (d.avatarSize || 40)) / 2;
+  /* ── UN BLOC DE SIÈGE N'A PLUS LA MÊME FORME SELON SON AXE ───────────────
+     Ce calcul décrivait une pile VERTICALE : profondeur = rayon d'avatar +
+     écart + HAUTEUR d'une carte, largeur = la paire côte à côte. C'était vrai
+     tant que toutes les grappes étaient empilées de haut en bas.
+
+     Depuis que les zones suivent l'axe radial, un siège de FLANC pose sa paire
+     de cartes À CÔTÉ de son avatar : sa profondeur vers le centre n'est plus la
+     hauteur d'une carte mais la LARGEUR DE LA PAIRE — deux fois plus — et sa
+     largeur perpendiculaire n'est plus que la hauteur d'une carte.
+     Décrire le bloc de travers revient à autoriser un tas de mise ou un bouton
+     D à se poser sur les cartes de leur propre joueur : mesuré en 4T,
+     « cartes ↔ bouton » 23 fois et « cartes ↔ mise » 14 fois. */
+  const paireW = 2 * cw + gap;
+  const horizontal = axis === "left" || axis === "right";
   return {
-    halfW: +(Math.max(cw + gap / 2, avatarR * 1.15) * zoom).toFixed(1),
-    towardPot: +((avatarR + gap + ch) * zoom).toFixed(1),
+    halfW: +((horizontal ? Math.max(ch / 2, avatarR * 1.15) : Math.max(cw + gap / 2, avatarR * 1.15)) * zoom).toFixed(1),
+    towardPot: +((avatarR + gap + (horizontal ? paireW : ch)) * zoom).toFixed(1),
   };
+}
+
+/* ── §7/§23 — L'AVATAR EST UNE FRACTION DE LA TABLE ────────────────────────
+   Le 1T calculait son médaillon en PIXELS (« 70 pour le Hero, 64 sinon »), et
+   un point de rupture CSS lui en retranchait 10 sur les écrans courts. Deux
+   nombres saisis à la main pour une grandeur qui doit suivre la table : sur un
+   feutre de 483 px de large, l'avatar en occupait 11.2 % contre 7.8 % sur un
+   feutre de 710. Le même écran rendait donc une table « serrée » ou « aérée »
+   selon sa hauteur, et le §24 (« les avatars ne doivent jamais dominer la
+   table ») n'était vérifié que sur les grandes fenêtres.
+
+   La fraction retenue rend, à taille de fenêtre de référence, un médaillon
+   ~18 % plus petit que l'actuel — c'est le §7 pris au mot — et elle vaut
+   désormais pour TOUTES les tailles de fenêtre.
+
+   Ce que la fonction rend est la valeur à passer en `--avatar-size` ; la règle
+   CSS de base y ajoute son liseré (`calc(var(--avatar-size) + 14px)`), d'où la
+   soustraction. Cette constante est publiée pour que le jour où le liseré
+   change, une seule ligne bouge. */
+export const AVATAR_FELT_RATIO = 0.090;
+export const AVATAR_MIN_PAINTED_PX = 32;
+export const AVATAR_CSS_PADDING_PX = 14;
+export const AVATAR_HERO_BOOST = 1.09;
+export function trainerAvatarPaintedPx({ feltW = 0, hero = false, dense = 1 } = {}) {
+  const base = feltW > 0 ? feltW * AVATAR_FELT_RATIO : 78;
+  return Math.max(AVATAR_MIN_PAINTED_PX, Math.round(base * (hero ? AVATAR_HERO_BOOST : 1) * dense));
+}
+/** Valeur à passer en `--avatar-size` pour obtenir la taille peinte voulue. */
+export function trainerAvatarSizeVar(opts = {}) {
+  return Math.max(16, trainerAvatarPaintedPx(opts) - AVATAR_CSS_PADDING_PX);
 }
 
 /** Hauteur rendue d'une carte du board, en px, pour un mode donné. */

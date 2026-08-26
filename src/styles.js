@@ -384,8 +384,19 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    anciens zoom:1 laissés ici l'exemptaient en fait du barème commun
    (spécificité plus forte) et la table basse restait surchargée. */
 .grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-@media(max-width:1280px){
-  /* Étroit (§5) : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
+/* ── SEUIL RECALIBRÉ PAR LA MESURE (1280 → 960) ───────────────────────────
+   Cette règle empile les trois tables en une colonne. Elle datait du temps où
+   la mosaïque vivait entre deux colonnes fixes : à 1280 px de fenêtre, il ne
+   lui restait que 546 px, soit 273 px par cellule sur deux colonnes — trop
+   étroit, l empilement était le bon choix.
+   Depuis que le panneau de configuration sort du flux en session, la mosaïque
+   dispose de 1094 px à cette même fenêtre. L empilement est devenu le mauvais
+   choix, et très largement. Mesuré à 1280x900 en 3T :
+       empilé (seuil 1280)   feutre 106.2 x 62.5
+       grille (seuil 960)    feutre 282.9 x 166.4      soit 2.7 fois plus grand
+   Le seuil descend donc là où l empilement redevient utile. */
+@media(max-width:960px){
+  /* Étroit : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
   .grid3{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:24px;}
   .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
   .grid3>.mt-slot:nth-child(2){grid-column:1;grid-row:2;}
@@ -458,15 +469,19 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 :is(.grid2,.grid3,.grid4)>.mt-slot.table-slot-answered .mtr-actions:hover{opacity:1;filter:none;}
 .mt-table-title.answered i{letter-spacing:.06em;font-size:8.5px;font-weight:900;}
 /* Titre TABLE n (maquette) */
+/* Le titre vit désormais DANS la barre des streets : il n'a plus de bande à lui,
+   donc plus de marge verticale ni de centrage automatique. Il devient une
+   pastille compacte posée à gauche, qui ne peut pas repousser les streets. */
 .mt-table-title{
-  display:flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
-  height:22px;margin:5px auto 1px;padding:0 12px;border-radius:6px;
-  font-family:'Space Grotesk',sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;
+  display:flex;align-items:center;gap:4px;flex-shrink:0;
+  height:19px;margin:0 4px 0 0;padding:0 8px;border-radius:5px;
+  font-family:'Space Grotesk',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:.09em;
+  white-space:nowrap;
   color:#A9B7C9;background:rgba(8,26,45,.75);border:1px solid #12304C;
 }
 .mt-table-title.active{color:#DCEBFF;border-color:#1769FF;background:rgba(23,105,255,.14);}
 .mt-table-title.answered{color:#00E889;border-color:rgba(0,232,137,.4);}
-.mt-table-title i{font-style:normal;color:#00E889;font-size:10px;}
+.mt-table-title i{font-style:normal;color:#00E889;font-size:9px;}
 .mt-table-title em{font-style:normal;color:#00D9FF;font-size:8px;line-height:1;}
 /* Multi-table : la zone d'action ne doit pas dupliquer l'aperçu des cartes Hero
    (déjà sur la table) — on le masque pour compacter et éviter le rognage. */
@@ -568,7 +583,7 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    HAUT (66px contre 44), or la hauteur est la ressource rare sur l'anneau (bande
    libre étroite à la verticale). On borne la largeur à la place : 2 piles de
    jetons (~51px) + un libellé écourté tiennent en ~104px, contre 150px avant. */
-.t1-left .pf-seat-action-zone .pf-action-chip-badge{max-width:104px!important;}
+.t1-left .pf-seat-action-zone .pf-action-chip-badge{max-width:var(--pf-bet-max-w,104px)!important;}
 .t1-left .pf-seat-action-zone .pf-action-chip-copy strong{max-width:52px!important;}
 /* Pot multi-table : aucun cadre/fond — jetons + texte posés sur le feutre */
 .grid2 .pf-pot-readout,.grid3 .pf-pot-readout,.grid4 .pf-pot-readout{
@@ -658,18 +673,27 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
   position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
   margin-top:0!important;white-space:nowrap;
 }
-/* Puis un dernier cran de mise à l'échelle (zoom : il préserve le centre du siège,
-   donc les ancres mises/blindes/dealer restent calées sur l'anneau). */
-.grid2 .pf-mt-seat{zoom:.95;}
-.grid3 .pf-mt-seat{zoom:.78;}
-.grid4 .pf-mt-seat{zoom:.86;}
+/* ── CES RÈGLES ONT ÉTÉ SUPPRIMÉES, ET VOICI CE QU'ELLES FAISAIENT ────────
+   Elles portaient ce commentaire : « zoom : il préserve le centre du siège,
+   donc les ancres mises/blindes/dealer restent calées sur l'anneau ». C'est
+   FAUX, et c'est mesurable : « zoom » met à l'échelle la boîte ET les décalages
+   left/top. Relevé en 3T à 1366x768, zoom 0.8 :
+       siège déclaré  x=105.85 %  y=83.07 %
+       siège PEINT    x= 82.34 %  y=64.24 %   (exactement 0.8 x le déclaré)
+   Tous les sièges de la mosaïque étaient donc tirés vers le coin haut-gauche,
+   pendant que les mises, les blindes et le bouton D visaient le point DÉCLARÉ.
+   Aucun réglage ne pouvait rattraper ça : le modèle et le rendu ne parlaient
+   pas du même siège (mesuré : ratio d'attribution jusqu'à 0.97, un tas plus
+   près du voisin que de son propriétaire).
+   La mise à l'échelle vit maintenant dans le transform du bloc DENSITÉ, en
+   scale() autour du centre — même effet visuel, ancre intacte — et sa valeur
+   est le jeton --pf-d-seat-zoom, lu par le CSS ET par le JS. */
 /* Écrans étroits : la mosaïque garde le même nombre de colonnes, mais chaque
    cellule perd ~110px de large et autant de feutre. Un cran de plus sur les
    grappes ET sur le board (mesuré : sans ça, en 1440×900, les cartes du board
    touchent les sièges latéraux et le Hero). */
 @media(max-width:1560px){
-  .grid2 .pf-mt-seat{zoom:.87;}
-  .grid3 .pf-mt-seat{zoom:.74;}
+  /* idem : le cran « écran étroit » passe par le jeton de densité (TRAINER_DENSITY_TIGHT). */
   .grid2 .mt-board-zone{zoom:.52;}
   .grid3 .mt-board-zone,.grid4 .mt-board-zone{zoom:.52;}
 }
@@ -2765,22 +2789,9 @@ body::before{
 .pf-hole-cards.compact{filter:drop-shadow(0 3px 8px rgba(0,0,0,.72));}
 .pf-villain-backs{filter:drop-shadow(0 7px 16px rgba(0,191,255,.38)) drop-shadow(0 7px 18px rgba(0,0,0,.82));}
 .pf-villain-backs.muted{opacity:.78;filter:drop-shadow(0 5px 12px rgba(0,191,255,.2)) drop-shadow(0 4px 12px rgba(0,0,0,.72));}
-.pf-villain-backs.folded{
-  opacity:.42;
-  filter:grayscale(.95) saturate(.4) brightness(.72) drop-shadow(0 3px 10px rgba(0,0,0,.72));
-  transform:rotate(-9deg) translateY(3px) scale(.94);
-  transform-origin:center bottom;
-}
-.pf-villain-backs.folded .card:nth-child(1){transform:rotate(-18deg) translateX(3px);}
-.pf-villain-backs.folded .card:nth-child(2){transform:rotate(16deg) translateX(-3px);}
-.pf-villain-backs.folded::after{
-  content:"FOLD";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg);
-  padding:2px 6px;border-radius:999px;
-  font-family:'Space Grotesk',sans-serif;font-size:7px;font-weight:900;letter-spacing:.14em;
-  color:#E7ECF3;background:rgba(1,8,22,.72);border:1px solid rgba(192,199,209,.36);
-  box-shadow:0 0 12px rgba(0,0,0,.68),0 0 9px rgba(0,191,255,.12);
-  pointer-events:none;
-}
+/* Le style « muck » des cartes couchées (dos grisés, tournés, tampon FOLD) a
+   été retiré : un siège couché ne rend plus de cartes du tout (§4). Il ne
+   restait ici que du CSS sans élément à styler. */
 .pf-avatar-premium{
   width:calc(var(--avatar-size) + 14px);height:calc(var(--avatar-size) + 14px);
   border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;isolation:isolate;
@@ -3197,14 +3208,13 @@ body::before{
 }
 .focus-mode-btn:hover{background:rgba(31,139,255,.18);color:#1F8BFF;border-color:rgba(31,139,255,.55);}
 .focus-mode-btn.on{background:rgba(31,139,255,.2);color:#60AAFF;border-color:rgba(31,139,255,.5);}
-/* Multi-table active table highlight */
-.table-slot-active{
-  border-radius:10px;
-  outline:2px solid rgba(31,139,255,.45);
-  outline-offset:2px;
-  box-shadow:0 0 20px rgba(31,139,255,.12);
-  position:relative;z-index:1;
-}
+/* « .table-slot-active » a été RETIRÉE. Elle habillait toutes les tuiles non
+   terminées d'un contour bleu de 2 px — son nom mentait — en concurrence avec
+   le vrai marqueur de table active (.mt-slot-focus). Mesuré en 4T : les quatre
+   tuiles portaient le même outline rgba(31,139,255,.45), et la table réellement
+   focalisée ne se distinguait plus que par la teinte de sa bordure. Deux
+   mécanismes de focus superposés, dont un qui désignait tout le monde.
+   Plus aucun élément ne porte cette classe. */
 .table-slot-answered{opacity:.72;position:relative;}
 .table-slot-answered::after{
   content:"✓";position:absolute;top:6px;right:6px;z-index:10;
@@ -6112,9 +6122,11 @@ export const CSS_TABLE=`
   .t1-left .card-1t-hero-bottom .card-corner-r{font-size:15px!important;}
   .t1-left .card-1t-hero-bottom .card-corner-s{font-size:11px!important;}
   .t1-left .card-1t-hero-bottom .card-center{font-size:23px!important;}
-  .t1-left .pf-player-seat[data-mode="1T"] .pf-avatar-premium{
-    width:calc(var(--avatar-size) - 10px)!important;height:calc(var(--avatar-size) - 10px)!important;
-  }
+  /* La correction du médaillon sur écran court a disparu d'ici : elle vivait en
+     PIXELS et pour un seul point de rupture. La taille de l'avatar est
+     désormais une fraction de la LARGEUR DU FEUTRE, calculée par
+     trainerAvatarPaintedPx et passée en --avatar-size — donc continue, et
+     valable à toutes les tailles de fenêtre (§7/§23). */
   .t1-actions-under .gto-btn{min-height:54px!important;}
   .t1-actions-under .gto-btn .gto-btn-inner{padding:6px 8px 5px!important;}
   .t1-actions-under .mtr-actions{padding:5px 10px 6px!important;}
@@ -6144,21 +6156,41 @@ export const CSS_TABLE=`
    Avant : ρ (rayon normalisé sur l'ellipse) 0.64 → 0.95 selon le siège ;
    la position dépendait de la hauteur du contenu, donc changeait de street en
    street — d'où les éléments « qui bougent » entre préflop et river. */
+/* ── « zoom » DÉPLAÇAIT LE SIÈGE, IL NE FAISAIT PAS QUE LE RÉDUIRE ─────────
+   Mesuré en 3T à 1366x768, avec zoom 0.8 :
+
+       siège déclaré  x=105.85 %  y=83.07 %
+       siège peint    x= 82.34 %  y=64.24 %      (exactement 0.8 x le déclaré)
+
+   « zoom » met à l'échelle la boîte ET les décalages « left/top » de
+   l'élément. Tous les sièges de la mosaïque étaient donc tirés vers le coin
+   haut-gauche, dans un rapport de 0.8 — pendant que les mises, les blindes et
+   le bouton D, eux, visaient le point DÉCLARÉ, puisque le placement les calcule
+   depuis les coordonnées du layout.
+
+   Aucun réglage ne pouvait rattraper ça : le modèle et le rendu ne parlaient pas
+   du même siège. C'est la cause de fond des tas mal attribués en mosaïque
+   (mesuré : ratio d'attribution jusqu'à 0.97, un tas plus près du voisin que de
+   son propriétaire) et des recouvrements mise/bouton.
+
+   « scale() » sur le transform fait le même travail visuel — même réduction,
+   même netteté — mais s'applique AUTOUR du centre de l'élément, qui est
+   justement le point d'anneau. Le siège reste donc exactement où il est
+   déclaré. */
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-seat-avatar-anchored{
   display:block!important;
-  transform:translate(-50%,-50%)!important;
+  transform:translate(-50%,-50%) scale(var(--pf-d-seat-zoom,1))!important;
   gap:0!important;
-  zoom:var(--pf-d-seat-zoom,1);
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-avatar-slot{margin:0 auto!important;}
+/* Le PLACEMENT des deux zones ne vit plus ici : il dépend de l'axe radial du
+   siège, pas du mode d'affichage, et il est écrit une seule fois pour les
+   quatre modes dans le bloc « ZONES RADIALES » en fin de fichier. Ne restent
+   ici que la mise en forme INTERNE de chaque zone. */
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-above{
-  position:absolute;left:50%;bottom:100%;transform:translateX(-50%);
-  margin-bottom:var(--pf-d-seat-gap,2px);
-  display:flex;align-items:flex-end;justify-content:center;
+  display:flex;align-items:center;justify-content:center;
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat>.pf-seat-below{
-  position:absolute;left:50%;top:100%;transform:translateX(-50%);
-  margin-top:var(--pf-d-seat-gap,2px);
   display:flex;flex-direction:column;align-items:center;gap:1px;
 }
 /* Les pastilles Fold / In pot étaient sorties du flux pour gagner 12px sous
@@ -6192,14 +6224,18 @@ export const CSS_TABLE=`
    gauche et sa droite sont encore DANS le feutre, donc sur le board. Sa
    pastille reste sous lui, et c'est la marge de sécurité qui l'absorbe (§5).
    Vérifiable : npm run audit:finitions. */
-:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-mt-seat-top:not(.pf-mt-seat-right)>.pf-seat-below{
-  top:50%!important;left:auto!important;right:100%!important;
-  transform:translateY(-50%)!important;margin:0 3px 0 0!important;
-}
-:is(.grid2,.grid3,.grid4) .tw[data-density] .pf-mt-seat.pf-mt-seat-top.pf-mt-seat-right>.pf-seat-below{
-  top:50%!important;left:100%!important;right:auto!important;
-  transform:translateY(-50%)!important;margin:0 0 0 3px!important;
-}
+/* ── CE CORRECTIF EST DEVENU INUTILE, ET VOICI POURQUOI ────────────────────
+   Il envoyait la plaque du siège HAUT sur le flanc parce que « en dessous »,
+   pour lui, désignait le board. C'était le symptôme d'une règle qui ne savait
+   pas où était le dehors : la zone des labels descendait toujours, quel que
+   soit l'endroit de l'anneau.
+   Depuis que les zones suivent l'AXE RADIAL, le dehors d'un siège haut est
+   AU-DESSUS de lui — hors du feutre. Le détour par le flanc n'a plus d'objet,
+   et le garder rouvrirait le conflit qu'il prétendait fermer : la plaque
+   partirait vers un voisin au lieu de sortir de la table.
+   Conservé en commentaire, avec sa mesure, pour que personne ne le réintroduise
+   sans avoir relu ceci. (Mesure d'origine : pastille du siège haut à 0px du
+   board.) */
 /* Le macaron « TOI » / « IA… » vivait à top:-16px DANS le slot avatar : depuis
    que les cartes sont collées au-dessus de l'avatar, il tombait dessus. On le
    sort sur le FLANC intérieur du siège, où il ne croise ni cartes ni plaque. */
@@ -6396,7 +6432,12 @@ export const CSS_TABLE=`
    bilan (118px) et sa voisine qui montre sa barre de décision (86px) n'ont pas
    le même ovale, et les objets « bougent » quand on passe d'une street à
    l'autre. La région défile en interne quand son contenu dépasse. */
-:is(.grid3,.grid4) .tw[data-density] .mt-under{
+/* Le 2T rejoint la règle : sa zone de décision était dimensionnée par son
+   CONTENU, donc deux tuiles voisines rendaient 149 px et 93 px selon le spot
+   tiré. Tant que le 2T reste borné par la largeur, le feutre n en souffre pas
+   — mais rien ne garantit qu il le reste, et le §11 exige des tuiles
+   identiques. Une hauteur réservée, comme en 3T/4T, ferme la question. */
+:is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under{
   flex:0 0 var(--pf-d-under-max-h,110px);height:var(--pf-d-under-max-h,110px);
 }
 :is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under::-webkit-scrollbar{width:5px;}
@@ -6404,4 +6445,241 @@ export const CSS_TABLE=`
 /* Les blocs internes n'ont plus besoin de leur propre plafond en vh — il vivait
    dans le vide (38vh = 346px pour une tuile de 343px). */
 :is(.grid2,.grid3,.grid4) .tw[data-density] .mt-under>div[style*="vh"]{max-height:none!important;}
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  ZONES RADIALES D'UN SIÈGE — §3 · §4 · §5 · §6 · §8 · §17 · §19          ║
+   ╚══════════════════════════════════════════════════════════════════════════╝
+   Un siège de poker n'est pas une pile verticale : c'est un joueur ASSIS À UNE
+   TABLE, donc une grappe orientée vers le centre. Ce bloc est la seule source
+   de cette orientation, pour les quatre modes (1T comme mosaïque) et pour
+   toutes les structures (6 à 9 joueurs).
+
+   ── CE QU'IL REMPLACE ─────────────────────────────────────────────────────
+   Deux règles VERTICALES écrites dans le rendu :
+       className = coord.y<=40 ? "pf-seat-inverted" : ""
+       transform = y<=24 ? "translate(-50%,-40%)" : y>=68 ? …-49% : …-50%
+   Elles ne connaissent que « en haut » et « en bas ». Un joueur de FLANC
+   recevait donc ses cartes AU-DESSUS de sa tête alors que le centre est à son
+   côté — c'est très exactement le défaut signalé sur le BB. Et le pourcentage
+   du translate tentait de rattraper à la main un décalage qui dépend de la
+   HAUTEUR DU CONTENU, laquelle change à chaque street.
+
+   Mesuré avant (1T, 6-max, 1366x768, n=8) :
+     · écart angulaire axe siège→pot vs axe avatar→cartes
+         moyenne 29.6 deg, maximum 81.8 deg, SB 60.6, BB 34.1
+     · rayon normalise du centre d'avatar sur l'ellipse du feutre (1 = anneau)
+         moyenne 0.88, minimum 0.64 — CO 0.68, BTN 0.69, BB 0.71
+
+   ── LE MODÈLE ─────────────────────────────────────────────────────────────
+   L'attribut «data-radial» porte le côté INTÉRIEUR du siège, calculé en pixels
+   par «seatAxis» (src/trainerSeatAnchors.js) : up | down | left | right.
+   Tout en découle, et rien n'est saisi à la main.
+
+       ZONE INTÉRIEURE  les cartes, entre le joueur et le board
+       SLOT AVATAR      seul élément EN FLUX : la boîte du siège se réduit donc
+                        au médaillon, et translate(-50%,-50%) pose son CENTRE
+                        sur l'anneau doré quels que soient le contenu et la
+                        street
+       ZONE EXTÉRIEURE  identité, statut, badge d'action — jamais entre le
+                        joueur et le board
+
+   ── POURQUOI L'EXTÉRIEUR DESCEND QUAND L'AXE EST HORIZONTAL ───────────────
+   Pour un siège de flanc, « dehors » c'est le bord du conteneur : à x=9 %, il
+   reste 72 px avant la sortie de zone pour une plaque qui en fait 86. Une
+   plaque posée là serait rognée ou sortirait du cadre. On la descend donc sous
+   l'avatar — ce qui reste conforme au §19, puisque pour un siège de flanc le
+   centre de la table est À CÔTÉ de lui et non en dessous : la plaque n'entre
+   ni dans le couloir des cartes, ni dans celui de sa mise. */
+.pf-player-seat[data-radial]{
+  display:block!important;
+  transform:translate(-50%,-50%)!important;
+  gap:0!important;
+}
+/* La boîte EN FLUX du siège, et elle seule. Tout le reste est hors flux — sans
+   quoi le centre du médaillon dépendrait de la hauteur des cartes. */
+.pf-player-seat[data-radial]>.pf-seat-avatar-slot{
+  position:relative!important;display:block!important;
+  min-width:0!important;padding:0!important;margin:0!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+}
+.pf-player-seat[data-radial] .pf-seat-inward,
+.pf-player-seat[data-radial] .pf-seat-outward{
+  position:absolute!important;margin:0!important;
+  --pf-g:var(--pf-seat-gap,var(--pf-d-seat-gap,4px));
+}
+.pf-player-seat[data-radial] .pf-seat-inward{
+  display:flex!important;align-items:center;justify-content:center;
+}
+.pf-player-seat[data-radial] .pf-seat-outward{
+  display:flex!important;flex-direction:column;align-items:center;gap:1px;
+  white-space:nowrap;
+}
+
+/* ── L'INTÉRIEUR SUIT L'AXE ── */
+.pf-player-seat[data-radial="up"]>.pf-seat-inward{
+  left:50%;bottom:100%;transform:translate(-50%,calc(-1 * var(--pf-g)));
+}
+.pf-player-seat[data-radial="down"]>.pf-seat-inward{
+  left:50%;top:100%;transform:translate(-50%,var(--pf-g));
+}
+.pf-player-seat[data-radial="left"]>.pf-seat-inward{
+  top:50%;right:100%;transform:translate(calc(-1 * var(--pf-g)),-50%);
+}
+.pf-player-seat[data-radial="right"]>.pf-seat-inward{
+  top:50%;left:100%;transform:translate(var(--pf-g),-50%);
+}
+
+/* ── L'EXTÉRIEUR PREND L'AXE OPPOSÉ ── */
+.pf-player-seat[data-radial="up"] .pf-seat-outward{
+  left:50%;top:100%;transform:translate(-50%,var(--pf-g));
+}
+.pf-player-seat[data-radial="down"] .pf-seat-outward{
+  left:50%;bottom:100%;transform:translate(-50%,calc(-1 * var(--pf-g)));
+}
+/* Axes horizontaux : voir l'encadré ci-dessus — la plaque descend au lieu de
+   sortir du cadre. */
+.pf-player-seat[data-radial="left"] .pf-seat-outward,
+.pf-player-seat[data-radial="right"] .pf-seat-outward{
+  left:50%;top:100%;transform:translate(-50%,var(--pf-g));
+}
+
+/* Les pastilles Fold / In pot et les badges d'action vivent DANS la zone
+   extérieure : elles suivent donc son flux, et n'ont plus d'ancre flottante
+   propre (elle pointait vers le pot pour les sièges hauts — mesuré, « Fold »
+   recouvrait « POT » sur 19x2 px). */
+.pf-player-seat[data-radial] .pf-seat-outward .pf-fold-chip,
+.pf-player-seat[data-radial] .pf-seat-outward .pf-multiway-chip,
+.pf-player-seat[data-radial] .pf-seat-outward .seat-action-badge{
+  position:static!important;transform:none!important;
+  top:auto!important;bottom:auto!important;left:auto!important;right:auto!important;
+  margin:0!important;
+}
+/* La plaque portait une marge haute négative qui la collait à l'avatar dans le
+   flux. Hors flux, cette marge décale la zone entière. */
+.pf-player-seat[data-radial] .pf-seat-outward .pf-seat-nameplate{margin-top:0!important;}
+
+/* ── LE POT GARDE UNE EMPRISE BORNÉE (§27) ────────────────────────────────
+   Les piles du pot se posaient côte à côte : six piles = 278 px de large sur un
+   feutre de 483. Le badge de MISE, lui, fait chevaucher les siennes depuis
+   toujours (.pf-action-chip-piles, margin-left:-8px) — le pot n'avait jamais
+   reçu le même traitement. On l'applique, un cran plus serré parce qu'il a plus
+   de piles à loger. Combiné au plafond de trois piles (PotChipDisplay), le bloc
+   du pot cesse de changer de largeur d'une main à l'autre, ce qui est la
+   condition pour que la bande centrale interdite le décrive correctement. */
+/* ── LE BOARD DU 1T SUIT ENFIN LA TAILLE DE SON FEUTRE (§21/§23) ──────────
+   Les cartes du board du 1T avaient une taille FIXE (57x79) quand celles de la
+   mosaïque suivaient déjà « --pf-d-board-zoom », c'est-à-dire une fraction de la
+   hauteur de feutre. À 1600x950 le 1T respirait, à 1366x768 son feutre tombe à
+   284 px de haut et le board en occupait 79 — soit 28 %.
+
+   Le couloir central en devenait insoluble : entre le bas des cartes du siège
+   haut et le haut de la main du Hero il reste 39 px, pour un pot (30) et un
+   board (79) qui en réclament 115. Mesuré, la main du Hero chevauchait le board
+   sur 3178 px². Aucun placement ne pouvait s'en sortir : l'espace n'existait
+   pas.
+
+   La variable était DÉJÀ calculée et posée pour le 1T (cf. TrainerTab) ; seul
+   le sélecteur CSS l'excluait. Le plancher de lisibilité et le plafond du mode
+   sont dans « trainerBoardZoom » — le board ne devient donc jamais illisible, et
+   ne dépasse jamais sa taille nominale sur un grand écran. */
+.t1-left .pf-board-zone{zoom:var(--pf-d-board-zoom,1);}
+
+.pf-pot-chip-cluster{display:inline-flex;align-items:flex-end;}
+.pf-pot-chip-cluster>*+*{margin-left:-14px;}
+.pf-pot-chip-cluster.compact>*+*{margin-left:-11px;}
+
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  WORKSPACE DE SESSION — l'espace change de propriétaire (§2/§3/§20)      ║
+   ╚══════════════════════════════════════════════════════════════════════════╝
+   Avant la session, l'espace appartient aux PARAMÈTRES.
+   Pendant la session, il appartient aux TABLES.
+
+   ── CE QUE ÇA REMPLACE ────────────────────────────────────────────────────
+   Le panneau de configuration restait dans le flux pendant toute la partie. Un
+   bouton le repliait à 58 px, et un repli automatique s'en chargeait sur écran
+   étroit — mais 58 px restent 58 px, et le panneau continuait de disputer sa
+   largeur aux tables. Mesuré à 1920x1080, session lancée :
+
+       navigation 186  ·  CONFIGURATION 228  ·  workspace 1186  ·  analyse 320
+
+   soit 228 px — 19 % de la largeur du workspace — immobilisés par des réglages
+   VERROUILLÉS, que l'on ne peut plus modifier tant que la session tourne.
+
+   ── LE MODÈLE ─────────────────────────────────────────────────────────────
+   Pendant la session, le panneau passe en « position:absolute » : il quitte le
+   flux, sa largeur tombe donc à ZÉRO pour le calcul du workspace. Il n'est plus
+   « masqué », il n'est plus là. Le bouton « ⚙ Session » le rappelle en
+   surimpression, et cette surimpression ne touche à aucune géométrie — c'est la
+   règle absolue de l'addendum §10 : pendant une session, position, taille et
+   échelle des tables ne dépendent JAMAIS de l'ouverture d'un panneau.
+
+   Le repère est le conteneur du Trainer, pas la fenêtre : on n'écrit donc nulle
+   part la largeur de la navigation PokerForge, et le drawer commence
+   exactement là où commence le Trainer. */
+.trainer-sidebar.pf-session-drawer{
+  position:absolute;left:0;top:0;bottom:0;
+  width:clamp(280px,22vw,360px);
+  z-index:60;
+  transform:translateX(-102%);
+  transition:transform 210ms cubic-bezier(.4,0,.2,1);
+  border-right:1px solid #1F4899;
+  box-shadow:22px 0 48px rgba(0,0,0,.55);
+  will-change:transform;
+}
+.trainer-sidebar.pf-session-drawer.open{transform:translateX(0);}
+/* Le repli « 58 px » n'a plus cours pendant la session : le panneau est dehors
+   ou il est ouvert en entier, il n'y a plus d'état intermédiaire. */
+.trainer-sidebar.pf-session-drawer.collapsed{width:clamp(280px,22vw,360px);}
+.trainer-sidebar.pf-session-drawer .sb-full{opacity:1;pointer-events:auto;overflow-y:auto;height:auto;}
+.trainer-sidebar.pf-session-drawer .sb-icons{display:none;}
+
+/* Voile discret : l'utilisateur doit continuer à voir OÙ sont ses tables (§7).
+   On assombrit juste assez pour désigner le drawer comme le plan actif. */
+.pf-drawer-backdrop{
+  position:absolute;inset:0;z-index:55;
+  background:rgba(2,8,20,.34);
+  animation:pfDrawerFade 180ms ease both;
+}
+@keyframes pfDrawerFade{from{opacity:0}to{opacity:1}}
+
+.pf-drawer-close{
+  position:absolute;top:8px;right:8px;z-index:5;
+  width:26px;height:26px;border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(31,139,255,.14);border:1px solid rgba(31,139,255,.42);
+  color:#DCE8FF;font-size:12px;font-weight:800;line-height:1;
+  transition:background .15s,border-color .15s;
+}
+.pf-drawer-close:hover{background:rgba(255,69,96,.18);border-color:rgba(255,69,96,.5);}
+
+/* Le contrôle de rappel : compact, dans la barre de session, jamais une colonne. */
+.pf-ws-settings-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 11px;border-radius:20px;cursor:pointer;
+  font-family:'Space Grotesk',sans-serif;font-size:9px;font-weight:700;
+  color:#9FB6E4;background:rgba(31,139,255,.09);
+  border:1px solid rgba(31,139,255,.3);
+  transition:background .15s,border-color .15s,color .15s;
+}
+.pf-ws-settings-btn:hover{background:rgba(31,139,255,.2);border-color:rgba(31,139,255,.55);color:#DCE8FF;}
+.pf-ws-settings-btn[aria-expanded="true"]{background:rgba(255,194,71,.14);border-color:rgba(255,194,71,.45);color:#FFC247;}
+
+
+/* ── §5 — UNE CARTE NE PASSE JAMAIS SOUS L'AVATAR ─────────────────────────
+   Les deux zones du siège sont positionnées, sans z-index : elles se peignent
+   donc dans l'ORDRE DU DOCUMENT. Or l'ordre du DOM est « cartes ▸ avatar ▸
+   plaque » — l'avatar passe structurellement PAR-DESSUS les cartes. Tant que
+   rien ne se chevauche, personne ne le voit ; dès qu'un siège serré fait se
+   toucher les deux (mesuré : 246 px² sur UTG au préflop), la carte disparaît
+   derrière le médaillon.
+
+   On ne compte pas sur l'absence de chevauchement pour rester lisible : les
+   cartes sont de l'INFORMATION, le médaillon est une identité. L'ordre de
+   peinture est donc écrit, et il ne dépend plus de l'ordre du DOM.
+   Ordre retenu, du dessous vers le dessus : plaque et statut, avatar, cartes. */
+.pf-player-seat[data-radial] .pf-seat-outward{z-index:1;}
+.pf-player-seat[data-radial]>.pf-seat-avatar-slot{z-index:2;}
+.pf-player-seat[data-radial] .pf-seat-inward{z-index:3;}
+
 `;

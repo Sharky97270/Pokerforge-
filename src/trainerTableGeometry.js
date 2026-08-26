@@ -64,13 +64,16 @@ import {
   BOARD_CARD_SIZE_BY_TABLES,
 } from "./trainerDensity.js";
 import { trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "./trainerVisualConfig.js";
+import { seatAxisClear } from "./trainerSeatAnchors.js";
 
 /* Toutes les tailles de carte de styles.js partagent la même proportion
    (19/26, 24/33, 34/47, 48/66, 60/83, 76/104, 95/130) à ±1 % près. */
 export const CARD_ASPECT_RATIO = 0.727;
 
-/* Gouttière du board, AVANT zoom, telle que le rendu la passe en `gap`. */
-export const BOARD_GAP_BY_TABLES = { 1: 8, 2: 5, 3: 3, 4: 3 };
+/* Gouttière du board, AVANT zoom, telle que le rendu la passe en `gap`.
+   Le 1T en passe 5 quand les cinq cartes sont là (6 en deçà) : c'est le cas à
+   CINQ cartes qui décide de l'emprise, donc c'est lui qu'on décrit. */
+export const BOARD_GAP_BY_TABLES = { 1: 5, 2: 5, 3: 3, 4: 3 };
 
 /* ── RATIO D'ASPECT DU FEUTRE — CONSTANTE DE LA MARQUE (§6/§19) ────────────
    Mesuré AVANT correction, largeur/hauteur du feutre par mode :
@@ -158,7 +161,7 @@ export function zonePctToFeltPct(pt, geometry) {
 const CENTRE_GAP_PX = 6;
 export function trainerCentreLayout({
   seats, heroPos = null, numTables = 1, hasBoard = false, ringGeom = null,
-  geometry = null, tight = false,
+  geometry = null, tight = false, avatarPx = 0, avatarHeroPx = 0,
 } = {}) {
   if (!seats || !ringGeom || !(ringGeom.areaH > 0)) return null;
   const area = areaPx(ringGeom, numTables, geometry);
@@ -167,9 +170,23 @@ export function trainerCentreLayout({
   const zoom = d.seatZoom || 1;
   const ys = Object.values(seats).map(s => s.y).filter(v => typeof v === "number");
   if (!ys.length) return null;
-  // Plancher du bloc le plus HAUT : avatar + plaque (une ligne en mosaïque).
-  const plateH = (d.nameplateFs || 10) * 1.9 + (d.seatGap || 2);
-  const topY = Math.min(...ys) * area.h / 100 + (avatarR + plateH) * zoom;
+  /* ── PLANCHER DU BLOC LE PLUS HAUT — CE QUI PEND SOUS LUI A CHANGÉ ────────
+     Ce calcul lisait « avatar + plaque ». C'était vrai quand la grappe d'un
+     siège haut se terminait par sa plaque. Depuis que les zones suivent l'axe
+     radial (cf. trainerSeatAnchors), le côté INTÉRIEUR d'un siège haut porte
+     ses CARTES — la plaque, elle, est partie vers l'extérieur de la table.
+
+     Or une carte est bien plus profonde qu'une plaque : en 1T, 66 px contre
+     ~23. Le couloir démarrait donc 40 px trop haut, et le pot venait se poser
+     sur la main du joueur du haut. Mesuré : cartes ↔ pot, 1874 px² de
+     recouvrement.
+
+     `trainerSeatBlockPx().towardPot` est déjà la grandeur juste — c'est celle
+     qu'utilise le placement des marqueurs pour la zone de sécurité du joueur
+     (§17). L'employer ici fait qu'un seul nombre décrit désormais « jusqu'où
+     descend un siège », partout. */
+  const topBlock = trainerSeatBlockPx(numTables, { hero: false, opts: { tight }, avatarPx });
+  const topY = Math.min(...ys) * area.h / 100 + topBlock.towardPot;
   // Plafond du bloc du HERO : ses cartes, ouvertes et au plus grand format.
   const heroSeat = heroPos && seats[heroPos] ? seats[heroPos] : null;
   /* +6 px de marge sur le bloc du Hero : sa grappe porte, en plus des cartes, un
@@ -177,23 +194,35 @@ export function trainerCentreLayout({
      encore 3.3 px sur sa main en 2T (mesuré) — l'estimation était juste, mais
      juste trop juste. */
   const heroY = heroSeat
-    ? heroSeat.y * area.h / 100 - trainerSeatBlockPx(numTables, { hero: true, opts: { tight } }).towardPot - 6
+    ? heroSeat.y * area.h / 100 - trainerSeatBlockPx(numTables, { hero: true, opts: { tight }, avatarPx: avatarHeroPx || avatarPx }).towardPot - 6
     : Math.max(...ys) * area.h / 100 - (avatarR + 40) * zoom;
   const pot = trainerPotSizePx(numTables, { tight });
-  const board = hasBoard ? trainerBoardSizePx(numTables, { tight, feltH: feltHeightPx(ringGeom, numTables, geometry) }) : null;
-  const needed = pot.h + (board ? CENTRE_GAP_PX + board.cardH : 0);
   const available = heroY - topY - 2 * CENTRE_GAP_PX;
+  /* Le board est dimensionné AVEC le couloir qu'on vient de mesurer : c'est le
+     même nombre qui décide de sa taille et de sa place, donc les deux ne
+     peuvent plus se contredire. */
+  const board = hasBoard ? trainerBoardSizePx(numTables, { tight, feltH: feltHeightPx(ringGeom, numTables, geometry), corridorPx: available }) : null;
+  const needed = pot.h + (board ? CENTRE_GAP_PX + board.cardH : 0);
   const corridor = Math.max(needed, available);
   /* Couloir SATURÉ (mesuré : mosaïque 4T à 1366×768, feutre de 133 px de haut —
      37 px disponibles pour 51 px de pot + board). Il faut alors choisir QUI
      déborde. Laisser le groupe démarrer sous le siège du haut fait déborder par
      le bas, donc sur la MAIN DU HERO — c'est le pire des deux : le §16 donne la
      priorité au board et le §17 protège la zone du joueur. On remonte donc le
-     groupe, quitte à ce que le pot effleure la PLAQUE du siège haut : un nombre
-     sur une plaque reste lisible, une carte sous une autre carte, non.
-     Le décalage est borné par la hauteur de cette plaque — jamais par l'avatar. */
+     groupe.
+
+     ── CE QUE LE GROUPE EFFLEURE EN REMONTANT A CHANGÉ ────────────────────
+     Avant l'axe radial, remonter faisait toucher la PLAQUE du siège haut, et
+     la borne était donc sa hauteur. Depuis, le côté intérieur d'un siège haut
+     porte ses CARTES ; c'est elles que le pot vient effleurer. Le choix reste
+     le bon — les cartes d'un adversaire sont des DOS, ils ne portent aucune
+     information, alors que la main du Hero en porte toute — mais la borne doit
+     suivre l'objet : on n'autorise l'empiètement que sur la profondeur de
+     cartes du bloc, jamais jusqu'à l'avatar, qui doit rester entièrement
+     lisible (c'est lui qui identifie le joueur). */
   const deficit = Math.max(0, needed - available);
-  const start = topY + CENTRE_GAP_PX + (corridor - needed) / 2 - Math.min(deficit, plateH * 0.9 * zoom);
+  const empietementMax = Math.max(0, topBlock.towardPot - (avatarR * zoom)) * 0.9;
+  const start = topY + CENTRE_GAP_PX + (corridor - needed) / 2 - Math.min(deficit, empietementMax);
   const potCy = start + pot.h / 2;
   const boardCy = board ? potCy + pot.h / 2 + CENTRE_GAP_PX + board.cardH / 2 : null;
   const toPct = v => v * 100 / area.h;
@@ -209,13 +238,62 @@ export function trainerCentreLayout({
    (jamais illisible). C'est le §21 appliqué littéralement : les décorations se
    réduisent avant les informations poker, et le board ne descend jamais sous le
    seuil où on ne lit plus les rangs. */
-export const BOARD_HEIGHT_RATIO = 0.21;
+/* ── LE BOARD EST UNE FRACTION DU FEUTRE, ET C'EST LE 1T QUI LA DONNE ──────
+   Ce ratio valait 0.21. Il n'a jamais mordu en 1T, dont le plafond de mode le
+   ramenait à 79 px pour un feutre de 521 — soit 0.152. Le 1T étant la référence
+   VALIDÉE, c'est sa valeur effective qu'on retient : le ratio décrit désormais
+   ce qui est peint au lieu de le dépasser.
+
+   Conséquence mesurée, hauteur de carte de board par mode AVANT :
+       1T 79.0   2T 37.4   3T 37.0   4T 37.1
+   Trois modes de mosaïque, trois tailles de tuile très différentes, et un board
+   IDENTIQUE à 37 px : ce n'était plus une fraction de quoi que ce soit, c'était
+   un nombre de pixels. D'où le board du 2T « trop petit » — sa tuile est presque
+   deux fois plus grande que celle du 4T pour le même board.
+   Avec le ratio, le 2T passe à ~58 px et le 3T/4T ne bougent pratiquement pas
+   (35.7 et 35.4) : exactement ce que demandent les §12 et §13. */
+export const BOARD_HEIGHT_RATIO = 0.152;
 export const BOARD_MIN_CARD_H = 20;
-export function trainerBoardZoom(numTables = 1, { feltH = 0, tight = false } = {}) {
+
+/* ── LE COULOIR LIBRE, MESURÉ SANS LE BOARD ────────────────────────────────
+   Hauteur réellement disponible entre le bas du bloc du siège le plus HAUT et
+   le haut du bloc du HERO. Elle ne dépend que des sièges — donc on peut la
+   calculer AVANT de décider de la taille du board, et rompre la circularité
+   « le board a besoin de place / la place dépend du board ». */
+export function trainerCorridorPx({ seats, heroPos = null, numTables = 1, ringGeom = null, geometry = null, tight = false, avatarPx = 0, avatarHeroPx = 0 } = {}) {
+  if (!seats || !ringGeom || !(ringGeom.areaH > 0)) return 0;
+  const area = areaPx(ringGeom, numTables, geometry);
+  const ys = Object.values(seats).map(s => s.y).filter(v => typeof v === "number");
+  if (!ys.length) return 0;
+  const topY = Math.min(...ys) * area.h / 100 + trainerSeatBlockPx(numTables, { hero: false, opts: { tight }, avatarPx }).towardPot;
+  const heroSeat = heroPos && seats[heroPos] ? seats[heroPos] : null;
+  if (!heroSeat) return 0;
+  const heroY = heroSeat.y * area.h / 100 - trainerSeatBlockPx(numTables, { hero: true, opts: { tight }, avatarPx: avatarHeroPx || avatarPx }).towardPot - 6;
+  return Math.max(0, heroY - topY - 2 * CENTRE_GAP_PX);
+}
+
+/**
+ * @param corridorPx  hauteur libre entre le siège haut et le Hero, si connue.
+ */
+export function trainerBoardZoom(numTables = 1, { feltH = 0, tight = false, corridorPx = 0 } = {}) {
   const base = CARD_BASE_HEIGHT[BOARD_CARD_SIZE_BY_TABLES[numTables] || "lg"] || 66;
   const density = trainerDensity(numTables, { tight }).boardZoom || 1;
   if (!(feltH > 0)) return density;
-  return +Math.min(density, Math.max(BOARD_MIN_CARD_H / base, feltH * BOARD_HEIGHT_RATIO / base)).toFixed(3);
+  let plafond = feltH * BOARD_HEIGHT_RATIO;
+  /* ── LE BOARD SE MESURE À LA PLACE QU'IL A, PAS SEULEMENT AU FEUTRE ──────
+     Le plafond ne regardait que la hauteur du feutre. Or ce n'est pas le feutre
+     qui manque : c'est la colonne entre le bas des cartes du siège haut et le
+     haut de la main du Hero. Mesuré en 1T à 1366x768, feutre de 284 px pour un
+     couloir de 39 : le board tenait ses 21 % du feutre (59 px) et se posait
+     donc sur le pot et sur les cartes du siège du haut — 8 tables sur 14.
+     On lui donne ce qui reste après le pot, avec les deux écarts. Le plancher
+     de lisibilité reste souverain : sous BOARD_MIN_CARD_H on préfère assumer un
+     chevauchement plutôt que rendre un board qu'on ne peut plus lire (§21). */
+  if (corridorPx > 0) {
+    const potH = trainerDensity(numTables, { tight }).potH || 20;
+    plafond = Math.min(plafond, corridorPx - potH - 2 * CENTRE_GAP_PX);
+  }
+  return +Math.min(density, Math.max(BOARD_MIN_CARD_H / base, plafond / base)).toFixed(3);
 }
 
 /* Hauteur du feutre en px, déduite de la zone mesurée et des marges du mode. */
@@ -238,10 +316,17 @@ export function trainerBoardSizePx(numTables = 1, opts = {}) {
 /* Encombrement du bloc POT. La hauteur est un jeton de densité ; la largeur est
    dominée par « POT 14.5bb » et suit la hauteur de près (mesuré 84/30, 69/24,
    61/18, 69/17 → facteur 2.8 à 4.1, on retient le majorant). */
-const POT_WIDTH_FACTOR = 4.1;
+/* Le 1T rend le pot SUR UNE LIGNE — grappe de jetons, « POT », montant — là où
+   la mosaïque l'empile en colonne. Sa largeur ne suit donc pas du tout le même
+   rapport à sa hauteur : mesuré à 1366x768, bloc de 115 à 152 px pour 30 px de
+   haut une fois les piles bornées (§27), contre 69/17 en 4T. Un facteur unique
+   décrivait forcément l'un des deux de travers — et c'est le 1T qu'il
+   sous-estimait, celui-là même où les tas venaient se coller au pot. */
+const POT_WIDTH_FACTOR_BY_TABLES = { 1: 5.2, 2: 4.1, 3: 4.1, 4: 4.1 };
 export function trainerPotSizePx(numTables = 1, opts = {}) {
   const h = trainerDensity(numTables, opts).potH || 20;
-  return { w: +(h * POT_WIDTH_FACTOR).toFixed(1), h: +h.toFixed(1) };
+  const f = POT_WIDTH_FACTOR_BY_TABLES[numTables] ?? 4.1;
+  return { w: +(h * f).toFixed(1), h: +h.toFixed(1) };
 }
 
 /* Dimensions nominales de la zone, en px, quand aucune mesure n'est encore
@@ -286,7 +371,7 @@ export function trainerCentralExclusionZone(o = {}) {
   let yMin = c.potY - pot.h / 2 / area.h * 100;
   let yMax = c.potY + pot.h / 2 / area.h * 100;
   if (hasBoard && c.boardY != null) {
-    const b = trainerBoardSizePx(numTables, { tight, feltH: feltHeightPx(ringGeom, numTables, geometry) });
+    const b = trainerBoardSizePx(numTables, { tight, feltH: feltHeightPx(ringGeom, numTables, geometry), corridorPx: trainerCorridorPx(o) });
     xMin = Math.min(xMin, c.x - b.totalW / 2 / area.w * 100);
     xMax = Math.max(xMax, c.x + b.totalW / 2 / area.w * 100);
     yMin = Math.min(yMin, c.boardY - b.cardH / 2 / area.h * 100);
@@ -297,6 +382,21 @@ export function trainerCentralExclusionZone(o = {}) {
 
 export function pointInsideZone(pt, zone) {
   return pt.x >= zone.xMin && pt.x <= zone.xMax && pt.y >= zone.yMin && pt.y <= zone.yMax;
+}
+
+/* ── UN MARQUEUR N'EST PAS UN POINT (§1/§2/§26/§27) ────────────────────────
+   Le placement testait le CENTRE du marqueur contre la bande centrale. Or un
+   badge de mise fait 104 px de large en 1T : son centre peut être hors zone
+   pendant que la moitié du badge est posée sur le board ou sur le pot. Mesuré
+   sur 16 tirages : 5 mises sur le board, et des tas à 4 px du bloc du pot —
+   c'est-à-dire exactement le défaut « les jetons se rapprochent excessivement
+   du pot, on ne sait plus qui a misé ».
+
+   On teste donc la BOÎTE. C'est la même zone interdite, lue avec la taille
+   réelle de l'objet qu'on y pose. */
+export function boxOverlapsZone(pt, halfPct, zone) {
+  return pt.x + halfPct.w >= zone.xMin && pt.x - halfPct.w <= zone.xMax
+      && pt.y + halfPct.h >= zone.yMin && pt.y - halfPct.h <= zone.yMax;
 }
 
 /* ── DEUX REPÈRES, ET C'ÉTAIT LE PIÈGE ────────────────────────────────────
@@ -337,6 +437,36 @@ export const MARKER_POT_CLEAR_PX = { BET: 54, BLIND: 48, DEALER: 40 };
 /* Demi-encombrement du MARQUEUR lui-même (badge de mise borné à 104 px en 1T,
    96 px en compact ; tas de blinde ; bouton D). Sert à savoir de combien il faut
    dégager le bloc du joueur et la bande centrale. */
+/* Largeur du feutre déduite de la zone mesurée et des marges du mode — pendant
+   horizontal de `feltHeightPx`. */
+export function feltWidthPxOf(area, geometry, numTables = 1) {
+  const g = geometry || trainerTableGeometry(numTables);
+  const w = area && area.w > 0 ? area.w : 0;
+  return w > 0 ? w * (100 - (g.left || 0) - (g.right || 0)) / 100 : 0;
+}
+
+/* ── PLAFOND DE LARGEUR DU BADGE DE MISE (§23/§36) ─────────────────────────
+   Une fraction de la table, bornée haut par la valeur nominale du mode (rien ne
+   grossit quand la fenêtre grandit) et bas par la lisibilité du montant. */
+export const BET_BADGE_FELT_RATIO = 0.17;
+export const BET_BADGE_MIN_W = 70;
+export const BET_BADGE_NOMINAL_W = { 1: 104, 2: 96, 3: 96, 4: 96 };
+export function betBadgeMaxWidthPx(numTables = 1, feltW = 0) {
+  const nominal = BET_BADGE_NOMINAL_W[numTables] ?? 96;
+  if (!(feltW > 0)) return nominal;
+  return +Math.max(BET_BADGE_MIN_W, Math.min(nominal, feltW * BET_BADGE_FELT_RATIO)).toFixed(1);
+}
+
+/* Encombrement de la PAIRE de cartes d un siège, dérivé du bloc vertical : une
+   seule description du siège sert au choix de l axe ET au dégagement. */
+function seatCardsBoxPx(numTables, hero, tight, avatarPx) {
+  const b = trainerSeatBlockPx(numTables, { hero, opts: { tight }, avatarPx });
+  const d = trainerDensity(numTables, { tight });
+  const z = d.seatZoom || 1;
+  const r = ((avatarPx > 0 ? avatarPx : (d.avatarSize || 40)) / 2) * z, g = (d.seatGap || 2) * z;
+  return { w: 2 * b.halfW, h: Math.max(10, b.towardPot - r - g) };
+}
+
 export const MARKER_HALF_PX = {
   BET: { w: 52, h: 22 },
   BLIND: { w: 31, h: 24 },
@@ -403,14 +533,14 @@ const clampPct = (v, min = 3, max = 97) => Math.max(min, Math.min(max, v));
 export function trainerMarkerPoint({
   seats, pos, markerType = "BET", numTables = 1, hasBoard = false, ringGeom = null,
   geometry = null, isMobile = false, tight = false, seatCount: seatCountArg = null,
-  heroPos = null, sideBiasPx = 0, avoid = null,
+  heroPos = null, sideBiasPx = 0, avoid = null, avatarPx = 0, avatarHeroPx = 0,
   potYByCount = null, potYPreflopByCount = null, boardYByCount = null,
 } = {}) {
   const seat = seats && seats[pos];
   if (!seat) return null;
   const seatCount = seatCountArg || Object.keys(seats).length || 6;
   const area = areaPx(ringGeom, numTables, geometry);
-  const centreOpts = { seats, heroPos, numTables, hasBoard, ringGeom, geometry, isMobile, tight, seatCount, potYByCount, potYPreflopByCount, boardYByCount };
+  const centreOpts = { seats, heroPos, numTables, hasBoard, ringGeom, geometry, isMobile, tight, seatCount, avatarPx, avatarHeroPx, potYByCount, potYPreflopByCount, boardYByCount };
   const centre = trainerCentreZonePct(centreOpts);
   const potPt = { x: centre.x, y: centre.potY };
 
@@ -423,7 +553,19 @@ export function trainerMarkerPoint({
 
   const k = trainerMarkerClearance(numTables, markerType);
   const half = MARKER_HALF_PX[markerType] || MARKER_HALF_PX.BET;
-  const halfW = half.w * k, halfH = half.h * k;
+  /* ── LE BADGE DE MISE SUIT LA TABLE, LUI AUSSI (§23/§36) ─────────────────
+     Sa largeur maximale était un nombre de pixels (104 en 1T). Sur un feutre de
+     710 px c'est 15 % de la table ; sur un feutre de 483 c'est 21 %, et le
+     couloir libre de chaque côté du board n'en fait plus que 126. La recherche
+     ne trouvait alors AUCUN point axial dégagé et basculait en poche latérale :
+     mesuré, 13 mises sur 16 au-delà de 35° d'écart, alors que le placement
+     lui-même était juste. Ce n'est pas le placement qu'il fallait corriger,
+     c'est l'objet qu'on place.
+     Le plafond reste la valeur nominale — sur grand écran rien ne change — et
+     le plancher garantit qu'un montant reste lisible (§36). */
+  const betMaxW = betBadgeMaxWidthPx(numTables, feltWidthPxOf(area, geometry, numTables));
+  const halfW = (markerType === "BET" ? betMaxW / 2 : half.w) * k;
+  const halfH = half.h * k;
   /* ── ZONE DE SÉCURITÉ DU JOUEUR (§17) ──
      Le bloc d'un siège n'est pas un disque : il est LARGE (deux cartes côte à
      côte) et surtout PROFOND du côté du pot (les cartes sont peintes entre
@@ -432,9 +574,27 @@ export function trainerMarkerPoint({
      une distance au pot de 159 px. Aucun point de l'axe ne peut donc dégager son
      bloc : c'est ce qui posait le bouton D SUR sa main (vu à l'image). Le bloc
      entre donc dans la recherche au même titre que le board. */
-  const block = trainerSeatBlockPx(numTables, { hero: heroPos != null && pos === heroPos, opts: { tight } });
+  const estHero = heroPos != null && pos === heroPos;
+  /* ── LE BLOC DU JOUEUR A LA FORME DE SON AXE (§17) ───────────────────────
+     On demande au MÊME calcul que le rendu de quel côté partent les cartes de
+     ce siège. Un siège de flanc étale sa paire À CÔTÉ de lui : sa profondeur
+     vers le centre vaut alors la LARGEUR de la paire, pas la hauteur d une
+     carte. La bande de référence est celle du POSTFLOP dans les deux cas,
+     comme pour le rendu — un axe qui changerait à l arrivée du flop ferait
+     pivoter la grappe en pleine main. */
+  const blockAxis = seatAxisClear({
+    seat, centre: { x: centre.x, y: centre.potY }, area,
+    forbidden: trainerCentralExclusionZone({ ...centreOpts, hasBoard: true }),
+    cardsPx: seatCardsBoxPx(numTables, estHero, tight, estHero ? (avatarHeroPx || avatarPx) : avatarPx),
+    avatarPx: (estHero ? (avatarHeroPx || avatarPx) : avatarPx) || 40,
+  });
+  const block = trainerSeatBlockPx(numTables, { hero: estHero, opts: { tight }, avatarPx: estHero ? (avatarHeroPx || avatarPx) : avatarPx, axis: blockAxis });
   const needAlong = block.towardPot + halfH + 6;      // dégager le bloc EN PROFONDEUR
   const needSide = block.halfW + halfW + 6;           // …ou le contourner PAR LE CÔTÉ
+
+  /* Demi-encombrement du marqueur, en % du conteneur : c'est dans ce repère
+     que vit la zone interdite. */
+  const halfPct = { w: halfW * 100 / area.w, h: halfH * 100 / area.h };
 
   const lMax = Math.max(12, D - (MARKER_POT_CLEAR_PX[markerType] || 46) * k);
   const lWish = Math.min(lMax, Math.max(12, (MARKER_TRAVEL[markerType] || 0.42) * D));
@@ -461,8 +621,8 @@ export function trainerMarkerPoint({
      du joueur est derrière) ou S'ÉCARTER (le board est devant). On balaie donc
      le plan (l, écart) et on garde le point le PLUS AXIAL — l'écart est un coût,
      jamais un but. */
-  const ok = (l, off) => {
-    if (off < needSide && l < needAlong) return false;              // dans son propre bloc
+  const ok = (l, off, tolereSonBloc = false) => {
+    if (!tolereSonBloc && off < needSide && l < needAlong) return false;              // dans son propre bloc
     if (l > lMax) return false;                                     // sur le pot
     if (attribution(l, off) < MARKER_MIN_ATTRIBUTION) return false; // chez le voisin (§43)
     const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
@@ -472,7 +632,9 @@ export function trainerMarkerPoint({
       if (!a) continue;
       if (Math.hypot(px - a.x * area.w / 100, py - a.y * area.h / 100) < (a.minPx || 0)) return false;
     }
-    return !pointInsideZone(toPct(px, py), zone);                   // dans le board / le pot
+    /* La BOÎTE du marqueur, pas son centre : un badge de 104 px de large peut
+       avoir son centre hors zone et la moitié de son corps sur le board. */
+    return !boxOverlapsZone(toPct(px, py), halfPct, zone);
   };
   const emit = (l, off, mode) => {
     const p = toPct(sx + dir.x * l + perp.x * off * side, sy + dir.y * l + perp.y * off * side);
@@ -486,10 +648,35 @@ export function trainerMarkerPoint({
   for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias)) return emit(l, bias, l <= lWish + 1e-6 ? "axial" : "avance");
   for (let l = lWish - step; l >= needAlong; l -= step) if (ok(l, bias)) return emit(l, bias, "recule");
 
+  /* 1 bis) L'AXE EST BOUCHÉ, MAIS PAR SES PROPRES CARTES ───────────────────
+     Entre le bloc du joueur et le bord du board il peut ne rester AUCUNE place
+     pour un badge — mesuré en 3T : le tas devrait se poser à l >= 64 px pour
+     dégager la paire de son joueur, et à l <= 43 px pour ne pas toucher le
+     board. La fenêtre est vide.
+     Il faut alors lâcher quelque chose. Ce qui se lâche est le chevauchement de
+     SES PROPRES cartes : un tas posé sur la main de son propriétaire reste
+     attribuable sans hésiter, un tas parti de côté chez le voisin ne l'est
+     plus. C'est l'arbitrage déjà retenu pour la main du Hero en 1T ; il vaut
+     pour tous les sièges dès lors que la place n'existe pas.
+     Ce qui ne se lâche JAMAIS : le board, le pot, et l attribution. */
+  for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias, true)) return emit(l, bias, "surSesCartes");
+  for (let l = lWish - step; l >= 12; l -= step) if (ok(l, bias, true)) return emit(l, bias, "surSesCartes");
+
   // 2) l'axe est bouché de bout en bout (Hero et siège haut-centre : le board
   //    barre la route, leurs propres cartes aussi) → POCHE LATÉRALE, du strict
   //    minimum, bornée par l'écart au voisin.
-  for (let off = Math.min(Math.max(needSide, bias), maxOff); off <= maxOff + 1e-6; off += Math.max(4, maxOff * 0.1)) {
+  /* ── LA POCHE COMMENCE PETITE, PAS À SA VALEUR MAXIMALE ──────────────────
+     Elle démarrait à `needSide` — l'écart qu'il faut pour CONTOURNER le bloc du
+     joueur. Or ce besoin ne s'applique qu'aux points proches du joueur (c'est
+     la première ligne de `ok`) : passé `needAlong`, un écart de quelques pixels
+     suffit à dégager la bande centrale. En partant de needSide on sautait
+     directement à ~43 px de côté sur un feutre de 261 px de haut, là où 8
+     auraient suffi. Mesuré en 3T sur un siège de flanc : 41.7° d'écart pour un
+     placement qui en admettait 17.
+     On balaie donc du plus petit écart au plus grand, et on s'arrête au premier
+     qui passe : l'écart reste un coût, jamais un but. */
+  const pasOff = Math.max(4, maxOff * 0.08);
+  for (let off = Math.max(pasOff, bias); off <= maxOff + 1e-6; off += pasOff) {
     for (let l = lWish; l >= 12; l -= step) if (ok(l, off)) return emit(l, off, "poche");
     for (let l = lWish + step; l <= lMax + 1e-6; l += step) if (ok(l, off)) return emit(l, off, "poche");
   }
@@ -497,11 +684,31 @@ export function trainerMarkerPoint({
         Hero en 1T : ses cartes ouvertes sont plus larges que la poche que
         l'attribution autorise). On garde alors ce qui EST négociable — le
         chevauchement de ses propres cartes — et on préserve ce qui ne l'est pas :
-        l'attribution. On prend donc la plus grande poche encore attribuable. */
+        l'attribution.
+
+        ── CE REPLI IGNORAIT LA BANDE CENTRALE, ET ÇA SE VOYAIT ──────────────
+        Il ne regardait que l'attribution : quand la recherche échouait, le tas
+        pouvait donc atterrir en plein sur le board. Mesuré, 4 mises sur 16 y
+        étaient posées — et toutes venaient d'ici, pas des étapes 1 et 2 qui,
+        elles, testent la zone.
+        Un repli n'a pas le droit d'être aveugle : il choisit toujours un point,
+        mais parmi ceux qui restent attribuables il prend celui qui MORD LE
+        MOINS sur le centre. On ne garantit plus zéro recouvrement — la place
+        n'existe pas — on garantit le moins mauvais, et c'est vérifiable. */
   const l3 = Math.min(lWish, lMax);
-  let best = 0;
+  const morsure = (l, off) => {
+    const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
+    const p = toPct(px, py);
+    const w = Math.min(p.x + halfPct.w, zone.xMax) - Math.max(p.x - halfPct.w, zone.xMin);
+    const h = Math.min(p.y + halfPct.h, zone.yMax) - Math.max(p.y - halfPct.h, zone.yMin);
+    return w > 0 && h > 0 ? w * h : 0;
+  };
+  let best = 0, pire = Infinity;
   for (let off = 0; off <= maxOff; off += Math.max(2, maxOff * 0.05)) {
-    if (attribution(l3, off) >= MARKER_MIN_ATTRIBUTION) best = off; else break;
+    if (attribution(l3, off) < MARKER_MIN_ATTRIBUTION) break;
+    const m = morsure(l3, off);
+    if (m < pire) { pire = m; best = off; }
+    if (m === 0) break;                 // rien de mieux à espérer
   }
   /* Si même l'axe pur (off = 0) n'est pas attribuable, c'est que la profondeur
      souhaitée emmène le tas trop loin du joueur : on le RAPPROCHE de lui jusqu'à
@@ -529,14 +736,14 @@ export function trainerMarkerPoint({
 const DEALER_SIDE_PX = 30;
 export function trainerDealerPoint({
   seats, pos, numTables = 1, hasBoard = false, ringGeom = null, geometry = null,
-  isMobile = false, tight = false, heroPos = null,
+  isMobile = false, tight = false, heroPos = null, avatarPx = 0, avatarHeroPx = 0,
   potYByCount = null, potYPreflopByCount = null, boardYByCount = null,
 } = {}) {
   const seat = seats && seats[pos];
   if (!seat) return null;
   const seatCount = Object.keys(seats).length || 6;
   const area = areaPx(ringGeom, numTables, geometry);
-  const common = { seats, pos, numTables, hasBoard, seatCount, ringGeom, geometry, isMobile, tight, heroPos, potYByCount, potYPreflopByCount, boardYByCount };
+  const common = { seats, pos, numTables, hasBoard, seatCount, ringGeom, geometry, isMobile, tight, heroPos, avatarPx, avatarHeroPx, potYByCount, potYPreflopByCount, boardYByCount };
   // Le tas de mise de ce même joueur : le bouton doit s'en écarter, sans quoi
   // les deux marqueurs du BTN se recouvrent (défaut historique, 22×22 px).
   const bet = trainerMarkerPoint({ ...common, markerType: "BET" });

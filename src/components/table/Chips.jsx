@@ -188,8 +188,13 @@ export function SeatActionZone({
   );
 }
 
-export function PlayerSeat({ pos, mode = "1T", className = "", style, children }) {
-  return <div className={`pf-player-seat ${className}`} data-seat={pos} data-mode={mode} style={style}>{children}</div>;
+/* `radial` nomme le côté INTÉRIEUR du siège — celui du centre de la table :
+   "up" | "down" | "left" | "right". Il est publié sur le DOM parce que c'est le
+   CSS qui dispose les zones du siège autour de l'avatar (cartes vers le centre,
+   plaque et statut vers l'extérieur) : sans cet attribut, la disposition
+   retomberait sur une règle verticale qui ignore les sièges de flanc (§4/§5). */
+export function PlayerSeat({ pos, mode = "1T", radial = null, className = "", style, children }) {
+  return <div className={`pf-player-seat ${className}`} data-seat={pos} data-mode={mode} data-radial={radial || undefined} style={style}>{children}</div>;
 }
 
 export function PlayerSeatZone({ zone, className = "", style, children }) {

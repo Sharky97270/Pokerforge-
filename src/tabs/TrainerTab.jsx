@@ -13,8 +13,9 @@ import { useRangeTheme } from "../components/range/useRangeTheme.js";
 import RangeColorSettings, { RangeLegend } from "../components/range/RangeColorSettings.jsx";
 import { rgba as rangeRgba, buildLegend as buildRangeLegend } from "../rangeColorTheme.js";
 import { TRAINER_VISUAL_CONFIG, getTrainerVisualLayoutConfig, trainerBoardCollisionZone, trainerTableGeometry, trainerBoardPosition, trainerPotPosition } from "../trainerVisualConfig.js";
-import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
-import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
+import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerClearance, trainerMarkerApproachMax, trainerDealerAngleOffset, trainerSeatBlockPx, trainerAvatarSizeVar, trainerAvatarPaintedPx, HERO_CARD_SIZE_BY_TABLES, VILLAIN_CARD_SIZE_BY_TABLES, BOARD_CARD_SIZE_BY_TABLES } from "../trainerDensity.js";
+import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerCentralExclusionZone, trainerCorridorPx, betBadgeMaxWidthPx, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
+import { seatAxis, seatAxisClear, seatFlexDirection, trainerSeatZones } from "../trainerSeatAnchors.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
 import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision, spotVerdict } from "../trainerRoundEngine.js";
@@ -630,6 +631,23 @@ const trainingTableLayout1TMobile=createTrainingTableLayout("1T-mobile",TRAINER_
 const trainingTableLayout2TMobile=createTrainingTableLayout("2T-mobile",TRAINER_VISUAL_2T_MOBILE.seatPositions,TRAINER_VISUAL_2T_MOBILE);
 const trainingTableLayout3TMobile=createTrainingTableLayout("3T-mobile",TRAINER_VISUAL_3T_MOBILE.seatPositions,TRAINER_VISUAL_3T_MOBILE);
 const trainingTableLayout4TMobile=createTrainingTableLayout("4T-mobile",TRAINER_VISUAL_4T_MOBILE.seatPositions,TRAINER_VISUAL_4T_MOBILE);
+/* ── §14 — LES CARTES D'UN ADVERSAIRE : DOS, OU MAIN ABATTUE ───────────────
+   Un seul composant pour les deux états, et un seul conteneur `.pf-hole-cards`
+   dans les deux cas : un siège ne doit JAMAIS porter deux jeux de cartes (§15),
+   pas même une fraction de seconde pendant la bascule.
+
+   La décision « ce siège montre-t-il ? » n'appartient pas au rendu : elle vient
+   de `state.revealed`, que le moteur ne remplit qu'au showdown (fullHandEngine).
+   Ici on ne fait que peindre ce qu'on a reçu. */
+function SeatOpponentCards({revealed=null,size="md",gap=2,...rest}){
+  if(Array.isArray(revealed)&&revealed.length===2&&revealed.every(c=>c&&c.r&&c.s))
+    return(
+      <div className="pf-hole-cards pf-showdown-hand" style={{display:"flex",gap}}>
+        {revealed.map((c,i)=><Card key={`${c.r}${c.s}`} r={c.r} s={c.s} size={size} delay={i*.06} revealed/>)}
+      </div>
+    );
+  return <VillainBackCards size={size} gap={gap} {...rest}/>;
+}
 const TRAINING_SEAT_LAYOUTS={
   1:trainingTableLayout1T,
   2:trainingTableLayout2T,
@@ -904,11 +922,11 @@ function resolveTrainerBlindPoint(layout,pos,numTables=1,ringGeom=null){
    ci-dessus restent le détail d'implémentation ; c'est par ici qu'on passe.
    Tout ce qui affiche la table du Trainer — 1T comme multi, GTO comme Exploit,
    Spot / Street / Full Hand / Session / Mix — hérite donc du même placement. */
-function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null,heroPos=null}={}){
+function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,hasBoard=false,ringGeom=null,heroPos=null,avatarPx=0,avatarHeroPx=0}={}){
   if(!layout)return {x:50,y:50};
   const seats=layout.seats||{};
   const common={
-    seats,numTables,hasBoard,ringGeom,heroPos,
+    seats,numTables,hasBoard,ringGeom,heroPos,avatarPx,avatarHeroPx,
     geometry:layout.tableGeometry,
     isMobile:/mobile/i.test(layout.name||""),
     potYByCount:WEB_POT_Y_BY_COUNT,
@@ -3444,7 +3462,7 @@ function fhBuildRecap(fhActs,spot,fhResult,fhReport){
 /* ═══════════════════════════════════════
    SINGLE TABLE COMPONENT
 ═══════════════════════════════════════ */
-export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,sidebarCollapsed=false,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade,paused=null,onResume,onPauseRequest}){
+export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,trainerMode="gto",trainMode="spot",platform="pokerstars",onAnswer,onNext,isLast,nextBusy=false,nextError=null,onGoSolver,onFocusToggle,focusMode=false,chipTheme="neon_modern",chipColor="blue",chipSizeMode="auto",onToggleSol,onTableSettled,timerSec=20,field="Standard",coachLevel="Intermédiaire",heroStyle="GTO",spotIndex=0,spotTotal=0,isActive=false,panelTarget=null,heroLayout="hero",onFhState,onTableLive,onCfrUpgrade,paused=null,onResume,onPauseRequest,titleNode=null}){
   const[answered,setAnswered]=useState(null);
   // Publie --pf-ring-scale sur le feutre : les jetons, blindes et le bouton D
   // suivent son échelle au lieu de rester en pixels fixes (cf. useTrainerRingScale).
@@ -3532,9 +3550,13 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const tightViewport=useMaxWidth(1560);
   const density=useMemo(()=>trainerDensity(numTables,{tight:tightViewport}),[numTables,tightViewport]);
   const densityVars=useMemo(()=>trainerDensityVars(numTables,{tight:tightViewport}),[numTables,tightViewport]);
-  const oneTableStableShellStyle=numTables===1&&sidebarCollapsed&&!isMobile
-    ?{width:"calc(100% - 170px)",maxWidth:"100%",margin:"0 auto"}
-    :null;
+  /* ── OFFSET COMPENSATOIRE SUPPRIMÉ (nettoyage legacy §5) ──────────────────
+     Le 1T se rétrécissait de 170 px quand la sidebar était repliée, pour que la
+     table ne « saute » pas en largeur au moment du repli. C'était un rattrapage
+     de la géométrie par un nombre de pixels écrit en dur.
+     Il n'a plus d'objet : pendant la session, le panneau ne participe plus au
+     layout, et son drawer ne déplace rien. Le garder retirerait 170 px de table
+     à qui a simplement replié ses filtres avant de lancer sa session. */
   // Skin Trainer V2 : jetons vectoriels forcés dans TOUT le Trainer (refonte 1T
   // défigée — même logique que le multi ; le sélecteur de thème reste pour les
   // autres surfaces éventuelles).
@@ -3551,6 +3573,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   const[fhVilAct,setFhVilAct]=useState(null);
   const[fhVilThink,setFhVilThink]=useState(false);
   const[fhResult,setFhResult]=useState(null);   // "win" | "lose" | "split"
+  /* §14 — mains ABATTUES, par position. Vide tant que le coup se joue, et vide
+     aussi quand il se termine sur un fold : c'est le moteur qui décide qui
+     montre (fullHandEngine → `state.revealed`), jamais le rendu. */
+  const[fhRevealed,setFhRevealed]=useState(null);
   const[fhNet,setFhNet]=useState(null);         // résultat net en bb, dérivé du ledger
   /* Configuration hors du domaine jouable du coup complet — affichée, pas subie. */
   const[fhUnsupported,setFhUnsupported]=useState(null);
@@ -3805,7 +3831,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     setSolOpen(false); // ferme l'overlay solution mobile
     // Reset full-hand state quand le spot change
     setPlayingFull(false);setFhBoardRef([]);setFhStreet("flop");setFhPhase("hero");
-    setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);setFhNet(null);setFhUnsupported(null);
+    setFhActs([]);setFhPot(0);setFhVilAct(null);setFhVilThink(false);setFhResult(null);setFhNet(null);setFhRevealed(null);setFhUnsupported(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport par street (§ cycle)
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // reset moteur main complète au changement de spot
@@ -4367,7 +4393,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     }
     setFhBoardRef(st.board);
-    setFhPot(roundBb(st.pot));
+    /* §13 — LE POT AFFICHÉ VIENT DU MOTEUR, JAMAIS D'UN CALCUL LOCAL.
+       `st.pot` est la comptabilité et vaut 0 dès que le coup est abattu ; c'est
+       ce zéro qui peignait « POT 0bb » sous un bilan « Pot disputé 6bb ». Le
+       moteur publie `potAffiche` pour cet usage précis (cf. fullHandEngine). */
+    setFhPot(roundBb(st.potAffiche??st.pot));
     setFhStreet(st.street==="done"?(st.board.length>=5?"river":st.board.length>=4?"turn":"flop"):st.street);
     /* Le libellé d'un acteur n'est plus « Hero ou Villain » : au-delà de deux
        joueurs, un siège supplémentaire doit être nommé par SA position, sinon
@@ -4391,6 +4421,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
         ||(st.result.winner==="split"&&(st.result.gagnants||[]).includes("hero"));
       setFhResult(net!=null?(net>0.001?"win":net<-0.001?"lose":"split"):(gagne?"win":"lose"));
       setFhNet(net);
+      /* §14 — on projette la décision du moteur (qui abat) sur les POSITIONS,
+         seul repère que connaît le rendu des sièges. Un coup gagné sur un fold
+         rend `{}` : les dos de cartes restent, et c'est la règle du poker. */
+      setFhRevealed(Object.keys(st.revealed||{}).length
+        ?Object.fromEntries(Object.entries(st.revealed).map(([id,main])=>[fhPosForId(id)||id,main]))
+        :null);
       setActivePlayerId(null);
     }else if(st.toAct==="hero"){
       const toCall=fhAmountToCall(st,"hero");
@@ -4405,7 +4441,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
     }
     // §P0-C : remonte l'état Full Hand au parent (panneau droit : Street/Pot/SPR + analyse).
     const streetLabel=st.street==="done"?(st.board.length>=5?"River":st.board.length>=4?"Turn":"Flop"):(st.street.charAt(0).toUpperCase()+st.street.slice(1));
-    onFhState&&onFhState({active:true,street:streetLabel,pot:roundBb(st.pot),heroStack:roundBb(st.heroStack),done:!!st.done});
+    onFhState&&onFhState({active:true,street:streetLabel,pot:roundBb(st.potAffiche??st.pot),heroStack:roundBb(st.heroStack),done:!!st.done});
   }
 
   /* Fait jouer l'ADVERSAIRE dont c'est le tour — pas « le Villain ». Le test
@@ -4590,7 +4626,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           timestamp:new Date().toISOString(),
         }))]);
     }
-    setPlayingFull(true);setFhVilAct(null);setFhResult(null);setFhNet(null);
+    setPlayingFull(true);setFhVilAct(null);setFhResult(null);setFhNet(null);setFhRevealed(null);
     setFhFeedback(null);setFhReport([]); // reset feedback/rapport de la main précédente
     if(fhFeedbackTimer.current){clearTimeout(fhFeedbackTimer.current);fhFeedbackTimer.current=null;}
     fhStateRef.current=null; // force le prochain fhSync à ne pas croire à un changement de street
@@ -4890,6 +4926,37 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   // Mobile portrait : le board doit tenir dans ~360px → taille selon nb de cartes
   const boardCount=playingFull?fhVisBoard.length:(spot.board||[]).length;
   const hasVisibleBoard=boardCount>0;
+  /* ── CENTRE DE LA TABLE ET TAILLE DE LA ZONE (§5) ────────────────────────
+     La direction « vers le centre » d'un siège se calcule contre le centre du
+     FEUTRE, pas contre celui du pot : le pot se déplace d'une street à l'autre
+     (préflop il est plus bas, postflop il remonte au-dessus du board), et une
+     grappe de siège qui pivoterait au changement de street serait illisible.
+     Le feutre, lui, ne bouge pas.
+
+     La taille de la zone en PIXELS est indispensable : un vecteur unitaire
+     exprimé en pourcentages d'un conteneur non carré ne pointe pas là où on
+     croit (piège déjà documenté dans trainerTableGeometry). */
+  const feltCentrePct=useMemo(()=>{
+    const g=trainingLayout.tableGeometry||{};
+    return {x:((g.left||0)+(100-(g.right||0)))/2,y:((g.top||0)+(100-(g.bottom||0)))/2};
+  },[trainingLayout.tableGeometry]);
+  /* Largeur du FEUTRE en px — la grandeur à laquelle se rapportent les objets
+     qu'on pose dessus (§22/§23 : des ratios, pas des pixels). */
+  const feltWidthPx=useMemo(()=>{
+    const g=trainingLayout.tableGeometry||{};
+    const w=ringGeom?.areaW>0?ringGeom.areaW:0;
+    return w>0?w*(100-(g.left||0)-(g.right||0))/100:0;
+  },[ringGeom?.areaW,trainingLayout.tableGeometry]);
+  /* Taille PEINTE du médaillon, telle qu'elle sera rendue. La géométrie doit
+     décrire le même objet que le rendu : c'est le sens de §7/§23, et l'écart
+     entre les deux se paie en mises repoussées vers le pot. En mosaïque le
+     médaillon suit encore son jeton de densité, donc on ne passe rien. */
+  const avatarPaintedPx=useMemo(()=>numTables===1?trainerAvatarPaintedPx({feltW:feltWidthPx}):0,[numTables,feltWidthPx]);
+  const avatarHeroPaintedPx=useMemo(()=>numTables===1?trainerAvatarPaintedPx({feltW:feltWidthPx,hero:true}):0,[numTables,feltWidthPx]);
+  const seatAreaPx=useMemo(()=>({
+    w:ringGeom?.areaW>0?ringGeom.areaW:800,
+    h:ringGeom?.areaH>0?ringGeom.areaH:800/trainerZoneAspect(numTables,trainingLayout.tableGeometry),
+  }),[ringGeom?.areaW,ringGeom?.areaH,numTables,trainingLayout.tableGeometry]);
   /* Ancres du CENTRE — resolues une seule fois : le pot et le board sont peints
      ici, et la geometrie des mises vise exactement le meme point. Le couloir est
      calcule a partir du bloc du siege haut et de celui du Hero (cf.
@@ -4897,9 +4964,36 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
      au tout premier rendu, avant la premiere mesure. */
   const centreAnchors=trainerCentreAnchorsFelt({
     seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,hasBoard:hasVisibleBoard,
-    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,
+    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx,
     potYByCount:WEB_POT_Y_BY_COUNT,potYPreflopByCount:WEB_POT_Y_PREFLOP_BY_COUNT,boardYByCount:WEB_BOARD_Y_BY_COUNT,
   });
+  /* Couloir libre entre le siège du haut et le Hero. Il ne dépend que des
+     sièges, donc il se calcule AVANT le board — et c est lui qui borne la
+     taille du board (§21). */
+  const corridorPx=useMemo(()=>trainerCorridorPx({
+    seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,ringGeom,
+    geometry:trainingLayout.tableGeometry,tight:tightViewport,
+    avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx,
+  }),[trainingLayout,spot?.hpos,numTables,ringGeom,tightViewport,avatarPaintedPx,avatarHeroPaintedPx]);
+  /* ── BANDE CENTRALE DE RÉFÉRENCE POUR LE CHOIX DES AXES (§26) ────────────
+     On la calcule TOUJOURS avec un board, même au préflop. Sinon l'axe d'un
+     siège de flanc changerait à l'arrivée du flop — ses cartes sauteraient
+     d'à-côté de lui à au-dessus de lui en pleine main. Une disposition de
+     table se décide pour le COUP, pas pour la street. */
+  const centreExclusion=useMemo(()=>trainerCentralExclusionZone({
+    seats:trainingLayout.seats,heroPos:spot?.hpos,numTables,hasBoard:true,
+    ringGeom,geometry:trainingLayout.tableGeometry,isMobile,seatCount:seatOrder.length,tight:tightViewport,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx,
+    potYByCount:WEB_POT_Y_BY_COUNT,potYPreflopByCount:WEB_POT_Y_PREFLOP_BY_COUNT,boardYByCount:WEB_BOARD_Y_BY_COUNT,
+  }),[trainingLayout,spot?.hpos,numTables,ringGeom,isMobile,seatOrder.length,tightViewport]);
+  /* Encombrement de la PAIRE de cartes d'un siège, dérivé du même bloc que la
+     zone de sécurité du joueur (trainerSeatBlockPx) : une seule description du
+     siège sert au placement des marqueurs ET au choix de l'axe. */
+  const seatCardsPx=useCallback(hero=>{
+    const b=trainerSeatBlockPx(numTables,{hero,opts:{tight:tightViewport}});
+    const z=density.seatZoom||1;
+    const r=(density.avatarSize||40)/2*z, g=(density.seatGap||2)*z;
+    return {w:2*b.halfW,h:Math.max(10,b.towardPot-r-g)};
+  },[numTables,tightViewport,density]);
   const oneTableBoardSize=TRAINER_VISUAL_CONFIG.boardSize?.oneTable||"1t-hero";
   const boardSize=numTables===1?(isMobile?(boardCount>=5?"md":"lg"):oneTableBoardSize):cfg.board;
   const boardGap=numTables===1?(isMobile?(boardCount>=5?3:4):(boardCount>=5?5:6)):cfg.boardGap;
@@ -5035,6 +5129,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       aParler:st.toAct?(fhPosForId(st.toAct)||st.toAct):null,
       street:st.street,
       pot:roundBb(st.pot),
+      /* Le pot PEINT, publié à côté de la comptabilité : c'est la seule façon
+         de vérifier au navigateur que les deux ne divergent pas (§13). */
+      potAffiche:roundBb(st.potAffiche??st.pot),
       totalJetons:st.totalChips,
       engagements:parSiege(id=>roundBb((st.seatContrib||{})[id]||0)),
       /* Engagement TOTAL du coup, préflop compris : c'est lui qui définit les
@@ -5069,7 +5166,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
   })();
   const anchorForSeat=useCallback(pos=>{
     if(!pos)return null;
-    return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
+    return getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
   },[trainingLayout,hasVisibleBoard,numTables,ringGeom,spot?.hpos]);
   /* Le panneau de droite décrit CETTE table : il doit recevoir les mêmes
      nombres qu'elle peint — tapis restant d'Hero, tapis effectif, SPR et cotes
@@ -5882,26 +5979,36 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           return(
           <div style={{flexShrink:0,padding:fhC?"8px 8px 10px":"10px 14px 14px",background:"linear-gradient(180deg,#040B22,#030912)",borderTop:"1px solid rgba(52,216,255,.18)",maxHeight:fhC?"38vh":"46vh",overflowY:"auto"}}>
             {/* En-tête : verdict + score main */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:8}}>
+            {/* ── §14 — L ESSENTIEL NE SE MÉRITE PAS AU DÉFILEMENT ──────────
+                Mesuré en 4T : le bilan réclame 230 px pour 118 réservés à la
+                zone de décision. La moitié était donc hors champ, et le verdict
+                lui-même pouvait sortir de vue dès qu on faisait défiler pour
+                lire l analyse. On épingle l en-tête — verdict et score — en
+                haut du bloc : il reste lu sans manipulation, le détail se
+                déroule dessous. Aucune hauteur n est prise à la table. */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:fhC?6:8,position:"sticky",top:fhC?-8:-10,zIndex:2,background:"linear-gradient(180deg,#040B22 72%,rgba(4,11,34,0))",paddingBottom:4}}>
               {(()=>{
                 /* Trois issues, trois libellés. Le partage était compté comme
                    une victoire ; il a désormais sa couleur et son mot. */
                 const col=fhResult==="win"?T.green:fhResult==="split"?T.amber:T.red;
                 const glow=fhResult==="win"?T.greenGlow:fhResult==="split"?"rgba(255,194,71,.45)":T.redGlow;
                 const txt=fhResult==="win"?"🏆 MAIN GAGNÉE":fhResult==="split"?"🤝 POT PARTAGÉ":"❌ MAIN PERDUE";
-                return <div style={{fontFamily:T.brand,fontSize:15,fontWeight:900,color:col,textShadow:`0 0 18px ${glow}`}}>{txt}</div>;
+                return <div style={{fontFamily:T.brand,fontSize:fhC?16:17,fontWeight:900,color:col,textShadow:`0 0 18px ${glow}`}}>{txt}</div>;
               })()}
-              <span style={{fontFamily:T.mono,fontSize:11,fontWeight:800,color:recap.scoreCol,background:`${recap.scoreCol}1a`,border:`1px solid ${recap.scoreCol}55`,borderRadius:7,padding:"3px 9px"}}>{recap.score}/100</span>
+              <span style={{fontFamily:T.mono,fontSize:fhC?11.5:12,fontWeight:800,color:recap.scoreCol,background:`${recap.scoreCol}1a`,border:`1px solid ${recap.scoreCol}55`,borderRadius:7,padding:"3px 9px"}}>{recap.score}/100</span>
             </div>
             {/* Analyse street par street (EV estimée par décision Héro) */}
-            <div style={{fontFamily:T.brand,fontSize:8.5,color:T.text4,letterSpacing:".12em",marginBottom:6,textAlign:"center"}}>ANALYSE PAR STREET <span style={{color:T.text4,opacity:.7}}>(≈ estimation)</span></div>
-            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
+            {/* En mosaïque, ce titre coûte 20 px de hauteur pour ne rien
+                apprendre : les lignes qui suivent portent déjà le nom de leur
+                street. Il reste en 1T, où la place existe. */}
+            {!fhC&&<div style={{fontFamily:T.brand,fontSize:8.5,color:T.text4,letterSpacing:".12em",marginBottom:6,textAlign:"center"}}>ANALYSE PAR STREET <span style={{color:T.text4,opacity:.7}}>(≈ estimation)</span></div>}
+            <div style={{display:"flex",flexDirection:"column",gap:fhC?3:5,marginBottom:fhC?6:10}}>
               {recap.streets.map((st,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 9px",background:"rgba(255,255,255,.025)",border:`1px solid ${st.col}33`,borderLeft:`3px solid ${st.col}`,borderRadius:7}}>
-                  <span style={{fontFamily:T.brand,fontSize:9,fontWeight:800,color:st.col,minWidth:42,letterSpacing:".06em"}}>{st.label}</span>
+                <div key={i} style={{display:"flex",alignItems:"center",gap:fhC?6:8,padding:fhC?"3px 7px":"6px 9px",background:"rgba(255,255,255,.025)",border:`1px solid ${st.col}33`,borderLeft:`3px solid ${st.col}`,borderRadius:7}}>
+                  <span style={{fontFamily:T.brand,fontSize:fhC?9.5:9,fontWeight:800,color:st.col,minWidth:40,letterSpacing:".06em"}}>{st.label}</span>
                   <span style={{fontFamily:T.mono,fontSize:9.5,color:T.text2,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{st.line}{st.best&&<span style={{color:T.text4}}> · opt: {st.best}</span>}</span>
-                  {st.evTxt&&<span style={{fontFamily:T.mono,fontSize:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.evTxt}</span>}
-                  <span style={{fontFamily:T.stats,fontSize:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.verdict}</span>
+                  {st.evTxt&&<span style={{fontFamily:T.mono,fontSize:fhC?9.5:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.evTxt}</span>}
+                  <span style={{fontFamily:T.stats,fontSize:fhC?9.5:8.5,fontWeight:700,color:st.col,whiteSpace:"nowrap"}}>{st.verdict}</span>
                 </div>
               ))}
             </div>
@@ -6036,7 +6143,18 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               );
             })()}
 
-            {answered!==null&&renderHeroFeedback()}
+            {/* ── §15 — UN VERDICT NE SURVIT PAS À SA STREET ────────────────
+                `heroFeedback` est le verdict de la décision NOTÉE, posée une
+                fois pour le spot. En coup complet, cette décision est la
+                première d'une série : le badge vert ou rouge du préflop restait
+                collé au panneau pendant le flop, le turn et la river, à côté
+                d'un en-tête qui annonce pourtant « ANALYSE — RIVER ». Deux
+                lectures contradictoires au même endroit.
+                Le coup complet a son propre retour par street (`fhFeedback`,
+                remis à zéro à chaque changement de street) et son bilan à la
+                fin. L'autre point de rendu de ce même bloc porte déjà cette
+                garde : on l'aligne. */}
+            {answered!==null&&!playingFull&&renderHeroFeedback()}
 
             {/* ANALYSE GTO */}
             {(()=>{
@@ -6196,7 +6314,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       );
 
     if(is1T) return(
-      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden",...(oneTableStableShellStyle||{})}}>
+      <div style={{display:"flex",flexDirection:"column",height:"100%",background:"#030712",overflow:"hidden"}}>
 
         {/* ── BARRE TOP : streets + timeline (desktop) ── */}
         <div className="trainer-topstrip" style={{flexShrink:0,background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 14px",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",minHeight:34}}>
@@ -6299,7 +6417,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
          })()}>
          <div className="t1-table-area" ref={ringScaleRef} data-pf-spot={spotProbe} data-pf-ledger={ledgerProbe} data-pf-fullhand={fullHandProbe} style={{
            position:"relative",minHeight:0,overflow:"hidden",
-           "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport}),
+           "--pf-d-board-zoom":trainerBoardZoom(1,{feltH:feltHeightPx(ringGeom,1,trainingLayout.tableGeometry),tight:tightViewport,corridorPx}),
+           /* §23/§36 — plafond du badge de mise, en fraction de la table. La
+              géométrie borne ses dégagements avec la MÊME valeur : décrire un
+              badge plus large que celui qu'on peint, ou l'inverse, remet le tas
+              sur le board. */
+           "--pf-bet-max-w":`${betBadgeMaxWidthPx(1,feltWidthPx)}px`,
          }}>
 
           {/* Focus Mode button */}
@@ -6410,6 +6533,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             const seatState=seatStates[pos]||{};
             const seatFolded=!!seatState.folded;
             const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
+            /* §14 — main abattue de ce siège, s'il y en a une. Un joueur couché ne
+               montre jamais : la garde reste ici même si le moteur est déjà d'accord. */
+            const seatRevealedHand=(!isH&&!seatFolded&&fhRevealed)?(fhRevealed[pos]||null):null;
             const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV)||(!!activePlayerId&&activePlayerId===pos);
             const isDone=answered!==null;
             const col=isH?T.gold:isV?"#c090ff":T.text3;
@@ -6442,7 +6568,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             // Le Hero garde sa taille pleine : sa grappe est seule en bas-centre et
             // c'est la main qu'on doit lire.
             const webDense=isMobile||isH||nSeats<=6?1:nSeats===7?0.94:nSeats===8?0.88:0.82;
-            const avSz=isMobile?Math.round((isH?41:35)*denseScale):Math.round((isH?70:64)*webDense);
+            /* §7/§23 — taille du médaillon : une FRACTION du feutre, plus un nombre
+               de pixels corrigé par point de rupture. Voir trainerAvatarPaintedPx. */
+            const avSz=isMobile?Math.round((isH?41:35)*denseScale):trainerAvatarSizeVar({feltW:feltWidthPx,hero:isH,dense:webDense});
             const hasBet=isH&&isDone&&!["FOLD","CHECK","CHECK_BACK","WIN"].includes(lastAct?.id);
             const hasVilBet=isV&&vact&&!["FOLD","CHECK","WIN"].includes(lastAct?.id||vact.action);
             const eventAmount=roundBb(seatActionSource?.actionEvent?.displayAmount??seatActionSource?.displayAmount??seatActionSource?.committedAmount??seatActionSource?.amountBb??0);
@@ -6470,79 +6598,83 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             const chipLabel=trainerChipVerb((hasBet||hasVilBet)
               ?(seatActionSource?.actionLabel||trainerActionDisplayVerb(seatActionSource?.actionType,lastAct))
               :(preChipLabel||seatState.lastLabel||null));
-            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom,heroPos:spot?.hpos});
+            const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables:1,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
             const cpx=actionPt.x;
             const cpy=actionPt.y;
             const isTopSeat1T=coord.y<=24;
             const isBottomSeat1T=coord.y>=68;
-            const seatTransform1T=isMobile
-              ?(isTopSeat1T?"translate(-50%,-35%)":isBottomSeat1T?"translate(-50%,-58%)":"translate(-50%,-50%)")
-              :isTopSeat1T?"translate(-50%,-40%)":isBottomSeat1T?"translate(-50%,-49%)":"translate(-50%,-50%)";
+            /* ── §4/§5/§6 — LE CÔTÉ INTÉRIEUR D'UN SIÈGE SE CALCULE ──────────
+               Il était décidé par un seuil vertical (`coord.y<=40`), qui ne
+               connaît que « en haut » et « en bas ». Un joueur de FLANC recevait
+               donc ses cartes AU-DESSUS de sa tête alors que le centre est à son
+               côté — c'est le défaut signalé sur le BB. Mesuré, écart angulaire
+               entre l'axe siège→pot et l'axe avatar→cartes : moyenne 29.6°,
+               maximum 81.8°, SB à 60.6°.
+               `seatAxis` rend la direction du centre, quantifiée sur quatre axes
+               (cf. trainerSeatAnchors pour l'arbitrage diagonale). */
+            const axis1T=seatAxisClear({seat:coord,centre:feltCentrePct,area:seatAreaPx,forbidden:centreExclusion,cardsPx:seatCardsPx(isH),avatarPx:avSz,gapPx:isMobile?2:5});
             const heroCardSizeForSeat1T=isMobile?heroCardSize1T:isTopSeat1T?"1t-hero-top":isBottomSeat1T?"1t-hero-bottom":heroCardSize1T;
             const heroCardGapForSeat1T=isMobile?3:(isTopSeat1T?5:isBottomSeat1T?5:8);
-            // Écart cartes Hero -> avatar Hero : cible 6-8px. 6-max et 7-max calibrés à 7.
-            const heroCardMarginForSeat1T=isMobile?2:(isTopSeat1T?4:isBottomSeat1T?((seatOrder.length===7||seatOrder.length===6)?7:5):6);
+            /* Écart avatar ↔ cartes. Il n'est plus une marge du flux (les cartes
+               sont hors flux) mais l'écart de la zone intérieure, publié en
+               variable CSS : une seule valeur, quel que soit l'axe. */
+            const inwardGap1T=isMobile?2:(isH?((seatOrder.length===7||seatOrder.length===6)?7:5):5);
+            /* Le zoom des cartes du Hero doit partir du bord COLLÉ à l'avatar,
+               sinon réduire les cartes ouvre un trou entre elles et lui. */
+            const inwardOrigin1T=axis1T==="up"?"bottom center":axis1T==="down"?"top center":axis1T==="left"?"right center":"left center";
             return(
               <React.Fragment key={pos}>
 
-                {/* ── SEAT CARD ── */}
-                {/* Sièges HAUTS : grappe rendue en ordre inverse (plaque à l'extérieur,
-                    cartes vers le centre). C'est d'abord la disposition RÉELLE d'une
-                    table — les cartes d'un joueur sont devant lui, côté board. Et ça
-                    règle la cause dominante des chevauchements mesurée sur 30 tirages
-                    (5 occurrences « plaque ↔ tas de mise ») : pour un siège haut, le
-                    bord INTERNE du bloc était la plaque, large de 88px ; ce sont
-                    désormais les cartes, larges de 60px. Le tas posé sur l'anneau
-                    dispose donc de ~28px de dégagement latéral en plus. */}
-                <PlayerSeat pos={pos} mode="1T" className={coord.y<=40?"pf-seat-inverted":""} style={{left:`${coord.x}%`,top:`${coord.y}%`,transform:seatTransform1T,gap:0,zIndex:TABLE_Z.seat}}>
+                {/* ── LE SIÈGE EST UN POINT, ET CE POINT EST L'AVATAR (§3/§8) ──
+                    Trois zones, indépendantes entre elles et toutes liées au même
+                    point d'anneau :
+                      · EN FLUX      le slot avatar, et lui seul → la boîte du
+                                     siège se réduit au médaillon, si bien qu'un
+                                     translate(-50%,-50%) pose son CENTRE sur
+                                     l'anneau doré quels que soient le contenu,
+                                     la street et la structure de table ;
+                      · HORS FLUX    la zone INTÉRIEURE (les cartes), du côté du
+                                     centre de la table ;
+                      · HORS FLUX    la zone EXTÉRIEURE (identité, statut,
+                                     action), à l'opposé — donc jamais entre le
+                                     joueur et le board (§19).
+                    Avant, le point d'anneau positionnait le BLOC entier et un
+                    `translate(…,-40%)` réglé à la main tentait de rattraper le
+                    décalage. Il ne pouvait pas : la hauteur du bloc change avec
+                    la street. Mesuré, rayon normalisé du centre d'avatar sur
+                    l'ellipse (ρ=1 ⇒ sur l'anneau) : moyenne 0.88, minimum 0.64 —
+                    CO 0.68, BTN 0.69, BB 0.71, soit un tiers du rayon À
+                    L'INTÉRIEUR du tapis. C'est la mesure du défaut « SB et BB
+                    trop centrés ».
+                    La mosaïque avait déjà cette architecture ; le 1T la rejoint,
+                    et les deux passent d'un axe vertical à un axe RADIAL. */}
+                <PlayerSeat pos={pos} mode="1T" radial={axis1T}
+                  className={`pf-seat-avatar-anchored${axis1T==="down"?" pf-seat-inverted":""}`}
+                  style={{left:`${coord.x}%`,top:`${coord.y}%`,zIndex:TABLE_Z.seat,"--pf-seat-gap":`${inwardGap1T}px`}}>
 
-                  {/* Villain cards above seat — masquées une fois couché (état Fold = badge seul) */}
-                  {isV&&!seatFolded&&(
-                    <div style={{marginBottom:5,position:"relative"}}>
-                      <VillainBackCards size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3} folded={seatFolded}/>
-                      {(thinking||(playingFull&&fhVilThink))&&(
-                        <div style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
-                          <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
-                    <div style={{marginBottom:3}}>
-                      <VillainBackCards size={villainCardSize1T} gap={2} muted={!seatMultiway} folded={seatFolded}/>
-                    </div>
-                  )}
+                  {/* ── ZONE INTÉRIEURE : les cartes, entre le joueur et le board ── */}
+                  <div className="pf-seat-inward pf-seat-above">
+                    {isV&&!seatFolded&&(
+                      <div style={{position:"relative"}}>
+                        <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={3}/>
+                        {(thinking||(playingFull&&fhVilThink))&&(
+                          <div className="pf-seat-think" style={{position:"absolute",top:-14,left:"50%",transform:"translateX(-50%)"}}>
+                            <span className="think" style={{fontSize:10}}><span>·</span><span>·</span><span>·</span></span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!isH&&!isV&&denseScale>=1&&!seatFolded&&(
+                      <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} gap={2} muted={!seatMultiway}/>
+                    )}
+                    {isH&&(
+                      <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:inwardOrigin1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
+                    )}
+                  </div>
 
-                  {/* ── Cartes Hero ABOVE seat — hero en position basse (SB/BB, y>50) ──
-                       transform scale (§1) ancré en bas : réduit → le HAUT descend,
-                       l'avatar (posé plus bas dans le flux) ne bouge pas. */}
-                  {isH&&(
-                    <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{marginBottom:heroCardMarginForSeat1T,transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:"bottom center",filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
-                  )}
-
-                  {isV&&isActive&&(
-                    <div style={{
-                      marginBottom:3,padding:"2px 10px",borderRadius:20,
-                      background:"rgba(155,92,255,.16)",border:"1px solid rgba(155,92,255,.42)",
-                      fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
-                      color:"#c090ff",letterSpacing:".06em",
-                      boxShadow:"0 0 10px rgba(155,92,255,.28)",
-                    }}>Vilain reflechit...</div>
-                  )}
-
-                  {/* Player card */}
-                  <div className={`player-card-1t${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-dense={denseScale<1?"1":undefined} data-webdense={webDense<1?String(nSeats):undefined} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
+                  {/* ── EN FLUX : le slot avatar. C'est la boîte du siège. ── */}
+                  <div className={`player-card-1t pf-seat-avatar-slot${isH?" hero":isV?" villain":""}${isActive?(isH?" active-hero":" active-vil"):""}${seatFolded?" seat-folded":""}${seatMultiway?" seat-multiway":""}`} data-dense={denseScale<1?"1":undefined} data-webdense={webDense<1?String(nSeats):undefined} data-profile={isH?"hero":isV?trainerAvatarKey(spot.vtype):trainerAvatarKey(seatState.profile||trainerSeatAvatarProfile(pos))}>
                     <PlayerAvatarPremium isHero={isH} isVillain={isV} profile={isV?spot.vtype:isH?"Hero":seatState.profile||trainerSeatAvatarProfile(pos)} size={avSz} active={isActive||seatMultiway}/>
-                    {isH&&<span className="pf-seat-hero-chip">HERO</span>}
-                    <div className="pf-seat-nameplate">
-                      <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{pos}</span>
-                      <span className="seat-card-stack" style={{fontSize:isH?11:9.5,color:isH?T.gold:T.text3}}>{fmt(displayStack)}</span>
-                    </div>
-                    <div className="seat-card-stats">
-                      <span>VPIP {vp.vpip}</span>
-                      <span style={{color:"rgba(111,129,168,.4)"}}>·</span>
-                      <span>PFR {vp.pfr}</span>
-                    </div>
                     {/* Range button */}
                     {(isH||isV)&&(
                       <div className={`seat-range-btn${isV?" vil":""}`}
@@ -6551,30 +6683,58 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                         R
                       </div>
                     )}
+
+                    {/* ── ZONE EXTÉRIEURE : identité, statut, action. Elle vit DANS
+                        `.player-card-1t` pour que les règles de style qui la
+                        ciblent par descendance (plaque compacte des non-Hero,
+                        échelle « dense ») continuent de s'appliquer. Hors flux,
+                        elle ne compte donc pas dans la boîte du siège. */}
+                    <div className="pf-seat-outward pf-seat-below">
+                      {isH&&<span className="pf-seat-hero-chip">HERO</span>}
+                      <div className="pf-seat-nameplate">
+                        <span className="seat-card-pos" style={{fontSize:isH?13:11.5,color:col}}>{pos}</span>
+                        <span className="seat-card-stack" style={{fontSize:isH?11:9.5,color:isH?T.gold:T.text3}}>{fmt(displayStack)}</span>
+                      </div>
+                      <div className="seat-card-stats">
+                        <span>VPIP {vp.vpip}</span>
+                        <span style={{color:"rgba(111,129,168,.4)"}}>·</span>
+                        <span>PFR {vp.pfr}</span>
+                      </div>
+                      {isV&&isActive&&(
+                        <div className="pf-seat-thinking-badge" style={{
+                          padding:"2px 10px",borderRadius:20,
+                          background:"rgba(155,92,255,.16)",border:"1px solid rgba(155,92,255,.42)",
+                          fontFamily:"'Space Grotesk',sans-serif",fontSize:8,fontWeight:800,
+                          color:"#c090ff",letterSpacing:".06em",whiteSpace:"nowrap",
+                          boxShadow:"0 0 10px rgba(155,92,255,.28)",
+                        }}>Vilain reflechit...</div>
+                      )}
+                      {/* Le VILAIN aussi : son repli n était dit que par les cartes en « muck »,
+                          qui viennent de disparaître. Sans ce badge, il ne resterait que
+                          la dégradation du siège pour le signaler. */}
+                      {seatFolded&&!isH&&<span className="pf-fold-chip">Fold</span>}
+                      {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
+                      {/* Action badge */}
+                      {lastAct&&!playingFull&&!(betAmt>0)&&(
+                        <span className={`seat-action-badge ${actCls}`} style={{fontSize:9,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>
+                      )}
+                      {playingFull&&isV&&fhVilAct&&(
+                        <span className={`seat-action-badge ${trainerActionCssClass(fhVilAct.action)}`}>
+                          {fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action,fhVilAct)}
+                        </span>
+                      )}
+                      {/* Badge action Hero en main complète (street courante) — symétrie avec le vilain */}
+                      {playingFull&&isH&&(()=>{
+                        const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet);
+                        if(!ha)return null;
+                        return(
+                          <span className={`seat-action-badge ${trainerActionCssClass(ha.action)}`}>
+                            {trainerActionDisplayVerb(ha.action)}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
-                  {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip">Fold</span>}
-                  {seatMultiway&&<span className="pf-multiway-chip">In pot</span>}
-
-
-                  {/* Action badge */}
-                  {lastAct&&!playingFull&&!(betAmt>0)&&(
-                    <span className={`seat-action-badge ${actCls}`} style={{marginTop:4,fontSize:9,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis"}}>{lastAct.l}</span>
-                  )}
-                  {playingFull&&isV&&fhVilAct&&(
-                    <span className={`seat-action-badge ${trainerActionCssClass(fhVilAct.action)}`} style={{marginTop:4}}>
-                      {fhVilAct.label||trainerActionDisplayVerb(fhVilAct.action,fhVilAct)}
-                    </span>
-                  )}
-                  {/* Badge action Hero en main complète (street courante) — symétrie avec le vilain */}
-                  {playingFull&&isH&&(()=>{
-                    const ha=[...fhActs].reverse().find(a=>a.actor==="Hero"&&a.street===fhStreet);
-                    if(!ha)return null;
-                    return(
-                      <span className={`seat-action-badge ${trainerActionCssClass(ha.action)}`} style={{marginTop:4}}>
-                        {trainerActionDisplayVerb(ha.action)}
-                      </span>
-                    );
-                  })()}
                 </PlayerSeat>
 
                 {/* §3 — Jetons de mise Full Hand : la mise engagée sur la street
@@ -6624,16 +6784,16 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
           {/* DEALER BUTTON — entre le siège BTN et le centre de la table */}
           {showStaticBlindMarkers&&["SB","BB"].filter(bp=>!seatShowsChips(bp)).map(bp=>{
-            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom,heroPos:spot?.hpos});
+            const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos:bp,markerType:"BLIND",numTables:1,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
             return(
-              <div key={`blind-1t-${bp}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
+              <div key={`blind-1t-${bp}`} data-seat={bp} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
                 <BlindChipStack amount={postedBlinds[bp]} label={bp} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={1}/>
               </div>
             );
           })}
 
           {(()=>{
-            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos});
+            const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables:1,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
             return <div className="dealer-btn dealer-btn-v2" style={{left:`${d.x}%`,top:`${d.y}%`}}><img src={dealerSvgUrl} alt="D" draggable="false" style={{width:"100%",height:"100%",display:"block"}}/></div>;
           })()}
 
@@ -6735,7 +6895,17 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
       {/* Multi-table : la table ACTIVE projette le VRAI panneau 1T dans la colonne partagée */}
       {/* multi-table : panneau droit rendu par le parent (renderMultiPanel) */}
       {/* ── BARRE TOP compacte : streets + timeline + timer ── */}
-      <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"wrap",minHeight:28,flexShrink:0}}>
+      <div className="pf-tw-head" style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",background:"#0a0a14",borderBottom:"1px solid #181825",flexWrap:"nowrap",minHeight:28,flexShrink:0,overflow:"hidden"}}>
+        {/* ── LE TITRE DE TABLE VIT ICI (workspace §6) ──────────────────────
+            Il occupait sa PROPRE bande de 28 px juste au-dessus de celle-ci.
+            Deux bandes de chrome empilées, pour 28 px pris à la zone de table
+            de CHAQUE tuile — et en 3T/4T la zone est justement bornée par la
+            hauteur : ces 28 px valaient ~40 px de largeur de feutre en moins
+            sur chaque table.
+            Aucune information n'est perdue : le numéro de table, l'état
+            « terminée » et le point de table active sont tous là, à gauche des
+            streets. */}
+        {titleNode}
         {STREETS.map(s=>{
           const done=STREETS.indexOf(s)<STREETS.indexOf(spot.street);
           const cur=s===spot.street;
@@ -6787,7 +6957,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
            un board de 37px y repassait sur les cartes du Hero (mesure -18.6px).
            La variable est posee ICI parce que c'est le seul noeud qui connait la
            mesure ; elle est heritee, donc elle prime sur celle de la tuile. */
-        "--pf-d-board-zoom":trainerBoardZoom(numTables,{feltH:feltHeightPx(ringGeom,numTables,trainingLayout.tableGeometry),tight:tightViewport}),
+        "--pf-d-board-zoom":trainerBoardZoom(numTables,{feltH:feltHeightPx(ringGeom,numTables,trainingLayout.tableGeometry),tight:tightViewport,corridorPx}),
+        "--pf-bet-max-w":`${betBadgeMaxWidthPx(numTables,feltWidthPx)}px`,
         ...(isMobile?{paddingBottom:cfg.pb}:null),
       }}>
 
@@ -6890,7 +7061,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
         {/* DEALER BUTTON — taille cfg.dbtnSz (aligné sur le siège BTN multi-table) */}
         {(()=>{
-          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos});
+          const d=getSeatRelativeMarkerPosition({layout:trainingLayout,markerType:"DEALER",numTables,hasBoard:hasVisibleBoard,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
           /* Taille pilotée par la DENSITÉ (§3). `cfg.dbtnSz` était du code mort :
              `.dealer-btn{width:22px!important}` gagnait sur l'inline, si bien que
              le bouton D mesurait 22px sur les quatre modes — 13 % de la hauteur du
@@ -6905,12 +7076,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
 
         {showStaticBlindMarkers&&["SB","BB"].filter(pos=>!seatShowsChips(pos)).map(pos=>{
           const {x,y}=trainingLayout.seats[pos]||{x:50,y:50};
-          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom,heroPos:spot?.hpos});
+          const p=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BLIND",numTables,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
           const bp=y>=76?0.62:0.34; // marqueurs blinds au-dessus des cartes (sièges bas)
           const bx=x+(50-x)*bp;
           const by=y+(50-y)*bp;
           return(
-            <div key={`blind-mt-${pos}`} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
+            <div key={`blind-mt-${pos}`} data-seat={pos} className="pf-blind-anchor" style={{left:`${p.x}%`,top:`${p.y}%`}}>
               <BlindChipStack amount={postedBlinds[pos]} label={pos} compact={numTables>=3} themeKey={effChipTheme} colorKey={chipColor} sizeMode={chipSizeMode} tableMode={numTables}/>
             </div>
           );
@@ -6924,6 +7095,9 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const seatState=seatStates[pos]||{};
           const seatFolded=!!seatState.folded;
           const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
+          /* §14 — main abattue de ce siège, s'il y en a une. Un joueur couché ne
+             montre jamais : la garde reste ici même si le moteur est déjà d'accord. */
+          const seatRevealedHand=(!isH&&!seatFolded&&fhRevealed)?(fhRevealed[pos]||null):null;
           const isActive=(activePlayerId==="hero"&&isH)||(activePlayerId==="villain"&&isV)||(!!activePlayerId&&activePlayerId===pos);
           const sz=cfg.seat;
           const col=isH?T.gold:isV?"#c090ff":T.text3;
@@ -6999,7 +7173,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
             ?(heroLiveType==="3BET"||heroLiveType==="4BET"||heroLiveType==="5BET"?"RAISE":heroLiveType)
             :trainerVisualActionType(vilChipLabel||vact?.action||seatState.lastAction||"BET");
           // Jetons poussés vers le centre (au-dessus des cartes) — sièges bas plus loin (anti-chevauchement)
-          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos});
+          const actionPt=getSeatRelativeMarkerPosition({layout:trainingLayout,pos,markerType:"BET",hasBoard:hasVisibleBoard,numTables,ringGeom,heroPos:spot?.hpos,avatarPx:avatarPaintedPx,avatarHeroPx:avatarHeroPaintedPx});
           const cpx=actionPt.x, cpy=actionPt.y;
           const isTopSeatMt=y<=24;
           const isBottomSeatMt=y>=74;
@@ -7013,6 +7187,10 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
              flanc à l'autre au moindre changement de structure. */
           const isLeftSeatMt=x<42;
           const isRightSeatMt=x>58;
+          /* §4/§5 — l'AXE RADIAL remplace le couple haut/bas pour disposer les
+             zones du siège. Les quatre flags ci-dessus restent : ils servent
+             encore aux tailles de carte et aux règles héritées. */
+          const axisMt=seatAxisClear({seat:{x,y},centre:feltCentrePct,area:seatAreaPx,forbidden:centreExclusion,cardsPx:seatCardsPx(isH),avatarPx:Math.max(24,sz),gapPx:density.seatGap||2});
           /* ── ANCRAGE PAR LE CENTRE DE L'AVATAR (§1) ──
              Ce qu'on pose sur l'anneau est un BLOC (cartes ▸ avatar ▸ plaque), pas
              un avatar. L'ancrer par une fraction arbitraire de sa propre hauteur
@@ -7033,15 +7211,23 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} radial={axisMt} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
 
               {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
-              <div className="pf-seat-above">
+              <div className="pf-seat-inward pf-seat-above">
                 {isH&&(
                   <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3}/>
                 )}
-                {!isH&&(
-                  <VillainBackCards size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway} folded={seatFolded}/>
+                {/* §4 — UN SIÈGE COUCHÉ NE PORTE PLUS DE MAIN.
+                    La mosaïque peignait un « muck » : deux dos grisés, tournés,
+                    avec un tampon FOLD. Le 1T, lui, les retirait. Deux réponses
+                    au même état, et la mosaïque gardait à l écran des cartes
+                    qui ne sont plus dans le coup — mesuré, 179 relevés sur une
+                    session 4T, jusque dans les streets suivantes.
+                    L information n est pas perdue : le siège entier est dégradé
+                    (.pf-mt-seat-folded) et porte son badge « Fold ». */}
+                {!isH&&!seatFolded&&(
+                  <SeatOpponentCards revealed={seatRevealedHand} size={cfg.vilCard} animated={isV&&(thinking||fhVilThink)&&!seatFolded} gap={numTables>=3?1:2} compact={numTables>=3} muted={!isV&&!seatMultiway}/>
                 )}
               </div>
 
@@ -7068,7 +7254,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
               </div>
 
               {/* HORS FLUX — sous l'avatar : plaque, statut, badge d'action */}
-              <div className="pf-seat-below">
+              <div className="pf-seat-outward pf-seat-below">
               <div className="pf-mt-nameplate" style={{fontSize:cfg.fstk-1,color:isH?T.gold:isV?"#c090ff":T.text4}}>
                 {isH&&<span className="pf-seat-hero-chip" style={{fontSize:numTables>=3?5:6,padding:"1px 5px",margin:0}}>HERO</span>}
                 <span style={{fontFamily:"'Space Grotesk',sans-serif",fontWeight:900,lineHeight:1}}>{pos}</span>
@@ -7076,7 +7262,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,si
                     mosaïque affichait « 60bb » sur les quatre tables. */}
                 <span className="seat-card-stack" style={{fontFamily:"'JetBrains Mono',monospace",fontWeight:800,lineHeight:1,color:isH?T.gold:T.text3}}>{fmt(seatRemainingStack(pos))}</span>
               </div>
-              {seatFolded&&!isH&&!isV&&<span className="pf-fold-chip" style={{fontSize:numTables>=3?5.5:6.5,padding:numTables>=3?"1px 5px":"2px 6px",marginTop:1}}>Fold</span>}
+              {seatFolded&&!isH&&<span className="pf-fold-chip" style={{fontSize:numTables>=3?5.5:6.5,padding:numTables>=3?"1px 5px":"2px 6px",marginTop:1}}>Fold</span>}
               {seatMultiway&&<span className="pf-multiway-chip" style={{fontSize:numTables>=3?5.5:6.5,padding:numTables>=3?"1px 5px":"2px 6px",marginTop:1}}>In pot</span>}
               {/* Badge action */}
               {lastAct&&!playingFull&&!(seatActionAmount>0)&&(()=>{
@@ -7811,13 +7997,32 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     try{localStorage.setItem("pf_sidebar_collapsed",String(next));}catch{}
   }
   /* ── Panneau droit partagé (multi-table) : escamotable ──
-     Le multi-table vit entre deux colonnes fixes : filtres (228px) et panneau
-     droit (320px). Sous ~1450px de large, ce qui reste pour la mosaïque tombe
-     sous ~300px par table : le feutre n'a plus la place et les grappes de
-     sièges se percutent. On replie donc les DEUX à l'entrée en session multi
-     sur écran étroit — sans toucher à la préférence enregistrée, et sans
-     empêcher de les rouvrir à la main juste après. */
+     Le multi-table vivait entre DEUX colonnes fixes : filtres (228 px) et
+     panneau droit (320 px). Sous ~1450 px de large, ce qui restait à la
+     mosaïque tombait sous ~300 px par table, et on repliait les deux.
+
+     ── LE SEUIL A CHANGÉ PARCE QUE LA COLONNE DE GAUCHE N'EXISTE PLUS ───────
+     Pendant la session, les filtres ne prennent plus aucune largeur : la
+     mosaïque dispose de 228 px de plus à fenêtre égale. Le calcul qui donnait
+     1450 donne maintenant, à marge identique, 1450 − 228 ≈ 1220. Laisser 1450
+     replierait le panneau d'analyse sur des fenêtres qui ont largement de quoi
+     l'afficher — on retirerait à l'utilisateur une information qu'il peut voir.
+     ── RECALIBRAGE ESSAYÉ PUIS REJETÉ, ET VOICI LA MESURE ──────────────
+     On a baissé le seuil à 1220, en se disant que 228 px rendus à la mosaïque
+     rendaient le repli moins nécessaire. Le critère « ≥ 300 px par table »
+     était bien respecté — et le résultat pire. Mesuré à 1366x768 en 2T :
+         panneau replié   : feutre 541.9 x 318.8
+         panneau affiché  : feutre ~394 x 232      (−27 %)
+     Parce qu à cette taille le 2T est borné par la LARGEUR : lui reprendre
+     320 px se paie directement en feutre, quel que soit le seuil théorique.
+     Le seuil reste donc à 1450, qui est une valeur MESURÉE. */
   const[panelHidden,setPanelHidden]=useState(false);
+  /* ── §2/§3 — PENDANT LA SESSION, L'ESPACE APPARTIENT AUX TABLES ──────────
+     Le panneau de configuration sort du FLUX (il devient un drawer hors flux) :
+     il ne réserve donc plus aucune largeur. `drawerOpen` ne pilote que sa
+     visibilité — jamais la géométrie du workspace, qui est figée au lancement
+     de la session (addendum §3/§10). */
+  const[drawerOpen,setDrawerOpen]=useState(false);
   const narrowStage=useMaxWidth(1450);
   const[showSol,setShowSol]=useState(false);
   const[started,setStarted]=useState(false);
@@ -7940,7 +8145,11 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
      joueur. On ne bouge que lorsqu elle n attend plus rien. */
   useEffect(()=>{
     if(ntables<2)return;
-    const attend=t=>!tableAns[t]&&!tableSettled[t];
+    /* Une table « attend » quand elle a encore quelque chose à demander. En coup
+       complet, avoir répondu au premier choix ne clôt rien : le flop, le turn et
+       la river restent à jouer. Sans cette seconde condition, le focus ne
+       migrerait jamais vers une table qui réclame une décision de turn (§10/§11). */
+    const attend=t=>(!tableAns[t]&&!tableSettled[t])||(fhLive[t]?!fhLive[t].done:(fullSolo&&!!tableAns[t]));
     /* ── Lot 4 / Lot 4 bis — priorité au verdict qu'on vient de produire ──
        Mesuré le 2026-08-21 en 2T : après une réponse sur la table 1, le focus
        partait aussitôt sur la table 2 et le panneau droit — seul endroit où la
@@ -7962,26 +8171,41 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(attend(activeTable)||aUnVerdictALire(activeTable))return;
     const suivante=Array.from({length:ntables},(_,i)=>i).find(i=>i!==activeTable&&attend(i));
     if(suivante!=null)setActiveTable(suivante);
-  },[ntables,activeTable,tableAns,tableSettled,pausedTables]);
+  },[ntables,activeTable,tableAns,tableSettled,pausedTables,fhLive,fullSolo]);
   /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
      table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
      pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
      possible. À la sortie du multi (ou en fenêtre large), le panneau droit
      revient et la sidebar retrouve sa préférence enregistrée. */
+  /* ── CE REPLI AUTOMATIQUE N'A PLUS DE PANNEAU À REPLIER ───────────────────
+     Il mettait la sidebar à 58 px et masquait le panneau droit dès qu'on entrait
+     en mosaïque sur écran étroit. Depuis que le panneau de configuration sort
+     ENTIÈREMENT du flux pendant la session (0 px, pas 58), la moitié « sidebar »
+     de cette règle est sans objet : elle ne rendrait plus que les 58 px d'un
+     panneau déjà parti. Reste la moitié utile — replier le panneau d'ANALYSE
+     quand la fenêtre est trop étroite pour loger mosaïque + 320 px. */
   const autoFoldedRef=useRef(false);
   useEffect(()=>{
     if(isMobile)return;
     const shouldFold=narrowStage&&started&&!done&&ntables>1;
     if(shouldFold&&!autoFoldedRef.current){
       autoFoldedRef.current=true;
-      setCollapsed(true);      // volontairement NON persisté (pas de setItem)
       setPanelHidden(true);
     }else if(!shouldFold&&autoFoldedRef.current){
       autoFoldedRef.current=false;
       setPanelHidden(false);
-      try{setCollapsed(localStorage.getItem("pf_sidebar_collapsed")==="true");}catch{setCollapsed(false);}
     }
   },[narrowStage,started,done,ntables,isMobile]);
+  /* Le drawer se ferme à Échap, et il ne survit jamais à la fin d'une session :
+     hors session le panneau redevient une colonne, un drawer resté « ouvert »
+     n'aurait plus de sens. */
+  useEffect(()=>{
+    if(!drawerOpen)return;
+    const onKey=e=>{if(e.key==="Escape"){e.stopPropagation();setDrawerOpen(false);}};
+    window.addEventListener("keydown",onKey,true);
+    return()=>window.removeEventListener("keydown",onKey,true);
+  },[drawerOpen]);
+  useEffect(()=>{if(!(started&&!done)&&drawerOpen)setDrawerOpen(false);},[started,done,drawerOpen]);
   const upd=(k,v)=>setF(x=>({...x,[k]:v}));
   /* ── SOURCE UNIQUE DE VÉRITÉ (Mission Master §3) ──
      Assemble le TrainingConfig canonique à partir de `f` + des states frères.
@@ -8990,15 +9214,36 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           </div>
         </div>
       )}
-      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+      {/* `position:relative` : c'est le repère du drawer de session. On l'ancre
+          ici plutôt qu'en `fixed` sur la fenêtre pour ne pas écrire en dur la
+          largeur de la navigation PokerForge — le drawer commence donc là où
+          commence le Trainer, quoi qu'il arrive à la navigation. */}
+      <div style={{display:"flex",flex:1,overflow:"hidden",position:"relative"}}>
 
-      {/* ══ SIDEBAR COLLAPSIBLE (drawer plein écran sur mobile via mob-open) ══ */}
-      <div className={`trainer-sidebar${collapsed?" collapsed":""}${mobSidebar?" mob-open":""}`}>
+      {/* ══ PANNEAU DE CONFIGURATION ══
+          Hors session : colonne en flux, comme avant.
+          Pendant la session : DRAWER hors flux (cf. bloc CSS « WORKSPACE DE
+          SESSION »). Il ne réserve alors plus aucune largeur, et son ouverture
+          ne déplace aucune table. */}
+      {sessionActive&&drawerOpen&&(
+        <div className="pf-drawer-backdrop" onClick={()=>setDrawerOpen(false)} aria-hidden="true"/>
+      )}
+      <div className={`trainer-sidebar${collapsed?" collapsed":""}${mobSidebar?" mob-open":""}${sessionActive?" pf-session-drawer":""}${sessionActive&&drawerOpen?" open":""}`}
+        aria-hidden={sessionActive&&!drawerOpen?"true":undefined}>
 
-        {/* ── Bouton toggle ── */}
-        <div className="sb-toggle" onClick={toggleSidebar} title={collapsed?"Ouvrir les filtres":"Masquer les filtres"}>
-          {collapsed?"▶":"◀"}
-        </div>
+        {/* ── Bouton toggle — HORS SESSION uniquement ──
+            Pendant la session, le repli « 58 px » de ce bouton n'a plus d'objet :
+            le panneau ne participe plus au layout, et c'est « ⚙ Session » dans la
+            barre qui le rappelle. Laisser les deux mécanismes cohabiter rouvrirait
+            une colonne pendant le jeu. */}
+        {!sessionActive&&(
+          <div className="sb-toggle" onClick={toggleSidebar} title={collapsed?"Ouvrir les filtres":"Masquer les filtres"}>
+            {collapsed?"▶":"◀"}
+          </div>
+        )}
+        {sessionActive&&(
+          <button className="pf-drawer-close" onClick={()=>setDrawerOpen(false)} title="Fermer les paramètres" aria-label="Fermer les paramètres">✕</button>
+        )}
 
         {/* ── Mode EXPANDED : contenu complet ── */}
         <div className="sb-full">
@@ -9477,6 +9722,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
 
         {started&&!done&&(
           <div className="trainer-topstrip" style={{background:"linear-gradient(90deg,#030D2A,#040B1F)",borderBottom:"1px solid #152D6E",padding:"5px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            {/* ── RAPPEL DES PARAMÈTRES (§4 / addendum §9) ────────────────────
+                Un contrôle compact, pas une colonne. Il ouvre le panneau de
+                configuration EN SURIMPRESSION : les tables ne bougent pas d'un
+                pixel, ce qui est la règle absolue de l'addendum §10. */}
+            <button className="pf-ws-settings-btn" onClick={()=>setDrawerOpen(v=>!v)}
+              aria-expanded={drawerOpen} title="Voir les paramètres de la session (les tables ne bougent pas)">
+              <span aria-hidden="true">⚙</span> Session
+            </button>
             {/* Mode badge */}
             <div style={{
               display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,
@@ -9642,8 +9895,39 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     </div>
                   );
                 }
-                const isAns=!!tableAns[t];
-                const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
+                /* ── « RÉPONDUE » N'EST PAS « TERMINÉE » (§10) ─────────────────
+                   `tableAns[t]` dit qu'une décision a été NOTÉE. En coup complet
+                   c'est la première d'une série : le joueur a encore le flop, le
+                   turn et la river à jouer sur cette même table. La tuile passait
+                   pourtant aussitôt en « terminée » — désaturée, opacité 0.72,
+                   pastille ✓ — pendant qu'elle réclamait encore trois décisions.
+                   Mesuré en jouant : classes « table-slot-answered » ET
+                   « mt-slot-focus » ensemble au flop puis à la river, boutons
+                   d'action actifs. C'est le défaut « la table s'éteint après la
+                   première street ».
+                   Une table n'est terminée que lorsqu'elle n'a plus rien à
+                   demander : le coup complet doit être fini, ou ne pas exister. */
+                const fhT=fhLive[t];
+                /* Avant que le moteur de coup complet ne s'annonce (le vilain
+                   réfléchit encore), `fhLive[t]` est vide : s'y fier seul faisait
+                   clignoter la tuile en « terminée » entre la réponse préflop et
+                   le démarrage du coup. Mesuré : 3 relevés en 4T, au préflop,
+                   boutons actifs et pastille ✓ déjà posée.
+                   Tant que le moteur ne parle pas, c'est le TYPE DE SESSION qui
+                   dit si un coup complet est encore attendu. */
+                const isAns=!!tableAns[t]&&(fhT?!!fhT.done:!fullSolo);
+                /* ── UN SEUL MARQUEUR DE TABLE ACTIVE (§11) ────────────────────
+                   « table-slot-active » était posée sur TOUTES les tuiles non
+                   terminées — son nom mentait — et leur donnait à chacune un
+                   contour bleu de 2 px. Mesuré en 4T : les quatre tuiles avec le
+                   même outline rgba(31,139,255,.45), pendant que la table
+                   réellement focalisée ne se distinguait plus que par la teinte
+                   de sa bordure. Deux mécanismes de focus superposés, dont un
+                   qui désigne tout le monde.
+                   Reste « mt-slot-focus », qui n en désigne qu une. Les autres
+                   tuiles gardent leur retrait minuscule (saturate .9) : elles
+                   restent parfaitement lisibles, ce que le §11 exige. */
+                const slotCls=ntables>1&&isAns?"table-slot-answered":"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
                 const isActiveT=ntables>1&&activeTable===t;
                 const enPause=pausedTables[t]||null;
@@ -9655,17 +9939,9 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     onTouchStart={isMobile&&ntables>1?slotTouchStart:undefined}
                     onTouchMove={isMobile&&ntables>1?slotTouchMove:undefined}
                     onTouchEnd={isMobile&&ntables>1?()=>slotTouchEnd(t):undefined}>
-                    {/* Titre TABLE n + état (multi-table) */}
-                    {ntables>1&&(
-                      <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
-                        <span>TABLE {t+1}</span>
-                        {/* §32 — le statut se LIT, il ne se devine pas à la couleur
-                            d'une bordure. Un coche seul laissait « répondue » et
-                            « en attente » à distinguer au vert du cadre. */}
-                        {isAns&&<i title="Cette table est terminée">✓ TERMINÉE</i>}
-                        {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
-                      </div>
-                    )}
+                    {/* Le titre TABLE n est passé à la table (prop `titleNode`) :
+                        il se peint DANS la barre des streets, plus dans une bande
+                        à lui. Cf. le commentaire de `.pf-tw-head`. */}
                     {/* ══ Lot 4 bis — BANDEAU DE PAUSE ══
                        Rendu ici, dans le conteneur de table, parce que c'est le seul
                        point de montage traversé par les TROIS rendus (1T, mosaïque,
@@ -9709,7 +9985,16 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                     {isMobile&&ntables>1&&!expanded&&(
                       <button className="mt-expand-btn" onClick={()=>{vibrate(VIB.tap);setExpandedT(t);}} title="Agrandir cette table">⛶</button>
                     )}
-                    <SingleTable spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} sidebarCollapsed={collapsed} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined} paused={pausedTables[t]||null} onResume={()=>resumeTable(t)} onPauseRequest={info=>requestPause(t,spot,info)}/>
+                    <SingleTable titleNode={ntables>1?(
+                      <div className={`mt-table-title${isActiveT?" active":""}${isAns?" answered":""}`}>
+                        <span>TABLE {t+1}</span>
+                        {/* §32 — le statut se LIT, il ne se devine pas à la couleur
+                            d une bordure. Un coche seul laissait « répondue » et
+                            « en attente » à distinguer au vert du cadre. */}
+                        {isAns&&<i title="Cette table est terminée">✓</i>}
+                        {isActiveT&&!isAns&&<em title="Table active — reçoit les raccourcis F1–F4">●</em>}
+                      </div>
+                    ):null} spot={spot} unit={unit} numTables={expanded?2:ntables} hasPrimaryNext={!isMobile} showSol={showSol} trainerMode={trainerMode} trainMode={trainMode} platform={platform} onAnswer={(ok,ua)=>handleAns(t,ok,ua)} onTableSettled={()=>handleTableSettled(t)} onNext={()=>handleNextTable(t)} isLast={smode!==999&&results.length>=smode-1} nextBusy={isNextLoading(t)} nextError={nextError} onGoSolver={onGoSolverFn} onFocusToggle={ntables===1&&!sessionActive?toggleSidebar:undefined} focusMode={collapsed} chipTheme={chipTheme} chipColor={chipColor} chipSizeMode={chipSizeMode} onToggleSol={()=>setShowSol(s=>!s)} timerSec={f.timer} field={f.field} coachLevel={f.coachLevel} heroStyle={f.heroStyle||"GTO"} spotIndex={idx} spotTotal={smode===999?queue.length:smode} isActive={ntables===1||activeTable===t} panelTarget={panelEl} heroLayout={f.heroLayout||"hero"} onFhState={st=>setFhLiveFor(t,st)} onTableLive={st=>setTableLiveFor(t,st)} onCfrUpgrade={activeTable===t?()=>setCfrPanelTick(x=>x+1):undefined} paused={pausedTables[t]||null} onResume={()=>resumeTable(t)} onPauseRequest={info=>requestPause(t,spot,info)}/>
                     {/* Pied de table agrandie : réduire / batch suivant */}
                     {expanded&&(()=>{
                       const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
@@ -9766,10 +10051,12 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
           <div style={{flexShrink:0,height:33,boxSizing:"border-box",padding:"5px 14px",
             background:"linear-gradient(90deg,#030D2A,#040B1F)",borderTop:"1px solid #152D6E",
             display:"flex",alignItems:"center",gap:6,flexWrap:"nowrap",
-            overflowX:"auto",overflowY:"hidden",
-            visibility:results.length>0?"visible":"hidden"}}>
-            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,marginRight:2,flexShrink:0}}>Historique :</span>
-            <div style={{display:"flex",gap:3,alignItems:"center"}}>
+            overflowX:"auto",overflowY:"hidden"}}>
+            {/* La bande reste VISIBLE (elle héberge désormais le raccourci de
+                lot) ; c'est le contenu d'historique qui s'efface tant qu'il n'y
+                a rien à montrer. La hauteur, elle, n'a jamais bougé. */}
+            <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text4,marginRight:2,flexShrink:0,visibility:results.length>0?"visible":"hidden"}}>Historique :</span>
+            <div style={{display:"flex",gap:3,alignItems:"center",visibility:results.length>0?"visible":"hidden"}}>
               {results.slice(-8).map((r,i)=>{
                 const approxFreq=r.spot?.freq?.[r.spot?.acts?.[r.ua]?.id]||0;
                 const isApprox=!r.correct&&approxFreq>=20;
@@ -9787,8 +10074,31 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                 );
               })}
             </div>
-            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text3}}>
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+              {/* ── RACCOURCI DE LOT — RAPATRIÉ ICI (workspace §6) ────────────
+                  Il occupait sa PROPRE bande de 34 px, juste sous celle-ci. Deux
+                  bandes à hauteur fixe l'une sur l'autre, vides la plupart du
+                  temps, pour 67 px pris à la rangée de jeu — soit 33 px par
+                  rangée en 3T/4T, et autant de feutre en moins sur CHAQUE table.
+                  Il vit maintenant dans la bande d'historique, à droite. Sa
+                  garantie d'origine tient : la bande est montée en permanence et
+                  à hauteur fixe, son apparition ne décale donc rien (§17). */}
+              {ntables>1&&allSettled&&(()=>{
+                const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
+                const busy=!!nextLoading.all;
+                return(
+                  <button className="btn btns" data-state={busy?"LOADING":"READY"}
+                    disabled={busy} onClick={()=>nextHand({all:true})}
+                    title={`Charge une nouvelle main sur les ${ntables} tables d'un coup`}
+                    style={{fontSize:9.5,padding:"3px 10px",opacity:busy?.6:.9,flexShrink:0}}>
+                    {busy?"Chargement..."
+                      :nextError?"Reessayer"
+                      :isLastBatch?"⏭ Voir les resultats"
+                      :`⏭ Avancer les ${ntables} tables`}
+                  </button>
+                );
+              })()}
+              <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:8.5,color:T.text3,flexShrink:0}}>
                 <span style={{color:T.green}}>{sc}✓</span>
                 <span style={{color:T.text4,margin:"0 3px"}}>·</span>
                 <span style={{color:T.red}}>{st-sc-approx}✗</span>
@@ -9831,38 +10141,14 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
             </div>
           );
         })()}
-        {/* ══ RACCOURCI DE LOT — action SECONDAIRE, jamais une seconde CTA ══
-            L'ancien « Tables suivantes » était un bouton primaire actif EN MÊME
-            TEMPS que « Table N suivante » : deux CTA d'avance à l'écran, mesuré
-            en 2T/3T/4T. C'était le doublon signalé.
-
-            Il revient sous une forme qui ne peut pas se confondre avec la CTA
-            principale : libellé explicite sur le NOMBRE de tables (jamais le mot
-            « suivante »), style secondaire, taille réduite. Et il n'apparaît que
-            si TOUTES les tables sont réglées — il ne peut donc jamais emporter
-            une table qui attend encore une décision (§6).
-
-            La zone est réservée en permanence (hauteur fixe) : son apparition ne
-            décale pas la grille de tables. */}
-        {started&&!done&&ntables>1&&(
-          <div style={{height:34,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            {allSettled&&(()=>{
-              const isLastBatch=idx+ntables>=Math.min(smode===999?queue.length:smode,queue.length);
-              const busy=!!nextLoading.all;
-              return(
-                <button className="btn btns" data-state={busy?"LOADING":"READY"}
-                  disabled={busy} onClick={()=>nextHand({all:true})}
-                  title={`Charge une nouvelle main sur les ${ntables} tables d'un coup`}
-                  style={{fontSize:10,padding:"5px 12px",opacity:busy?.6:.9}}>
-                  {busy?"Chargement..."
-                    :nextError?"Reessayer"
-                    :isLastBatch?"⏭ Voir les resultats"
-                    :`⏭ Avancer les ${ntables} tables`}
-                </button>
-              );
-            })()}
-          </div>
-        )}
+        {/* ══ RACCOURCI DE LOT — DÉMÉNAGÉ DANS LA BANDE D'HISTORIQUE ══
+            Il avait ici sa propre bande de 34 px, à hauteur fixe pour ne pas
+            décaler la grille. La garantie était bonne, le prix ne l'était pas :
+            deux bandes réservées empilées coûtaient 67 px à la rangée de jeu,
+            soit 33 px par rangée en 3T/4T — et autant de feutre en moins sur
+            chaque table. Le bouton vit maintenant à droite de l'historique, qui
+            était déjà monté en permanence et à hauteur fixe : même garantie
+            contre le décalage, une bande au lieu de deux. */}
       </div>
       </div>{/* end flex:1 row wrapper */}
 
