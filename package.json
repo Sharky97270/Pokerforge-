@@ -58,7 +58,8 @@
     "bench:solve": "node scripts/solver-solve-bench.mjs --out=design-qa-evidence/solve-bench.json",
     "audit:geo": "node scripts/trainer-geometry-audit.mjs",
     "audit:workspace": "node scripts/trainer-workspace-audit.mjs",
-    "audit:workspace:cycle": "node scripts/trainer-workspace-cycle.mjs"
+    "audit:workspace:cycle": "node scripts/trainer-workspace-cycle.mjs",
+    "audit:goldmaster": "node scripts/trainer-gold-master-audit.mjs"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"

@@ -240,6 +240,7 @@ try {
   const defauts = [];
   const ajoute = (code, mode, detail) => defauts.push({ code, mode, ...detail });
   const scenarios = [];
+  const drawerVerifie = [];
   const rapportModes = {};
 
   for (const m of MODES) {
@@ -267,10 +268,31 @@ try {
     await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;}' });
 
     const suite = [];
+    const prises = new Set();
     let precedent = null;
     for (let pas = 0; pas < MAINS * 4; pas++) {
       const snap = await page.evaluate(PROBE);
       suite.push(snap);
+
+      /* ── §37 — CAPTURES DE RÉFÉRENCE ─────────────────────────────────────
+         Trois moments qui racontent un coup, pris au premier passage : le
+         préflop, une street avec une mise peinte, et le bilan de fin. Ce sont
+         eux qui serviront de point de comparaison aux prochaines modifications. */
+      if (SHOT_DIR) {
+        const t0 = snap.tables[0];
+        /* On regarde TOUTES les tuiles : en mosaïque, la table 0 peut rester
+           au préflop pendant qu'une autre est déjà à la river. */
+        const moment = !t0 ? null
+          : (!prises.has('A') && snap.tables.some(t => t.street === 'preflop')) ? 'A-preflop'
+          : (!prises.has('B') && snap.tables.some(t => t.street !== 'preflop' && t.mises.length > 0)) ? 'B-mise-postflop'
+          : (!prises.has('C') && snap.tables.some(t => t.aCtaSuivante)) ? 'C-bilan' : null;
+        if (moment) {
+          prises.add(moment[0]);
+          const chemin = path.resolve(SHOT_DIR, W + 'x' + H + '-' + m + 'T-' + moment + '.png');
+          fs.mkdirSync(path.dirname(chemin), { recursive: true });
+          await page.screenshot({ path: chemin });
+        }
+      }
 
       snap.tables.forEach((t, ti) => {
         /* §4 — un siège couché ne porte plus de main. */
@@ -337,6 +359,25 @@ try {
         if (cible) { cible.click(); return (cible.textContent || '').trim().slice(0, 20); }
         return null;
       });
+      /* ── §35 — LE DRAWER NE DÉPLACE RIEN, À N'IMPORTE QUELLE STREET ────
+         La stabilité a déjà été prouvée au lancement de la session. Elle doit
+         valoir AUSSI en pleine main : on ouvre et on referme le panneau ici,
+         au milieu du coup, et on compare les boîtes de tuile au pixel. */
+      if (pas % 5 === 4) {
+        const boites = () => page.evaluate(() => [...document.querySelectorAll('.mt-slot')].map(e => { const b = e.getBoundingClientRect(); return { x: +b.x.toFixed(1), y: +b.y.toFixed(1), w: +b.width.toFixed(1), h: +b.height.toFixed(1) }; }));
+        const avant = await boites();
+        await page.evaluate(() => { const b = document.querySelector('.pf-ws-settings-btn'); if (b) b.click(); });
+        await sleep(420);
+        const ouvert = await boites();
+        await page.evaluate(() => { const b = document.querySelector('.trainer-sidebar .pf-drawer-close'); if (b) b.click(); });
+        await sleep(420);
+        const refeme = await boites();
+        const ecart = (A, B) => A.length === B.length ? A.reduce((d, a2, i2) => Math.max(d, Math.abs(a2.x - B[i2].x), Math.abs(a2.y - B[i2].y), Math.abs(a2.w - B[i2].w), Math.abs(a2.h - B[i2].h)), 0) : -1;
+        const dOuv = ecart(avant, ouvert), dFer = ecart(avant, refeme);
+        const streetCourante = snap.tables.map(t => t.street).join('/');
+        if (dOuv !== 0 || dFer !== 0) ajoute('drawer-deplace-les-tables', m + 'T', { street: streetCourante, ouverture: dOuv, fermeture: dFer });
+        else drawerVerifie.push(m + 'T@' + streetCourante);
+      }
       if (!avance) break;
       await sleep(950);
     }
@@ -390,6 +431,7 @@ try {
     totalDefauts: defauts.length,
     modes: rapportModes,
     scenariosJoues: scenarios.length,
+    drawerVerifieAuxStreets: drawerVerifie,
     erreursPage: pageErrors,
   };
   if (OUT) { fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true }); fs.writeFileSync(path.resolve(OUT), JSON.stringify({ rapport, scenarios }, null, 1)); }

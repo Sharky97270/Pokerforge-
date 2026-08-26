@@ -384,8 +384,19 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    anciens zoom:1 laissés ici l'exemptaient en fait du barème commun
    (spécificité plus forte) et la table basse restait surchargée. */
 .grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:8px;padding:8px;align-items:stretch;justify-items:stretch;height:100%;min-height:0;}
-@media(max-width:1280px){
-  /* Étroit (§5) : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
+/* ── SEUIL RECALIBRÉ PAR LA MESURE (1280 → 960) ───────────────────────────
+   Cette règle empile les trois tables en une colonne. Elle datait du temps où
+   la mosaïque vivait entre deux colonnes fixes : à 1280 px de fenêtre, il ne
+   lui restait que 546 px, soit 273 px par cellule sur deux colonnes — trop
+   étroit, l empilement était le bon choix.
+   Depuis que le panneau de configuration sort du flux en session, la mosaïque
+   dispose de 1094 px à cette même fenêtre. L empilement est devenu le mauvais
+   choix, et très largement. Mesuré à 1280x900 en 3T :
+       empilé (seuil 1280)   feutre 106.2 x 62.5
+       grille (seuil 960)    feutre 282.9 x 166.4      soit 2.7 fois plus grand
+   Le seuil descend donc là où l empilement redevient utile. */
+@media(max-width:960px){
+  /* Étroit : on empile les 3 tables en colonne, gap 24px, pleine largeur. */
   .grid3{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:24px;}
   .grid3>.mt-slot:nth-child(1){grid-column:1;grid-row:1;}
   .grid3>.mt-slot:nth-child(2){grid-column:1;grid-row:2;}
@@ -3197,14 +3208,13 @@ body::before{
 }
 .focus-mode-btn:hover{background:rgba(31,139,255,.18);color:#1F8BFF;border-color:rgba(31,139,255,.55);}
 .focus-mode-btn.on{background:rgba(31,139,255,.2);color:#60AAFF;border-color:rgba(31,139,255,.5);}
-/* Multi-table active table highlight */
-.table-slot-active{
-  border-radius:10px;
-  outline:2px solid rgba(31,139,255,.45);
-  outline-offset:2px;
-  box-shadow:0 0 20px rgba(31,139,255,.12);
-  position:relative;z-index:1;
-}
+/* « .table-slot-active » a été RETIRÉE. Elle habillait toutes les tuiles non
+   terminées d'un contour bleu de 2 px — son nom mentait — en concurrence avec
+   le vrai marqueur de table active (.mt-slot-focus). Mesuré en 4T : les quatre
+   tuiles portaient le même outline rgba(31,139,255,.45), et la table réellement
+   focalisée ne se distinguait plus que par la teinte de sa bordure. Deux
+   mécanismes de focus superposés, dont un qui désignait tout le monde.
+   Plus aucun élément ne porte cette classe. */
 .table-slot-answered{opacity:.72;position:relative;}
 .table-slot-answered::after{
   content:"✓";position:absolute;top:6px;right:6px;z-index:10;

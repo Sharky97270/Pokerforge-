@@ -8149,7 +8149,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
        complet, avoir répondu au premier choix ne clôt rien : le flop, le turn et
        la river restent à jouer. Sans cette seconde condition, le focus ne
        migrerait jamais vers une table qui réclame une décision de turn (§10/§11). */
-    const attend=t=>(!tableAns[t]&&!tableSettled[t])||!!(fhLive[t]&&fhLive[t].active&&!fhLive[t].done);
+    const attend=t=>(!tableAns[t]&&!tableSettled[t])||(fhLive[t]?!fhLive[t].done:(fullSolo&&!!tableAns[t]));
     /* ── Lot 4 / Lot 4 bis — priorité au verdict qu'on vient de produire ──
        Mesuré le 2026-08-21 en 2T : après une réponse sur la table 1, le focus
        partait aussitôt sur la table 2 et le panneau droit — seul endroit où la
@@ -8171,7 +8171,7 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
     if(attend(activeTable)||aUnVerdictALire(activeTable))return;
     const suivante=Array.from({length:ntables},(_,i)=>i).find(i=>i!==activeTable&&attend(i));
     if(suivante!=null)setActiveTable(suivante);
-  },[ntables,activeTable,tableAns,tableSettled,pausedTables,fhLive]);
+  },[ntables,activeTable,tableAns,tableSettled,pausedTables,fhLive,fullSolo]);
   /* Écran étroit + mosaïque : on rend la largeur des deux colonnes fixes à la
      table. Le repli ne se déclenche qu'au FRANCHISSEMENT de la condition (ref),
      pas à chaque rendu : rouvrir un panneau à la main pendant la session reste
@@ -9908,8 +9908,26 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                    Une table n'est terminée que lorsqu'elle n'a plus rien à
                    demander : le coup complet doit être fini, ou ne pas exister. */
                 const fhT=fhLive[t];
-                const isAns=!!tableAns[t]&&!(fhT&&fhT.active&&!fhT.done);
-                const slotCls=ntables>1?(isAns?"table-slot-answered":"table-slot-active"):"";
+                /* Avant que le moteur de coup complet ne s'annonce (le vilain
+                   réfléchit encore), `fhLive[t]` est vide : s'y fier seul faisait
+                   clignoter la tuile en « terminée » entre la réponse préflop et
+                   le démarrage du coup. Mesuré : 3 relevés en 4T, au préflop,
+                   boutons actifs et pastille ✓ déjà posée.
+                   Tant que le moteur ne parle pas, c'est le TYPE DE SESSION qui
+                   dit si un coup complet est encore attendu. */
+                const isAns=!!tableAns[t]&&(fhT?!!fhT.done:!fullSolo);
+                /* ── UN SEUL MARQUEUR DE TABLE ACTIVE (§11) ────────────────────
+                   « table-slot-active » était posée sur TOUTES les tuiles non
+                   terminées — son nom mentait — et leur donnait à chacune un
+                   contour bleu de 2 px. Mesuré en 4T : les quatre tuiles avec le
+                   même outline rgba(31,139,255,.45), pendant que la table
+                   réellement focalisée ne se distinguait plus que par la teinte
+                   de sa bordure. Deux mécanismes de focus superposés, dont un
+                   qui désigne tout le monde.
+                   Reste « mt-slot-focus », qui n en désigne qu une. Les autres
+                   tuiles gardent leur retrait minuscule (saturate .9) : elles
+                   restent parfaitement lisibles, ce que le §11 exige. */
+                const slotCls=ntables>1&&isAns?"table-slot-answered":"";
                 const expanded=isMobile&&ntables>1&&expandedT===t;
                 const isActiveT=ntables>1&&activeTable===t;
                 const enPause=pausedTables[t]||null;
