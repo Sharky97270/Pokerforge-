@@ -3747,6 +3747,17 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
   const seatStates=useMemo(()=>trainerSeatStates(spot,spotCtx,handLog,vact,answered,{
     ledgerSeats:handLedger.seats,activePlayerId,playingFull,
   }),[spot,spotCtx,handLog,vact,answered,handLedger,activePlayerId,playingFull]);
+  /* ── HERO S'EST-IL COUCHÉ ? UNE SEULE VÉRITÉ, DEUX MOTEURS ───────────────
+     Le spot (ligne préflop + réponse d'Hero) vit dans `seatStates`. Le coup
+     complet, lui, vit dans `fullHandEngine` — qui ne passe PAS par `handLog`.
+     Lire l'un sans l'autre, c'est perdre le fold d'Hero dès qu'on joue la main
+     jusqu'à la river : ses cartes se rallumeraient au flop. Le fold est un état
+     de la MAIN, pas de la street — il tient donc jusqu'à la main suivante, qui
+     remonte un spot neuf et remet naturellement l'état à zéro.
+     Calculé au rendu (non mémoïsé) : le moteur vit dans une ref, et chaque
+     `fhSync` provoque déjà un rendu — comme `fullHandProbe` plus bas. */
+  const heroFolded=!!(seatStates[spot?.hpos]||{}).folded
+    ||(playingFull&&!!fhStateRef.current?.players?.hero?.folded);
   /* Le tapis RESTANT d'un siège — source unique de la plaque et du panneau.
      Un siège inconnu du ledger retombe sur la profondeur du spot, jamais sur
      une constante d'affichage. */
@@ -6541,7 +6552,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
             if(!coord)return null;
             const isH=pos===spot.hpos, isV=pos===spot.vpos;
             const seatState=seatStates[pos]||{};
-            const seatFolded=!!seatState.folded;
+            const seatFolded=isH?heroFolded:!!seatState.folded;
             const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
             /* §14 — main abattue de ce siège, s'il y en a une. Un joueur couché ne
                montre jamais : la garde reste ici même si le moteur est déjà d'accord. */
@@ -6678,7 +6689,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                       <SeatOpponentCards revealed={seatRevealedHand} size={villainCardSize1T} gap={2} muted={!seatMultiway}/>
                     )}
                     {isH&&(
-                      <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} gap={heroCardGapForSeat1T} style={{transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:inwardOrigin1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
+                      <HeroHoleCards cards={spot.hand} size={heroCardSizeForSeat1T} folded={seatFolded} gap={heroCardGapForSeat1T} style={{transform:heroCardScale<1?`scale(${heroCardScale})`:undefined,transformOrigin:inwardOrigin1T,filter:"drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))"}}/>
                     )}
                   </div>
 
@@ -7103,7 +7114,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
           const {x,y}=coord;
           const isH=pos===spot.hpos, isV=pos===spot.vpos;
           const seatState=seatStates[pos]||{};
-          const seatFolded=!!seatState.folded;
+          const seatFolded=isH?heroFolded:!!seatState.folded;
           const seatMultiway=!!seatState.multiway&&!isH&&!isV&&!seatFolded;
           /* §14 — main abattue de ce siège, s'il y en a une. Un joueur couché ne
              montre jamais : la garde reste ici même si le moteur est déjà d'accord. */
@@ -7221,12 +7232,12 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
           const mtHeroGap=isTopSeatMt?Math.max(1,(numTables>=3?1:2)):(numTables>=3?2:4);
           return(
             <React.Fragment key={pos}>
-            <PlayerSeat pos={pos} mode={`${numTables}T`} radial={axisMt} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
+            <PlayerSeat pos={pos} mode={`${numTables}T`} radial={axisMt} className={`pf-mt-seat pf-seat-avatar-anchored${seatFolded&&!isH?" pf-mt-seat-folded":""}${seatMultiway?" pf-mt-seat-multiway":""}${isTopSeatMt?" pf-mt-seat-top":""}${isBottomSeatMt?" pf-mt-seat-bottom":""}${isLeftSeatMt?" pf-mt-seat-left":""}${isRightSeatMt?" pf-mt-seat-right":""}`} style={{left:`${x}%`,top:`${y}%`,zIndex:TABLE_Z.seat}}>
 
               {/* HORS FLUX — au-dessus de l'avatar : cartes du siège */}
               <div className="pf-seat-inward pf-seat-above">
                 {isH&&(
-                  <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} gap={mtHeroGap} compact={numTables>=3}/>
+                  <HeroHoleCards cards={spot.hand} size={mtHeroCardSize} folded={seatFolded} gap={mtHeroGap} compact={numTables>=3}/>
                 )}
                 {/* §4 — UN SIÈGE COUCHÉ NE PORTE PLUS DE MAIN.
                     La mosaïque peignait un « muck » : deux dos grisés, tournés,
@@ -7244,7 +7255,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
               {/* EN FLUX — le slot avatar, et lui seul : c'est la boîte du siège,
                   donc c'est son centre qui se pose sur l'anneau doré. */}
               <div
-                className={`pf-seat-avatar-slot${isH?(isActive?" seat-active-hero seat-hero-halo":" seat-hero-halo"):""}`}
+                className={`pf-seat-avatar-slot${isH?(isActive?" seat-active-hero seat-hero-halo":" seat-hero-halo"):""}${seatFolded&&isH?" seat-folded":""}`}
                 style={{
                   width:isH?sz+12:sz+10,height:sz+2,borderRadius:"50%",
                   background:"transparent",
@@ -7264,7 +7275,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
               </div>
 
               {/* HORS FLUX — sous l'avatar : plaque, statut, badge d'action */}
-              <div className="pf-seat-outward pf-seat-below">
+              <div className={`pf-seat-outward pf-seat-below${seatFolded&&isH?" seat-folded":""}`}>
               <div className="pf-mt-nameplate" style={{fontSize:cfg.fstk-1,color:isH?T.gold:isV?"#c090ff":T.text4}}>
                 {isH&&<span className="pf-seat-hero-chip" style={{fontSize:numTables>=3?5:6,padding:"1px 5px",margin:0}}>HERO</span>}
                 <span style={{fontFamily:"'Space Grotesk',sans-serif",fontWeight:900,lineHeight:1}}>{pos}</span>

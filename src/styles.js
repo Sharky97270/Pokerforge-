@@ -2789,6 +2789,54 @@ body::before{
 .pf-hole-cards.compact{filter:drop-shadow(0 3px 8px rgba(0,0,0,.72));}
 .pf-villain-backs{filter:drop-shadow(0 7px 16px rgba(0,191,255,.38)) drop-shadow(0 7px 18px rgba(0,0,0,.82));}
 .pf-villain-backs.muted{opacity:.78;filter:drop-shadow(0 5px 12px rgba(0,191,255,.2)) drop-shadow(0 4px 12px rgba(0,0,0,.72));}
+
+/* ══ HERO COUCHÉ — SOUS-BRILLANCE (Trainer + Replayer) ════════════════════
+   Un Hero qui se couche GARDE sa main à l'écran : elle sert de repère
+   pédagogique pendant que le coup se déroule. Elle devient seulement
+   SECONDAIRE, immédiatement, et le reste jusqu'à la fin de la main.
+   Un seul jeu de valeurs pour tout PokerForge — Trainer 1T, mosaïque
+   2T/3T/4T, Replayer : même état ⇒ même langage visuel.
+   Les cartes restent PARFAITEMENT lisibles : on distingue encore rang et
+   couleur à l'œil nu. Ce n'est pas un masquage, c'est une mise en retrait.
+   (Les cartes des VILAINS ne sont pas concernées : un vilain couché ne rend
+   plus de cartes du tout — cf. §4 plus haut.) */
+:root{
+  --pf-hero-fold-opacity:.42;
+  --pf-hero-fold-filter:saturate(.55) brightness(.72);
+  --pf-hero-fold-transition:opacity 140ms ease,filter 140ms ease;
+  /* Le voile de la tuile « table répondue » (mosaïque). Il vit ici parce que
+     la compensation plus bas en dépend : les deux nombres ne doivent pas
+     pouvoir dériver séparément. */
+  --pf-mt-answered-opacity:.72;
+}
+/* « !important » sur l'opacité : la carte porte « animation:deal … both », et une
+   déclaration d'animation bat une déclaration d'auteur normale. Sans lui, le
+   « opacity:1 » de la dernière keyframe gagnerait et l'atténuation n'existerait
+   tout simplement pas à l'écran. */
+.pf-hole-cards.hero-cards--folded .card{
+  opacity:var(--pf-hero-fold-opacity)!important;
+  filter:var(--pf-hero-fold-filter);
+  transition:var(--pf-hero-fold-transition);
+}
+/* ── MOSAÏQUE : NE PAS ATTÉNUER DEUX FOIS LA MÊME CARTE ───────────────────
+   Une tuile qui a déjà répondu porte SON voile (elle attend les autres
+   tables) : effet indépendant, légitime, et qui s applique aussi bien à un
+   Hero qui a payé. Mais sur un Hero COUCHÉ les deux se multipliaient —
+   0.42 × 0.72 = 0.30 mesuré au navigateur, au bord de l illisible, alors que
+   le 1T rendait 0.42. Le contrat porte sur ce que l œil voit, pas sur le
+   nombre déclaré : on compense pour que le rendu FINAL soit le même partout
+   (§22 — même état, même langage visuel, quel que soit le nombre de tables). */
+.table-slot-answered .pf-hole-cards.hero-cards--folded .card{
+  opacity:calc(var(--pf-hero-fold-opacity) / var(--pf-mt-answered-opacity))!important;
+}
+/* La halo dorée/cyan du Hero ACTIF est portée par le conteneur, en style
+   inline (Trainer 1T et Replayer). Elle survivrait à l'atténuation des cartes
+   et laisserait croire à un siège encore dans le coup → on la remplace par une
+   ombre neutre. « !important » est ici le seul moyen de battre un « style= ». */
+.pf-hole-cards.hero-cards--folded{
+  filter:drop-shadow(0 4px 12px rgba(0,0,0,.72))!important;
+  transition:filter 140ms ease;
+}
 /* Le style « muck » des cartes couchées (dos grisés, tournés, tampon FOLD) a
    été retiré : un siège couché ne rend plus de cartes du tout (§4). Il ne
    restait ici que du CSS sans élément à styler. */
@@ -3215,7 +3263,7 @@ body::before{
    focalisée ne se distinguait plus que par la teinte de sa bordure. Deux
    mécanismes de focus superposés, dont un qui désignait tout le monde.
    Plus aucun élément ne porte cette classe. */
-.table-slot-answered{opacity:.72;position:relative;}
+.table-slot-answered{opacity:var(--pf-mt-answered-opacity,.72);position:relative;}
 .table-slot-answered::after{
   content:"✓";position:absolute;top:6px;right:6px;z-index:10;
   width:22px;height:22px;border-radius:50%;

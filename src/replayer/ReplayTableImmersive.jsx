@@ -335,7 +335,7 @@ export default function ReplayTableImmersive({
                 villains (même pliés) afin que tous les avatars s'alignent sur
                 l'anneau (sinon un siège plié « remonte » : cf. bug BTN/BB). */}
             {isH ? (
-              <HeroHoleCards cards={p.hole} size={isTop ? "1t-hero-top" : "1t-hero-bottom"} gap={isTop ? 5 : 8}
+              <HeroHoleCards cards={p.hole} folded={!!p.folded} size={isTop ? "1t-hero-top" : "1t-hero-bottom"} gap={isTop ? 5 : 8}
                 style={{ marginBottom: isTop ? 4 : 6, marginTop: heroCardsPull, transform: `scale(${heroScale})`, transformOrigin: "bottom center", filter: "drop-shadow(0 8px 22px rgba(0,0,0,.86)) drop-shadow(0 0 16px rgba(0,191,255,.34))" }} />
             ) : (
               <div style={{ minHeight: villainCardSlot, marginBottom: villainCardTuck, display: "flex", alignItems: "flex-end", gap: 3 }}>

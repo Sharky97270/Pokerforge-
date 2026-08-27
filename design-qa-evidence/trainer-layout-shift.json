@@ -15,24 +15,22 @@
     "resultat": 7,
     "verdictDecision": 7,
     "solutionOuverte": 3,
-    "coupComplet": 1,
-    "mainGagnee": 2,
-    "raccourciLot": 2
+    "raccourciLot": 3
    },
    "ref": [
     {
      "t": 0,
-     "x": 422,
+     "x": 194,
      "y": 114,
-     "w": 421,
-     "h": 761
+     "w": 535,
+     "h": 795
     },
     {
      "t": 1,
-     "x": 851,
+     "x": 737,
      "y": 114,
-     "w": 421,
-     "h": 761
+     "w": 535,
+     "h": 795
     }
    ],
    "stable": true,
@@ -40,36 +38,36 @@
   },
   {
    "mode": "3T",
-   "releves": 29,
+   "releves": 31,
    "ecarts": [],
    "couverture": {
-    "action": 8,
+    "action": 9,
     "resultat": 7,
     "verdictDecision": 7,
     "solutionOuverte": 3,
-    "raccourciLot": 2
+    "raccourciLot": 1
    },
    "ref": [
     {
      "t": 0,
-     "x": 430,
+     "x": 202,
      "y": 112,
-     "w": 405,
-     "h": 377.5
+     "w": 519,
+     "h": 394.5
     },
     {
      "t": 1,
-     "x": 859,
+     "x": 745,
      "y": 112,
-     "w": 405,
-     "h": 377.5
+     "w": 519,
+     "h": 394.5
     },
     {
      "t": 2,
-     "x": 644.5,
-     "y": 499.5,
-     "w": 405,
-     "h": 377.5
+     "x": 473.5,
+     "y": 516.5,
+     "w": 519,
+     "h": 394.5
     }
    ],
    "stable": true,
@@ -77,43 +75,43 @@
   },
   {
    "mode": "4T",
-   "releves": 27,
+   "releves": 33,
    "ecarts": [],
    "couverture": {
-    "action": 6,
+    "action": 10,
     "resultat": 7,
     "verdictDecision": 7,
     "solutionOuverte": 3,
-    "raccourciLot": 5
+    "raccourciLot": 3
    },
    "ref": [
     {
      "t": 0,
-     "x": 422,
+     "x": 194,
      "y": 114,
-     "w": 421,
-     "h": 376.5
+     "w": 535,
+     "h": 393.5
     },
     {
      "t": 1,
-     "x": 851,
+     "x": 737,
      "y": 114,
-     "w": 421,
-     "h": 376.5
+     "w": 535,
+     "h": 393.5
     },
     {
      "t": 2,
-     "x": 422,
-     "y": 498.5,
-     "w": 421,
-     "h": 376.5
+     "x": 194,
+     "y": 515.5,
+     "w": 535,
+     "h": 393.5
     },
     {
      "t": 3,
-     "x": 851,
-     "y": 498.5,
-     "w": 421,
-     "h": 376.5
+     "x": 737,
+     "y": 515.5,
+     "w": 535,
+     "h": 393.5
     }
    ],
    "stable": true,
