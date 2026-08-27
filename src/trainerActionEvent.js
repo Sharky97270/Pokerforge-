@@ -128,6 +128,21 @@ export function trainerActionDisplayVerb(actionType, rawAction = null) {
    vivait dans Chips.jsx, donc dans un module que Node ne sait pas importer :
    la règle du §14 (« un tapis se dit ») n'était pas testable sans navigateur.
    C'est du vocabulaire d'action pur, sa place est ici. */
+/**
+ * Un LIBELLE annonce-t-il un tapis ? La question parait triviale ; elle ne l est
+ * pas, parce que le mot « CALL » contient « ALL ». Le Trainer testait la
+ * sous-chaine "ALL" : tout suivi devenait donc un tapis, badge rouge compris.
+ * Mesure au navigateur (1T, 6-max) : la ligne du moteur « BB:CALL:3 » peignait
+ * « ALL-IN 3bb », et les deux suiveurs d un squeeze affichaient le meme
+ * « ALL-IN 2.5bb » — ce qui se lit comme un doublon.
+ *
+ * On borne donc par des limites de MOT. « Call all-in » reste un tapis (le mot y
+ * est, entier) ; « Call » n en est pas un. « Tapis » est le libelle francais des
+ * relances completes du Trainer : il en est aussi.
+ */
+export function trainerLabelSaysAllIn(text = "") {
+  return /\b(?:ALL[- ]?IN|SHOVE|PUSH|RESHOVE|JAM|TAPIS)\b/.test(String(text || "").toUpperCase());
+}
 export function trainerActionVisualFamily(type = "BET") {
   const t = String(type || "BET").toUpperCase();
   if (t === "FOLD") return "fold";

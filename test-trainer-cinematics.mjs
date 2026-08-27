@@ -13,7 +13,7 @@ import {
   buildCollectSequence, projectDisplayedPot, visibleStreetBets,
   streetRankFromBoard, streetRankOf,
 } from "./src/trainerBetCinematics.js";
-import { trainerActionVisualFamily as actionVisualType, trainerIsAllInAction } from "./src/trainerActionEvent.js";
+import { trainerActionVisualFamily as actionVisualType, trainerIsAllInAction, trainerLabelSaysAllIn } from "./src/trainerActionEvent.js";
 
 let n = 0;
 const fails = [];
@@ -120,6 +120,27 @@ ok(!visuelAllIn("RAISE", false), "une relance ordinaire n'est pas un tapis");
 ok(visuelAllIn("RAISE", true), "une relance qui épuise le tapis en est un");
 for (const t of ["FOLD", "CHECK", "BET", "OPEN", "3BET", "4BET", "5BET"]) {
   ok(!visuelAllIn(t), `${t} : pas de faux positif`);
+}
+
+/* ══ 9 — « CALL » CONTIENT « ALL » ════════════════════════════════════════
+   Le Trainer decidait du badge de mise avec une recherche de SOUS-CHAINE sur
+   "ALL". Tout suivi devenait donc un tapis. Mesure au navigateur (1T 6-max,
+   1366x768) : la ligne du moteur « BB:CALL:3 » peignait « ALL-IN 3bb » en rouge
+   de danger, et les deux suiveurs d un squeeze affichaient le meme
+   « ALL-IN 2.5bb » — ce qui se lit comme un doublon.
+
+   Ces assertions portent sur des LIBELLES, pas sur des types : c est par le
+   libelle que le defaut entrait. */
+for (const l of ["Call", "CALL", "Call 2.5bb", "Caller", "Callin"]) {
+  ok(!trainerLabelSaysAllIn(l), `« ${l} » n annonce pas un tapis`);
+}
+for (const l of ["All-in", "ALL IN", "ALLIN", "Shove 12bb", "Push", "Reshove", "Jam", "Tapis 30bb"]) {
+  ok(trainerLabelSaysAllIn(l), `« ${l} » annonce un tapis`);
+}
+/* Un suivi QUI EST un tapis le dit, lui : le mot y est, entier. */
+ok(trainerLabelSaysAllIn("Call all-in"), "« Call all-in » reste un tapis");
+for (const l of ["Open 3bb", "3-bet 9bb", "Bet 50%", "Check", "Fold", ""]) {
+  ok(!trainerLabelSaysAllIn(l), `« ${l} » : pas de faux positif`);
 }
 
 if (fails.length) {

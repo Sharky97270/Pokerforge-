@@ -1,0 +1,2739 @@
+{
+ "summary": {
+  "mode": "1T",
+  "struct": "6J",
+  "viewport": "1914x927",
+  "tirages": 14,
+  "tables": 14,
+  "anneauRho": {
+   "moy": 0.86,
+   "min": 0.67,
+   "max": 0.92,
+   "n": 84
+  },
+  "siegesHorsAnneau": {
+   "BB": {
+    "n": 6,
+    "rhoMoy": 0.665
+   },
+   "BTN": {
+    "n": 8,
+    "rhoMoy": 0.665
+   }
+  },
+  "avatarSurFeutre": {
+   "moy": 0.09,
+   "min": 0.09,
+   "max": 0.09,
+   "n": 14
+  },
+  "potSurFeutre": {
+   "moy": 0.21,
+   "min": 0.19,
+   "max": 0.26,
+   "n": 14
+  },
+  "tailles": {
+   "avatar": {
+    "w": 63,
+    "h": 63
+   },
+   "avatarHero": {
+    "w": 68,
+    "h": 68
+   },
+   "pot": {
+    "w": 135.7,
+    "h": 30
+   },
+   "board": {
+    "w": 144.3,
+    "h": 62.3
+   }
+  },
+  "cartesEcartAngle": {
+   "moy": 12.09,
+   "min": 0,
+   "max": 16.9,
+   "n": 44
+  },
+  "cartesHorsAxe35": 0,
+  "cartesDuMauvaisCote": 0,
+  "cartesParSiege": {
+   "CO": 11.3,
+   "BB": 9.7,
+   "BTN": 11.6,
+   "SB": 16.9,
+   "HJ": 16.9
+  },
+  "misesMesurees": 5,
+  "miseEcartAngle": {
+   "moy": 0.06,
+   "min": 0,
+   "max": 0.1,
+   "n": 5
+  },
+  "misesHorsAxe35": 0,
+  "miseFractionVersPot": {
+   "moy": 0.41,
+   "min": 0.34,
+   "max": 0.46,
+   "n": 5
+  },
+  "miseDegagementPotPx": {
+   "moy": 52.68,
+   "min": 20.5,
+   "max": 75.2,
+   "n": 5
+  },
+  "misesCollesAuPot": [],
+  "misesSurBoard": [],
+  "misesSurPot": [],
+  "attribution": {
+   "moy": 2.22,
+   "min": 1.31,
+   "max": 4.34,
+   "n": 5
+  },
+  "misesAmbigues": [],
+  "potBloc": {
+   "declare": {
+    "w": 156,
+    "h": 30
+   },
+   "peintLargeur": {
+    "moy": 144.57,
+    "min": 135.7,
+    "max": 173.7,
+    "n": 14
+   },
+   "peintHauteur": {
+    "moy": 30,
+    "min": 30,
+    "max": 30,
+    "n": 14
+   },
+   "medaillonLargeur": {
+    "moy": 144.57,
+    "min": 135.7,
+    "max": 173.7,
+    "n": 14
+   },
+   "depassementLargeurPx": {
+    "moy": -11.43,
+    "min": -20.3,
+    "max": 17.7,
+    "n": 14
+   },
+   "pileHautePx": {
+    "moy": 42.28,
+    "min": 34.5,
+    "max": 56.8,
+    "n": 14
+   },
+   "boiteJetonsPx": {
+    "moy": 27.14,
+    "min": 24,
+    "max": 28,
+    "n": 14
+   },
+   "jetonsCoupes": 14
+  },
+  "boutonD": {
+   "attribution": {
+    "moy": 3.17,
+    "min": 1.32,
+    "max": 5,
+    "n": 14
+   },
+   "malAttribue": 0,
+   "plusLoinQueLaMise": 0,
+   "distance": {
+    "moy": 88.37,
+    "min": 47.4,
+    "max": 128.6,
+    "n": 14
+   },
+   "distanceSurFeutre": {
+    "moy": 0.13,
+    "min": 0.07,
+    "max": 0.18,
+    "n": 14
+   }
+  },
+  "blindes": {
+   "n": 6,
+   "ecartAngle": {
+    "moy": 0.07,
+    "min": 0,
+    "max": 0.1,
+    "n": 6
+   },
+   "orphelines": 0
+  },
+  "rognages": {
+   "total": 14,
+   "parCas": {
+    "pot:jetons ⊂ pf-pot-chip-stack": 14
+   },
+   "exemples": [
+    {
+     "quoi": "pot:jetons",
+     "par": "pf-pot-chip-stack",
+     "overflow": "hidden",
+     "debordePx": 35.8
+    },
+    {
+     "quoi": "pot:jetons",
+     "par": "pf-pot-chip-stack",
+     "overflow": "hidden",
+     "debordePx": 12.5
+    },
+    {
+     "quoi": "pot:jetons",
+     "par": "pf-pot-chip-stack",
+     "overflow": "hidden",
+     "debordePx": 12.5
+    },
+    {
+     "quoi": "pot:jetons",
+     "par": "pf-pot-chip-stack",
+     "overflow": "hidden",
+     "debordePx": 12.5
+    },
+    {
+     "quoi": "pot:jetons",
+     "par": "pf-pot-chip-stack",
+     "overflow": "hidden",
+     "debordePx": 35.8
+    }
+   ]
+  },
+  "cartesDupliquees": [],
+  "horsZone": {
+   "total": 1,
+   "pireParElement": {
+    "UTG:plaque": 2.1
+   }
+  },
+  "recouvrements": {
+   "total": 0,
+   "tablesTouchees": 0,
+   "parType": {},
+   "exemples": []
+  },
+  "pot": {
+   "potsNuls": 0,
+   "exemplesNuls": []
+  },
+  "showdown": {
+   "coupsTermines": 2,
+   "sansCarteVilainVisible": 1
+  },
+  "erreursPage": []
+ },
+ "draws": [
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.2199,
+     "anneau": {
+      "UTG": 0.916,
+      "HJ": 0.916,
+      "CO": 0.84,
+      "BTN": 0.916,
+      "SB": 0.916,
+      "BB": 0.665
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 0,
+       "distance": 57,
+       "versLeCentre": 57,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": true,
+       "ecartAngleDeg": 0,
+       "distance": 74,
+       "versLeCentre": 74,
+       "rogne": null
+      }
+     ],
+     "bets": [
+      {
+       "type": "mise",
+       "pos": "CO",
+       "box": {
+        "w": 92,
+        "h": 42.5
+       },
+       "texte": "Open4.5bb",
+       "rogne": null,
+       "ecartAngleDeg": 0,
+       "t": 0.419,
+       "distanceJoueur": 57.8,
+       "distanceAuPot": 137.9,
+       "fractionVersPot": 0.419,
+       "dPotCentre": 80.1,
+       "dPotBoite": 43.8,
+       "ratioAttribution": 4.34,
+       "voisinLePlusProche": "BB",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "blinds": [
+      {
+       "type": "blinde",
+       "pos": "SB",
+       "box": {
+        "w": 58.4,
+        "h": 61.1
+       },
+       "texte": "0.5bbSB",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.42,
+       "distanceJoueur": 129.5,
+       "distanceAuPot": 308.2,
+       "fractionVersPot": 0.42,
+       "dPotCentre": 178.7,
+       "dPotBoite": 63.5,
+       "ratioAttribution": 1.31,
+       "voisinLePlusProche": "BTN",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      },
+      {
+       "type": "blinde",
+       "pos": "BB",
+       "box": {
+        "w": 58.4,
+        "h": 64.8
+       },
+       "texte": "1bbBB",
+       "rogne": null,
+       "ecartAngleDeg": 0,
+       "t": 0.421,
+       "distanceJoueur": 71.8,
+       "distanceAuPot": 170.7,
+       "fractionVersPot": 0.421,
+       "dPotCentre": 98.8,
+       "dPotBoite": 51.5,
+       "ratioAttribution": 3.3,
+       "voisinLePlusProche": "CO",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 119.2,
+      "ratioAttribution": 1.53,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 153.3,
+       "h": 30
+      },
+      "board": null
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 153.3,
+       "h": 30
+      },
+      "peint": {
+       "w": 153.3,
+       "h": 30
+      },
+      "nbPiles": 2,
+      "pileHautePx": 56.8,
+      "boiteJetonsPx": 24,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 35.8
+      }
+     },
+     "potTexte": "POT6bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "CO",
+      "toCall": 3.5,
+      "potSpot": 6,
+      "potMoteur": 6,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 6,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 4.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 1,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 35.8
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.1947,
+     "anneau": {
+      "UTG": 0.916,
+      "HJ": 0.916,
+      "CO": 0.84,
+      "BTN": 0.916,
+      "SB": 0.916,
+      "BB": 0.665
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 0,
+       "distance": 57,
+       "versLeCentre": 57,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": true,
+       "ecartAngleDeg": 0,
+       "distance": 74,
+       "versLeCentre": 74,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 128.6,
+      "ratioAttribution": 1.32,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 135.7,
+       "h": 30
+      },
+      "board": {
+       "w": 144.3,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 135.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 135.7,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 37.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     },
+     "potTexte": "POT9.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "CO",
+      "toCall": 3.5,
+      "potSpot": 6,
+      "potMoteur": 9.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 6,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 4.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 4.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:4.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 1,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.1947,
+     "anneau": {
+      "UTG": 0.916,
+      "HJ": 0.916,
+      "CO": 0.84,
+      "BTN": 0.916,
+      "SB": 0.916,
+      "BB": 0.665
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 0,
+       "distance": 57,
+       "versLeCentre": 57,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": true,
+       "ecartAngleDeg": 0,
+       "distance": 74,
+       "versLeCentre": 74,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 128.6,
+      "ratioAttribution": 1.32,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 135.7,
+       "h": 30
+      },
+      "board": {
+       "w": 144.3,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 135.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 135.7,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 37.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     },
+     "potTexte": "POT9.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "CO",
+      "toCall": 3.5,
+      "potSpot": 6,
+      "potMoteur": 9.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 6,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 4.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 4.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:4.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 1,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.1947,
+     "anneau": {
+      "UTG": 0.916,
+      "HJ": 0.916,
+      "CO": 0.84,
+      "BTN": 0.916,
+      "SB": 0.916,
+      "BB": 0.665
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 0,
+       "distance": 57,
+       "versLeCentre": 57,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": true,
+       "ecartAngleDeg": 0,
+       "distance": 74,
+       "versLeCentre": 74,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 128.6,
+      "ratioAttribution": 1.32,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 135.7,
+       "h": 30
+      },
+      "board": {
+       "w": 144.3,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 135.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 135.7,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 37.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     },
+     "potTexte": "POT9.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "CO",
+      "toCall": 3.5,
+      "potSpot": 6,
+      "potMoteur": 9.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 6,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 4.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 4.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 4.5
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:4.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": true,
+      "vilainsAvecCartes": 1,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 679.6,
+      "h": 399.8,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 828.7,
+      "h": 506
+     },
+     "avatarSurFeutre": 0.0898,
+     "potSurFeutre": 0.2256,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67,
+       "versLeCentre": 64.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75,
+       "versLeCentre": 73.5,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 66.5,
+       "versLeCentre": 63.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 66.5,
+       "versLeCentre": 63.6,
+       "rogne": null
+      }
+     ],
+     "bets": [
+      {
+       "type": "mise",
+       "pos": "CO",
+       "box": {
+        "w": 89.7,
+        "h": 41.5
+       },
+       "texte": "Open2.5bb",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.42,
+       "distanceJoueur": 126.4,
+       "distanceAuPot": 300.8,
+       "fractionVersPot": 0.42,
+       "dPotCentre": 174.4,
+       "dPotBoite": 50.8,
+       "ratioAttribution": 1.31,
+       "voisinLePlusProche": "HJ",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "blinds": [
+      {
+       "type": "blinde",
+       "pos": "SB",
+       "box": {
+        "w": 57,
+        "h": 59.6
+       },
+       "texte": "0.5bbSB",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.42,
+       "distanceJoueur": 126.4,
+       "distanceAuPot": 300.8,
+       "fractionVersPot": 0.42,
+       "dPotCentre": 174.4,
+       "dPotBoite": 60.1,
+       "ratioAttribution": 1.31,
+       "voisinLePlusProche": "BB",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      },
+      {
+       "type": "blinde",
+       "pos": "BB",
+       "box": {
+        "w": 57,
+        "h": 63.1
+       },
+       "texte": "1bbBB",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.46,
+       "distanceJoueur": 129.3,
+       "distanceAuPot": 281.1,
+       "fractionVersPot": 0.46,
+       "dPotCentre": 151.8,
+       "dPotBoite": 44.2,
+       "ratioAttribution": 1.42,
+       "voisinLePlusProche": "UTG",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 124.2,
+      "ratioAttribution": 1.47,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 20.5,
+       "h": 20.5
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 61,
+       "h": 61
+      },
+      "avatarHero": {
+       "w": 67,
+       "h": 67
+      },
+      "pot": {
+       "w": 153.3,
+       "h": 30
+      },
+      "board": null
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 153.3,
+       "h": 30
+      },
+      "peint": {
+       "w": 153.3,
+       "h": 30
+      },
+      "nbPiles": 2,
+      "pileHautePx": 56.8,
+      "boiteJetonsPx": 24,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 35.8
+      }
+     },
+     "potTexte": "POT4bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 4,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 35.8
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.1947,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75.5,
+       "versLeCentre": 74,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.8,
+      "ratioAttribution": 5,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 135.7,
+       "h": 30
+      },
+      "board": {
+       "w": 144.3,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 135.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 135.7,
+       "h": 30
+      },
+      "nbPiles": 2,
+      "pileHautePx": 34.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 9.5
+      }
+     },
+     "potTexte": "POT6.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 6.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 9.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.1947,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75.5,
+       "versLeCentre": 74,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.8,
+      "ratioAttribution": 5,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 135.7,
+       "h": 30
+      },
+      "board": {
+       "w": 144.3,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 135.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 135.7,
+       "h": 30
+      },
+      "nbPiles": 2,
+      "pileHautePx": 34.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 9.5
+      }
+     },
+     "potTexte": "POT6.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 6.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 9.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.2093,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75.5,
+       "versLeCentre": 74,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.8,
+      "ratioAttribution": 5,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 145.9,
+       "h": 30
+      },
+      "board": {
+       "w": 194,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 145.9,
+       "h": 30
+      },
+      "peint": {
+       "w": 145.9,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 37.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     },
+     "potTexte": "POT19.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 19.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.2093,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75.5,
+       "versLeCentre": 74,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.8,
+      "ratioAttribution": 5,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 145.9,
+       "h": 30
+      },
+      "board": {
+       "w": 194,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 145.9,
+       "h": 30
+      },
+      "peint": {
+       "w": 145.9,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 37.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     },
+     "potTexte": "POT19.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 19.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 12.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.2093,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75.5,
+       "versLeCentre": 74,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.8,
+      "ratioAttribution": 5,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 145.9,
+       "h": 30
+      },
+      "board": {
+       "w": 240.6,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 145.9,
+       "h": 30
+      },
+      "peint": {
+       "w": 145.9,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 43.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 18.5
+      }
+     },
+     "potTexte": "POT58.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 58.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 18.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.2093,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.5,
+       "distance": 75.5,
+       "versLeCentre": 74,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67.5,
+       "versLeCentre": 64.6,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 50.8,
+      "ratioAttribution": 5,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 145.9,
+       "h": 30
+      },
+      "board": {
+       "w": 240.6,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 145.9,
+       "h": 30
+      },
+      "peint": {
+       "w": 145.9,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 43.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 18.5
+      }
+     },
+     "potTexte": "POT58.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 58.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 18.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 632.5,
+      "h": 372.1,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 771.4,
+      "h": 471
+     },
+     "avatarSurFeutre": 0.0901,
+     "potSurFeutre": 0.2307,
+     "anneau": {
+      "UTG": 0.84,
+      "HJ": 0.916,
+      "CO": 0.916,
+      "BTN": 0.665,
+      "SB": 0.916,
+      "BB": 0.916
+     },
+     "cartes": [
+      {
+       "pos": "CO",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 65,
+       "versLeCentre": 62.2,
+       "rogne": null
+      },
+      {
+       "pos": "BTN",
+       "hero": true,
+       "ecartAngleDeg": 11.9,
+       "distance": 72.6,
+       "versLeCentre": 71,
+       "rogne": null
+      },
+      {
+       "pos": "SB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 64.5,
+       "versLeCentre": 61.7,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 64.5,
+       "versLeCentre": 61.7,
+       "rogne": null
+      }
+     ],
+     "bets": [
+      {
+       "type": "mise",
+       "pos": "CO",
+       "box": {
+        "w": 90.4,
+        "h": 41.9
+       },
+       "texte": "ALL-IN1.5bb",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.34,
+       "distanceJoueur": 99.3,
+       "distanceAuPot": 291.8,
+       "fractionVersPot": 0.34,
+       "dPotCentre": 192.5,
+       "dPotBoite": 75.2,
+       "ratioAttribution": 1.41,
+       "voisinLePlusProche": "HJ",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      },
+      {
+       "type": "mise",
+       "pos": "BTN",
+       "box": {
+        "w": 83.4,
+        "h": 35.3
+       },
+       "texte": "Bet1.5bb",
+       "rogne": null,
+       "ecartAngleDeg": 0,
+       "t": 0.422,
+       "distanceJoueur": 77.1,
+       "distanceAuPot": 182.9,
+       "fractionVersPot": 0.422,
+       "dPotCentre": 105.8,
+       "dPotBoite": 73.1,
+       "ratioAttribution": 2.63,
+       "voisinLePlusProche": "UTG",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 47.4,
+      "ratioAttribution": 4.8,
+      "plusPresQueLaMise": true,
+      "rogne": null,
+      "box": {
+       "w": 19.1,
+       "h": 19.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 57,
+       "h": 57
+      },
+      "avatarHero": {
+       "w": 62,
+       "h": 62
+      },
+      "pot": {
+       "w": 145.9,
+       "h": 30
+      },
+      "board": {
+       "w": 183.3,
+       "h": 47.5
+      }
+     },
+     "horsZone": [
+      {
+       "quoi": "UTG:plaque",
+       "haut": 2.1,
+       "bas": 0,
+       "gauche": 0,
+       "droite": 0,
+       "total": 2.1
+      }
+     ],
+     "potBloc": {
+      "readout": {
+       "w": 145.9,
+       "h": 30
+      },
+      "peint": {
+       "w": 145.9,
+       "h": 30
+      },
+      "nbPiles": 3,
+      "pileHautePx": 43.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 18.5
+      }
+     },
+     "potTexte": "POT61.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BTN",
+      "vpos": "CO",
+      "toCall": 2.5,
+      "potSpot": 4,
+      "potMoteur": 61.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 0,
+      "facing": 2.5,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 0,
+       "CO": 2.5,
+       "BTN": 2.5,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "done",
+      "coups": [
+       "BTN:CALL:2.5"
+      ]
+     },
+     "showdown": {
+      "coupTermine": true,
+      "vilainsAvecCartes": 3,
+      "vilainsFaceVisible": 1
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 18.5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 679.6,
+      "h": 399.8,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 828.7,
+      "h": 506
+     },
+     "avatarSurFeutre": 0.0898,
+     "potSurFeutre": 0.2556,
+     "anneau": {
+      "UTG": 0.916,
+      "HJ": 0.916,
+      "CO": 0.84,
+      "BTN": 0.916,
+      "SB": 0.916,
+      "BB": 0.665
+     },
+     "cartes": [
+      {
+       "pos": "HJ",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 67,
+       "versLeCentre": 64.1,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": true,
+       "ecartAngleDeg": 0,
+       "distance": 73.5,
+       "versLeCentre": 73.5,
+       "rogne": null
+      }
+     ],
+     "bets": [
+      {
+       "type": "mise",
+       "pos": "HJ",
+       "box": {
+        "w": 84.1,
+        "h": 41.5
+       },
+       "texte": "Open3bb",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.46,
+       "distanceJoueur": 129.3,
+       "distanceAuPot": 281.1,
+       "fractionVersPot": 0.46,
+       "dPotCentre": 151.8,
+       "dPotBoite": 20.5,
+       "ratioAttribution": 1.42,
+       "voisinLePlusProche": "CO",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "blinds": [
+      {
+       "type": "blinde",
+       "pos": "SB",
+       "box": {
+        "w": 57,
+        "h": 59.6
+       },
+       "texte": "0.5bbSB",
+       "rogne": null,
+       "ecartAngleDeg": 0.1,
+       "t": 0.42,
+       "distanceJoueur": 126.4,
+       "distanceAuPot": 300.8,
+       "fractionVersPot": 0.42,
+       "dPotCentre": 174.4,
+       "dPotBoite": 50.9,
+       "ratioAttribution": 1.31,
+       "voisinLePlusProche": "BTN",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      },
+      {
+       "type": "blinde",
+       "pos": "BB",
+       "box": {
+        "w": 57,
+        "h": 63.1
+       },
+       "texte": "1bbBB",
+       "rogne": null,
+       "ecartAngleDeg": 0,
+       "t": 0.421,
+       "distanceJoueur": 70.3,
+       "distanceAuPot": 167,
+       "fractionVersPot": 0.421,
+       "dPotCentre": 96.7,
+       "dPotBoite": 50.2,
+       "ratioAttribution": 3.28,
+       "voisinLePlusProche": "CO",
+       "surBoardPct": 0,
+       "surPotPct": 0
+      }
+     ],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 127.2,
+      "ratioAttribution": 1.32,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 20.5,
+       "h": 20.5
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 61,
+       "h": 61
+      },
+      "avatarHero": {
+       "w": 67,
+       "h": 67
+      },
+      "pot": {
+       "w": 173.7,
+       "h": 30
+      },
+      "board": null
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 173.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 173.7,
+       "h": 30
+      },
+      "nbPiles": 2,
+      "pileHautePx": 56.8,
+      "boiteJetonsPx": 24,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 35.8
+      }
+     },
+     "potTexte": "POT4.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "HJ",
+      "toCall": 2,
+      "potSpot": 4.5,
+      "potMoteur": 4.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 3,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 3,
+      "answered": null,
+      "vact": null,
+      "plein": false,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 3,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "phase": "hero",
+      "coups": []
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 1,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 35.8
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "viewport": {
+    "w": 1914,
+    "h": 927
+   },
+   "tables": [
+    {
+     "i": 0,
+     "felt": {
+      "w": 697,
+      "h": 410,
+      "ar": 1.7
+     },
+     "zone": {
+      "w": 850,
+      "h": 519
+     },
+     "avatarSurFeutre": 0.0904,
+     "potSurFeutre": 0.1947,
+     "anneau": {
+      "UTG": 0.916,
+      "HJ": 0.916,
+      "CO": 0.84,
+      "BTN": 0.916,
+      "SB": 0.916,
+      "BB": 0.665
+     },
+     "cartes": [
+      {
+       "pos": "HJ",
+       "hero": false,
+       "ecartAngleDeg": 16.9,
+       "distance": 68,
+       "versLeCentre": 65.1,
+       "rogne": null
+      },
+      {
+       "pos": "BB",
+       "hero": true,
+       "ecartAngleDeg": 0,
+       "distance": 74,
+       "versLeCentre": 74,
+       "rogne": null
+      }
+     ],
+     "bets": [],
+     "blinds": [],
+     "dealer": {
+      "proprietaire": "BTN",
+      "siegeLePlusProche": "BTN",
+      "distanceProprietaire": 128.6,
+      "ratioAttribution": 1.32,
+      "plusPresQueLaMise": null,
+      "rogne": null,
+      "box": {
+       "w": 21.1,
+       "h": 21.1
+      }
+     },
+     "recouvrements": [],
+     "tailles": {
+      "avatar": {
+       "w": 63,
+       "h": 63
+      },
+      "avatarHero": {
+       "w": 68,
+       "h": 68
+      },
+      "pot": {
+       "w": 135.7,
+       "h": 30
+      },
+      "board": {
+       "w": 144.3,
+       "h": 62.3
+      }
+     },
+     "horsZone": [],
+     "potBloc": {
+      "readout": {
+       "w": 135.7,
+       "h": 30
+      },
+      "peint": {
+       "w": 135.7,
+       "h": 30
+      },
+      "nbPiles": 2,
+      "pileHautePx": 34.5,
+      "boiteJetonsPx": 28,
+      "rogne": {
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 9.5
+      }
+     },
+     "potTexte": "POT6.5bb",
+     "etatMoteur": {
+      "cat": "Vs Open",
+      "street": "Preflop",
+      "hpos": "BB",
+      "vpos": "HJ",
+      "toCall": 2,
+      "potSpot": 4.5,
+      "potMoteur": 6.5,
+      "extras": [],
+      "kindLigne": "vsOpen",
+      "potLigne": 4.5,
+      "engagements": {
+       "UTG": 0,
+       "HJ": 3,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 1
+      },
+      "heroCommitted": 1,
+      "facing": 3,
+      "answered": 1,
+      "vact": null,
+      "plein": true,
+      "perimes": false,
+      "contribs": {
+       "UTG": 0,
+       "HJ": 3,
+       "CO": 0,
+       "BTN": 0,
+       "SB": 0.5,
+       "BB": 3
+      },
+      "phase": "done",
+      "coups": [
+       "BB:CALL:3"
+      ]
+     },
+     "showdown": {
+      "coupTermine": false,
+      "vilainsAvecCartes": 1,
+      "vilainsFaceVisible": 0
+     },
+     "cartesDupliquees": [],
+     "rognages": [
+      {
+       "quoi": "pot:jetons",
+       "par": "pf-pot-chip-stack",
+       "overflow": "hidden",
+       "debordePx": 9.5
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

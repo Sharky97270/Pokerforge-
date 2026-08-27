@@ -17,7 +17,7 @@ import { trainerDensity, trainerDensityVars, trainerDensityName, trainerMarkerCl
 import { trainerMarkerPoint, trainerDealerPoint, trainerCentreAnchorsFelt, trainerCentralExclusionZone, trainerCorridorPx, betBadgeMaxWidthPx, trainerZoneAspect, trainerBoardZoom, feltHeightPx, TRAINER_FELT_ASPECT, TABLE_Z } from "../trainerTableGeometry.js";
 import { seatAxis, seatAxisClear, seatFlexDirection, trainerSeatZones } from "../trainerSeatAnchors.js";
 import dealerSvgUrl from "../assets/trainer-v2/dealer-button.svg";
-import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency } from "../trainerActionEvent.js";
+import { trainerActionDisplayVerb, trainerActionCssClass, normalizeTrainerActionEvent, validateSpotConsistency, trainerLabelSaysAllIn } from "../trainerActionEvent.js";
 import { trainerRoundCloseDecision, spotVerdict } from "../trainerRoundEngine.js";
 import { ADAPTIVE_MODE_OPTIONS, describeCoachSpot, createTrainingSpotFromHand, buildTrainerIntegrationQueue, countEvolutiveSpots, recordAdaptiveDecision } from "../spotAiEngine.js";
 import { buildTrainingConfig, trainingConfigToFilters, trainingConfigToEngineOpts, saveTrainingConfig } from "../trainingConfig.js";
@@ -2762,7 +2762,17 @@ function trainerVisualActionType(action){
   const txt=(action?.id||action?.action||action?.label||action?.l||action||"").toString().toUpperCase();
   if(txt.includes("FOLD"))return"FOLD";
   if(txt.includes("CHECK"))return"CHECK";
-  if(txt.includes("ALL")||txt.includes("SHOVE")||txt.includes("PUSH")||txt.includes("RESHOVE")||txt.includes("JAM"))return"ALLIN";
+  /* « CALL » CONTIENT « ALL ». Ce test etait une recherche de SOUS-CHAINE : tout
+     suivi devenait donc un tapis. Mesure au navigateur, ligne du moteur
+     « BB:CALL:3 » : badge « ALL-IN 3bb », en rouge de danger, sur un simple
+     suivi — et deux suiveurs d'un squeeze affichaient le meme « ALL-IN 2.5bb »,
+     ce qui se lisait comme un doublon. On borne donc par des limites de MOT :
+     « ALL-IN », « ALL IN », « ALLIN » et « TAPIS » (le libelle francais des
+     boutons de relance complete) en sont, « CALL » n en est pas. « Call all-in »
+     reste un tapis : le mot y est, entier.
+     Ne pas revenir a includes("ALL") : la regression est invisible en revue et
+     evidente a l ecran. */
+  if(trainerLabelSaysAllIn(txt))return"ALLIN";
   if(txt.includes("CALL"))return"CALL";
   if(txt.includes("OPEN"))return"OPEN";
   if(txt.includes("5-BET")||txt.includes("5BET"))return"5BET";

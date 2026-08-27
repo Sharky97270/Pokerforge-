@@ -432,7 +432,14 @@ export function feltPctToZonePct(pt, geometry) {
    Ils sont ramenés à la taille réelle des objets du mode par
    `trainerMarkerClearance` — sans quoi, sur un feutre 4T, un budget calé en 1T
    dépasse le demi-axe et tout retombe sur le plancher (défaut connu). */
-export const MARKER_TRAVEL = { BET: 0.42, BLIND: 0.42, DEALER: 0.20 };
+/* Le bouton D voyageait a 20 % du segment parce qu il devait DEPASSER le bloc de
+   son joueur pour ne pas se poser sur ses cartes. Depuis qu il le CONTOURNE
+   (hugSeat), ce voyage n a plus de raison d etre : il eloignait le bouton sans
+   rien degager. Mesure a 1366x768 : a 0.20, le bouton finissait PLUS LOIN de son
+   siege que le tas de mise du meme joueur dans 8 tirages sur 10 — il se lisait
+   alors comme un second marqueur d action (§10). A 0.08 il se pose a hauteur du
+   medaillon, a cote des cartes : la place qu il occupe sur une vraie table. */
+export const MARKER_TRAVEL = { BET: 0.42, BLIND: 0.42, DEALER: 0.08 };
 export const MARKER_POT_CLEAR_PX = { BET: 54, BLIND: 48, DEALER: 40 };
 /* Demi-encombrement du MARQUEUR lui-même (badge de mise borné à 104 px en 1T,
    96 px en compact ; tas de blinde ; bouton D). Sert à savoir de combien il faut
@@ -533,7 +540,7 @@ const clampPct = (v, min = 3, max = 97) => Math.max(min, Math.min(max, v));
 export function trainerMarkerPoint({
   seats, pos, markerType = "BET", numTables = 1, hasBoard = false, ringGeom = null,
   geometry = null, isMobile = false, tight = false, seatCount: seatCountArg = null,
-  heroPos = null, sideBiasPx = 0, avoid = null, avatarPx = 0, avatarHeroPx = 0,
+  heroPos = null, sideBiasPx = 0, avoid = null, avatarPx = 0, avatarHeroPx = 0, hugSeat = false,
   potYByCount = null, potYPreflopByCount = null, boardYByCount = null,
 } = {}) {
   const seat = seats && seats[pos];
@@ -644,7 +651,26 @@ export function trainerMarkerPoint({
   // 1) strictement sur l'axe — d'abord la position idéale, puis en s'éloignant du
   //    joueur (le bloc), puis en s'en rapprochant (le board).
   const step = Math.max(3, D * 0.04);
-  const bias = Math.min(sideBiasPx, maxOff);
+  /* ── CONTOURNER, PLUTOT QUE DEPASSER (§10/§29) ──────────────────────────
+     Un marqueur bute sur le bloc de son joueur de deux facons : il peut le
+     DEPASSER en profondeur (aller plus loin vers le pot) ou le CONTOURNER par
+     le cote. Le balayage essaie le depassement en premier, ce qui convient a un
+     tas de mise — un tas VA vers le pot, c est son sens.
+
+     Le bouton D, lui, ne va nulle part : il APPARTIENT a son joueur. Le
+     depassement le poussait donc en plein feutre. Mesure a 1920x950, 1T 6-max :
+     120 a 132 px de son siege, soit 18 % de la largeur du feutre, a une
+     trentaine de pixels du tas de mise du meme joueur — deux marqueurs voisins
+     et rien pour dire lequel dit quoi. A 1366x768, ou le bloc de siege est plus
+     petit, le meme code rendait 44 px : le defaut ne se voyait qu en grand.
+
+     Pour ce marqueur-la, on part donc directement avec l ecart lateral qui
+     degage le bloc. La position ideale (20 % du segment) devient alors
+     acceptable des le premier essai, et le bouton se pose A COTE des cartes de
+     son joueur — jamais dessus (c etait le defaut precedent), jamais au large.
+     Le plafond `maxOff` reste maitre : on ne part pas chez le voisin. */
+  const biasVoulu = hugSeat ? Math.max(sideBiasPx, needSide) : sideBiasPx;
+  const bias = Math.min(biasVoulu, maxOff);
   for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias)) return emit(l, bias, l <= lWish + 1e-6 ? "axial" : "avance");
   for (let l = lWish - step; l >= needAlong; l -= step) if (ok(l, bias)) return emit(l, bias, "recule");
 
@@ -754,7 +780,7 @@ export function trainerDealerPoint({
   const k = trainerMarkerClearance(numTables, "DEALER");
   const sideBiasPx = DEALER_SIDE_PX * (trainerDealerAngleOffset(numTables) / 0.20) * k;
   return trainerMarkerPoint({
-    ...common, markerType: "DEALER", sideBiasPx,
+    ...common, markerType: "DEALER", sideBiasPx, hugSeat: true,
     avoid: bet ? [{ x: bet.x, y: bet.y, minPx: 26 * k }] : null,
   });
 }

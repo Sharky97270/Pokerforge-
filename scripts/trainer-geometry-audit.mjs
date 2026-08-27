@@ -37,6 +37,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { trainerPotSizePx } from '../src/trainerTableGeometry.js';
 
 const arg = (n, d) => (process.argv.find(a => a.startsWith(`--${n}=`)) || `=${d}`).split('=').slice(1).join('=');
 const flag = n => process.argv.includes(`--${n}`);
@@ -121,7 +122,36 @@ const PROBE = (minArea) => {
     const zb = R(zone);
     const potEl = zone.querySelector('.pf-pot-readout');
     const potBox = potEl && painted(potEl) ? R(potEl) : null;
-    const pot = potBox || { cx: fb.cx, cy: fb.cy, w: 0, h: 0, x: fb.cx, y: fb.cy };
+    const potChipStackEl = zone.querySelector('.pf-pot-chip-stack');
+    /* Une pile de jetons ROGNEE occupe toujours sa boite de mise en page : son
+       getBoundingClientRect ne dit donc PAS ce que loeil voit. On rabat chaque
+       pile sur la boite qui la coupe, sinon le pot mesure 62 px de haut quand il
+       nen montre que 28 — et laudit accuserait de faux recouvrements. */
+    const potClip = (() => {
+      if (!potChipStackEl || !painted(potChipStackEl)) return null;
+      const cs = getComputedStyle(potChipStackEl);
+      return /hidden|clip/.test(cs.overflow + cs.overflowX + cs.overflowY) ? R(potChipStackEl) : null;
+    })();
+    const clampTo = (b, c) => {
+      if (!c) return b;
+      const x = Math.max(b.x, c.x), y = Math.max(b.y, c.y);
+      const w = Math.min(b.x + b.w, c.x + c.w) - x, h = Math.min(b.y + b.h, c.y + c.h) - y;
+      return w > 0 && h > 0 ? { x, y, w, h, cx: x + w / 2, cy: y + h / 2 } : null;
+    };
+    const potChipBrut = [...zone.querySelectorAll('.pf-pot-chip-cluster > *')].filter(painted).map(R);
+    const potChipEls = potChipBrut.map(b => clampTo(b, potClip)).filter(Boolean);
+    /* Le bloc du pot ne se limite pas a son medaillon : les piles de jetons en
+       debordent. Cest la boite PEINTE, debordement compris, que les tas de mise
+       viennent toucher — la mesurer sur le seul medaillon sous-estimait le
+       rapprochement, exactement la ou le defaut se voit. */
+    const potPeint = (() => {
+      const parts = [potBox, ...potChipEls].filter(Boolean);
+      if (!parts.length) return null;
+      const x = Math.min(...parts.map(b => b.x)), y = Math.min(...parts.map(b => b.y));
+      const w = Math.max(...parts.map(b => b.x + b.w)) - x, h = Math.max(...parts.map(b => b.y + b.h)) - y;
+      return { x, y, w: +w.toFixed(1), h: +h.toFixed(1), cx: x + w / 2, cy: y + h / 2 };
+    })();
+    const pot = potPeint || { cx: fb.cx, cy: fb.cy, w: 0, h: 0, x: fb.cx, y: fb.cy };
     const boardCards = [...zone.querySelectorAll('.mt-board-zone .card, .pf-board-zone .card')].filter(painted).map(R);
     const boardBox = boardCards.length ? {
       x: Math.min(...boardCards.map(b => b.x)), y: Math.min(...boardCards.map(b => b.y)),
@@ -205,7 +235,7 @@ const PROBE = (minArea) => {
         ratioAttribution: +(dAutre / (d || 1)).toFixed(2),
         voisinLePlusProche: voisin,
         surBoardPct: boardBox && b.w * b.h ? +(inter(b, boardBox) / (b.w * b.h) * 100).toFixed(1) : 0,
-        surPotPct: potBox && b.w * b.h ? +(inter(b, potBox) / (b.w * b.h) * 100).toFixed(1) : 0,
+        surPotPct: potPeint && b.w * b.h ? +(inter(b, potPeint) / (b.w * b.h) * 100).toFixed(1) : 0,
       };
     };
 
@@ -245,8 +275,37 @@ const PROBE = (minArea) => {
       };
     }
 
+    /* ── LE POT PEINT (§12/§27) ─────────────────────────────────────────
+       Le §12 annonçait mesurer « le jeton coupé au préflop » et ne regardait
+       que les cartes, les avatars, les mises, les blindes et le bouton D. La
+       grappe de jetons du POT n'entrait dans aucune liste : elle a donc pu se
+       faire trancher en deux par un overflow:hidden sans que rien ne le dise.
+       On mesure ici la boîte RÉELLEMENT peinte du bloc du pot — le libellé, le
+       montant ET les piles, débordement compris — parce que c est cette boîte
+       que les tas de mise viennent toucher, pas la boîte nominale. */
+    const potBloc = {
+      readout: potBox ? { w: +potBox.w.toFixed(1), h: +potBox.h.toFixed(1) } : null,
+      peint: potPeint ? { w: potPeint.w, h: potPeint.h } : null,
+      nbPiles: potChipBrut.length,
+      /* Hauteur RÉCLAMÉE par la plus haute pile contre hauteur OFFERTE par sa
+         boîte : au-delà de 1.5 px d écart, une partie des jetons est coupée. */
+      pileHautePx: potChipBrut.length ? +Math.max(...potChipBrut.map(b => b.h)).toFixed(1) : 0,
+      boiteJetonsPx: potChipStackEl && painted(potChipStackEl) ? +R(potChipStackEl).h.toFixed(1) : 0,
+      rogne: potChipStackEl && painted(potChipStackEl)
+        ? (clippedBy(potChipStackEl) || (() => {
+            const cs = getComputedStyle(potChipStackEl);
+            const coupe = /hidden|clip/.test(cs.overflow + cs.overflowX + cs.overflowY);
+            const b = R(potChipStackEl);
+            const debord = potChipBrut.reduce((m, c) => Math.max(m, (b.y - c.y) + Math.max(0, (c.y + c.h) - (b.y + b.h))), 0);
+            return coupe && debord > 1.5
+              ? { par: 'pf-pot-chip-stack', overflow: cs.overflow, debordePx: +debord.toFixed(1) }
+              : null;
+          })())
+        : null,
+    };
+
     if (boardBox) feuilles.push({ id: 'board', ...boardBox });
-    if (potBox) feuilles.push({ id: 'pot', ...potBox });
+    if (potPeint) feuilles.push({ id: 'pot', ...potPeint });
 
     /* ── SORTIE DE ZONE (§18/§19) ────────────────────────────────────────
        Un élément peut très bien n'être rogné par personne et se peindre quand
@@ -318,7 +377,7 @@ const PROBE = (minArea) => {
          d'un mode à l'autre. */
       avatarSurFeutre: tailles.avatar ? +(tailles.avatar.w / fb.w).toFixed(4) : null,
       potSurFeutre: tailles.pot ? +(tailles.pot.w / fb.w).toFixed(4) : null,
-      anneau, cartes, bets, blinds, dealer, recouvrements, tailles, horsZone,
+      anneau, cartes, bets, blinds, dealer, recouvrements, tailles, horsZone, potBloc,
       potTexte: potEl ? (potEl.textContent || '').trim().replace(/\s+/g, ' ') : null,
       /* §13 — l'état du moteur, publié au DOM par la table elle-même. Sans lui
          on compare un nombre peint à… rien. */
@@ -343,6 +402,7 @@ const PROBE = (minArea) => {
         ...bets.filter(b => b.rogne).map(b => ({ quoi: `${b.pos}:mise`, ...b.rogne })),
         ...blinds.filter(b => b.rogne).map(b => ({ quoi: `${b.pos}:blinde`, ...b.rogne })),
         ...(dealer && dealer.rogne ? [{ quoi: (dealer.proprietaire || 'D') + ':bouton', ...dealer.rogne }] : []),
+        ...(potBloc.rogne ? [{ quoi: 'pot:jetons', ...potBloc.rogne }] : []),
       ],
     });
   });
@@ -370,11 +430,15 @@ try {
      suivants ne trouvaient pas leur bouton, la session ne démarrait pas, et le
      script rendait « AUCUN RELEVE » sans dire pourquoi. On attend donc l'écran,
      pas le chronomètre. */
-  await click('Entraineur GTO');
+  /* Le clic doit etre REESSAYE, pas tire une seule fois : networkidle2 ne dit
+     rien du montage de React, et un clic tire trop tot ne trouve aucun onglet.
+     Le script attendait alors 12 s sur le Dashboard avant d'accuser l'onglet
+     Entraineur de ne pas etre monte. */
   let pret = false;
   for (let i = 0; i < 40; i++) {
     pret = await page.evaluate(() => [...document.querySelectorAll('button')].some(b => /Lancer la session/i.test(b.textContent || '')));
     if (pret) break;
+    await click('Entraineur GTO');
     await sleep(300);
   }
   if (!pret) { console.error("L'onglet Entraineur ne s'est pas monté (bouton « Lancer la session » absent)."); process.exit(4); }
@@ -459,14 +523,39 @@ try {
     attribution: stat(allBets.map(b => b.ratioAttribution)),
     misesAmbigues: allBets.filter(b => b.ratioAttribution < 1.2).map(b => ({ pos: b.pos, vers: b.voisinLePlusProche, ratio: b.ratioAttribution })),
 
+    /* §27 — LE POT DECLARE CONTRE LE POT PEINT.
+       La bande centrale interdite est batie sur trainerPotSizePx(). Si le bloc
+       peint est plus large que ce nombre, la bande protege un pot qui nexiste
+       pas et les tas de mise viennent se coller a celui qui existe. Cest la
+       mesure qui manquait pour voir venir ce defaut-la. */
+    potBloc: (() => {
+      const b = T.map(t => t.potBloc).filter(Boolean);
+      const dec = trainerPotSizePx(+String(TABLES).replace(/[^0-9]/g, "") || 1);
+      return {
+        declare: dec,
+        peintLargeur: stat(b.map(x => x.peint && x.peint.w)),
+        peintHauteur: stat(b.map(x => x.peint && x.peint.h)),
+        medaillonLargeur: stat(b.map(x => x.readout && x.readout.w)),
+        depassementLargeurPx: stat(b.map(x => x.peint ? +(x.peint.w - dec.w).toFixed(1) : null)),
+        pileHautePx: stat(b.map(x => x.pileHautePx)),
+        boiteJetonsPx: stat(b.map(x => x.boiteJetonsPx)),
+        jetonsCoupes: b.filter(x => x.rogne).length,
+      };
+    })(),
+
     /* §10 */
     boutonD: (() => {
       const ds = T.map(t => t.dealer).filter(Boolean);
+      const feltW = T.length ? T[T.length - 1].felt.w : 0;
       return {
         attribution: stat(ds.map(d => d.ratioAttribution)),
         malAttribue: ds.filter(d => d.siegeLePlusProche !== d.proprietaire).length,
         plusLoinQueLaMise: ds.filter(d => d.plusPresQueLaMise === false).length,
         distance: stat(ds.map(d => d.distanceProprietaire)),
+        /* Un bouton D se lit comme APPARTENANT a son joueur ou comme flottant
+           sur le feutre. Ce nest pas une distance en pixels qui le dit, cest sa
+           part de la table : le meme 120 px se lit colle en 4T et perdu en 1T. */
+        distanceSurFeutre: feltW ? stat(ds.map(d => d.distanceProprietaire == null ? null : +(d.distanceProprietaire / feltW).toFixed(3))) : null,
       };
     })(),
 

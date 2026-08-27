@@ -6102,7 +6102,33 @@ export const CSS_TABLE=`
   flex-direction:row!important;align-items:center!important;
   gap:7px!important;white-space:nowrap!important;height:30px!important;
 }
-.t1-left[data-nplayers] .pf-pot-chip-stack{height:24px!important;margin-bottom:0!important;overflow:hidden!important;}
+/* ── LES JETONS DU POT NE SE COUPENT PAS, ILS SE REDIMENSIONNENT (§24) ─────
+   Cette regle reservait 24px de haut aux piles du pot et posait overflow
+   hidden par-dessus. Or une pile "large" mesure base(34) + n x 4.7 + 4, soit
+   52 a 71px : mesure au navigateur, 12 tirages sur 12, jusqu a 40.5px de jetons
+   tranches net. A l ecran on ne voyait que la tranche basse des jetons, avec un
+   bord horizontal franc — le defaut signale par l utilisateur.
+
+   La regle du §24 vaut ici comme ailleurs : on REDUIT AVANT DE ROGNER. Le pot
+   1T garde donc sa bande d une trentaine de pixels (elle finance le couloir
+   central, cf. trainerDensity.potH) et ce sont les jetons qui adoptent le
+   gabarit de cette bande. Une pile mesure base + n x rise + 4 : a base 20 et
+   rise 1.3, elle va de 25.3px (une pile de 1) a 33.1px (sept jetons, le maximum
+   que potPileProfile produit) — la bande en fait 30. Le pot PEINT tient donc
+   dans le pot DECLARE (trainerPotSizePx : 156 x 30), ce qui est exactement la
+   condition pour que la bande centrale interdite protege le bon objet.
+
+   Un gabarit plus genereux a ete mesure puis rejete : a base 22 / rise 2.2 les
+   piles montaient a 41px, debordaient de 11px au-dessus de la bande et les
+   cartes de la SB venaient toucher le pot dans 5 tirages sur 10 a 1366x768 —
+   le couloir central y est deja sature (cf. trainerCentreLayout).
+
+   Ne jamais remettre overflow:hidden ici : un jeton coupe ne se voit pas sur
+   une capture de table entiere, seul l audit le dit. npm run audit:geo,
+   champ potBloc.jetonsCoupes. */
+.t1-left[data-nplayers] .pf-pot-chip-stack{height:30px!important;margin-bottom:0!important;overflow:visible!important;align-items:flex-end!important;}
+.t1-left[data-nplayers] .pf-pot-chip-cluster{align-items:flex-end!important;}
+.t1-left[data-nplayers] .pf-pot-chip-cluster>.pf-chip-stack-v2{--pf-chip-base-size:20px!important;--pf-chip-stack-rise:1.3px!important;}
 .t1-left[data-nplayers] .pf-pot-label{font-size:9px!important;}
 .t1-left[data-nplayers] .pf-pot-value{font-size:17px!important;}
 
