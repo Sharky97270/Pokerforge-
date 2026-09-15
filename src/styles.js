@@ -6382,6 +6382,35 @@ export const CSS_TABLE=`
    (Une règle existait déjà avec cette intention mais visait «.pf-pot-chip-stack»,
    une classe que le composant ne rend pas — elle n'a jamais eu d'effet.) */
 :is(.grid3,.grid4) .tw[data-density] .pf-pot-chip-cluster{display:none!important;}
+/* ── 2T : LE POT PEINT DOIT TENIR DANS LE POT DECLARE ──────────────────────
+   Le 2T garde ses jetons (feutre de 337px), mais ils debordaient de leur bande.
+   Mesure a 1366x768, 16 tables : bande declaree 98.4 x 24 (trainerPotSizePx),
+   bloc PEINT jusqu a 138 x 44.5 — soit 20px de haut en trop. Ce nombre-la n est
+   pas cosmetique : trainerCentreLayout finance le couloir central avec potH, et
+   le couloir est la ressource rare de la mosaique. Un pot annonce 24 et peint
+   44 vole 20px au board et aux mains.
+   Meme remede qu en 1T : le gabarit du jeton suit la bande, il ne la deborde
+   pas. base 16 + 7 x 1 + 4 = 27px au pire pour une bande de 24.
+   Ne pas masquer ces jetons comme en 3T/4T : a 337px de feutre ils sont lisibles
+   et ils disent la taille du pot d un coup d oeil. */
+.grid2 .tw[data-density] .pf-pot-chip-stack{height:var(--pf-d-pot-h,24px)!important;margin-bottom:0!important;overflow:visible!important;align-items:flex-end!important;}
+.grid2 .tw[data-density] .pf-pot-chip-cluster{align-items:flex-end!important;}
+.grid2 .tw[data-density] .pf-pot-chip-cluster>.pf-chip-stack-v2{--pf-chip-base-size:16px!important;--pf-chip-stack-rise:1px!important;}
+/* ── 4T : C EST LE MONTANT QUI DECIDE DE LA LARGEUR DU POT ─────────────────
+   En 3T/4T les jetons du pot sont deja masques : ce qui reste large, c est le
+   NOMBRE. Mesure a 1366x768 : bloc peint jusqu a 86px sur un feutre de 226 —
+   38 % de la table pour un seul objet, quand la bande declaree en annonce 69.7.
+   On a le choix entre elargir la bande interdite et retrecir l objet. Elargir a
+   ete mesure et REJETE : a 5.2, le solveur de marqueurs ne trouvait plus de
+   point legal dans cette cellule deja saturee et retombait sur son repli de
+   dernier recours, qui lui ne verifie PAS la bande — resultat, une mise POSEE
+   sur le pot et un degagement minimal tombe de 19.3px a 0. Elargir la zone
+   interdite au-dela de ce que la geometrie peut absorber produit exactement le
+   defaut qu elle est censee empecher.
+   On retrecit donc l objet : 15px -> 12.5px pour le montant du 4T seulement (le
+   3T garde 15px, il a la place). Les boutons d action de ce mode sont a 11px :
+   le pot reste le nombre le plus gros de la tuile. */
+.grid4 .pf-pot-value{font-size:12.5px!important;}
 
 /* ── 6. BARRE DE COMMANDE (§5/§6) ────────────────────────────────────────────
    Objectif : une BARRE, pas un second panneau. Mesuré avant : 105-116px pour

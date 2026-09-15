@@ -517,7 +517,16 @@ try {
     misesHorsAxe35: allBets.filter(b => b.ecartAngleDeg > 35).length,
     miseFractionVersPot: stat(allBets.map(b => b.fractionVersPot)),
     miseDegagementPotPx: stat(allBets.map(b => b.dPotBoite)),
-    misesCollesAuPot: allBets.filter(b => b.dPotBoite < 12).map(b => ({ pos: b.pos, d: b.dPotBoite, txt: b.texte })),
+    /* « Colle au pot » n est pas une distance en pixels, c est une PROPORTION.
+       Le seuil valait 12px dans les quatre modes : sur le feutre de 710px du 1T
+       il designe un contact, sur celui de 226px du 4T il condamne un tas pose a
+       plus de 5 % de la table du bloc du pot. On garde donc la valeur du 1T et
+       on la ramene a la taille du feutre du mode mesure. */
+    seuilCollePx: +(Math.max(4, (T.length ? T[T.length - 1].felt.w : 710) * 12 / 710)).toFixed(1),
+    misesCollesAuPot: (() => {
+      const seuil = Math.max(4, (T.length ? T[T.length - 1].felt.w : 710) * 12 / 710);
+      return allBets.filter(b => b.dPotBoite < seuil).map(b => ({ pos: b.pos, d: b.dPotBoite, txt: b.texte }));
+    })(),
     misesSurBoard: allBets.filter(b => b.surBoardPct > 2).map(b => ({ pos: b.pos, pct: b.surBoardPct })),
     misesSurPot: allBets.filter(b => b.surPotPct > 2).map(b => ({ pos: b.pos, pct: b.surPotPct })),
     attribution: stat(allBets.map(b => b.ratioAttribution)),
