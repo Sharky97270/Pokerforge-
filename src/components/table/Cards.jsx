@@ -38,10 +38,16 @@ export function CardBack({size="md",animated=false}){
 }
 
 /* Carte face cachée → révélation avec animation flip */
-export function HeroHoleCards({cards=[],size="md",gap=6,compact=false,style}){
+/* `folded` — Hero s'est couché. On NE retire PAS sa main : elle reste au siège
+   comme repère pédagogique, mais passe en SOUS-BRILLANCE jusqu'à la fin du coup
+   (cf. `.hero-cards--folded` dans styles.js — un seul langage visuel partagé
+   par le Trainer et le Replayer). L'état vient de la main JOUÉE (siège couché),
+   jamais d'un état d'interface parallèle. */
+export function HeroHoleCards({cards=[],size="md",gap=6,compact=false,folded=false,style}){
   if(!cards||!cards.length)return null;
   return(
-    <div className={`pf-hole-cards hero-card-wrap${compact?" compact":""}`} style={{gap, ...style}}>
+    <div className={`pf-hole-cards hero-card-wrap${compact?" compact":""}${folded?" hero-cards--folded":""}`}
+      data-folded={folded?"1":undefined} style={{gap, ...style}}>
       {cards.map((c,i)=><Card key={i} r={c.r} s={c.s} size={size} delay={i*.05}/>)}
     </div>
   );

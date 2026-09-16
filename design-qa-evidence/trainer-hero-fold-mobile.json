@@ -1,0 +1,109 @@
+{
+  "url": "http://localhost:7788",
+  "viewport": "390x844",
+  "modes": [
+    1
+  ],
+  "fullHand": false,
+  "fourchetteOpacite": [
+    0.3,
+    0.55
+  ],
+  "erreursPage": [],
+  "defauts": [],
+  "releves": [
+    {
+      "mode": "1T",
+      "avant": [
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "9♣",
+            "5♠"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.86) 0px 8px 22px) drop-shadow(rgba(0, 191, 255, 0.34) 0px 0px 16px)"
+          ],
+          "boite": {
+            "x": 155.6,
+            "y": 380,
+            "w": 40.7,
+            "h": 54.5
+          },
+          "boiteWrap": {
+            "x": 156.4,
+            "y": 381.3,
+            "w": 77.2,
+            "h": 52.1
+          },
+          "dosVilains": 1,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Call 30bb30bbà payer 30bb · cote 29%",
+            "Tapis 42bb42bbtapis · 42bb à engager"
+          ],
+          "aFold": true,
+          "street": "river"
+        }
+      ],
+      "apres": [
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "9♣",
+            "5♠"
+          ],
+          "classeCouche": true,
+          "opaciteCarte": 0.42,
+          "opaciteEffective": 0.42,
+          "chaineOpacite": [
+            {
+              "cls": "card card-1t-hero-mobile deal",
+              "opacite": 0.42
+            }
+          ],
+          "filtres": [
+            "saturate(0.55) brightness(0.72)",
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)"
+          ],
+          "boite": {
+            "x": 155.6,
+            "y": 380,
+            "w": 40.7,
+            "h": 54.5
+          },
+          "boiteWrap": {
+            "x": 156.4,
+            "y": 381.3,
+            "w": 77.2,
+            "h": 52.1
+          },
+          "dosVilains": 1,
+          "facesVilaines": 0,
+          "boutons": [
+            "Main suivante ▶",
+            "▶R",
+            "↺",
+            "🔒 Solution"
+          ],
+          "aFold": false,
+          "street": "river"
+        }
+      ],
+      "streets": null,
+      "deplacementReponse": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

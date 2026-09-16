@@ -1,0 +1,20 @@
+{
+  "url": "http://localhost:7788",
+  "viewport": "1600x950",
+  "modes": [
+    1
+  ],
+  "fullHand": true,
+  "fourchetteOpacite": [
+    0.3,
+    0.55
+  ],
+  "erreursPage": [],
+  "defauts": [
+    {
+      "code": "aucun-spot-avec-fold",
+      "mode": "1T"
+    }
+  ],
+  "releves": []
+}

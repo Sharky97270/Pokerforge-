@@ -1,0 +1,2410 @@
+{
+  "url": "http://localhost:7788",
+  "viewport": "1600x950",
+  "cible": 0.42,
+  "tolerance": 0.03,
+  "erreursPage": [],
+  "defauts": [],
+  "aller": [
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    }
+  ],
+  "retour": [
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    }
+  ],
+  "parStreet": {
+    "Flop": {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 3
+    },
+    "Turn": {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 4
+    },
+    "River": {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "Q♠",
+        "J♥"
+      ],
+      "classeCouche": true,
+      "opaciteEffective": 0.42,
+      "filtres": "saturate(0.55) brightness(0.72)",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": true,
+      "board": 5
+    }
+  },
+  "autre": [
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 0
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 3
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 4
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    },
+    {
+      "aUnHero": true,
+      "nbCartes": 2,
+      "rangs": [
+        "A♠",
+        "K♦"
+      ],
+      "classeCouche": false,
+      "opaciteEffective": 1,
+      "filtres": "none",
+      "boite": {
+        "x": 850.9,
+        "y": 502.7,
+        "w": 41.5,
+        "h": 54.7
+      },
+      "badgeFold": false,
+      "board": 5
+    }
+  ]
+}
