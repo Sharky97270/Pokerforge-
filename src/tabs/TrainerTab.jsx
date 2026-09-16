@@ -1,5 +1,5 @@
 // PokerForge — Entraineur GTO : layouts, IA vilain, generation de spots, table, session (extrait de App.jsx, Phase 3.3)
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { T } from "../theme.js";
 import { useIsMobile, useMaxWidth, vibrate, VIB } from "../utils/ui.js";
@@ -940,7 +940,9 @@ function getSeatRelativeMarkerPosition({layout,pos,markerType="BET",numTables=1,
     return d?{x:d.x,y:d.y}:{x:50,y:50};
   }
   const p=trainerMarkerPoint({...common,pos,markerType});
-  return p?{x:p.x,y:p.y}:{x:50,y:50};
+  /* `mode` / `deviationDeg` voyagent jusqu'au DOM (data-marker-*) : un audit
+     qui voit un badge sur des cartes doit pouvoir dire POURQUOI il y est. */
+  return p?{x:p.x,y:p.y,mode:p.mode,deviationDeg:p.deviationDeg}:{x:50,y:50};
 }
 
 
@@ -3104,6 +3106,17 @@ function buildSpotContext(spot){
   return{preActions:A,facing:null,heroCommitted:0};
 }
 
+/* ── RÉSERVE DU BANDEAU D'ACTIONS 1T : MÉMOIRE DE MODULE ───────────────────
+   Elle doit survivre au REMONTAGE de la table. Mesuré : `SingleTable` est
+   reconstruit à chaque main, donc un état local repartait de zéro et le feutre
+   changeait de taille d'une main à l'autre (529 px sur un spot à trois boutons,
+   542 px sur un spot à deux) — le §9 demande l'inverse.
+   La hauteur réclamée par ce bandeau ne dépend que de sa LARGEUR, qui décide des
+   retours à la ligne. D'où cette table largeur → maximum observé : elle se
+   réutilise d'une main à l'autre, et une largeur différente (fenêtre
+   redimensionnée, panneau replié) a sa propre entrée, donc sa propre mesure. */
+const RESERVE_ACTIONS_PAR_LARGEUR=new Map();
+
 function trainerExtraPlayers(spot){
   const raw=[
     ...(Array.isArray(spot?.multiway)?spot.multiway:[]),
@@ -3772,6 +3785,44 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
      `fhSync` provoque déjà un rendu — comme `fullHandProbe` plus bas. */
   const heroFolded=!!(seatStates[spot?.hpos]||{}).folded
     ||(playingFull&&!!fhStateRef.current?.players?.hero?.folded);
+  /* ── LA RÉSERVE SOUS LA TABLE VAUT LE CONTENU RÉEL, PAS UN NOMBRE ─────────
+     Le bandeau d'actions 1T mesure ~219 px tant qu'Hero doit parler, puis
+     retombe sur son plancher CSS (206 px) dès qu'il a répondu : la zone de
+     table, élastique, récupère ces 13 px et TOUS les sièges descendent de
+     ~9 px — en pleine main, après le clic. Mesuré au navigateur : 7 mains sur
+     20 en 6-max, 8 sur 16 en 9-max, 9 sur 14 à 1920×1080.
+
+     Un plancher en dur ne peut pas régler ça : la hauteur du contenu dépend du
+     SPOT (nombre de boutons, ligne de sizings) et de la RÉSOLUTION — mesurée à
+     206 px à 1366×768, 219 px à 1600×950, sans débordement ni dans un cas ni
+     dans l'autre. Monter la constante à 219 stabiliserait le 1600 et volerait
+     13 px de feutre au 1366, qui lui ne bougeait pas.
+
+     On mesure donc la hauteur RÉELLE pendant que les boutons sont à l'écran et
+     on la réserve.
+
+     La réserve vit dans `RESERVE_ACTIONS_PAR_LARGEUR`, au niveau du module : la
+     table est remontée à chaque main, un état local repartirait de zéro. */
+  const actionsUnderRef=useRef(null);
+  const[reserveActionsPx,setReserveActionsPx]=useState(0);
+  useLayoutEffect(()=>{
+    const el=actionsUnderRef.current;
+    if(!el)return;
+    const mesure=()=>{
+      const w=el.clientWidth||0;
+      if(!w)return;
+      /* `scrollHeight` et non `getBoundingClientRect` : c'est la hauteur que le
+         contenu RÉCLAME, celle qu'il faut réserver. */
+      const max=Math.max(RESERVE_ACTIONS_PAR_LARGEUR.get(w)||0,el.scrollHeight||0);
+      RESERVE_ACTIONS_PAR_LARGEUR.set(w,max);
+      setReserveActionsPx(max);
+    };
+    mesure();
+    const ro=typeof ResizeObserver!=="undefined"?new ResizeObserver(mesure):null;
+    ro&&ro.observe(el);
+    return()=>ro&&ro.disconnect();
+  },[spot?.id,phase,playingFull,fhStreet,answered,vact]);
+
   /* Le tapis RESTANT d'un siège — source unique de la plaque et du panneau.
      Un siège inconnu du ledger retombe sur la profondeur du spot, jamais sur
      une constante d'affichage. */
@@ -6810,6 +6861,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
                   pos={pos}
                   x={cpx}
                   y={cpy}
+                  markerMode={actionPt.mode}
+                  markerDeg={actionPt.deviationDeg}
                   amount={zoneAmount}
                   label={zoneLabel}
                   type={trainerVisualActionType((!playingFull?chipLabel:fhSeatLabel)||lastAct?.id||"BET")}
@@ -6855,8 +6908,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
          </div>{/* ── fin ZONE TABLE ── */}
          </div>{/* ── fin t1-zone-fit ── */}
 
-          {/* ══ ACTIONS HÉRO — centrées sous la table (maquette v2 : actions puis sizings) ══ */}
-          <div className="t1-actions-under" style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)"}}>
+          {/* ══ ACTIONS HÉRO — centrées sous la table (maquette v2 : actions puis sizings) ══
+              La hauteur réservée est MESURÉE (cf. `reserveActionsPx`) : sans elle,
+              répondre rend ~13 px à la zone de table et fait descendre tous les
+              sièges de ~9 px en pleine main. */}
+          <div ref={actionsUnderRef} className="t1-actions-under"
+            style={{flexShrink:0,padding:"0 14px 12px",background:"linear-gradient(180deg,rgba(3,7,18,0),#020810 22%)",
+              /* Variable, et non `minHeight` : la règle CSS porte un !important,
+                 qui bat tout style inline. Elle consomme donc cette variable. */
+              "--pf-t1-actions-reserve":reserveActionsPx?`${reserveActionsPx}px`:undefined}}>
             {phase==="hero_reply"&&vact&&renderHeroReply()}
             {phase==="hero"&&renderActionZone()}
             {/* Main complète (Full Hand) : le Héro joue flop→turn→river sur DESKTOP
@@ -7324,6 +7384,8 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
               pos={pos}
               x={cpx}
               y={cpy}
+              markerMode={actionPt.mode}
+              markerDeg={actionPt.deviationDeg}
               amount={seatActionAmount}
               label={seatActionLabel||trainerActionVerb(seatActionType)}
               type={seatActionType}

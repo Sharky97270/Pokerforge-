@@ -1,6 +1,6 @@
 {
-  "url": "http://localhost:7799",
-  "viewport": "1920x1080",
+  "url": "http://localhost:7788",
+  "viewport": "1600x950",
   "modes": [
     1,
     2,
@@ -23,8 +23,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "2♣",
-            "2♠"
+            "7♦",
+            "5♠"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -34,34 +34,26 @@
             "drop-shadow(rgba(0, 0, 0, 0.86) 0px 8px 22px) drop-shadow(rgba(0, 191, 255, 0.34) 0px 0px 16px)"
           ],
           "boite": {
-            "x": 826.2,
-            "y": 537,
+            "x": 681.3,
+            "y": 458.7,
             "w": 52.5,
             "h": 69.2
           },
           "boiteWrap": {
-            "x": 827.5,
-            "y": 538.6,
+            "x": 682.5,
+            "y": 460.3,
             "w": 101,
             "h": 66
           },
-          "dosVilains": 4,
+          "dosVilains": 1,
           "facesVilaines": 0,
           "boutons": [
             "FoldNe pas jouer",
-            "Call 2.5bb2.5bbà payer 2.5bb · cote 28%",
-            "3-Bet 11.5bb11.5bbà 11.5bb (4.6× la mise) · +11.5bb à ajouter",
-            "MIN",
-            "2.5×",
-            "3×",
-            "3.5×",
-            "4×",
-            "ALL-IN",
-            "−",
-            "+"
+            "Call 25.5bb25.5bbà payer 25.5bb · cote 28%",
+            "Tapis 40.5bb40.5bbtapis · 40.5bb à engager"
           ],
           "aFold": true,
-          "street": "preflop"
+          "street": "river"
         }
       ],
       "apres": [
@@ -69,8 +61,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "2♣",
-            "2♠"
+            "7♦",
+            "5♠"
           ],
           "classeCouche": true,
           "opaciteCarte": 0.42,
@@ -86,42 +78,42 @@
             "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)"
           ],
           "boite": {
-            "x": 826.3,
-            "y": 545.6,
+            "x": 681.3,
+            "y": 458.7,
             "w": 52.5,
             "h": 69.2
           },
           "boiteWrap": {
-            "x": 827.5,
-            "y": 547.2,
+            "x": 682.5,
+            "y": 460.3,
             "w": 101,
             "h": 66
           },
-          "dosVilains": 4,
+          "dosVilains": 1,
           "facesVilaines": 0,
           "boutons": [],
           "aFold": false,
-          "street": "preflop"
+          "street": "river"
         }
       ],
       "streets": null,
       "deplacementReponse": [
-        0.1,
-        8.6,
+        0,
+        0,
         0,
         0
       ]
     },
     {
       "mode": "2T",
-      "tuileCouchee": 1,
+      "tuileCouchee": 0,
       "avant": [
         {
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "9♦",
-            "Q♦"
+            "A♠",
+            "T♦"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -131,33 +123,32 @@
             "drop-shadow(rgba(0, 0, 0, 0.82) 0px 7px 16px)"
           ],
           "boite": {
-            "x": 512.7,
-            "y": 620.9,
+            "x": 432.7,
+            "y": 517.2,
             "w": 29.1,
             "h": 37.9
           },
           "boiteWrap": {
-            "x": 513,
-            "y": 621.9,
+            "x": 433,
+            "y": 518.2,
             "w": 57,
             "h": 36.1
           },
-          "dosVilains": 1,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
-            "CheckPasser sans payer",
-            "Bet 5.5bb5.5bb32% du pot",
-            "Bet 13bb13bb76% du pot"
+            "FoldNe pas jouer",
+            "Tapis 20bb20bbtapis · 20bb à engager"
           ],
-          "aFold": false,
+          "aFold": true,
           "street": "preflop"
         },
         {
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "Q♥",
-            "9♦"
+            "5♠",
+            "K♥"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -168,31 +159,22 @@
             "saturate(0.9) brightness(0.97)"
           ],
           "boite": {
-            "x": 1215.7,
-            "y": 620.9,
+            "x": 975.7,
+            "y": 517.2,
             "w": 29.1,
             "h": 37.9
           },
           "boiteWrap": {
-            "x": 1216,
-            "y": 621.9,
+            "x": 976,
+            "y": 518.2,
             "w": 57,
             "h": 36.1
           },
-          "dosVilains": 2,
+          "dosVilains": 1,
           "facesVilaines": 0,
           "boutons": [
             "FoldNe pas jouer",
-            "Open 2.5bb2.5bb2.5× BB",
-            "Tapis 25bb25bbtapis · 25bb à engager",
-            "MIN",
-            "2.5×",
-            "3×",
-            "3.5×",
-            "4×",
-            "ALL-IN",
-            "−",
-            "+"
+            "Tapis 12bb12bbtapis · 11.5bb à engager"
           ],
           "aFold": true,
           "street": "preflop"
@@ -203,44 +185,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "9♦",
-            "Q♦"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.82) 0px 7px 16px)"
-          ],
-          "boite": {
-            "x": 512.7,
-            "y": 620.9,
-            "w": 29.1,
-            "h": 37.9
-          },
-          "boiteWrap": {
-            "x": 513,
-            "y": 621.9,
-            "w": 57,
-            "h": 36.1
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Bet 5.5bb5.5bb32% du pot",
-            "Bet 13bb13bb76% du pot"
-          ],
-          "aFold": false,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "Q♥",
-            "9♦"
+            "A♠",
+            "T♦"
           ],
           "classeCouche": true,
           "opaciteCarte": 0.583333,
@@ -251,24 +197,23 @@
               "opacite": 0.583
             },
             {
-              "cls": "mt-slot table-slot-answered",
+              "cls": "mt-slot table-slot-answered mt-slot-focus",
               "opacite": 0.72
             }
           ],
           "filtres": [
             "saturate(0.55) brightness(0.72)",
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)",
-            "saturate(0.9) brightness(0.97)"
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)"
           ],
           "boite": {
-            "x": 1215.7,
-            "y": 620.9,
+            "x": 432.7,
+            "y": 517.2,
             "w": 29.1,
             "h": 37.9
           },
           "boiteWrap": {
-            "x": 1216,
-            "y": 621.9,
+            "x": 433,
+            "y": 518.2,
             "w": 57,
             "h": 36.1
           },
@@ -278,6 +223,42 @@
             "↺"
           ],
           "aFold": false,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "5♠",
+            "K♥"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.82) 0px 7px 16px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 975.7,
+            "y": 517.2,
+            "w": 29.1,
+            "h": 37.9
+          },
+          "boiteWrap": {
+            "x": 976,
+            "y": 518.2,
+            "w": 57,
+            "h": 36.1
+          },
+          "dosVilains": 1,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Tapis 12bb12bbtapis · 11.5bb à engager"
+          ],
+          "aFold": true,
           "street": "preflop"
         }
       ],
@@ -291,14 +272,14 @@
     },
     {
       "mode": "3T",
-      "tuileCouchee": 2,
+      "tuileCouchee": 0,
       "avant": [
         {
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "J♠",
-            "4♣"
+            "J♣",
+            "4♥"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -308,97 +289,113 @@
             "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)"
           ],
           "boite": {
-            "x": 516.3,
-            "y": 349.7,
+            "x": 436.3,
+            "y": 295.3,
             "w": 26.3,
             "h": 34.3
           },
           "boiteWrap": {
-            "x": 516.5,
-            "y": 350.5,
+            "x": 436.5,
+            "y": 296.2,
             "w": 49.9,
             "h": 32.7
           },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Bet 2.5bb2.5bb36% du pot",
-            "Bet 5.5bb5.5bb79% du pot"
-          ],
-          "aFold": false,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "J♣",
-            "A♠"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
-            "saturate(0.9) brightness(0.97)"
-          ],
-          "boite": {
-            "x": 1219.3,
-            "y": 349.7,
-            "w": 26.3,
-            "h": 34.3
-          },
-          "boiteWrap": {
-            "x": 1219.5,
-            "y": 350.5,
-            "w": 49.9,
-            "h": 32.7
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Bet 12.5bb12.5bb50% du pot",
-            "Bet 30bb30bb120% du pot"
-          ],
-          "aFold": false,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "5♦",
-            "4♠"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
-            "saturate(0.9) brightness(0.97)"
-          ],
-          "boite": {
-            "x": 867.8,
-            "y": 819.2,
-            "w": 26.3,
-            "h": 34.3
-          },
-          "boiteWrap": {
-            "x": 868,
-            "y": 820,
-            "w": 49.9,
-            "h": 32.7
-          },
-          "dosVilains": 1,
+          "dosVilains": 3,
           "facesVilaines": 0,
           "boutons": [
             "FoldNe pas jouer",
-            "Call 1.5bb1.5bbà payer 1.5bb · cote 27%",
-            "3-Bet 9bb9bbà 9bb (3.6× la mise) · +8bb à ajouter",
+            "Call 2bb2bbà payer 2bb · cote 24%",
+            "3-Bet 11.5bb11.5bbà 11.5bb (4.6× la mise) · +11bb à ajouter",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
+          ],
+          "aFold": true,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "Q♣",
+            "Q♥"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 979.3,
+            "y": 295.3,
+            "w": 26.3,
+            "h": 34.3
+          },
+          "boiteWrap": {
+            "x": 979.5,
+            "y": 296.2,
+            "w": 49.9,
+            "h": 32.7
+          },
+          "dosVilains": 2,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Call 7.5bb7.5bbà payer 7.5bb · cote 37%",
+            "4-Bet 22bb22bbà 22bb (2.2× la mise) · +19.5bb à ajouter",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
+          ],
+          "aFold": true,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "7♠",
+            "3♠"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 707.8,
+            "y": 699.8,
+            "w": 26.3,
+            "h": 34.3
+          },
+          "boiteWrap": {
+            "x": 708,
+            "y": 700.7,
+            "w": 49.9,
+            "h": 32.7
+          },
+          "dosVilains": 5,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Open 2.5bb2.5bb2.5× BB",
+            "Open 3bb3bb3× BB",
             "MIN",
             "2.5×",
             "3×",
@@ -417,81 +414,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "J♠",
-            "4♣"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)"
-          ],
-          "boite": {
-            "x": 516.3,
-            "y": 349.7,
-            "w": 26.3,
-            "h": 34.3
-          },
-          "boiteWrap": {
-            "x": 516.5,
-            "y": 350.5,
-            "w": 49.9,
-            "h": 32.7
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Bet 2.5bb2.5bb36% du pot",
-            "Bet 5.5bb5.5bb79% du pot"
-          ],
-          "aFold": false,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
             "J♣",
-            "A♠"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
-            "saturate(0.9) brightness(0.97)"
-          ],
-          "boite": {
-            "x": 1219.3,
-            "y": 349.7,
-            "w": 26.3,
-            "h": 34.3
-          },
-          "boiteWrap": {
-            "x": 1219.5,
-            "y": 350.5,
-            "w": 49.9,
-            "h": 32.7
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Bet 12.5bb12.5bb50% du pot",
-            "Bet 30bb30bb120% du pot"
-          ],
-          "aFold": false,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "5♦",
-            "4♠"
+            "4♥"
           ],
           "classeCouche": true,
           "opaciteCarte": 0.583333,
@@ -502,33 +426,122 @@
               "opacite": 0.583
             },
             {
-              "cls": "mt-slot table-slot-answered",
+              "cls": "mt-slot table-slot-answered mt-slot-focus",
               "opacite": 0.72
             }
           ],
           "filtres": [
             "saturate(0.55) brightness(0.72)",
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)",
-            "saturate(0.9) brightness(0.97)"
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)"
           ],
           "boite": {
-            "x": 867.8,
-            "y": 819.2,
+            "x": 436.3,
+            "y": 295.3,
             "w": 26.3,
             "h": 34.3
           },
           "boiteWrap": {
-            "x": 868,
-            "y": 820,
+            "x": 436.5,
+            "y": 296.2,
             "w": 49.9,
             "h": 32.7
           },
-          "dosVilains": 1,
+          "dosVilains": 3,
           "facesVilaines": 0,
           "boutons": [
             "↺"
           ],
           "aFold": false,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "Q♣",
+            "Q♥"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 979.3,
+            "y": 295.3,
+            "w": 26.3,
+            "h": 34.3
+          },
+          "boiteWrap": {
+            "x": 979.5,
+            "y": 296.2,
+            "w": 49.9,
+            "h": 32.7
+          },
+          "dosVilains": 2,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Call 7.5bb7.5bbà payer 7.5bb · cote 37%",
+            "4-Bet 22bb22bbà 22bb (2.2× la mise) · +19.5bb à ajouter",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
+          ],
+          "aFold": true,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "7♠",
+            "3♠"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 707.8,
+            "y": 699.8,
+            "w": 26.3,
+            "h": 34.3
+          },
+          "boiteWrap": {
+            "x": 708,
+            "y": 700.7,
+            "w": 49.9,
+            "h": 32.7
+          },
+          "dosVilains": 5,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Open 2.5bb2.5bb2.5× BB",
+            "Open 3bb3bb3× BB",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
+          ],
+          "aFold": true,
           "street": "preflop"
         }
       ],
@@ -542,14 +555,14 @@
     },
     {
       "mode": "4T",
-      "tuileCouchee": 1,
+      "tuileCouchee": 0,
       "avant": [
         {
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "4♣",
-            "5♠"
+            "T♥",
+            "Q♥"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -559,32 +572,41 @@
             "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)"
           ],
           "boite": {
-            "x": 516.9,
-            "y": 355.5,
+            "x": 436.9,
+            "y": 301.1,
             "w": 25.7,
             "h": 33.5
           },
           "boiteWrap": {
-            "x": 517.1,
-            "y": 356.3,
+            "x": 437.1,
+            "y": 301.9,
             "w": 48.7,
             "h": 31.9
           },
-          "dosVilains": 1,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
-            "CheckPasser sans payer",
-            "Tapis 18bb18bbtapis · 18bb à engager",
-            "Tapis 18bb18bbtapis · 18bb à engager"
+            "FoldNe pas jouer",
+            "Call 6.5bb6.5bbà payer 6.5bb · cote 35%",
+            "4-Bet 22bb22bbà 22bb (2.4× la mise) · +19.5bb à ajouter",
+            "Tapis 50bb50bbtapis · 47.5bb à engager",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
           ],
-          "aFold": false,
+          "aFold": true,
           "street": "preflop"
         },
         {
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "3♦",
+            "A♠",
             "Q♠"
           ],
           "classeCouche": false,
@@ -596,14 +618,95 @@
             "saturate(0.9) brightness(0.97)"
           ],
           "boite": {
-            "x": 1219.9,
-            "y": 355.5,
+            "x": 979.9,
+            "y": 301.1,
             "w": 25.7,
             "h": 33.5
           },
           "boiteWrap": {
-            "x": 1220.1,
-            "y": 356.3,
+            "x": 980.1,
+            "y": 301.9,
+            "w": 48.7,
+            "h": 31.9
+          },
+          "dosVilains": 2,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Call 1.5bb1.5bbà payer 1.5bb · cote 19%",
+            "3-Bet 12bb12bbà 12bb (4.8× la mise) · +11bb à ajouter",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
+          ],
+          "aFold": true,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "Q♦",
+            "6♥"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 436.9,
+            "y": 702.6,
+            "w": 25.7,
+            "h": 33.5
+          },
+          "boiteWrap": {
+            "x": 437.1,
+            "y": 703.4,
+            "w": 48.7,
+            "h": 31.9
+          },
+          "dosVilains": 2,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Tapis 25bb25bbtapis · 25bb à engager"
+          ],
+          "aFold": true,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "K♥",
+            "5♣"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 979.9,
+            "y": 702.6,
+            "w": 25.7,
+            "h": 33.5
+          },
+          "boiteWrap": {
+            "x": 980.1,
+            "y": 703.4,
             "w": 48.7,
             "h": 31.9
           },
@@ -624,79 +727,6 @@
           ],
           "aFold": true,
           "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "Q♥",
-            "T♣"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
-            "saturate(0.9) brightness(0.97)"
-          ],
-          "boite": {
-            "x": 516.9,
-            "y": 822,
-            "w": 25.7,
-            "h": 33.5
-          },
-          "boiteWrap": {
-            "x": 517.1,
-            "y": 822.8,
-            "w": 48.7,
-            "h": 31.9
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "FoldNe pas jouer",
-            "Tapis 20bb20bbtapis · 19.5bb à engager"
-          ],
-          "aFold": true,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "T♣",
-            "7♠"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
-            "saturate(0.9) brightness(0.97)"
-          ],
-          "boite": {
-            "x": 1219.9,
-            "y": 822,
-            "w": 25.7,
-            "h": 33.5
-          },
-          "boiteWrap": {
-            "x": 1220.1,
-            "y": 822.8,
-            "w": 48.7,
-            "h": 31.9
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Bet 6.5bb6.5bb34% du pot",
-            "Bet 14.5bb14.5bb76% du pot"
-          ],
-          "aFold": false,
-          "street": "preflop"
         }
       ],
       "apres": [
@@ -704,44 +734,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "4♣",
-            "5♠"
-          ],
-          "classeCouche": false,
-          "opaciteCarte": 1,
-          "opaciteEffective": 1,
-          "chaineOpacite": [],
-          "filtres": [
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)"
-          ],
-          "boite": {
-            "x": 516.9,
-            "y": 355.5,
-            "w": 25.7,
-            "h": 33.5
-          },
-          "boiteWrap": {
-            "x": 517.1,
-            "y": 356.3,
-            "w": 48.7,
-            "h": 31.9
-          },
-          "dosVilains": 1,
-          "facesVilaines": 0,
-          "boutons": [
-            "CheckPasser sans payer",
-            "Tapis 18bb18bbtapis · 18bb à engager",
-            "Tapis 18bb18bbtapis · 18bb à engager"
-          ],
-          "aFold": false,
-          "street": "preflop"
-        },
-        {
-          "aUnHero": true,
-          "nbCartes": 2,
-          "rangs": [
-            "3♦",
-            "Q♠"
+            "T♥",
+            "Q♥"
           ],
           "classeCouche": true,
           "opaciteCarte": 0.583333,
@@ -752,28 +746,27 @@
               "opacite": 0.583
             },
             {
-              "cls": "mt-slot table-slot-answered",
+              "cls": "mt-slot table-slot-answered mt-slot-focus",
               "opacite": 0.72
             }
           ],
           "filtres": [
             "saturate(0.55) brightness(0.72)",
-            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)",
-            "saturate(0.9) brightness(0.97)"
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)"
           ],
           "boite": {
-            "x": 1219.9,
-            "y": 355.5,
+            "x": 436.9,
+            "y": 301.1,
             "w": 25.7,
             "h": 33.5
           },
           "boiteWrap": {
-            "x": 1220.1,
-            "y": 356.3,
+            "x": 437.1,
+            "y": 301.9,
             "w": 48.7,
             "h": 31.9
           },
-          "dosVilains": 3,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
             "↺"
@@ -785,8 +778,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "Q♥",
-            "T♣"
+            "A♠",
+            "Q♠"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -797,22 +790,31 @@
             "saturate(0.9) brightness(0.97)"
           ],
           "boite": {
-            "x": 516.9,
-            "y": 822,
+            "x": 979.9,
+            "y": 301.1,
             "w": 25.7,
             "h": 33.5
           },
           "boiteWrap": {
-            "x": 517.1,
-            "y": 822.8,
+            "x": 980.1,
+            "y": 301.9,
             "w": 48.7,
             "h": 31.9
           },
-          "dosVilains": 1,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
             "FoldNe pas jouer",
-            "Tapis 20bb20bbtapis · 19.5bb à engager"
+            "Call 1.5bb1.5bbà payer 1.5bb · cote 19%",
+            "3-Bet 12bb12bbà 12bb (4.8× la mise) · +11bb à ajouter",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
           ],
           "aFold": true,
           "street": "preflop"
@@ -821,8 +823,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "T♣",
-            "7♠"
+            "Q♦",
+            "6♥"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -833,25 +835,69 @@
             "saturate(0.9) brightness(0.97)"
           ],
           "boite": {
-            "x": 1219.9,
-            "y": 822,
+            "x": 436.9,
+            "y": 702.6,
             "w": 25.7,
             "h": 33.5
           },
           "boiteWrap": {
-            "x": 1220.1,
-            "y": 822.8,
+            "x": 437.1,
+            "y": 703.4,
             "w": 48.7,
             "h": 31.9
           },
-          "dosVilains": 1,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
-            "CheckPasser sans payer",
-            "Bet 6.5bb6.5bb34% du pot",
-            "Bet 14.5bb14.5bb76% du pot"
+            "FoldNe pas jouer",
+            "Tapis 25bb25bbtapis · 25bb à engager"
           ],
-          "aFold": false,
+          "aFold": true,
+          "street": "preflop"
+        },
+        {
+          "aUnHero": true,
+          "nbCartes": 2,
+          "rangs": [
+            "K♥",
+            "5♣"
+          ],
+          "classeCouche": false,
+          "opaciteCarte": 1,
+          "opaciteEffective": 1,
+          "chaineOpacite": [],
+          "filtres": [
+            "drop-shadow(rgba(0, 0, 0, 0.72) 0px 3px 8px)",
+            "saturate(0.9) brightness(0.97)"
+          ],
+          "boite": {
+            "x": 979.9,
+            "y": 702.6,
+            "w": 25.7,
+            "h": 33.5
+          },
+          "boiteWrap": {
+            "x": 980.1,
+            "y": 703.4,
+            "w": 48.7,
+            "h": 31.9
+          },
+          "dosVilains": 3,
+          "facesVilaines": 0,
+          "boutons": [
+            "FoldNe pas jouer",
+            "Call 2.5bb2.5bbà payer 2.5bb · cote 38%",
+            "3-Bet 8.5bb8.5bbà 8.5bb (3.4× la mise) · +8.5bb à ajouter",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN",
+            "−",
+            "+"
+          ],
+          "aFold": true,
           "street": "preflop"
         }
       ],

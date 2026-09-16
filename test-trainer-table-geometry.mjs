@@ -376,6 +376,52 @@ for (const sc of SCENARIOS) {
   ok(!/--pf-z-\w+:\s*9999/.test(css), "aucune couche de table ne monte à 9999");
 }
 
+/* ══ 9 — LE BADGE NE S'INSTALLE PAS SUR LA MAIN DE SON JOUEUR ══════════════
+   Quand l'axe est bouché, le placement doit PERDRE quelque chose : s'écarter du
+   segment siège→pot, ou mordre les cartes de son propriétaire. Il n'existe pas
+   d'ordre fixe qui convienne aux quatre modes — un ordre a été essayé dans les
+   deux sens, et chacun a produit un défaut mesuré :
+
+     « mordre d'abord » → le mode `poche` ne sortait jamais, et le badge
+       couvrait 38 à 64 % de la surface des cartes en 1T (relevé navigateur,
+       Hero comme vilains) ;
+     « s'écarter d'abord » → régression en mosaïque : écart angulaire moyen de
+       3.8° à 31.9° en 4T, 10 mises sur 22 au-delà de 35°, attribution de 1.47
+       à 1.22.
+
+   Le placement compare donc un COÛT. Ce bloc verrouille le résultat attendu :
+   un badge reste lisible (écart borné) ET ne s'installe pas sur la main.
+   La part de cartes recouverte est recalculée ici à partir des mêmes grandeurs
+   que le rendu — demi-largeur et profondeur du bloc — pour que le test mesure
+   l'effet, jamais l'implémentation. */
+for (const m of modes) {
+  const seats = seats6(m);
+  const area = ZONES[m];
+  for (const hasBoard of boards) {
+    for (const [pos] of Object.entries(seats)) {
+      const hero = heroOf(m);
+      const p = trainerMarkerPoint({ seats, pos, markerType: "BET", numTables: m, hasBoard, ringGeom: area, geometry: GEOM[m], heroPos: hero });
+      /* Plafond de 35° pour tous les sièges : c'est aussi le contrat de l'audit
+         de géométrie au navigateur (misesHorsAxe35 = 0 en 1T). Le Hero n'y fait
+         pas exception : quand la place manque, il mord sa propre main plutôt
+         que d'envoyer sa mise de côté. */
+      const plafond = 35;
+      ok(p.deviationDeg <= plafond,
+        `${m}T/${pos} : le badge reste lisible — écart ${p.deviationDeg}° (plafond ${plafond}°)`);
+      /* Recouvrement du bloc de cartes, en part de sa surface. */
+      const blk = trainerSeatBlockPx(m, { hero: pos === hero, opts: {}, avatarPx: pos === hero ? 71 : 56 });
+      const seat = seats[pos];
+      const sx = seat.x * area.areaW / 100, sy = seat.y * area.areaH / 100;
+      const bx = p.x * area.areaW / 100, by = p.y * area.areaH / 100;
+      const d = Math.hypot(bx - sx, by - sy);
+      const dedans = Math.max(0, Math.min(d + 20, blk.towardPot) - Math.max(d - 20, 0));
+      const part = dedans / Math.max(1, blk.towardPot);
+      ok(part <= 0.75,
+        `${m}T/${pos} : le badge n'est pas installé au milieu de la main (${Math.round(part * 100)} % de la profondeur du bloc)`);
+    }
+  }
+}
+
 if (fails.length) {
   console.error(`\n❌ ${fails.length} échec(s) sur ${n} assertions :`);
   fails.slice(0, 25).forEach(f => console.error("  · " + f));

@@ -62,7 +62,8 @@
     "audit:goldmaster": "node scripts/trainer-gold-master-audit.mjs",
     "audit:herofold": "node scripts/trainer-hero-fold-audit.mjs --modes=1,2,3,4 --out=design-qa-evidence/trainer-hero-fold.json",
     "audit:herofold:replayer": "node scripts/replayer-hero-fold-audit.mjs --out=design-qa-evidence/replayer-hero-fold.json",
-    "audit:herofold:mobile": "node scripts/trainer-hero-fold-audit.mjs --modes=1 --w=390 --h=844 --out=design-qa-evidence/trainer-hero-fold-mobile.json"
+    "audit:herofold:mobile": "node scripts/trainer-hero-fold-audit.mjs --modes=1 --w=390 --h=844 --out=design-qa-evidence/trainer-hero-fold-mobile.json",
+    "audit:1t": "node scripts/trainer-1t-stabilite-audit.mjs"
   },
   "prisma": {
     "seed": "ts-node --esm prisma/seed.ts"
