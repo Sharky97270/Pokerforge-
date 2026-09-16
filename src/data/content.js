@@ -77,7 +77,7 @@ export const SPOTS=[
    leaks:["Fold 98s BB = trop tight"],diff:2},
 
   {id:"mw1",cat:"Vs Open",street:"Preflop",fmt:"Cash 6-max",hpos:"BB",vpos:"CO",vtype:"TAG",stack:"100bb",
-   hand:[{r:"A",s:"â™ "},{r:"Q",s:"â™ "}],board:[],pot:6.5,toCall:1.5,
+   hand:[{r:"A",s:"♠"},{r:"Q",s:"♠"}],board:[],pot:6.5,toCall:1.5,
    multiway:[{pos:"BTN",type:"Reg",amount:2.5,action:"CALL",label:"Call"}],
    desc:"BB - Squeeze vs CO open + BTN call - AQs",
    acts:[{id:"FOLD",l:"Fold",s:"Trop tight"},{id:"CALL",l:"Call",s:"1.5bb"},{id:"RAISE",l:"Squeeze 12bb",s:"Premium"}],

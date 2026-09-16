@@ -29,10 +29,27 @@ export const FH_STREETS = ["flop", "turn", "river"];
    Une carte illisible n'est PAS silencieusement ramenée à 2♠ : c'est
    exactement le mécanisme qui inventait des paires de 2 et des couleurs à
    pique. Elle lève. */
+/* Le message doit permettre d AGIR. « carte invalide {"r":"A","s":"♠"} » ne le
+   permet pas : les deux caracteres ont l air justes a la lecture, et le defaut
+   est precisement qu ils ne le sont PAS (selecteur de variante, homoglyphe,
+   espace residuel, chaine vide). On publie donc les points de code. */
+function decrisCarte(c) {
+  const champ = v => v === undefined ? "absent"
+    : typeof v !== "string" ? `${typeof v} ${JSON.stringify(v)}`
+    : `${JSON.stringify(v)} [${[...v].map(ch => "U+" + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")).join(" ") || "vide"}]`;
+  return c && typeof c === "object"
+    ? `r=${champ(c.r)} s=${champ(c.s)}`
+    : `carte ${JSON.stringify(c)}`;
+}
 export function cardToInt(c) {
-  const r = RANK_ORDER.indexOf(c && c.r);
-  const s = SUIT_ORDER.indexOf(c && c.s);
-  if (r < 0 || s < 0) throw new RangeError(`cardToInt : carte invalide ${JSON.stringify(c)}`);
+  /* `indexOf` cherche une SOUS-CHAINE : sur une chaine vide il rend 0, donc
+     l as de pique silencieux que ce module refuse justement de fabriquer. On
+     exige un caractere, un seul. */
+  const cr = c && typeof c.r === "string" && [...c.r].length === 1 ? c.r : null;
+  const cs = c && typeof c.s === "string" && [...c.s].length === 1 ? c.s : null;
+  const r = cr === null ? -1 : RANK_ORDER.indexOf(cr);
+  const s = cs === null ? -1 : SUIT_ORDER.indexOf(cs);
+  if (r < 0 || s < 0) throw new RangeError(`cardToInt : carte invalide — ${decrisCarte(c)}`);
   return (r << 2) | s;
 }
 

@@ -322,7 +322,24 @@ export function trainerBoardSizePx(numTables = 1, opts = {}) {
    haut une fois les piles bornées (§27), contre 69/17 en 4T. Un facteur unique
    décrivait forcément l'un des deux de travers — et c'est le 1T qu'il
    sous-estimait, celui-là même où les tas venaient se coller au pot. */
-const POT_WIDTH_FACTOR_BY_TABLES = { 1: 5.2, 2: 4.1, 3: 4.1, 4: 4.1 };
+/* Ces facteurs decrivaient un pot plus ETROIT que celui qu on peint, dans les
+   QUATRE modes — et la bande centrale interdite est batie dessus. Elle
+   protegeait donc un pot qui n existe pas, pendant que les tas de mise venaient
+   se coller a celui qui existe. Mesure a 1366x768 sur l instrument audit:geo,
+   champ potBloc (bloc PEINT, debordement des jetons compris) :
+
+     mode   declare   peint max   ecart
+     1T     156.0     169.9       +13.9
+     2T      98.4     138.0       +39.6
+     3T      73.8      94.4       +20.6
+     4T      69.7      86.0       +16.3
+
+   Les valeurs ci-dessous sont le peint mesure, arrondi au dixieme superieur.
+   La variable est la LONGUEUR DU MONTANT : « POT 5.5bb » et « POT 111.5bb » ne
+   font pas la meme largeur, et le montant ne se raccourcit pas. Avant de
+   toucher ces nombres, RE-MESURER — ne pas les deduire d une formule sur la
+   hauteur, c est ce que faisait la version precedente. */
+const POT_WIDTH_FACTOR_BY_TABLES = { 1: 5.7, 2: 5.8, 3: 5.3, 4: 5.2 };
 export function trainerPotSizePx(numTables = 1, opts = {}) {
   const h = trainerDensity(numTables, opts).potH || 20;
   const f = POT_WIDTH_FACTOR_BY_TABLES[numTables] ?? 4.1;
