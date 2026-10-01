@@ -9,29 +9,35 @@
    "mode": "1T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 82,
+   "nbTextes": 60,
    "ok": true
   },
   {
    "mode": "2T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 53,
+   "nbTextes": 68,
    "ok": true
   },
   {
    "mode": "3T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 60,
+   "nbTextes": 51,
    "ok": true
   },
   {
    "mode": "4T",
-   "trop_petit": [],
+   "trop_petit": [
+    {
+     "texte": "min 4bb · max 30",
+     "px": 6,
+     "cls": "mtr-actions mtr-actions-mult"
+    }
+   ],
    "arrondis": [],
-   "nbTextes": 49,
-   "ok": true
+   "nbTextes": 51,
+   "ok": false
   }
  ]
 }

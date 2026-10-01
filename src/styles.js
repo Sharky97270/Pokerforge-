@@ -6639,6 +6639,26 @@ export const CSS_TABLE=`
 .pf-player-seat[data-radial="down"] .pf-seat-outward{
   left:50%;bottom:100%;transform:translate(-50%,calc(-1 * var(--pf-g)));
 }
+/* ── LE SIÈGE HAUT-CENTRE (1T) N'A PAS DE BUDGET VERTICAL POUR EMPILER UN
+   BADGE SOUS SA PLAQUE (§18/§19, audit:geo) ───────────────────────────────
+   C'est le seul siège dont l'extérieur pointe vers le haut : au-dessus de lui
+   il n'y a que le bord du feutre, sans la marge que les autres axes trouvent
+   plus bas. Mesuré à 1366×768 : la plaque seule n'a déjà que 3px de marge
+   avant la sortie de zone ; un badge Fold/Multiway empilé en colonne (+13.5px
+   de hauteur, +1px de gap) la pousse de 11.5px hors du feutre — exactement ce
+   qu'audit:geo mesurait (« UTG:plaque » hors zone, 10 occurrences sur le lot).
+   On ne peut pas redescendre le badge dans le flux de la plaque (déjà tenté :
+   un ancrage flottant pointant vers le centre faisait recouvrir « Fold » et
+   « POT » de 19×2px, cf. commentaire C14 plus haut) : on les met plutôt CÔTE
+   À CÔTE. Le feutre a 589px de large à cet endroit pour un bloc plaque+badge
+   de 125px — la largeur ne manque pas, seule la hauteur manquait. */
+.pf-player-seat[data-radial="down"] .pf-seat-outward{
+  flex-direction:row;gap:5px;
+}
+.pf-player-seat[data-radial="down"] .pf-seat-outward .pf-fold-chip,
+.pf-player-seat[data-radial="down"] .pf-seat-outward .pf-multiway-chip{
+  margin-top:0;
+}
 /* Axes horizontaux : voir l'encadré ci-dessus — la plaque descend au lieu de
    sortir du cadre. */
 .pf-player-seat[data-radial="left"] .pf-seat-outward,
