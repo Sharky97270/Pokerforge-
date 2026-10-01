@@ -166,6 +166,8 @@ export function SeatActionZone({
   style,
   pos,
   allIn = false,
+  markerMode,
+  markerDeg,
 }) {
   if (!(amount > 0)) return null;
   /* ── §14 — UN TAPIS SE DIT, IL NE SE DEVINE PAS ──────────────────────────
@@ -182,7 +184,7 @@ export function SeatActionZone({
   // siège — rien ne reliait donc un tas de jetons à son joueur. L'attribut rend
   // ce lien vérifiable (audit visuel : « ce tas appartient-il bien à ce siège ? »).
   return (
-    <div className={`pf-seat-action-zone ${className}`} data-seat={pos} style={{ left: `${x}%`, top: `${y}%`, ...style }}>
+    <div className={`pf-seat-action-zone ${className}`} data-seat={pos} data-marker-mode={markerMode||undefined} data-marker-deg={markerDeg!=null?markerDeg:undefined} style={{ left: `${x}%`, top: `${y}%`, ...style }}>
       {visual === "call" ? <CallBadge {...props} /> : visual === "raise" ? <RaiseBadge {...props} /> : visual === "open" ? <OpenBadge {...props} /> : visual === "allin" ? <AllInBadge {...props} /> : <BetBadge {...props} />}
     </div>
   );
