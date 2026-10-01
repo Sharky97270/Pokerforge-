@@ -1,5 +1,5 @@
 {
-  "ts": "2026-08-24T22:52:14.974Z",
+  "ts": "2026-10-01T17:23:09.121Z",
   "url": "http://localhost:7799",
   "viewport": {
     "w": 1920,
@@ -14,29 +14,29 @@
   "spotsJoues": {
     "parLigne": {
       "vsOpen": 13,
-      "squeeze": 14
+      "squeeze": 6
     },
-    "avecSiegesSupplementaires": 14
+    "avecSiegesSupplementaires": 6
   },
   "mainsCompletes": 16,
   "issues": {
-    "lose": 6,
-    "win": 10
+    "lose": 3,
+    "win": 13
   },
   "tentatives": {
-    "total": 31,
-    "coupsLances": 27,
+    "total": 19,
+    "coupsLances": 19,
     "refusExplicite": 0,
-    "resoluPreflop": 1,
-    "sansAction": 3,
-    "interrompus": 11
+    "resoluPreflop": 0,
+    "sansAction": 0,
+    "interrompus": 3
   },
   "multiway": {
     "parNbJoueurs": {
-      "2": 12,
-      "3": 4
+      "2": 13,
+      "3": 3
     },
-    "mainsA3JoueursOuPlus": 4,
+    "mainsA3JoueursOuPlus": 3,
     "mainsAvecSidePotDispute": 3,
     "parSpot": [
       {
@@ -45,8 +45,8 @@
         "extras": [],
         "assis": 2,
         "joueurs": [
-          "BB",
-          "CO"
+          "CO",
+          "BTN"
         ]
       },
       {
@@ -55,8 +55,8 @@
         "extras": [],
         "assis": 2,
         "joueurs": [
-          "SB",
-          "BB"
+          "CO",
+          "BTN"
         ]
       },
       {
@@ -65,8 +65,8 @@
         "extras": [],
         "assis": 2,
         "joueurs": [
-          "CO",
-          "BTN"
+          "HJ",
+          "CO"
         ]
       },
       {
@@ -87,22 +87,19 @@
         ],
         "assis": 3,
         "joueurs": [
+          "SB",
           "UTG",
-          "HJ",
-          "BTN"
+          "HJ"
         ]
       },
       {
         "main": 6,
-        "ligne": "squeeze",
-        "extras": [
-          "CO"
-        ],
-        "assis": 3,
+        "ligne": "vsOpen",
+        "extras": [],
+        "assis": 2,
         "joueurs": [
-          "HJ",
-          "CO",
-          "BTN"
+          "BB",
+          "UTG"
         ]
       },
       {
@@ -112,21 +109,11 @@
         "assis": 2,
         "joueurs": [
           "BB",
-          "CO"
+          "UTG"
         ]
       },
       {
         "main": 8,
-        "ligne": "vsOpen",
-        "extras": [],
-        "assis": 2,
-        "joueurs": [
-          "BB",
-          "CO"
-        ]
-      },
-      {
-        "main": 9,
         "ligne": "squeeze",
         "extras": [
           "BTN"
@@ -139,14 +126,21 @@
         ]
       },
       {
-        "main": 10,
-        "ligne": "squeeze",
-        "extras": [
-          "CO"
-        ],
-        "assis": 3,
+        "main": 9,
+        "ligne": "vsOpen",
+        "extras": [],
+        "assis": 2,
         "joueurs": [
-          "SB",
+          "BB",
+          "HJ"
+        ]
+      },
+      {
+        "main": 10,
+        "ligne": "vsOpen",
+        "extras": [],
+        "assis": 2,
+        "joueurs": [
           "HJ",
           "CO"
         ]
@@ -157,8 +151,8 @@
         "extras": [],
         "assis": 2,
         "joueurs": [
-          "UTG",
-          "HJ"
+          "CO",
+          "BTN"
         ]
       },
       {
@@ -177,18 +171,21 @@
         "extras": [],
         "assis": 2,
         "joueurs": [
-          "CO",
-          "BTN"
+          "HJ",
+          "CO"
         ]
       },
       {
         "main": 14,
-        "ligne": "vsOpen",
-        "extras": [],
-        "assis": 2,
+        "ligne": "squeeze",
+        "extras": [
+          "CO"
+        ],
+        "assis": 3,
         "joueurs": [
-          "CO",
-          "BTN"
+          "SB",
+          "HJ",
+          "CO"
         ]
       },
       {
@@ -197,8 +194,8 @@
         "extras": [],
         "assis": 2,
         "joueurs": [
-          "BB",
-          "BTN"
+          "UTG",
+          "HJ"
         ]
       },
       {
@@ -208,7 +205,7 @@
         "assis": 2,
         "joueurs": [
           "BB",
-          "CO"
+          "BTN"
         ]
       }
     ],
@@ -227,20 +224,7 @@
         ]
       },
       {
-        "main": 6,
-        "niveau": 2.5,
-        "totalPaye": 0,
-        "decisions": [
-          {
-            "pos": "CO",
-            "action": "CALL",
-            "aPayer": 0,
-            "raison": "déjà à niveau"
-          }
-        ]
-      },
-      {
-        "main": 9,
+        "main": 8,
         "niveau": 2.5,
         "totalPaye": 0,
         "decisions": [
@@ -253,7 +237,7 @@
         ]
       },
       {
-        "main": 10,
+        "main": 14,
         "niveau": 2.5,
         "totalPaye": 0,
         "decisions": [
@@ -268,15 +252,52 @@
     ],
     "exemples": [
       {
-        "main": 6,
+        "main": 5,
         "joueurs": [
-          "HJ",
+          "SB",
+          "UTG",
+          "HJ"
+        ],
+        "engageTotal": {
+          "SB": 24,
+          "UTG": 24,
+          "HJ": 2.5
+        },
+        "paliers": [
+          {
+            "nom": "pot principal",
+            "montant": 7.5,
+            "disputePar": [
+              "SB",
+              "UTG"
+            ]
+          },
+          {
+            "nom": "side pot 1",
+            "montant": 43,
+            "disputePar": [
+              "SB",
+              "UTG"
+            ]
+          }
+        ],
+        "versements": {
+          "SB": 51.5,
+          "UTG": 0,
+          "HJ": 0
+        },
+        "verdict": "win"
+      },
+      {
+        "main": 8,
+        "joueurs": [
+          "BB",
           "CO",
           "BTN"
         ],
         "engageTotal": {
-          "HJ": 2.5,
-          "CO": 20,
+          "BB": 20,
+          "CO": 2.5,
           "BTN": 20
         },
         "paliers": [
@@ -284,7 +305,7 @@
             "nom": "pot principal",
             "montant": 7.5,
             "disputePar": [
-              "CO",
+              "BB",
               "BTN"
             ]
           },
@@ -292,63 +313,28 @@
             "nom": "side pot 1",
             "montant": 35,
             "disputePar": [
-              "CO",
+              "BB",
               "BTN"
             ]
           }
         ],
         "versements": {
-          "HJ": 0,
+          "BB": 0,
           "CO": 0,
-          "BTN": 44
+          "BTN": 43
         },
-        "verdict": "win"
+        "verdict": "lose"
       },
       {
-        "main": 9,
-        "joueurs": [
-          "BB",
-          "CO",
-          "BTN"
-        ],
-        "engageTotal": {
-          "BB": 10.5,
-          "CO": 10.5,
-          "BTN": 2.5
-        },
-        "paliers": [
-          {
-            "nom": "pot principal",
-            "montant": 7.5,
-            "disputePar": [
-              "BB"
-            ]
-          },
-          {
-            "nom": "side pot 1",
-            "montant": 16,
-            "disputePar": [
-              "BB"
-            ]
-          }
-        ],
-        "versements": {
-          "BB": 24,
-          "CO": 0,
-          "BTN": 0
-        },
-        "verdict": "win"
-      },
-      {
-        "main": 10,
+        "main": 14,
         "joueurs": [
           "SB",
           "HJ",
           "CO"
         ],
         "engageTotal": {
-          "SB": 56,
-          "HJ": 56,
+          "SB": 7,
+          "HJ": 7,
           "CO": 2.5
         },
         "paliers": [
@@ -362,7 +348,7 @@
           },
           {
             "nom": "side pot 1",
-            "montant": 107,
+            "montant": 9,
             "disputePar": [
               "SB",
               "HJ"
@@ -371,7 +357,7 @@
         ],
         "versements": {
           "SB": 0,
-          "HJ": 115.5,
+          "HJ": 17.5,
           "CO": 0
         },
         "verdict": "lose"
@@ -381,22 +367,22 @@
   "ecartsParInvariant": {},
   "ecarts": [],
   "resultatsNets": [
-    -6.5,
-    2.5,
-    -15,
-    6.5,
-    -8,
-    24,
+    -2.5,
+    8,
+    4,
+    3,
+    27.5,
     3.5,
     7.5,
-    13.5,
-    -56,
-    16.5,
-    -8,
-    -14,
+    -20,
+    3.5,
+    4,
+    4,
+    8.5,
     8,
-    3,
-    3.5
+    -7,
+    8,
+    3
   ],
   "consoleErrors": [],
   "verdict": "OK — comptabilite du coup complet conforme"
