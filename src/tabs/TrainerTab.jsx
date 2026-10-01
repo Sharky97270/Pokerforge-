@@ -3370,31 +3370,57 @@ function saveTrainerHandAction(entry){
 
    Une BAISSE du pot n'est jamais une collecte : c'est un changement de spot ou
    de main. On resynchronise alors sans animer, sinon l'affichage resterait sur
-   le pot de la main precedente. */
-function useDisplayedPot(enginePot,numTables=1){
+   le pot de la main precedente.
+
+   ── LE BALAYAGE DE JETONS N'EST PAS CHAQUE HAUSSE DU POT (§27) ────────────
+   Dans un coup complet, le moteur encaisse CHAQUE mise tout de suite (pas
+   seulement à la clôture de street) : `enginePot` monte donc à chaque action,
+   pas seulement quand la street change. Faire voler un tas de jetons à
+   CHAQUE hausse animait la première mise d'Hero, puis celle du vilain,
+   longtemps avant que la street ne change visuellement — mesuré,
+   `trainer-cine-audit.mjs` : premier envol à 118ms, transition de street à
+   2678ms, 2,5s plus tard, rien ne volait plus dans la fenêtre de ±700ms que
+   l'audit regarde autour de la transition. Le NOMBRE peint, lui, doit rester
+   fidèle à chaque mise (c'est ce que §12/§26 ci-dessus protège) ; seul le
+   BALAYAGE visuel (`CollectChips`) doit attendre que la street se clôture
+   réellement. `roundKey` permet de distinguer les deux : une hausse qui ne
+   fait pas avancer `roundKey` met à jour le nombre sans armer le balayage.
+   Ce n'est volontairement PAS le libellé de street : la clôture de la river
+   (dernier tour, pas de street suivante) ne change aucun libellé — l'appelant
+   passe donc un compteur qui avance à CHAQUE clôture de tour, y compris
+   celle-là (cf. `fhCollectGen`). */
+function useDisplayedPot(enginePot,numTables=1,roundKey=null){
   const [display,setDisplay]=useState(enginePot);
   const [collect,setCollect]=useState(null);
   const prev=useRef(enginePot);
+  const prevRound=useRef(roundKey);
   const timer=useRef(null);
   useEffect(()=>{
     const before=prev.current;
     prev.current=enginePot;
+    const roundBefore=prevRound.current;
+    prevRound.current=roundKey;
     if(enginePot===before)return;
     if(!(enginePot>before)){
       if(timer.current)clearTimeout(timer.current);
       setCollect(null);setDisplay(enginePot);
       return;
     }
+    // `roundKey==null` : appelant qui ne suit pas les tours (mode Spot, où
+    // chaque décision n'a qu'une seule mise) — balayage à chaque hausse, comme
+    // avant. `roundKey` fourni : seul un tour qui vient de se clôturer arme
+    // le balayage.
+    const sweep=roundKey==null||roundKey!==roundBefore;
     const duree=collectTotalMs(numTables);
     const now=(typeof performance!=="undefined"?performance.now():Date.now());
-    setCollect({startedAt:now,landsAt:now+duree,potBefore:before});
+    setCollect({startedAt:now,landsAt:now+duree,potBefore:before,sweep});
     if(timer.current)clearTimeout(timer.current);
     timer.current=setTimeout(()=>{setDisplay(enginePot);setCollect(null);},duree);
-  },[enginePot,numTables]);
+  },[enginePot,numTables,roundKey]);
   useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
   // La projection reste la reference : si le minuteur saute (demontage, onglet
   // masque), l'affichage retombe sur le moteur au lieu de se figer.
-  return [projectDisplayedPot(enginePot,collect,collect?collect.landsAt-1:0),!!collect,collect];
+  return [projectDisplayedPot(enginePot,collect,collect?collect.landsAt-1:0),!!collect&&collect.sweep,collect];
 }
 
 /* Jetons en vol vers le pot, UN PAR CONTRIBUTEUR, partant de SON ancre de mise.
@@ -3590,6 +3616,14 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
   // Full-hand states (intégrés dans le felt)
   const[fhBoardRef,setFhBoardRef]=useState([]);
   const[fhStreet,setFhStreet]=useState("flop");
+  /* Compteur de CLÔTURE DE TOUR, distinct de `fhStreet` : `fhStreet` ne change
+     pas quand le tour qui se clôt est celui de la river (il n'y a pas de
+     street après), donc l'appel qui ferme la river — et fait réellement
+     grossir le pot juste avant l'abattage — ne changeait pas `streetKey` et ne
+     déclenchait aucun balayage. Ce compteur avance à CHAQUE clôture de tour
+     (changement de street OU passage à `done`), c'est lui que lit
+     `useDisplayedPot`. */
+  const[fhCollectGen,setFhCollectGen]=useState(0);
   const[fhPhase,setFhPhase]=useState("hero");
   const[fhActs,setFhActs]=useState([]);
   const[fhPot,setFhPot]=useState(0);
@@ -3613,6 +3647,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
   // État autoritatif du moteur de main complète (fullHandEngine). Les states fh*
   // ci-dessus en sont la projection pour le rendu.
   const fhStateRef=useRef(null);
+  /* ── CE QUI VOLE VERS LE POT À LA CLÔTURE D'UNE STREET (§27) ───────────────
+     Le moteur remet l'engagement de chaque siège à 0 dans le MÊME pas que le
+     changement de street (`closeStreet`, fullHandEngine.js) : au moment où
+     `fhSync` voit la nouvelle street, l'engagement déjà peint est celui de
+     cette nouvelle street (zéro), pas celui qu'on veut animer. On le capture
+     donc ICI, juste avant que `fhStateRef` ne soit écrasé par le nouvel état —
+     c'est le DERNIER instant où il porte encore l'argent de la street qui se
+     clôt. */
+  const fhLastStreetContribRef=useRef(null);
   /* ── QUEL SIÈGE EST QUEL JOUEUR DU MOTEUR ──────────────────────────────
      Le rendu traduisait la position en identifiant avec un ternaire figé
      (`p===hpos?"hero":p===vpos?"villain":"_"`) : tout siège supplémentaire
@@ -3633,6 +3676,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
     const id=fhIdForPos(p);
     if(!id)return 0;
     return roundBb((fhStateRef.current?.seatContrib||fhStateRef.current?.contrib||{})[id]||0);
+  };
+  /* Ce qu'un siège venait d'engager sur la street qui vient de se clore —
+     seule source correcte pour le balayage vers le pot (cf. fhLastStreetContribRef
+     ci-dessus : au moment où on en a besoin, le moteur a déjà remis `contrib`
+     à zéro). */
+  const fhLastContribOf=p=>{
+    const id=fhIdForPos(p);
+    if(!id)return 0;
+    return roundBb((fhLastStreetContribRef.current?.contrib||{})[id]||0);
   };
   // Board visible = board progressif du moteur (flop 3 · turn 4 · river 5).
   const fhVisBoard=fhBoardRef;
@@ -4471,7 +4523,21 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
 
   function fhSync(st){
     const prevStreet=fhStateRef.current?.street;
+    const prevDone=!!fhStateRef.current?.done;
+    /* Un tour se clôt soit par un changement de street, soit par la clôture de
+       la river (pas de street suivante : seul `done` passe à vrai). Dans les
+       deux cas, l'argent qui vient d'être engagé doit voler vers le pot. */
+    const roundJustClosed=!!prevStreet&&(st.street!==prevStreet||(st.done&&!prevDone));
+    // Capturé AVANT l'écrasement : `fhStateRef.current` porte encore
+    // l'engagement de la street qui se clôt, jamais celui de la suivante.
+    if(roundJustClosed){
+      fhLastStreetContribRef.current={
+        street:prevStreet,
+        contrib:{...(fhStateRef.current?.seatContrib||fhStateRef.current?.contrib||{})},
+      };
+    }
     fhStateRef.current=st;
+    if(roundJustClosed)setFhCollectGen(g=>g+1);
     // Cycle de feedback : à la nouvelle street, le badge de la street précédente
     // est nettoyé AVANT que la nouvelle carte s'installe (§ feedback temporaire).
     if(prevStreet&&st.street!==prevStreet){
@@ -5135,10 +5201,15 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
      decoulaient les cotes du pot et le SPR lus par le joueur. */
   /* mainPotBb reste la VERITE (SPR, cotes, solveur le lisent). `potAffiche` est
      la projection visuelle : elle attend les jetons (§12/§26). */
-  const [potAffiche,potCollecting]=useDisplayedPot(mainPotBb,numTables);
+  const [potAffiche,potCollecting]=useDisplayedPot(mainPotBb,numTables,playingFull?fhCollectGen:null);
   /* Ce qui part vers le pot pendant la collecte. En coup complet, le moteur
      tient l'engagement de la street courante pour les deux joueurs : c'est la
-     source, pas une relecture du DOM. */
+     source, pas une relecture du DOM. `potCollecting` n'est désormais vrai
+     qu'à une vraie clôture de street (cf. `useDisplayedPot`) — au moment où ce
+     memo tourne, le moteur a déjà remis l'engagement de street à 0 pour la
+     NOUVELLE street ; `fhContribOf` lirait donc des zéros. `fhLastContribOf`
+     lit l'instantané pris juste avant cette remise à zéro (cf.
+     `fhLastStreetContribRef`). */
   const collectChips=useMemo(()=>{
     if(!potCollecting)return [];
     if(playingFull&&fhStateRef.current){
@@ -5146,7 +5217,7 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
          joueurs, la mise du troisième restait à son ancre pendant que les deux
          autres partaient vers le pot. On collecte TOUS les sièges du moteur. */
       const ordre=fhSeatMapRef.current?.ordre||[spot?.hpos,spot?.vpos].filter(Boolean);
-      return collectContributions(Object.fromEntries(ordre.map(p=>[p,fhContribOf(p)])));
+      return collectContributions(Object.fromEntries(ordre.map(p=>[p,fhLastContribOf(p)])));
     }
     return collectContributions(Object.fromEntries(seatOrder.map(p=>[p,(seatStates[p]||{}).invested||0])));
   },[potCollecting,playingFull,spot?.hpos,spot?.vpos,seatOrder,seatStates]);
