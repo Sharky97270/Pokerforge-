@@ -3728,7 +3728,21 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
        départ alors que son argent est déjà au pot. */
     fullHandSeats:playingFull?(fhSeatMapRef.current?.byPos||null):null,
     toCall:playingFull?null:spot?.toCall,
-  }),[spot,spotCtx,ledgerSeatOrder,streetContributions,canonicalPotBb,seatStatesPre,playingFull,fhPot,fhStreet]);
+    /* ── F5 — POT ORPHELIN : un memo qui ne se recalcule pas n'est pas un pot
+       qui ne se vide pas (C8/F5). Au moment où le coup s'abat, `fhStateRef`
+       porte déjà `{done:true, pot:0}` — mais `fhPot` (potAffiche, pour le
+       feutre) VAUT LA MÊME CHOSE juste avant et juste après : c'est le pot
+       disputé figé pour l'affichage, qui ne redescend jamais à 0 (§13, voir
+       `potAffiche` dans fullHandEngine.js). Quand `fhStreet` ne change pas non
+       plus (abattage sur un check-check river : déjà « river » des deux
+       côtés), aucune des deux dépendances ne change de VALEUR : React
+       n'invalide pas ce memo, et `ledgerProbe`/les plaques continuent de lire
+       le `handLedger` d'AVANT l'abattage — pot non nul, affiché comme
+       « orphelin » alors que le moteur l'a bel et bien versé. `fhPhase`
+       transite de façon fiable à "done" pile à cet instant (et à chaque
+       changement de tour) ; il force le recalcul que fhPot/fhStreet peuvent
+       manquer. */
+  }),[spot,spotCtx,ledgerSeatOrder,streetContributions,canonicalPotBb,seatStatesPre,playingFull,fhPot,fhStreet,fhPhase]);
   /* ── LE LEDGER LU PLUS TARD DOIT ÊTRE CELUI DE PLUS TARD ───────────────────
      `startFullHand` est appelé par un `setTimeout` posé au moment de la
      décision d'Hero. La fonction capturée appartient donc au rendu d'AVANT
