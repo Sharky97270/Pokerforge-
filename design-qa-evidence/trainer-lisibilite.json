@@ -9,7 +9,7 @@
    "mode": "1T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 60,
+   "nbTextes": 76,
    "ok": true
   },
   {
@@ -23,21 +23,15 @@
    "mode": "3T",
    "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 51,
+   "nbTextes": 62,
    "ok": true
   },
   {
    "mode": "4T",
-   "trop_petit": [
-    {
-     "texte": "min 4bb · max 30",
-     "px": 6,
-     "cls": "mtr-actions mtr-actions-mult"
-    }
-   ],
+   "trop_petit": [],
    "arrondis": [],
-   "nbTextes": 51,
-   "ok": false
+   "nbTextes": 55,
+   "ok": true
   }
  ]
 }

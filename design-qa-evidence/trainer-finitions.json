@@ -12,9 +12,9 @@
    "ellipse": {
     "sieges": 5,
     "rho": [
-     0.916,
-     0.916,
      0.84,
+     0.916,
+     0.916,
      0.916,
      0.916
     ],
@@ -22,7 +22,7 @@
      {
       "pos": "UTG",
       "hero": false,
-      "rho": 0.916
+      "rho": 0.84
      },
      {
       "pos": "HJ",
@@ -32,12 +32,12 @@
      {
       "pos": "CO",
       "hero": false,
-      "rho": 0.84
+      "rho": 0.916
      },
      {
       "pos": "BTN",
-      "hero": false,
-      "rho": 0.916
+      "hero": true,
+      "rho": 0.665
      },
      {
       "pos": "SB",
@@ -46,8 +46,8 @@
      },
      {
       "pos": "BB",
-      "hero": true,
-      "rho": 0.665
+      "hero": false,
+      "rho": 0.916
      }
     ],
     "heroExclu": true,
@@ -79,10 +79,10 @@
     "tauxSurface": 35
    },
    "labels": {
-    "coeurDetecte": 4,
+    "coeurDetecte": 5,
     "mesures": 72,
     "chevauchements": 0,
-    "pastilles": 37
+    "pastilles": 35
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -160,10 +160,10 @@
     "tauxSurface": 35
    },
    "labels": {
-    "coeurDetecte": 8,
+    "coeurDetecte": 13,
     "mesures": 144,
     "chevauchements": 0,
-    "pastilles": 74
+    "pastilles": 78
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -222,8 +222,8 @@
     "ecartType": 0.012
    },
    "hero": {
-    "basBlocHero": 393,
-    "airSousHero": 13,
+    "basBlocHero": 384,
+    "airSousHero": 23,
     "premierElement": "mtr-actions",
     "reference": "premier élément rendu sous Hero"
    },
@@ -241,10 +241,10 @@
     "tauxSurface": 29
    },
    "labels": {
-    "coeurDetecte": 15,
+    "coeurDetecte": 24,
     "mesures": 216,
     "chevauchements": 0,
-    "pastilles": 100
+    "pastilles": 120
    },
    "mesuresManquantes": [],
    "conforme": true
@@ -256,8 +256,8 @@
     "sieges": 5,
     "rho": [
      0.93,
-     0.9,
      0.93,
+     0.9,
      0.93,
      0.93
     ],
@@ -270,12 +270,12 @@
      {
       "pos": "HJ",
       "hero": false,
-      "rho": 0.9
+      "rho": 0.93
      },
      {
       "pos": "CO",
       "hero": false,
-      "rho": 0.93
+      "rho": 0.9
      },
      {
       "pos": "BTN",
@@ -284,13 +284,13 @@
      },
      {
       "pos": "SB",
-      "hero": true,
-      "rho": 0.9
+      "hero": false,
+      "rho": 0.93
      },
      {
       "pos": "BB",
-      "hero": false,
-      "rho": 0.93
+      "hero": true,
+      "rho": 0.9
      }
     ],
     "heroExclu": true,
@@ -322,10 +322,10 @@
     "tauxSurface": 27
    },
    "labels": {
-    "coeurDetecte": 29,
+    "coeurDetecte": 25,
     "mesures": 288,
     "chevauchements": 0,
-    "pastilles": 158
+    "pastilles": 143
    },
    "mesuresManquantes": [],
    "conforme": true

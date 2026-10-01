@@ -5878,7 +5878,11 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
          gouttières, pas sur la lisibilité des libellés. */
       const az=multi
         ?{pad:density.actionPad,hdrMb:numTables>=3?1:2,chip:Math.max(7,cfg.actFnt-4),htxt:Math.max(7,cfg.actFnt-4),
-          bgap:density.actionGap,bmb:density.actionGap,lbl:density.actionLabelFs,siz:density.actionSizingFs,hint:Math.max(6,cfg.actFnt-4),
+          bgap:density.actionGap,bmb:density.actionGap,lbl:density.actionLabelFs,siz:density.actionSizingFs,
+          /* Plancher de lisibilité 7px (§3/§12, PR #31) : `chip`/`htxt` juste au-dessus
+             le respectent déjà, `hint` plafonnait seul à 6 — mesuré par audit:lisibilite
+             en 4T, « min 4bb · max 30 » peint à 6px. */
+          hint:Math.max(7,cfg.actFnt-4),
           szMb:numTables>=3?2:3,stepFs:Math.max(9,cfg.actFnt-2),grid:`repeat(${spot.acts.length},minmax(0,1fr))`}
         :{pad:"8px 10px 10px",hdrMb:7,chip:8,htxt:8.5,bgap:5,bmb:7,lbl:13,siz:10,hint:8,szMb:5,stepFs:11,grid:null};
       return(
