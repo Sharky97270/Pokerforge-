@@ -5214,8 +5214,19 @@ export function SingleTable({spot,unit,numTables,hasPrimaryNext=false,showSol,tr
       heroStack:handLedger.seats?.[spot?.hpos]?.remaining??null,
       effectiveStack:handLedger.effectiveStack,
       spr:handLedger.spr,potOdds:handLedger.potOdds,toCall:handLedger.toCall,
+      /* « RÉPONDU » N'EST PAS « TERMINÉ », suite (§10) : le correctif d'origine
+         ne couvrait que le coup complet (`fhT.done`). Hors coup complet, une
+         relance du vilain fait rejouer Hero une seconde fois — `onAnswer` a
+         pourtant déjà tiré sur SA PREMIÈRE action (elle doit être notée tout de
+         suite pour le score), donc `tableAns[t]` est vrai pendant que `phase`
+         vaut encore "villain_thinking" puis "hero_reply". La tuile se
+         désature et sa pastille se pose alors que des boutons d'action vont
+         réapparaître. `phase` ne devient "done" qu'au véritable point de
+         clôture (`finishTable`) : on le publie pour que le parent distingue
+         « noté » de « clos ». */
+      phase,
     });
-  },[onTableLive,mainPotBb,visualStreet,handLedger,spot?.hpos]);
+  },[onTableLive,mainPotBb,visualStreet,handLedger,spot?.hpos,phase]);
   const heroSize=numTables>=3?"md":numTables===2?"lg":"3xl";
   const chipSize=numTables>=3?30:numTables===2?38:68;
   const seatFontPos=7;
@@ -9950,7 +9961,17 @@ export default function TrainerTab({unit,onGoSolver:onGoSolverProp,chipTheme="ne
                    boutons actifs et pastille ✓ déjà posée.
                    Tant que le moteur ne parle pas, c'est le TYPE DE SESSION qui
                    dit si un coup complet est encore attendu. */
-                const isAns=!!tableAns[t]&&(fhT?!!fhT.done:!fullSolo);
+                /* ── « RÉPONDU » N'EST PAS « CLOS », suite (§10) ───────────────
+                   Hors coup complet, `tableAns[t]` est noté dès la PREMIÈRE
+                   action d'Hero (le score doit l'être), mais une relance du
+                   vilain le fait rejouer avant que la main soit close — la
+                   tuile ne doit se désaturer qu'à `phase==="done"`, publié par
+                   la table via `onTableLive`. Un relevé qui n'a encore rien
+                   publié (`tableLive[t]` vide, le temps du premier rendu)
+                   reste considéré comme clos : il n'y a alors ni pastille ni
+                   bouton à contredire, donc rien à geler. */
+                const liveT=tableLive[t];
+                const isAns=!!tableAns[t]&&(fhT?!!fhT.done:(!fullSolo&&(!liveT||liveT.phase==="done")));
                 /* ── UN SEUL MARQUEUR DE TABLE ACTIVE (§11) ────────────────────
                    « table-slot-active » était posée sur TOUTES les tuiles non
                    terminées — son nom mentait — et leur donnait à chacune un
