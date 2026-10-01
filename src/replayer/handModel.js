@@ -118,6 +118,17 @@ export function parseHand(block, idx=0){
     const gameType = detectGameType(block);
     const lines = block.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
 
+    /* Portion du texte à utiliser pour toute regex non ancrée par ligne (blindes,
+       sièges...) : le résumé PokerStars/Winamax/GG répète souvent « Seat N: Nom
+       showed [...] and won (123) with ... » — un `(.+?)` non-gourmand cherchant
+       « Nom (montant » traverserait alors "showed [...] and won" jusqu'à ce
+       parenthésage et fabriquerait un siège fantôme (nom = tout le texte
+       traversé, stack = le montant du pot). On coupe donc le texte à *** SUMMARY
+       *** avant toute extraction par regex globale : rien avant ce marqueur
+       n'a besoin de lire après. */
+    const summaryIdx = block.search(/\*\*\*\s*SUMMARY/i);
+    const bodyBlock = summaryIdx >= 0 ? block.slice(0, summaryIdx) : block;
+
     // Extraction du VRAI HandId (alphanumérique, ex. GG « TM123… »). On cible les
     // motifs explicites AVANT le repli « #\d » — sinon on captait le n° de table
     // (« Table …#0133 ») pour les mains sans HandId lisible.
@@ -134,11 +145,11 @@ export function parseHand(block, idx=0){
     // big blind (conversion bb). Si HH déjà en bb → bbSize=1.
     const bbUnit = /\bbb\b/.test(block);
     let bbSize = 1;
-    const bbm = block.match(/[Bb]ig blind[^0-9]*([0-9.]+)/) || block.match(/\([0-9.]+\s*[€$£]?\s*\/\s*([0-9.]+)/) || block.match(/\/\s*([0-9.]+)\s*[€$£]?\s*\)/);
+    const bbm = bodyBlock.match(/[Bb]ig blind[^0-9]*([0-9.]+)/) || bodyBlock.match(/\([0-9.]+\s*[€$£]?\s*\/\s*([0-9.]+)/) || bodyBlock.match(/\/\s*([0-9.]+)\s*[€$£]?\s*\)/);
     if(bbm && !bbUnit) bbSize = parseFloat(bbm[1]) || 1;
-    const sbm0 = block.match(/[Ss]mall blind[^0-9]*([0-9.]+)/);
+    const sbm0 = bodyBlock.match(/[Ss]mall blind[^0-9]*([0-9.]+)/);
     const sbSize = bbUnit ? 0.5 : (sbm0 ? parseFloat(sbm0[1]) : bbSize/2);
-    const anteM = block.match(/\bante[^0-9]*([0-9.]+)/i);
+    const anteM = bodyBlock.match(/\bante[^0-9]*([0-9.]+)/i);
     const anteSize = anteM ? (bbUnit ? parseFloat(anteM[1]) : parseFloat(anteM[1])/bbSize) : 0;
     const toBb = v => (bbUnit ? rb(v) : rb(v / (bbSize||1)));
     const currency = (block.match(/[€$£]/)||[null])[0] || (bbUnit ? "bb" : "");
@@ -146,7 +157,7 @@ export function parseHand(block, idx=0){
     // ── Joueurs ──
     const players = {}; const order = [];
     const seatRe = /Seat\s+(\d+):\s+(.+?)\s+\(\s*[€$£]?\s*([0-9][0-9.,]*)/g; let sm;
-    while((sm = seatRe.exec(block))){
+    while((sm = seatRe.exec(bodyBlock))){
       const name = sm[2].trim();
       const stack = parseFloat(sm[3].replace(/,/g,"")) || 100;
       if(!players[name]){

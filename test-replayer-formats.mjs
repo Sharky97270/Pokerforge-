@@ -173,5 +173,57 @@ v2 calls 1200`;
   ok(gg.handId==="TM123456789", `GG HandId alphanumérique (obtenu ${gg.handId})`);
 }
 
+/* ── Pas de siège fantôme depuis le résumé (*** SUMMARY ***) ──
+   « Seat N: Nom showed [...] and won (montant) with ... » est le phrasé standard
+   d'un abattage gagné. Un `(.+?)` non-gourmand cherchant « Nom (montant » pouvait
+   traverser « showed [...] and won » jusqu'à cette parenthèse et fabriquer un
+   siège fantôme (nom = texte traversé, stack = le montant du pot). */
+console.log("\n── Pas de siège fantôme depuis *** SUMMARY ***");
+{
+  const hh = `PokerStars Hand #123456789: Hold'em No Limit ($0.50/$1.00 USD) - 2024/01/01 12:00:00 ET
+Table 'AuditTest' 6-max Seat #1 is the button
+Seat 1: Hero (100 in chips)
+Seat 2: Villain1 (30 in chips)
+Seat 3: Villain2 (200 in chips)
+Villain1: posts small blind 0.50
+Villain2: posts big blind 1
+*** HOLE CARDS ***
+Dealt to Hero [As Ks]
+Hero: raises 2 to 3
+Villain1: raises 27 to 30 and is all-in
+Villain2: calls 29
+Hero: calls 27
+*** FLOP *** [2h 7d Jc]
+Villain2: bets 50
+Hero: calls 50
+*** TURN *** [2h 7d Jc 9s]
+Villain2: checks
+Hero: checks
+*** RIVER *** [2h 7d Jc 9s 4h]
+Villain2: checks
+Hero: checks
+*** SHOW DOWN ***
+Villain1: shows [Qh Qd] (a pair of Queens)
+Villain2: shows [Jh Js] (three of a kind, Jacks)
+Hero: shows [As Ks] (high card Ace)
+Villain2 collected 100 from side pot
+Villain2 collected 90 from main pot
+*** SUMMARY ***
+Total pot 190 Main pot 90. Side pot 100. | Rake 0
+Board [2h 7d Jc 9s 4h]
+Seat 1: Hero (button) showed [As Ks] and lost with high card Ace
+Seat 2: Villain1 showed [Qh Qd] and lost with a pair of Queens
+Seat 3: Villain2 showed [Jh Js] and won (190) with three of a kind, Jacks
+`;
+  const h = parseHand(hh, 0);
+  ok(h.valid, "main valide");
+  ok(h.tableSize===3, `tableSize = 3, pas de siège fantôme (obtenu ${h.tableSize})`);
+  ok(h.players.length===3, `3 joueurs exactement (obtenu ${h.players.length})`);
+  ok(h.players.every(p=>["Hero","Villain1","Villain2"].includes(p.name)), "aucun nom de joueur parasite");
+  const bb = h.players.find(p=>p.name==="Villain2");
+  ok(bb?.pos==="BB", `le posteur de la BB garde la position BB (obtenu ${bb?.pos})`);
+  ok(bb?.stackStart===200, `son stack de départ reste 200bb, pas le montant du pot (obtenu ${bb?.stackStart})`);
+}
+
 console.log(`\n${failed===0 ? "✅" : "❌"} Replayer Formats : ${passed} ok, ${failed} échec(s)`);
 process.exit(failed===0 ? 0 : 1);
