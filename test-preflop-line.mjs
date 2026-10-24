@@ -233,6 +233,19 @@ const KINDS = [
   ok(impossibles === 0, `aucune séquence IA impossible (${impossibles} sur ${testes})`);
   ok(SpotGenerationEngine.generateSpot({ heroPosition: "CO", villainPosition: "HJ" }).hpos === "CO",
     "un filtre de position garde la position de Hero, même quand le vilain doit bouger");
+  /* L'assertion ci-dessus ne tirait qu'UN spot : un gabarit qui écrasait la demande
+     (« probe-turn » → Hero=BB) la faisait échouer ~4 % du temps, au hasard. On
+     balaie donc toutes les paires, assez de fois pour que chaque gabarit sorte. */
+  let heroDeplace = 0, tires = 0;
+  for (const hero of seats) for (const villain of seats) {
+    if (hero === villain) continue;
+    for (let k = 0; k < 60; k++) {
+      const s = SpotGenerationEngine.generateSpot({ heroPosition: hero, villainPosition: villain });
+      tires++;
+      if (!s || s.hpos !== hero) heroDeplace++;
+    }
+  }
+  ok(heroDeplace === 0, `aucun gabarit n'écrase la position de Hero demandée (${heroDeplace} sur ${tires})`);
 }
 
 /* ── 9. UNE MAIN IMPORTÉE DEVIENT UN EXERCICE JOUABLE ───────────────────────
