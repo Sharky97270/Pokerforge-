@@ -14,13 +14,14 @@
   "releves": [
     {
       "mode": "1T",
+      "tuileCouchee": 0,
       "avant": [
         {
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "9♣",
-            "5♠"
+            "A♦",
+            "7♦"
           ],
           "classeCouche": false,
           "opaciteCarte": 1,
@@ -30,26 +31,33 @@
             "drop-shadow(rgba(0, 0, 0, 0.86) 0px 8px 22px) drop-shadow(rgba(0, 191, 255, 0.34) 0px 0px 16px)"
           ],
           "boite": {
-            "x": 155.6,
-            "y": 380,
-            "w": 40.7,
-            "h": 54.5
+            "x": 145.6,
+            "y": 375.5,
+            "w": 43.8,
+            "h": 58.7
           },
           "boiteWrap": {
-            "x": 156.4,
-            "y": 381.3,
-            "w": 77.2,
-            "h": 52.1
+            "x": 146.5,
+            "y": 376.9,
+            "w": 83,
+            "h": 56
           },
-          "dosVilains": 1,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
             "FoldNe pas jouer",
-            "Call 30bb30bbà payer 30bb · cote 29%",
-            "Tapis 42bb42bbtapis · 42bb à engager"
+            "Call 5bb5bbà payer 5bb · cote 32%",
+            "4-Bet 22bb22bbà 22bb (2.9× la mise) · +19.5bb à ajouter",
+            "Tapis 117bb117bbtapis · 114.5bb à engager",
+            "MIN",
+            "2.5×",
+            "3×",
+            "3.5×",
+            "4×",
+            "ALL-IN"
           ],
           "aFold": true,
-          "street": "river"
+          "street": "preflop"
         }
       ],
       "apres": [
@@ -57,8 +65,8 @@
           "aUnHero": true,
           "nbCartes": 2,
           "rangs": [
-            "9♣",
-            "5♠"
+            "A♦",
+            "7♦"
           ],
           "classeCouche": true,
           "opaciteCarte": 0.42,
@@ -74,18 +82,18 @@
             "drop-shadow(rgba(0, 0, 0, 0.72) 0px 4px 12px)"
           ],
           "boite": {
-            "x": 155.6,
-            "y": 380,
-            "w": 40.7,
-            "h": 54.5
+            "x": 145.6,
+            "y": 376,
+            "w": 43.8,
+            "h": 58.7
           },
           "boiteWrap": {
-            "x": 156.4,
-            "y": 381.3,
-            "w": 77.2,
-            "h": 52.1
+            "x": 146.5,
+            "y": 377.4,
+            "w": 83,
+            "h": 56
           },
-          "dosVilains": 1,
+          "dosVilains": 2,
           "facesVilaines": 0,
           "boutons": [
             "Main suivante ▶",
@@ -94,13 +102,13 @@
             "🔒 Solution"
           ],
           "aFold": false,
-          "street": "river"
+          "street": "preflop"
         }
       ],
       "streets": null,
       "deplacementReponse": [
         0,
-        0,
+        0.5,
         0,
         0
       ]

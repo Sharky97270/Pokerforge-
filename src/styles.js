@@ -6115,7 +6115,13 @@ export const CSS_TABLE=`
    du bloc mobile) → double bandeau de décision + table étranglée à 185px. On les
    scope au desktop pour que le display:none mobile l'emporte enfin. */
 @media (min-width:769px){
-  .t1-actions-under{min-height:206px!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;}
+  /* La reserve est une VARIABLE : le rendu y publie la hauteur reellement
+     reclamee par les boutons (cf. reserveActionsPx dans TrainerTab), parce que
+     ce contenu ne fait pas la meme hauteur selon le spot et la resolution —
+     206px a 1366x768, 219px a 1600x950, mesure. Le 206px de repli garde le
+     comportement anterieur tant que la mesure n a pas eu lieu. Le !important
+     reste : il bat les regles concurrentes, pas notre variable. */
+  .t1-actions-under{min-height:var(--pf-t1-actions-reserve,206px)!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;}
   .t1-actions-under .mtr-actions{padding:6px 10px 7px!important;}
   .t1-actions-under .mtr-actions>div{margin-bottom:5px!important;}
   .t1-actions-under .gto-btn{min-height:62px!important;}

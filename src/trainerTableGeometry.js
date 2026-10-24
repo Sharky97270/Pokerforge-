@@ -590,6 +590,18 @@ export function trainerMarkerPoint({
   const betMaxW = betBadgeMaxWidthPx(numTables, feltWidthPxOf(area, geometry, numTables));
   const halfW = (markerType === "BET" ? betMaxW / 2 : half.w) * k;
   const halfH = half.h * k;
+  /* ── LE BADGE SE MESURE DANS LE REPÈRE DU SIÈGE, PAS DE L'ÉCRAN ─────────
+     `halfW`/`halfH` sont la demi-largeur et la demi-hauteur à l'ÉCRAN. Le bloc
+     du joueur, lui, est décrit le long de SON axe (`towardPot`) et en travers
+     (`halfW` du bloc). Mélanger les deux repères est juste sur un siège du haut
+     ou du bas, et FAUX sur un siège de flanc, où l'axe est horizontal : le
+     badge y fait 102 px le long de l'axe, et on n'en réservait que 44 (sa
+     hauteur). Mesuré au navigateur, 1T 9-max : tous les badges posés sur les
+     cartes de leur propre joueur étaient des sièges de flanc, 52 à 73 % de la
+     surface des cartes recouverte, alors que le contrôle croyait le bloc dégagé.
+     On projette donc le badge sur l'axe du siège et sur sa perpendiculaire. */
+  const halfAlong = Math.abs(dir.x) * halfW + Math.abs(dir.y) * halfH;
+  const halfPerp = Math.abs(perp.x) * halfW + Math.abs(perp.y) * halfH;
   /* ── ZONE DE SÉCURITÉ DU JOUEUR (§17) ──
      Le bloc d'un siège n'est pas un disque : il est LARGE (deux cartes côte à
      côte) et surtout PROFOND du côté du pot (les cartes sont peintes entre
@@ -606,15 +618,73 @@ export function trainerMarkerPoint({
      carte. La bande de référence est celle du POSTFLOP dans les deux cas,
      comme pour le rendu — un axe qui changerait à l arrivée du flop ferait
      pivoter la grappe en pleine main. */
+  const cartesPx = seatCardsBoxPx(numTables, estHero, tight, estHero ? (avatarHeroPx || avatarPx) : avatarPx);
   const blockAxis = seatAxisClear({
     seat, centre: { x: centre.x, y: centre.potY }, area,
     forbidden: trainerCentralExclusionZone({ ...centreOpts, hasBoard: true }),
-    cardsPx: seatCardsBoxPx(numTables, estHero, tight, estHero ? (avatarHeroPx || avatarPx) : avatarPx),
+    cardsPx: cartesPx,
     avatarPx: (estHero ? (avatarHeroPx || avatarPx) : avatarPx) || 40,
   });
   const block = trainerSeatBlockPx(numTables, { hero: estHero, opts: { tight }, avatarPx: estHero ? (avatarHeroPx || avatarPx) : avatarPx, axis: blockAxis });
-  const needAlong = block.towardPot + halfH + 6;      // dégager le bloc EN PROFONDEUR
-  const needSide = block.halfW + halfW + 6;           // …ou le contourner PAR LE CÔTÉ
+  const needAlong = block.towardPot + halfAlong + 6;  // dégager le bloc EN PROFONDEUR
+  const needSide = block.halfW + halfPerp + 6;        // …ou le contourner PAR LE CÔTÉ
+
+  /* ── LE BLOC DU JOUEUR EST UN RECTANGLE DE L'ÉCRAN, PAS DE L'AXE ─────────
+     Le badge, la paire de cartes et le portrait sont peints ALIGNÉS SUR
+     L'ÉCRAN : une paire de flanc est horizontale même quand l'axe siège→pot
+     est incliné. Décrire ce bloc le long de l'axe le déplaçait donc dans le
+     calcul — relevé au navigateur sur un siège de flanc 9-max incliné de 16° :
+     paire peinte entre 39 et 113 px de profondeur et décalée de 21 px en
+     travers, là où le modèle la croyait centrée et arrêtée à 99 px. Le coût
+     annonçait ~23 % de cartes recouvertes, l'écran en montrait 76.
+     On travaille donc en rectangles d'écran, dans le même repère que ce qui est
+     peint :
+       • la paire part du bord du portrait dans la direction de `blockAxis`
+         (le côté où le rendu la pose), sur la longueur de la paire ;
+       • le portrait est le carré centré sur le siège qui s'arrête là où la
+         paire commence ;
+       • le badge est centré sur le point candidat, de demi-taille halfW × halfH. */
+  const axeBloc = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[blockAxis] || [dir.x >= 0 ? 1 : -1, 0];
+  const blocHorizontal = axeBloc[0] !== 0;
+  /* `cartesPx` décrit la paire posée verticalement (largeur = la paire côte à
+     côte, hauteur = une carte) : sur un siège de flanc les deux s'échangent. */
+  const cartesLong = blocHorizontal ? cartesPx.w : cartesPx.h;
+  const cartesTravers = blocHorizontal ? cartesPx.h : cartesPx.w;
+  const carteDebut = Math.max(1, block.towardPot - cartesLong);
+  const rectDepuisAxe = (debut, fin, demiTravers) => {
+    const [ax, ay] = axeBloc;
+    const x0 = sx + ax * debut, x1 = sx + ax * fin, y0 = sy + ay * debut, y1 = sy + ay * fin;
+    return blocHorizontal
+      ? { x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: sy - demiTravers, y1: sy + demiTravers }
+      : { x0: sx - demiTravers, x1: sx + demiTravers, y0: Math.min(y0, y1), y1: Math.max(y0, y1) };
+  };
+  const rectCartes = rectDepuisAxe(carteDebut, block.towardPot, cartesTravers / 2);
+  const rectAvatar = { x0: sx - carteDebut, x1: sx + carteDebut, y0: sy - carteDebut, y1: sy + carteDebut };
+  const aireCartes = Math.max(1, cartesLong * cartesTravers);
+  const aireAvatar = Math.max(1, 4 * carteDebut * carteDebut);
+  const recouvre = (l, off, r) => {
+    const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
+    const w = Math.min(px + halfW, r.x1) - Math.max(px - halfW, r.x0);
+    const h = Math.min(py + halfH, r.y1) - Math.max(py - halfH, r.y0);
+    return w > 0 && h > 0 ? w * h : 0;
+  };
+  const morsureCartes = (l, off) => recouvre(l, off, rectCartes);
+  const morsureAvatar = (l, off) => recouvre(l, off, rectAvatar);
+  /* ── L'AVATAR COMPTE, ET PLUS QUE LES CARTES ─────────────────────────────
+     Un coût qui ne regardait que les cartes rendait « moins cher » le point
+     qui les évite en se rapprochant du siège, donc posé sur le portrait :
+     mesuré, 56 à 80 % des avatars masqués contre 0 à 2.4 % sur le code
+     d'origine. Le défaut avait changé d'endroit, et un audit qui ne regardait
+     que les cartes le déclarait réglé. Le portrait pèse plus lourd : une main
+     mordue se lit encore, un joueur masqué ne se reconnaît plus. */
+  const POIDS_AVATAR = 3;
+  /* La main du Hero est FACE VISIBLE : la recouvrir cache une information que des
+     dos de vilain ne portent pas. Même principe que le contrat de l'audit de
+     stabilité 1T (40 % pour des cartes visibles, 80 % pour des dos). Mesuré en
+     1T 6-max à 1600×950 : à poids égal, le Hero bas-centre gardait 48.5 % de sa
+     main sous son badge à 22° d'écart, alors qu'une poche propre était permise. */
+  const POIDS_CARTES = estHero ? 2 : 1;
+  const coutSiege = (l, off) => POIDS_CARTES * morsureCartes(l, off) / aireCartes + POIDS_AVATAR * morsureAvatar(l, off) / aireAvatar;
 
   /* Demi-encombrement du marqueur, en % du conteneur : c'est dans ce repère
      que vit la zone interdite. */
@@ -646,7 +716,7 @@ export function trainerMarkerPoint({
      le plan (l, écart) et on garde le point le PLUS AXIAL — l'écart est un coût,
      jamais un but. */
   const ok = (l, off, tolereSonBloc = false) => {
-    if (!tolereSonBloc && off < needSide && l < needAlong) return false;              // dans son propre bloc
+    if (!tolereSonBloc && coutSiege(l, off) > 0) return false;  // dans son propre bloc (rectangles d'écran)
     if (l > lMax) return false;                                     // sur le pot
     if (attribution(l, off) < MARKER_MIN_ATTRIBUTION) return false; // chez le voisin (§43)
     const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
@@ -658,7 +728,8 @@ export function trainerMarkerPoint({
     }
     /* La BOÎTE du marqueur, pas son centre : un badge de 104 px de large peut
        avoir son centre hors zone et la moitié de son corps sur le board. */
-    return !boxOverlapsZone(toPct(px, py), halfPct, zone);
+    const z = boxOverlapsZone(toPct(px, py), halfPct, zone);
+    return !z;
   };
   const emit = (l, off, mode) => {
     const p = toPct(sx + dir.x * l + perp.x * off * side, sy + dir.y * l + perp.y * off * side);
@@ -691,38 +762,81 @@ export function trainerMarkerPoint({
   for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias)) return emit(l, bias, l <= lWish + 1e-6 ? "axial" : "avance");
   for (let l = lWish - step; l >= needAlong; l -= step) if (ok(l, bias)) return emit(l, bias, "recule");
 
-  /* 1 bis) L'AXE EST BOUCHÉ, MAIS PAR SES PROPRES CARTES ───────────────────
-     Entre le bloc du joueur et le bord du board il peut ne rester AUCUNE place
-     pour un badge — mesuré en 3T : le tas devrait se poser à l >= 64 px pour
-     dégager la paire de son joueur, et à l <= 43 px pour ne pas toucher le
-     board. La fenêtre est vide.
-     Il faut alors lâcher quelque chose. Ce qui se lâche est le chevauchement de
-     SES PROPRES cartes : un tas posé sur la main de son propriétaire reste
-     attribuable sans hésiter, un tas parti de côté chez le voisin ne l'est
-     plus. C'est l'arbitrage déjà retenu pour la main du Hero en 1T ; il vaut
-     pour tous les sièges dès lors que la place n'existe pas.
-     Ce qui ne se lâche JAMAIS : le board, le pot, et l attribution. */
-  for (let l = lWish; l <= lMax + 1e-6; l += step) if (ok(l, bias, true)) return emit(l, bias, "surSesCartes");
-  for (let l = lWish - step; l >= 12; l -= step) if (ok(l, bias, true)) return emit(l, bias, "surSesCartes");
+  /* 2) L'AXE PUR EST BOUCHÉ — IL FAUT PERDRE QUELQUE CHOSE ────────────────
+     Deux façons d'en sortir, et ce sont deux défauts :
+       • S'ÉCARTER du segment siège→pot. Le tas cesse peu à peu de se lire comme
+         « la mise de ce joueur » et se met à flotter à côté de lui.
+       • MORDRE SES PROPRES CARTES en restant sur l'axe. Le tas reste attribuable
+         sans hésiter, mais il recouvre la main de son propriétaire.
 
-  // 2) l'axe est bouché de bout en bout (Hero et siège haut-centre : le board
-  //    barre la route, leurs propres cartes aussi) → POCHE LATÉRALE, du strict
-  //    minimum, bornée par l'écart au voisin.
-  /* ── LA POCHE COMMENCE PETITE, PAS À SA VALEUR MAXIMALE ──────────────────
-     Elle démarrait à `needSide` — l'écart qu'il faut pour CONTOURNER le bloc du
-     joueur. Or ce besoin ne s'applique qu'aux points proches du joueur (c'est
-     la première ligne de `ok`) : passé `needAlong`, un écart de quelques pixels
-     suffit à dégager la bande centrale. En partant de needSide on sautait
-     directement à ~43 px de côté sur un feutre de 261 px de haut, là où 8
-     auraient suffi. Mesuré en 3T sur un siège de flanc : 41.7° d'écart pour un
-     placement qui en admettait 17.
-     On balaie donc du plus petit écart au plus grand, et on s'arrête au premier
-     qui passe : l'écart reste un coût, jamais un but. */
+     Ces deux pertes étaient traitées par un ORDRE FIXE, et aucun ordre fixe ne
+     peut être juste : laquelle coûte le moins cher dépend du mode.
+       — ordre d'origine (mordre d'abord) : le mode « poche » ne sortait JAMAIS.
+         Mesuré au navigateur en 1T, le badge couvrait 38 à 64 % de la surface
+         des cartes de son joueur, Hero comme vilains — alors que le commentaire
+         d'origine annonçait « mordre le BORD » de la main.
+       — ordre inverse (s'écarter d'abord) : régression immédiate en mosaïque.
+         Mesuré à l'audit des mises en 4T, l'écart angulaire moyen passe de 3.8°
+         à 31.9°, 10 mises sur 22 au-delà de 35°, attribution de 1.47 à 1.22. En
+         4T les cartes sont minuscules : les mordre ne se voit pas, s'écarter se
+         voit tout de suite. En 1T c'est l'inverse.
+
+     On ne choisit donc plus un ORDRE, on compare un COÛT. Les deux pertes sont
+     ramenées à la fraction du budget qu'elles consomment — la part des cartes
+     recouverte d'un côté, la part de l'écart lisible de l'autre — et on garde le
+     point le moins cher. Le comportement par mode s'en déduit tout seul, sans
+     qu'aucun seuil n'ait à nommer « 1T » ou « 4T ».
+
+     Ce qui ne se lâche JAMAIS, dans tous les cas : le board, le pot, et
+     l'attribution — ils restent dans `ok`, qui n'est pas assoupli ici. */
   const pasOff = Math.max(4, maxOff * 0.08);
+  /* 35° est le seuil de lisibilité déjà retenu ailleurs dans le projet : c'est
+     celui du contrôle de flanc (test de géométrie) et celui du compteur
+     `misesHorsAxe35` de l'audit des mises. Au-delà, un tas ne se lit plus. */
+  /* Ce plafond vaut pour TOUS les sièges, Hero compris. Essayé et rejeté : le
+     lever à 65° pour les sièges de l'axe vertical (Hero bas-centre) libérait
+     bien une poche propre à côté de sa main, mais violait le contrat de l'audit
+     de géométrie — « aucune mise au-delà de 35° » en 1T, que l'origine respecte
+     (0 sur 13) et que la poche large cassait (9 sur 16), avec en prime des
+     collisions mise↔blinde et mise↔mise chez les voisins. Le projet a tranché :
+     chevaucher SES cartes se lit sans ambiguïté, une mise partie de côté non.
+     Le Hero mord donc sa main quand il le faut — mais le moins possible, grâce
+     au poids double de ses cartes dans le coût (cf. POIDS_CARTES). */
+  const POCHE_DEG_LISIBLE = 35;
+  const devDeg = (l, off) => Math.atan2(off, Math.max(1, l)) * 180 / Math.PI;
+  /* L'écart se paie au CARRÉ. Linéaire, il mettait 18° d'écart au prix de 51 %
+     de cartes recouvertes — or à l'écran un écart de 18° se remarque à peine,
+     une main à moitié cachée saute aux yeux. Au carré, les petits écarts
+     deviennent presque gratuits (18° → 0.26) et les grands restent chers
+     (30° → 0.73, 35° → 1) : on s'écarte volontiers d'un cran, jamais au point
+     de ne plus savoir à qui est la mise. */
+  const cout = (l, off) => coutSiege(l, off) + (devDeg(l, off) / POCHE_DEG_LISIBLE) ** 2;
+
+  let choix = null, coutChoix = Infinity;
+  const essaie = (l, off) => {
+    if (devDeg(l, off) > POCHE_DEG_LISIBLE) return;
+    if (!ok(l, off, true)) return;
+    const c = cout(l, off);
+    if (c < coutChoix) { coutChoix = c; choix = { l, off }; }
+  };
+  for (let off = bias; off <= maxOff + 1e-6; off += pasOff) {
+    for (let l = lWish; l <= lMax + 1e-6; l += step) essaie(l, off);
+    for (let l = lWish - step; l >= 12; l -= step) essaie(l, off);
+    /* Un écart plus grand ne peut plus rien rapporter dès que le terme angulaire
+       seul dépasse le meilleur coût déjà trouvé. */
+    if ((devDeg(lMax, off) / POCHE_DEG_LISIBLE) ** 2 > coutChoix) break;
+  }
+  if (choix) return emit(choix.l, choix.off, coutSiege(choix.l, choix.off) > 0 ? "surSesCartes" : choix.off > bias ? "poche" : "recule");
+
+  /* 2 bis) Rien ne passe sous le plafond de lisibilité : on rouvre la poche
+     SANS plafond angulaire. Un tas très écarté se lit mal, mais il reste
+     attribuable (`ok` vérifie toujours §43) — et c'est préférable au repli
+     final, qui lui accepte de mordre la bande centrale. */
   for (let off = Math.max(pasOff, bias); off <= maxOff + 1e-6; off += pasOff) {
     for (let l = lWish; l >= 12; l -= step) if (ok(l, off)) return emit(l, off, "poche");
     for (let l = lWish + step; l <= lMax + 1e-6; l += step) if (ok(l, off)) return emit(l, off, "poche");
   }
+
   /* 3) Rien ne dégage à la fois le bloc du joueur et la bande centrale (cas du
         Hero en 1T : ses cartes ouvertes sont plus larges que la poche que
         l'attribution autorise). On garde alors ce qui EST négociable — le
@@ -746,18 +860,36 @@ export function trainerMarkerPoint({
     const h = Math.min(p.y + halfPct.h, zone.yMax) - Math.max(p.y - halfPct.h, zone.yMin);
     return w > 0 && h > 0 ? w * h : 0;
   };
-  let best = 0, pire = Infinity;
+  /* ── À MORSURE CENTRALE ÉGALE, ON REGARDE ENCORE LES CARTES ──────────────
+     Ce balayage s'arrêtait au PREMIER écart qui dégageait la bande centrale
+     (`if (m === 0) break`). Plusieurs écarts la dégagent pourtant, et ils ne se
+     valent pas : mesuré au navigateur en 1T, le premier venu posait le tas sur
+     83 à 99 % de la surface des cartes de son joueur.
+     Le critère devient donc lexicographique — le board et le pot d'abord, ce
+     qui ne change rien à leur priorité, puis les cartes pour départager. On ne
+     s'arrête plus tôt : on balaie jusqu'au bout des écarts attribuables. */
+  /* Départage : le board et le pot d'abord, puis le bloc du joueur — avatar compris. */
+  let best = 0, bestL = l3, pire = Infinity, pireCartes = Infinity;
+  /* On balaie l'écart ET la profondeur. Ce repli ne bougeait que l'écart, à
+     profondeur figée : sur une table serrée (9-max), aucun écart n'est
+     disponible et le tas restait donc posé au même endroit, quoi qu'il
+     recouvre. Mesuré en 9-max : 51 % de la surface des cartes en médiane.
+     Reculer ou avancer le long de l'axe est justement ce qui reste possible
+     quand la largeur manque. Critère inchangé et lexicographique : le board et
+     le pot d'abord, les cartes pour départager. */
   for (let off = 0; off <= maxOff; off += Math.max(2, maxOff * 0.05)) {
-    if (attribution(l3, off) < MARKER_MIN_ATTRIBUTION) break;
-    const m = morsure(l3, off);
-    if (m < pire) { pire = m; best = off; }
-    if (m === 0) break;                 // rien de mieux à espérer
+    for (let l = Math.max(12, l3 * 0.5); l <= lMax + 1e-6; l += step) {
+      if (attribution(l, off) < MARKER_MIN_ATTRIBUTION) continue;
+      const m = morsure(l, off);
+      const c = coutSiege(l, off);
+      if (m < pire || (m === pire && c < pireCartes)) { pire = m; pireCartes = c; best = off; bestL = l; }
+    }
   }
   /* Si même l'axe pur (off = 0) n'est pas attribuable, c'est que la profondeur
      souhaitée emmène le tas trop loin du joueur : on le RAPPROCHE de lui jusqu'à
      ce qu'il redevienne le sien. Mieux vaut un tas collé à son joueur qu'un tas
      qu'on ne sait pas à qui attribuer (§43). */
-  let l4 = l3;
+  let l4 = bestL;
   while (l4 > 14 && attribution(l4, best) < MARKER_MIN_ATTRIBUTION) l4 -= Math.max(3, l3 * 0.06);
   return emit(Math.max(14, l4), best, "contraint");
 }
