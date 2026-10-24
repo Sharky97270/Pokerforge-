@@ -624,7 +624,12 @@ const TEMPLATE_BUILDERS = {
   "bb-checkraise-flop": (t, r, rnd) => postflopSpot(t, r, rnd, "Flop", true, "checkraise"),
   "threebet-pot-cbet-flop": (t, r, rnd) => postflopSpot({ ...t, formats: ["Cash 6-max"], stackDepths: [60, 80, 100] }, r, rnd, "Flop", false, "cbet"),
   "turn-barrel": (t, r, rnd) => postflopSpot(t, r, rnd, "Turn", false, "barrel"),
-  "probe-turn": (t, r, rnd) => postflopSpot(t, { ...r, heroPosition: "BB", villainPosition: "BTN" }, rnd, "Turn", false, "probe"),
+  /* Positions par DÉFAUT du template, jamais imposées : un filtre de position
+     demandé (« CO vs HJ ») doit l'emporter, comme pour tous les autres builders.
+     Avant, ce gabarit écrasait la demande — environ 4 % des spots tirés sous
+     filtre sortaient avec Hero=BB, ce qui rendait instable le test
+     `test-preflop-line.mjs` (« un filtre de position garde la position de Hero »). */
+  "probe-turn": (t, r, rnd) => postflopSpot(t, { ...r, heroPosition: r.heroPosition || "BB", villainPosition: r.villainPosition || "BTN" }, rnd, "Turn", false, "probe"),
   "river-bluffcatch": (t, r, rnd) => postflopSpot(t, r, rnd, "River", true, "bluffcatch"),
   "river-overbet": (t, r, rnd) => postflopSpot(t, r, rnd, "River", false, "overbet"),
   "all-in-river": (t, r, rnd) => postflopSpot(t, r, rnd, "River", false, "overbet"),
