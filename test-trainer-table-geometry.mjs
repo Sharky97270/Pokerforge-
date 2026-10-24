@@ -13,7 +13,7 @@ import assert from "node:assert";
 import {
   TRAINER_FELT_ASPECT, trainerZoneAspect, trainerMarkerPoint, trainerDealerPoint,
   trainerCentreZonePct, trainerCentralExclusionZone, trainerBoardSizePx, trainerCorridorPx, trainerPotSizePx,
-  pointInsideZone, feltPctToZonePct, zonePctToFeltPct, feltHeightPx, MARKER_MIN_ATTRIBUTION,
+  pointInsideZone, feltPctToZonePct, zonePctToFeltPct, feltHeightPx, MARKER_MIN_ATTRIBUTION, seatCardsBoxPx,
 } from "./src/trainerTableGeometry.js";
 import { trainerTableGeometry } from "./src/trainerVisualConfig.js";
 import { trainerSeatBlockPx, trainerBoardCardHeight } from "./src/trainerDensity.js";
@@ -405,9 +405,22 @@ for (const m of modes) {
          de géométrie au navigateur (misesHorsAxe35 = 0 en 1T). Le Hero n'y fait
          pas exception : quand la place manque, il mord sa propre main plutôt
          que d'envoyer sa mise de côté. */
-      const plafond = 35;
+      /* EXCEPTION (1T) : un siège isolé — le Hero en bas-centre, le siège du
+         haut-centre — dont l'axe est bouché de bout en bout ne mord plus sa main :
+         son tas se pose à côté du bloc (mode « poche »), jusqu'à 88° de l'axe,
+         parce que ses voisins sont à ~200 px+ et que l'attribution (≥ 1.2) reste
+         vérifiée. L'ancien arbitrage (« chevaucher SES cartes se lit sans
+         ambiguïté ») laissait la blinde du BB peinte sur sa propre main. */
+      const poche = m === 1 && p.mode === "poche" && p.deviationDeg > 35;
+      const plafond = poche ? 88 : 35;
       ok(p.deviationDeg <= plafond,
         `${m}T/${pos} : le badge reste lisible — écart ${p.deviationDeg}° (plafond ${plafond}°)`);
+      if (poche) {
+        const sxP = seats[pos].x * area.areaW / 100, bxP = p.x * area.areaW / 100;
+        const cartesP = seatCardsBoxPx(m, pos === hero, false, pos === hero ? 71 : 56);
+        ok(Math.abs(bxP - sxP) >= cartesP.w / 2 + 20,
+          `${m}T/${pos} : écarté de ${Math.round(plafond === 88 ? p.deviationDeg : 0)}°, le badge dégage bien la main de son joueur (à ${Math.round(Math.abs(bxP - sxP))} px de l'axe pour ${Math.round(cartesP.w / 2)} px de demi-main)`);
+      }
       /* Recouvrement du bloc de cartes, en part de sa surface. */
       const blk = trainerSeatBlockPx(m, { hero: pos === hero, opts: {}, avatarPx: pos === hero ? 71 : 56 });
       const seat = seats[pos];
