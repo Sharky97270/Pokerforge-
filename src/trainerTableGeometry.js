@@ -1020,7 +1020,16 @@ export function trainerDealerPoint({
    info-bulles ET les modales, et créerait le conflit suivant.
 
    Ordre, du fond vers la surface :
-     feutre → board → pot → mise → siège → bouton dealer → survol → modale
+     feutre → board → pot → siège → mise → bouton dealer → survol → modale
+
+   LA MISE PASSE DEVANT LES SIÈGES. Elle était derrière (18 contre 20) : quand
+   un tas ne pouvait pas éviter la grappe de son joueur — sièges de coin, 9-max,
+   où le placement n'a pas de poche propre —, ses cartes et son portrait
+   recouvraient le montant. Mesuré à l'écran : « 2.5bb » du BTN coupé sous ses
+   propres dos de cartes sur 10 mains sur 20. Un montant lisible sur des dos de
+   cartes vaut mieux qu'un montant caché ; le placement continue de chercher la
+   place propre en premier (cf. `trainerMarkerPoint`), l'empilement ne sert que
+   de filet quand elle n'existe pas.
 
    Le bouton dealer passe DEVANT la mise : les deux vivent sur le même
    segment siège→pot (cf. MARKER_TRAVEL) et, quand la place manque, c'est
@@ -1034,8 +1043,8 @@ export const TABLE_Z = {
   felt: 0,        // feutre + anneau doré : le fond
   board: 6,       // cartes communes
   pot: 7,         // lecture du pot, juste au-dessus du board
-  bet: 18,        // tas de jetons d'un siège (.pf-seat-action-zone)
   seat: 20,       // grappe de siège (cartes ▸ avatar ▸ plaque)
+  bet: 22,        // tas de jetons d'un siège (.pf-seat-action-zone) — DEVANT les sièges
   dealer: 25,     // bouton D — devant la mise, cf. ci-dessus
   hover: 200,     // info-bulle de survol (profil vilain…)
   modal: 2500,    // plein écran : ranges, solution
