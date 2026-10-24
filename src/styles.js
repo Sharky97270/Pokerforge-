@@ -524,8 +524,8 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
    un nombre invente sur place — c est ainsi qu on finit avec « z-index:9999 »
    et un conflit de plus. */
 :root{
-  --pf-z-felt:0;--pf-z-board:6;--pf-z-pot:7;--pf-z-bet:18;
-  --pf-z-seat:20;--pf-z-dealer:25;--pf-z-hover:200;--pf-z-modal:2500;
+  --pf-z-felt:0;--pf-z-board:6;--pf-z-pot:7;--pf-z-seat:20;
+  --pf-z-bet:22;--pf-z-dealer:25;--pf-z-hover:200;--pf-z-modal:2500;
 }
 :root{
   --pf-bg-900:#0B1626;--pf-bg-800:#0F1F3A;--pf-blue-700:#132B4D;--pf-blue-600:#1E3A66;
@@ -5142,7 +5142,7 @@ body.pf-contrast .mtr-prog-track{background:#142A5E;}
 }
 .pf-blind-stack.compact{transform:scale(.78)!important;transform-origin:center!important;}
 .pf-seat-action-zone{
-  position:absolute!important;transform:translate(-50%,-50%)!important;z-index:var(--pf-z-bet,18)!important;pointer-events:none!important;
+  position:absolute!important;transform:translate(-50%,-50%)!important;z-index:var(--pf-z-bet,22)!important;pointer-events:none!important;
   display:flex!important;align-items:center!important;justify-content:center!important;
 }
 .pf-player-seat{position:absolute!important;display:flex!important;flex-direction:column!important;align-items:center!important;contain:layout style!important;}

@@ -352,7 +352,7 @@ for (const sc of SCENARIOS) {
   ok(Object.keys(TABLE_Z).length >= 8, "l'échelle couvre au moins 8 couches de table");
 
   // Ordre : du fond vers la surface, strictement croissant.
-  const attendu = ["felt", "board", "pot", "bet", "seat", "dealer", "hover", "modal"];
+  const attendu = ["felt", "board", "pot", "seat", "bet", "dealer", "hover", "modal"];
   ok(attendu.every(k => k in TABLE_Z), "toutes les couches nommées existent dans TABLE_Z");
   const vals = attendu.map(k => TABLE_Z[k]);
   ok(vals.every((v, i) => i === 0 || v > vals[i - 1]),
@@ -363,6 +363,10 @@ for (const sc of SCENARIOS) {
   ok(TABLE_Z.dealer > TABLE_Z.bet, "le bouton dealer est devant la mise");
   ok(TABLE_Z.pot > TABLE_Z.board, "le pot est devant le board");
   ok(TABLE_Z.seat > TABLE_Z.pot, "le siège est devant le pot");
+  /* La mise est DEVANT le siège : quand le placement n'a pas de poche propre
+     (sièges de coin, 9-max), un montant doit rester lisible sur les dos de
+     cartes de son joueur, pas disparaître dessous. */
+  ok(TABLE_Z.bet > TABLE_Z.seat, "la mise est devant les sièges (montant jamais caché par la main de son joueur)");
   ok(TABLE_Z.modal > TABLE_Z.hover, "une modale couvre les info-bulles");
 
   // Le CSS déclare EXACTEMENT les mêmes valeurs.
