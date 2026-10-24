@@ -483,7 +483,7 @@ export function betBadgeMaxWidthPx(numTables = 1, feltW = 0) {
 
 /* Encombrement de la PAIRE de cartes d un siège, dérivé du bloc vertical : une
    seule description du siège sert au choix de l axe ET au dégagement. */
-function seatCardsBoxPx(numTables, hero, tight, avatarPx) {
+export function seatCardsBoxPx(numTables, hero, tight, avatarPx) {
   const b = trainerSeatBlockPx(numTables, { hero, opts: { tight }, avatarPx });
   const d = trainerDensity(numTables, { tight });
   const z = d.seatZoom || 1;
@@ -715,10 +715,10 @@ export function trainerMarkerPoint({
      du joueur est derrière) ou S'ÉCARTER (le board est devant). On balaie donc
      le plan (l, écart) et on garde le point le PLUS AXIAL — l'écart est un coût,
      jamais un but. */
-  const ok = (l, off, tolereSonBloc = false) => {
+  const ok = (l, off, tolereSonBloc = false, attributionMin = MARKER_MIN_ATTRIBUTION) => {
     if (!tolereSonBloc && coutSiege(l, off) > 0) return false;  // dans son propre bloc (rectangles d'écran)
     if (l > lMax) return false;                                     // sur le pot
-    if (attribution(l, off) < MARKER_MIN_ATTRIBUTION) return false; // chez le voisin (§43)
+    if (attribution(l, off) < attributionMin) return false;         // chez le voisin (§43)
     const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
     // Objets à ne pas recouvrir qui ne sont ni le board, ni le pot, ni un siège :
     // en pratique le tas de mise, dont le bouton D doit rester distinct (§29).
@@ -803,6 +803,12 @@ export function trainerMarkerPoint({
      Le Hero mord donc sa main quand il le faut — mais le moins possible, grâce
      au poids double de ses cartes dans le coût (cf. POIDS_CARTES). */
   const POCHE_DEG_LISIBLE = 35;
+  const HERO_POCHE_DEG_MAX = 88;
+  /* Attribution exigée d'un siège isolé (1.2 au lieu de 1.3) : à côté de son
+     avatar, le tas reste nettement plus proche de LUI que de tout voisin (mesuré
+     1.38 pour la blinde, 1.28 pour un badge de mise à 1366×768) ; 1.3 ne laissait
+     que la morsure. */
+  const SIEGE_ISOLE_ATTRIBUTION_MIN = 1.2;
   const devDeg = (l, off) => Math.atan2(off, Math.max(1, l)) * 180 / Math.PI;
   /* L'écart se paie au CARRÉ. Linéaire, il mettait 18° d'écart au prix de 51 %
      de cartes recouvertes — or à l'écran un écart de 18° se remarque à peine,
@@ -811,6 +817,73 @@ export function trainerMarkerPoint({
      (30° → 0.73, 35° → 1) : on s'écarte volontiers d'un cran, jamais au point
      de ne plus savoir à qui est la mise. */
   const cout = (l, off) => coutSiege(l, off) + (devDeg(l, off) / POCHE_DEG_LISIBLE) ** 2;
+
+  /* ── LE HERO NE MORD PLUS SA MAIN, EN 1T (§17) ───────────────────────────
+     L'arbitrage précédent (« chevaucher SES cartes se lit sans ambiguïté »)
+     coûtait cher à l'écran : la blinde ou la mise du Hero est peinte SUR sa
+     propre main, qui est la seule information qu'on doit lire (BB, 1366×1901 :
+     1222 px² de recouvrement, systématique). Les cartes du Hero sont énormes ;
+     l'axe est bouché de bout en bout, et le plafond de 35° ne laissait que la
+     morsure.
+
+     Pour le Hero seul — il est seul en bas-centre, ses voisins sont à 250 px, il
+     n'y a donc aucune ambiguïté d'attribution même à grand écart — on cherche
+     d'abord une poche qui dégage ses cartes ET son portrait (`ok` sans
+     `tolereSonBloc`, attribution et bande centrale toujours exigées), jusqu'à
+     `HERO_POCHE_DEG_MAX`. Ce n'est qu'à défaut que le coût ci-dessous reprend la
+     main. Les vilains, eux, gardent le plafond de 35° : à leur échelle, un tas
+     écarté se lit comme celui d'un voisin. */
+  const siegeIsole = estHero || blockAxis === "down" || blockAxis === "up";
+  if (siegeIsole && numTables === 1 && !isMobile) {
+    /* Une poche qui dégage la main du Hero ne doit pas tomber sur le tas d'un
+       VOISIN : mesuré, la blinde du BB poussée à droite mordait de 2 px la mise
+       de la SB (59 px²). On ne connaît pas encore le placement final des
+       voisins, mais il est presque toujours axial (leur tas file droit vers le
+       pot) — on le prévoit donc au même point, à la taille d'un badge de mise,
+       et on exige une marge de 4 px. */
+    const voisinsPrevus = [];
+    for (const [p, s] of Object.entries(seats)) {
+      if (p === pos || !s) continue;
+      const ox = s.x * area.w / 100, oy = s.y * area.h / 100;
+      const Dv = Math.hypot(tx - ox, ty - oy);
+      if (!(Dv > 0)) continue;
+      const lv = MARKER_TRAVEL.BET * Dv;
+      voisinsPrevus.push({ x: ox + (tx - ox) / Dv * lv, y: oy + (ty - oy) / Dv * lv, hw: (betMaxW / 2) * k, hh: MARKER_HALF_PX.BET.h * k });
+    }
+    /* Le BLOC des voisins compte autant que leur tas : en 9-max la poche du BB
+       tombait sur les cartes de la SB (785 px² mesurés). On décrit leur main
+       comme le fait le rendu — paire posée du côté de leur axe, portrait au
+       centre — en un rectangle d'écran qui couvre les deux. */
+    const blocsVoisins = [];
+    for (const [p, s] of Object.entries(seats)) {
+      if (p === pos || !s) continue;
+      const ox = s.x * area.w / 100, oy = s.y * area.h / 100;
+      const cartesV = seatCardsBoxPx(numTables, false, tight, avatarPx);
+      const axeV = seatAxisClear({
+        seat: s, centre: { x: centre.x, y: centre.potY }, area,
+        forbidden: trainerCentralExclusionZone({ ...centreOpts, hasBoard: true }),
+        cardsPx: cartesV, avatarPx: avatarPx || 40,
+      });
+      const bV = trainerSeatBlockPx(numTables, { hero: false, opts: { tight }, avatarPx, axis: axeV });
+      const horiz = axeV === "left" || axeV === "right";
+      const sens = axeV === "left" || axeV === "up" ? -1 : 1;
+      const r = (avatarPx || 40) / 2;
+      const travers = Math.max(horiz ? cartesV.h : cartesV.w, 2 * r) / 2;
+      const prof = bV.towardPot;
+      blocsVoisins.push(horiz
+        ? { x0: Math.min(ox - r, ox + sens * prof), x1: Math.max(ox + r, ox + sens * prof), y0: oy - travers, y1: oy + travers }
+        : { x0: ox - travers, x1: ox + travers, y0: Math.min(oy - r, oy + sens * prof), y1: Math.max(oy + r, oy + sens * prof) });
+    }
+    const libreDesVoisins = (l, off) => {
+      const px = sx + dir.x * l + perp.x * off * side, py = sy + dir.y * l + perp.y * off * side;
+      if (voisinsPrevus.some(v => Math.abs(px - v.x) < halfW + v.hw + 6 && Math.abs(py - v.y) < halfH + v.hh + 6)) return false;
+      return !blocsVoisins.some(r => px + halfW + 3 > r.x0 && px - halfW - 3 < r.x1 && py + halfH + 3 > r.y0 && py - halfH - 3 < r.y1);
+    };
+    for (let off = Math.max(pasOff, bias); off <= maxOff + 1e-6; off += pasOff) {
+      for (let l = lWish; l >= 0; l -= step) if (devDeg(l, off) <= HERO_POCHE_DEG_MAX && ok(l, off, false, SIEGE_ISOLE_ATTRIBUTION_MIN) && libreDesVoisins(l, off)) return emit(l, off, "poche");
+      for (let l = lWish + step; l <= lMax + 1e-6; l += step) if (devDeg(l, off) <= HERO_POCHE_DEG_MAX && ok(l, off, false, SIEGE_ISOLE_ATTRIBUTION_MIN) && libreDesVoisins(l, off)) return emit(l, off, "poche");
+    }
+  }
 
   let choix = null, coutChoix = Infinity;
   const essaie = (l, off) => {
