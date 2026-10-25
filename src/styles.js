@@ -1425,8 +1425,15 @@ button,select,input,textarea{font-family:'Inter',sans-serif;}
 
 /* ─── ERROR TOAST ───────────────────────────────────── */
 @keyframes toastIn{0%{transform:translateX(120%);opacity:0;}10%{transform:translateX(0);opacity:1;}85%{transform:translateX(0);opacity:1;}100%{transform:translateX(120%);opacity:0;}}
+/* Bureau : le toast se pose en BAS, centré sur la fenêtre. Il était à top:70px /
+   right:16px, soit exactement sur la rangée « Coach AI · Arrêter » du Trainer
+   (capture 1901×903 : les deux boutons masqués pendant 3 s) ; la colonne de
+   droite porte « Main suivante » en bas, le haut porte la barre d'outils — le
+   bas-centre est la seule bande libre (sous les raccourcis clavier, au-dessus
+   de la barre d'historique) en 1T, de 768 à 1080 px de haut. Le mobile garde son
+   propre emplacement (cf. @media plus bas). */
 .error-toast{
-  position:fixed;top:70px;right:16px;z-index:100;
+  position:fixed;top:auto;bottom:56px;left:0;right:0;margin:0 auto;width:max-content;z-index:100;
   background:rgba(255,69,96,.95);color:#fff;
   padding:10px 16px;border-radius:10px;
   font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
@@ -2105,7 +2112,7 @@ body:has(.pf-mt-sharedcol) .cai-fab,body:has(.pf-mt-sharedcol) .cai-fab-panel{di
   .lib-grid{grid-template-columns:1fr!important;}
 
   /* Errors toast */
-  .error-toast{top:56px;right:10px;left:10px;font-size:11px;padding:9px 12px;}
+  .error-toast{top:56px;bottom:auto;right:10px;left:10px;width:auto;margin:0;font-size:11px;padding:9px 12px;}
 }
 
 /* ─── SMALL PHONES (≤480px) ─────────────────────────── */

@@ -3,7 +3,7 @@
    plus atteindre l'écran, SANS perdre les décimales qui, elles, disent quelque
    chose (« 1.5bb », « 0.25bb »).
    Lancement : node test-format-numbers.mjs                                    */
-import { fmtNum, fmtBb, fmtSpr, roundBb } from "./src/utils/format.js";
+import { fmtNum, fmtBb, fmtSpr, roundBb, coherentTableFormat } from "./src/utils/format.js";
 
 let passed = 0, failed = 0;
 function ok(c, m){ if(c) passed++; else { failed++; console.error("  ✗ " + m); } }
@@ -58,6 +58,17 @@ section("Compatibilité roundBb");
 ok(typeof roundBb(1.04) === "number", "roundBb renvoie un nombre");
 eq(String(roundBb(1.04)), "1", "roundBb(1.04) s'affiche « 1 »");
 eq(String(roundBb(1.06)), "1.1", "roundBb(1.06) s'affiche « 1.1 »");
+
+/* ── Le format cash décrit la table qu'on voit ── */
+section("Format cash cohérent avec la taille de table");
+eq(coherentTableFormat("Cash 9-max", 6), "Cash 6-max", "table à 6 : « Cash 9-max » devient « Cash 6-max » (capture 1901×903)");
+eq(coherentTableFormat("Cash 6-max", 9), "Cash 9-max", "table à 9 : « Cash 6-max » devient « Cash 9-max »");
+eq(coherentTableFormat("Cash 6-max", 2), "Cash 6-max", "heads-up : reste « Cash 6-max »");
+eq(coherentTableFormat("Cash 9-max", 7), "Cash 9-max", "7 joueurs : « Cash 9-max »");
+eq(coherentTableFormat("MTT ICM", 6), "MTT ICM", "un MTT n'a pas de -max : inchangé");
+eq(coherentTableFormat("Spin & Go", 3), "Spin & Go", "Spin & Go : inchangé");
+eq(coherentTableFormat("Cash 9-max", undefined), "Cash 9-max", "taille inconnue : libellé rendu tel quel");
+eq(coherentTableFormat(undefined, 6), undefined, "format absent : pas de format inventé");
 
 console.log(`\n${failed ? "❌" : "✅"} format des nombres — ${passed} assertions OK, ${failed} échec(s)`);
 process.exit(failed ? 1 : 0);

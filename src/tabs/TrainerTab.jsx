@@ -3,7 +3,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallba
 import { createPortal } from "react-dom";
 import { T } from "../theme.js";
 import { useIsMobile, useMaxWidth, vibrate, VIB } from "../utils/ui.js";
-import { roundBb, shuffle, fmtNum, fmtSpr } from "../utils/format.js";
+import { roundBb, shuffle, fmtNum, fmtSpr, coherentTableFormat } from "../utils/format.js";
 import { loadStats, saveStats, saveStatsSafe, loadHistory } from "../stats.js";
 import { SPOTS, POKER_EVENTS, POSITIONS_BY_SIZE } from "../data/content.js";
 import { Card, CardBack, HeroHoleCards, VillainBackCards } from "../components/table/Cards.jsx";
@@ -2608,7 +2608,7 @@ function buildQ(f,mode,opts={}){
   // positions (l'AI queue peut en produire hors-format), puis stamper nplayers → le rendu
   // hero-centric affiche le bon nombre de sièges et le héros est toujours présent.
   const fitsSize=s=>{if(!s)return false;if(!f.nplayers||!POSITIONS_BY_SIZE[f.nplayers])return true;const p=POSITIONS_BY_SIZE[f.nplayers];return p.includes(s.hpos)&&(!s.vpos||p.includes(s.vpos));};
-  const stampNplayers=arr=>{if(f.nplayers)arr.forEach(s=>{if(s)s.nplayers=f.nplayers;});return arr;};
+  const stampNplayers=arr=>{if(f.nplayers)arr.forEach(s=>{if(s){s.nplayers=f.nplayers;s.fmt=coherentTableFormat(s.fmt,f.nplayers);}});return arr;};
   const fitAi=aiQueue.filter(fitsSize);
   if(fitAi.length)return stampNplayers(fitAi.slice(0,lim));
   const fitPool=pool.filter(fitsSize);
