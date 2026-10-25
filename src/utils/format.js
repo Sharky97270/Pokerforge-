@@ -45,3 +45,20 @@ export function fmtSpr(stack, pot){
 }
 
 export function shuffle(a){return [...a].sort(()=>Math.random()-.5);}
+
+/* ══════════════════════════════════════════════════════════════════
+   LE FORMAT DIT LA TAILLE DE TABLE QU'ON VOIT
+
+   `spot.fmt` est tiré au sort dans la liste des formats (« Cash 6-max »,
+   « Cash 9-max »…) INDÉPENDAMMENT de la structure de table choisie : une
+   session 6 joueurs affichait « Cash 9-max » au-dessus d'une table de six
+   sièges (relevé écran, 1901×903). Le « -max » d'un format cash n'a de sens
+   que s'il décrit la table peinte ; on le ramène donc à elle.
+   Seuls les formats « Cash N-max » sont touchés — MTT, Spin & Go… n'ont pas de
+   taille de table dans leur nom. Taille inconnue : le libellé est rendu tel quel.
+   ══════════════════════════════════════════════════════════════════ */
+export function coherentTableFormat(fmt, nplayers){
+  const n = Number(nplayers);
+  if(typeof fmt !== "string" || !/^Cash \d+-max$/i.test(fmt) || !Number.isInteger(n) || n < 2) return fmt;
+  return n <= 6 ? "Cash 6-max" : "Cash 9-max";
+}

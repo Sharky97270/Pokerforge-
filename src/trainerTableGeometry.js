@@ -724,7 +724,17 @@ export function trainerMarkerPoint({
     // en pratique le tas de mise, dont le bouton D doit rester distinct (§29).
     if (avoid) for (const a of avoid) {
       if (!a) continue;
-      if (Math.hypot(px - a.x * area.w / 100, py - a.y * area.h / 100) < (a.minPx || 0)) return false;
+      const ax = a.x * area.w / 100, ay = a.y * area.h / 100;
+      /* Un obstacle LARGE se décrit par sa boîte (`hw`/`hh`, demi-taille en px) :
+         le tas de mise d'un joueur fait ~100 px de large (jeton + montant), et
+         un test de DISTANCE entre centres à 26 px laissait le bouton D se poser
+         sur le jeton lui-même dès que le tas est écarté sur le côté (relevé
+         écran 1901×903 : D sur le jeton de « Check 2bb » du Hero). */
+      if (a.hw != null && a.hh != null) {
+        if (Math.abs(px - ax) < halfW + a.hw + 2 && Math.abs(py - ay) < halfH + a.hh + 2) return false;
+        continue;
+      }
+      if (Math.hypot(px - ax, py - ay) < (a.minPx || 0)) return false;
     }
     /* La BOÎTE du marqueur, pas son centre : un badge de 104 px de large peut
        avoir son centre hors zone et la moitié de son corps sur le board. */
@@ -1001,9 +1011,14 @@ export function trainerDealerPoint({
      haut-centre en 1T) ou sur le tas (2T, 3.9 px d'écart mesurés). */
   const k = trainerMarkerClearance(numTables, "DEALER");
   const sideBiasPx = DEALER_SIDE_PX * (trainerDealerAngleOffset(numTables) / 0.20) * k;
+  /* Boîte du tas de mise, à la taille du badge le plus large du mode : le bouton
+     s'en écarte comme d'un RECTANGLE, pas comme d'un point. */
+  const kBet = trainerMarkerClearance(numTables, "BET");
+  const betHW = (betBadgeMaxWidthPx(numTables, feltWidthPxOf(area, geometry, numTables)) / 2) * kBet;
+  const betHH = MARKER_HALF_PX.BET.h * kBet;
   return trainerMarkerPoint({
     ...common, markerType: "DEALER", sideBiasPx, hugSeat: true,
-    avoid: bet ? [{ x: bet.x, y: bet.y, minPx: 26 * k }] : null,
+    avoid: bet ? [{ x: bet.x, y: bet.y, minPx: 26 * k, hw: betHW, hh: betHH }] : null,
   });
 }
 
